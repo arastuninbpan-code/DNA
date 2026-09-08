@@ -838,15 +838,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-edit-note {font-size:13px;line-height:1.5;color:rgba(255,255,255,.54);}
 .habit-card:focus-visible {outline:2px solid var(--gold);outline-offset:2px;}
 /* Habit row actions: reveal only, never destructive full-swipe. */
-.habit-swipe {position:relative;overflow:hidden;border-radius:12px;margin-bottom:8px;isolation:isolate;}
+.habit-swipe {position:relative;overflow:hidden;border-radius:12px;margin-bottom:8px;isolation:isolate;touch-action:pan-y pinch-zoom;}
 .habit-swipe>.habit-card {position:relative;z-index:1;margin:0;background:var(--surface);touch-action:pan-y pinch-zoom;transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s;}
 .habit-swipe.is-dragging>.habit-card {transition:none;will-change:transform;}
-.habit-swipe-actions {position:absolute;inset:0 0 0 auto;width:calc(100% - 8px);max-width:144px;display:grid;grid-template-columns:1fr 1fr;gap:4px;opacity:0;pointer-events:none;transition:opacity .16s;}
+.habit-swipe-actions {position:absolute;inset:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;opacity:0;pointer-events:none;border:1px solid rgba(201,168,76,.5);border-radius:12px;overflow:hidden;background:var(--surface);transition:opacity .16s;touch-action:pan-y pinch-zoom;}
 .habit-swipe.is-open .habit-swipe-actions {pointer-events:auto;}
-.habit-swipe-actions button {min-width:0;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid #55482a;border-radius:10px;background:#282316;color:#dfc67e;font-size:12px;padding:6px 1px;}
-.habit-swipe-actions [data-swipe-delete] {background:#302023;border-color:#634047;color:#dfa6aa;}
-.habit-swipe-actions .icon {width:18px;height:18px;}
-.habit-swipe-actions button:active {filter:brightness(1.15);}
+.habit-swipe-actions button {min-width:0;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:0;border-radius:0;background:var(--surface);color:var(--gold);font-size:12px;line-height:1.2;padding:8px 2px;touch-action:pan-y pinch-zoom;}
+.habit-swipe-actions button+button {border-left:1px solid rgba(201,168,76,.35);}
+.habit-swipe-actions .icon {width:19px;height:19px;}
+.habit-swipe-actions button:active {background:rgba(201,168,76,.12);}
+.habit-quick-menu .habit-menu-action.danger-action {color:var(--gold);}
 .sheet.habit-action-sheet {max-width:430px;margin-left:auto;margin-right:auto;padding-bottom:max(16px,var(--safe-bottom));}
 .sheet.habit-quick-menu {width:calc(100% - 24px);max-width:360px;margin:12px auto max(12px,var(--safe-bottom));padding:8px;border:1px solid #3a3323;border-radius:18px;background:#151411;box-shadow:0 12px 40px rgba(0,0,0,.35);}
 .habit-menu-head {display:flex;align-items:center;gap:8px;padding:4px 4px 8px 12px;}
@@ -882,7 +883,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.8';
+  const APP_VERSION = '0.3.9';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1256,7 +1257,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: действия по свайпу влево и компактное меню привычки.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: симметричные чёрно-золотые действия привычки и удобный обратный свайп.</p></section>
     </div></section>`;
   }
 
@@ -1589,32 +1590,37 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function bindHabitSwipe(card) {
     const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row);
-    let press=null,offset=0,open=false,blockedUntil=0;
-    const width=()=>actions.getBoundingClientRect().width;
+    let press=null,offset=0,open=false,suppressClick=false;
+    const width=()=>row.getBoundingClientRect().width;
     const paint=value=>{offset=clamp(value,-width(),0);card.style.transform='translateX('+offset+'px)';actions.style.opacity=String(Math.min(1,Math.abs(offset)/Math.max(1,width())));};
-    const settle=value=>{open=value;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));paint(open?-width():0);};
-    row.closeSwipe=()=>{if(open)settle(false);};
-    card.addEventListener('pointerdown',e=>{
-      if(e.isPrimary===false||e.button!==0){press=null;return;}
-      closeHabitSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,axis:null};
+    const settle=value=>{open=value;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));card.inert=open;card.setAttribute('aria-hidden',String(open));paint(open?-width():0);};
+    row.closeSwipe=()=>{if(open){press=null;settle(false);}};
+    row.addEventListener('pointerdown',e=>{
+      if(e.isPrimary===false||e.button!==0){press=null;settle(open);return;}
+      suppressClick=false;closeHabitSwipes(row);
+      press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,axis:null};
     },{passive:true});
-    card.addEventListener('pointermove',e=>{
+    row.addEventListener('pointermove',e=>{
       if(!press||e.pointerId!==press.id)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<=8)return;press.axis=Math.abs(dx)>Math.abs(dy)*1.25?'x':'y';if(press.axis==='x'){row.classList.add('is-dragging');card.setPointerCapture?.(e.pointerId);}}
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<=8)return;press.axis=Math.abs(dx)>Math.abs(dy)*1.25?'x':'y';if(press.axis==='x'){row.classList.add('is-dragging');row.setPointerCapture?.(e.pointerId);}}
       if(press.axis!=='x')return;
-      e.preventDefault();blockedUntil=performance.now()+700;paint(press.from+dx);
+      e.preventDefault();suppressClick=true;paint(press.from+dx);
     },{passive:false});
-    card.addEventListener('pointerup',e=>{
+    row.addEventListener('pointerup',e=>{
       if(!press||e.pointerId!==press.id)return;
-      const horizontal=press.axis==='x';press=null;
-      if(horizontal){blockedUntil=performance.now()+700;settle(Math.abs(offset)>=width()*.4);}
+      const gesture=press;press=null;
+      if(gesture.axis==='x'){
+        suppressClick=true;const dx=e.clientX-gesture.x;
+        settle(gesture.wasOpen?dx<Math.min(24,width()*.18):-dx>=Math.min(40,width()*.3));
+      }
     },{passive:true});
-    card.addEventListener('pointercancel',()=>{press=null;settle(open);},{passive:true});
-    card.addEventListener('click',e=>{
-      if(performance.now()<blockedUntil||open){e.preventDefault();e.stopImmediatePropagation();if(open&&performance.now()>=blockedUntil)settle(false);}
+    row.addEventListener('pointercancel',()=>{if(press?.axis==='x')suppressClick=true;press=null;settle(open);},{passive:true});
+    row.addEventListener('click',e=>{
+      if(suppressClick){suppressClick=false;e.preventDefault();e.stopImmediatePropagation();return;}
+      if(open&&e.target.closest('.habit-card')){e.preventDefault();e.stopImmediatePropagation();settle(false);}
     },{capture:true});
-    card.addEventListener('keydown',e=>{if(e.key==='Escape'&&open){e.preventDefault();settle(false);}});
+    row.addEventListener('keydown',e=>{if(e.key==='Escape'&&open){e.preventDefault();settle(false);card.focus({preventScroll:true});}});
   }
   function updateHabitUI() {
     if(state.nav!==3||!$('.habits-screen'))return;
