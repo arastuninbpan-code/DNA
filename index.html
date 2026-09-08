@@ -826,6 +826,11 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
 @media(max-height:650px){.habits-screen{--discipline-size:140px;padding-top:max(8px,env(safe-area-inset-top,0px))}.discipline-wrap{margin-top:12px}.habits-workspace{margin-top:10px}.motivation{margin-top:8px;font-size:13px;max-height:36px}.streak-badge{padding:6px 10px}.add-habit-btn{font-size:14px}}
 @media(prefers-reduced-motion:reduce){.fin-quick button,.fin-destinations button,.nav-item{transition:none!important}}
 
+/* App surfaces act like controls; editing fields retain native text selection. */
+.app-shell,.overlay,.fin-dialog,.toast,.splash {-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+input,textarea,[contenteditable="true"],[contenteditable=""],.selectable {-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
+input::selection,textarea::selection,[contenteditable]::selection {background:rgba(201,168,76,.32);color:inherit;}
+.habit-card,.date-item,.discipline-wrap {-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 </style>
 </head>
 <body>
@@ -852,7 +857,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.5';
+  const APP_VERSION = '0.3.6';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1226,7 +1231,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: новая векторная заставка и единая анимация D.N.A. для загрузки и будущих функций.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: удержание карточек без выделения текста, короткий тактильный отклик на поддерживаемых устройствах.</p></section>
     </div></section>`;
   }
 
@@ -1635,12 +1640,22 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
       el.addEventListener('contextmenu',e=>{e.preventDefault();showTransactionActions(+el.dataset.txIndex);});
     });
   }
+  function holdFeedback(el) {
+    try{if(typeof navigator!=='undefined'&&typeof navigator.vibrate==='function')navigator.vibrate(18);}catch(_){}
+    if(!reducedMotion())el.animate?.([{transform:'scale(1)',opacity:1},{transform:'scale(.98)',opacity:.75},{transform:'scale(1)',opacity:1}],{duration:180,easing:'ease-out'});
+  }
   function bindLongPress(el,cb) {
-    let timer=null, sx=0,sy=0;
-    el.addEventListener('pointerdown',e=>{sx=e.clientX;sy=e.clientY;timer=setTimeout(()=>{timer=null;cb();},600);});
-    el.addEventListener('pointermove',e=>{if(timer&&(Math.abs(e.clientX-sx)>8||Math.abs(e.clientY-sy)>8)){clearTimeout(timer);timer=null;}});
-    ['pointerup','pointercancel','pointerleave'].forEach(ev=>el.addEventListener(ev,()=>{if(timer){clearTimeout(timer);timer=null;}}));
-    el.addEventListener('contextmenu',e=>{e.preventDefault();cb();});
+    let timer=null,sx=0,sy=0,pointer=null,fired=false,suppressUntil=0;
+    const cancel=()=>{if(timer!==null)clearTimeout(timer);timer=null;};
+    const activate=()=>{cancel();if(fired||!el.isConnected)return;fired=true;suppressUntil=performance.now()+800;holdFeedback(el);cb();};
+    el.addEventListener('pointerdown',e=>{
+      cancel();if(e.isPrimary===false||e.button!==0)return;
+      sx=e.clientX;sy=e.clientY;pointer=e.pointerId;fired=false;timer=setTimeout(activate,600);
+    },{passive:true});
+    el.addEventListener('pointermove',e=>{if(e.pointerId===pointer&&Math.hypot(e.clientX-sx,e.clientY-sy)>8)cancel();},{passive:true});
+    ['pointerup','pointercancel','pointerleave'].forEach(ev=>el.addEventListener(ev,cancel,{passive:true}));
+    el.addEventListener('click',e=>{if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();}},{capture:true});
+    el.addEventListener('contextmenu',e=>{e.preventDefault();if(performance.now()>=suppressUntil)fired=false;activate();});
   }
 
   // -------- Finance actions / overlays --------
