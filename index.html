@@ -679,6 +679,118 @@ select.field { appearance:none; }
 @media(max-width:380px){.fin-v3 .finance-scroll{padding-left:14px;padding-right:14px}.fin-card{padding:16px}.fin-tx-icon{display:none}.fin-dialog{padding:18px}.fin-period>span{width:100%;margin:5px 0 0}.fin-header>.fin-text>span{display:none}.fin-history-filters{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.fin-v3 *,.fin-dialog,.fin-dialog *{animation:none!important;transition:none!important;scroll-behavior:auto!important}.fin-v3 button:active,.fin-dialog button:active{transform:none}}
 
+/* 0.3.1: quiet layouts, stable scroll and shared date controls. */
+html {-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+.app-shell {min-height:0;}
+.screen,.finance-scroll,.hb-screen {overflow-anchor:none;scroll-behavior:auto;}
+.sr-only {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+.ui-date {display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;height:48px;text-align:center;padding:10px 12px;font-size:16px;line-height:26px;appearance:none;-webkit-appearance:none;}
+.ui-date::-webkit-date-and-time-value {text-align:center;min-height:26px;}
+.fin-field {box-sizing:border-box;max-width:100%;line-height:1.5;}
+select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-size:16px;}
+.fin-header {margin-bottom:18px;}
+.fin-heading {font-size:1.5rem;}
+.fin-header .fin-eyebrow {display:none;}
+.fin-card {border-color:#25251f;background:#0e0f0d;padding:18px;border-radius:16px;}
+.fin-card-head {margin-bottom:12px;}
+.fin-history-card {border:0;padding:0;background:transparent;}
+.fin-history-toolbar {display:flex;gap:12px;align-items:center;margin-bottom:14px;}
+.fin-history-toolbar .fin-field {flex:1;min-width:0;}
+.fin-filter-panel {margin-bottom:14px;}
+.fin-filter-panel>summary {min-height:44px;display:flex;align-items:center;gap:8px;color:var(--gold);cursor:pointer;font-size:.875rem;list-style:none;}
+.fin-filter-panel>summary::-webkit-details-marker {display:none;}
+.fin-filter-panel>summary .icon {width:18px;height:18px;}
+.fin-filter-panel>summary:focus-visible {outline:2px solid var(--gold);outline-offset:2px;}
+.fin-filter-panel[open]>.fin-filter-content {animation:finReveal .18s ease both;}
+.fin-filter-content {padding:0 0 12px;}
+.fin-filter-content .fin-history-filters {margin:0;}
+.fin-filter-panel:not([open]) .fin-filter-content {display:none;}
+.fin-transaction {padding:15px 0;}
+.fin-tx-main strong {white-space:normal;overflow-wrap:anywhere;line-height:1.45;}
+.fin-tx-money {min-width:72px;max-width:40%;line-height:1.5;font-size:.875rem;}
+.fin-footer {display:none;}
+.fin-wallet-foot>span {display:none;}
+.fin-wallet-foot {justify-content:flex-end;}
+.fin-summary .fin-comment {margin-bottom:18px;}
+.fin-ring {width:min(200px,100%);}
+.fin-bars {padding:4px 2px 0;}
+.fin-dialog {box-sizing:border-box;padding:20px;max-height:calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));}
+.fin-dialog input,.fin-dialog select,.fin-dialog button {max-width:100%;}
+.home-stage {padding:24px 0 64px;min-height:220px;}
+.home-voice-status {font-size:.8125rem;}
+.home-mic {box-shadow:0 0 0 8px rgba(201,168,76,.025);}
+.hb-screen {display:block;overflow-y:auto;overflow-x:hidden;padding:max(18px,env(safe-area-inset-top,0px)) max(18px,env(safe-area-inset-right,0px)) 32px max(18px,env(safe-area-inset-left,0px));}
+.hb-container {max-width:980px;margin:auto;min-width:0;}
+.hb-header {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;}
+.hb-header h1 {font-size:1.5rem;font-weight:400;margin:0;}
+.hb-today {min-height:44px;padding:9px 16px;background:#2a2415;border:1px solid #8e773a;border-radius:22px;color:#e3c875;font-size:.875rem;}
+.hb-today.is-today {background:none;border-color:#3c3524;color:#b8aa80;}
+.hb-date-row {display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:10px;max-width:470px;margin:0 auto;}
+.hb-date-field {min-width:0;}
+.hb-date-row .ui-date {background:#11120f;border-color:#373324;border-radius:12px;}
+.hb-date-caption {text-align:center;color:#b4ae9e;font-size:.8125rem;line-height:1.5;margin:10px 0 14px;}
+.hb-days {position:relative;display:flex;gap:8px;overflow-x:auto;padding:3px 2px 10px;scrollbar-width:none;margin-bottom:14px;}
+.hb-days::-webkit-scrollbar {display:none;}
+.hb-day {position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex:0 0 46px;height:62px;border:1px solid transparent;border-radius:12px;background:#11120f;color:#b9b4a7;padding:4px;transition:background .18s,border-color .18s,color .18s;}
+.hb-day>span {font-size:.75rem;line-height:1.2;}
+.hb-day strong {font-size:1rem;font-weight:400;line-height:1.3;}
+.hb-day.today {border-color:#c9a84c;}
+.hb-day.selected {background:#c9a84c;color:#14130f;border-color:#c9a84c;}
+.hb-day.selected.today {box-shadow:0 0 0 2px #0a0a0a,0 0 0 3px #8f773b;}
+.hb-day-mark {height:5px;width:5px;border-radius:50%;box-sizing:border-box;}
+.hb-day-mark.partial {background:#c9a84c;}
+.hb-day-mark.perfect {width:7px;height:7px;border:1px solid #c9a84c;}
+.hb-day.selected .hb-day-mark {border-color:#14130f;}
+.hb-day.selected .hb-day-mark.partial {background:#14130f;}
+.hb-layout {display:grid;grid-template-columns:minmax(0,1fr);gap:24px;}
+.hb-main,.hb-stats {min-width:0;}
+.hb-progress-row {display:flex;align-items:center;gap:18px;margin:4px 0 20px;padding-bottom:18px;border-bottom:1px solid #24241e;}
+.hb-progress-ring {width:84px;height:84px;flex:0 0 84px;position:relative;}
+.hb-progress-ring>svg {display:block;width:100%;height:100%;transform:rotate(-90deg);overflow:visible;}
+.hb-progress-ring circle {fill:none;stroke-width:4;}
+.hb-ring-track {stroke:#29271d;}
+.hb-ring-value {stroke:#c9a84c;stroke-linecap:round;stroke-dasharray:100;transition:stroke-dashoffset .28s ease;}
+.hb-progress-ring strong {position:absolute;inset:0;display:grid;place-items:center;font-size:1.25rem;font-weight:400;color:#ddc171;font-variant-numeric:tabular-nums;}
+.hb-progress-row h2 {font-size:1rem;font-weight:400;margin:0;line-height:1.5;}
+.hb-progress-row p {font-size:.875rem;color:#aaa496;line-height:1.5;margin:6px 0 0;}
+.hb-item {display:flex;gap:6px;align-items:center;border-bottom:1px solid #24241e;min-height:62px;}
+.hb-toggle {display:flex;align-items:center;gap:12px;min-height:60px;min-width:0;flex:1;text-align:left;border:0;background:none;padding:10px 0;}
+.hb-check {width:26px;height:26px;display:grid;place-items:center;flex:none;border:1px solid #65604b;border-radius:8px;color:#c9a84c;transition:background .18s,border-color .18s;}
+.hb-check .icon {width:18px;height:18px;}
+.hb-item.done .hb-check {border-color:#c9a84c;background:#282415;}
+.hb-name {font-size:1rem;line-height:1.5;overflow-wrap:anywhere;min-width:0;transition:color .18s;}
+.hb-item.done .hb-name {color:#8e8a7e;text-decoration:line-through;text-decoration-color:#726443;}
+.hb-toggle:disabled {opacity:.55;cursor:default;}
+.hb-delete {border:0;background:none;color:#827c6b;min-width:40px;min-height:44px;display:grid;place-items:center;}
+.hb-delete .icon {width:16px;height:16px;}
+.hb-add {display:block;width:100%;min-height:48px;margin:16px 0 0;border:1px solid #554727;border-radius:12px;background:#1a180f;color:#d5b963;font-size:.9375rem;padding:12px;}
+.hb-empty {font-size:.9375rem;line-height:1.6;color:#aaa496;padding:20px 0;}
+.hb-stats {border-top:1px solid #24241e;padding-top:20px;}
+.hb-streaks {display:grid;grid-template-columns:1fr 1fr;margin-bottom:22px;}
+.hb-streaks button {background:none;border:0;padding:6px 12px;text-align:center;}
+.hb-streaks button+button {border-left:1px solid #24241e;}
+.hb-streaks strong {display:block;font-size:1.25rem;font-weight:400;color:#d5b963;}
+.hb-streaks span {display:block;font-size:.8125rem;margin-top:6px;color:#aaa496;}
+.hb-stats h2 {font-size:.9375rem;font-weight:400;margin:0 0 18px;}
+.hb-week {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;}
+.hb-week-day {border:0;background:none;padding:0;min-width:0;color:#aaa496;text-align:center;}
+.hb-week-value {font-size:.75rem;display:block;font-variant-numeric:tabular-nums;margin-bottom:6px;}
+.hb-week-track {height:64px;display:flex;align-items:flex-end;background:#1d1d17;border-radius:4px;overflow:hidden;max-width:24px;margin:auto;}
+.hb-week-track i {display:block;width:100%;background:#bca04e;transition:height .28s ease;border-radius:4px;}
+.hb-week-day small {font-size:.75rem;display:block;margin-top:8px;}
+.hb-week-note {font-size:.75rem;color:#8f897b;margin:14px 0 0;}
+.hb-screen button:focus-visible {outline:2px solid #c9a84c;outline-offset:3px;}
+.hb-screen button:active {filter:brightness(1.15);}
+.toast-root {left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));}
+.toast {pointer-events:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#251b19;color:#e4c5bd;border:1px solid #675047;box-shadow:none;max-width:460px;padding:10px 14px;}
+.toast.ok {background:#1c2018;color:#d8d6ba;border-color:#4c5136;}
+.toast button {background:none;border:0;color:inherit;min-width:32px;min-height:32px;font-size:1.25rem;}
+.toast.toast-exit {animation:toastOut .18s ease both;}
+@keyframes toastOut {to{opacity:0;transform:translateY(6px)}}
+@media(min-width:901px){.hb-layout{grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:36px}.hb-stats{border-top:0;border-left:1px solid #24241e;padding:16px 0 0 28px}.hb-days{max-width:820px;margin-left:auto;margin-right:auto}.hb-header{margin-bottom:24px}}
+@media(max-width:380px){.fin-history-filters{grid-template-columns:1fr}.fin-v3 .finance-scroll{padding:16px 16px 32px}.fin-history-card{padding:0}.hb-screen{padding-left:16px;padding-right:16px}.hb-progress-row{gap:12px}.hb-progress-ring{width:76px;height:76px;flex-basis:76px}}
+@media(prefers-reduced-motion:reduce){.hb-screen *,.toast,.toast-exit,.fin-filter-content{transition:none!important;animation:none!important}}
+
 </style>
 </head>
 <body>
@@ -707,7 +819,7 @@ select.field { appearance:none; }
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.0';
+  const APP_VERSION = '0.3.1';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1017,42 +1129,31 @@ select.field { appearance:none; }
     $('#bottom-nav').innerHTML = navItems.map((it,i)=>`<button class="nav-item ${i===state.nav?'active':''} ${i===2?'nav-center':''}" data-nav="${i}" aria-label="${it[1]}">${i===2?`<span class="nav-icon-wrap">${icon(it[0])}</span>`:icon(it[0])}</button>`).join('');
   }
   function switchNav(index) {
-    storeCurrentScroll();
-    homePanel='main';
-    state.nav=index;
-    renderNav();
-    renderScreen();
+    if(index===state.nav||index<0||index>=navItems.length)return;
+    storeCurrentScroll();cancelAnimationFrame(habitAnimationFrame);
+    state.habits.animatingDate=null;state.habits.circleDisplay=progressForDate(state.habits.selectedDate);
+    state.nav=index;renderNav();renderScreen();
   }
   function storeCurrentScroll() {
-    if (state.nav===0) {
-      const s=$('.finance-scroll'); if(s) state.finance.scrollTop=s.scrollTop;
-      const h=$('.history-list'); if(h) state.finance.historyScrollTop=h.scrollTop;
-    }
-    if (state.nav===3) {
-      const g=$('.graph-scroller'); if(g) state.habits.graphScrollLeft=g.scrollLeft;
-      const h=$('.habits-list'); if(h) state.habits.habitsScrollTop=h.scrollTop;
-    }
+    const host=$('#screen'),sc=currentScroller();if(!sc)return;
+    const key=host?.dataset.viewKey||currentViewKey();viewScroll.set(key,sc.scrollTop);
+    if(key.startsWith('finance:'))state.finance.scrollTop=sc.scrollTop;
   }
   function renderScreen() {
-    const host=$('#screen');
-    if (state.nav===0) host.innerHTML=renderFinance();
-    else if (state.nav===1) host.innerHTML=`<section class="screen placeholder-screen"><div class="placeholder-title">Планер</div></section>`;
-    else if (state.nav===2) host.innerHTML=renderHome();
-    else if (state.nav===3) host.innerHTML=renderHabits();
-    else host.innerHTML=`<section class="screen placeholder-screen"><div class="placeholder-title">Новости</div></section>`;
-    bindScreenEvents();
+    const host=$('#screen'),key=currentViewKey();
+    if(host.dataset.viewKey===key)storeCurrentScroll();
+    const epoch=++renderEpoch;
+    if(state.nav===0)host.innerHTML=renderFinance();
+    else if(state.nav===1)host.innerHTML='<section class="screen placeholder-screen"><div class="placeholder-title">Планер</div></section>';
+    else if(state.nav===2)host.innerHTML=renderHome();
+    else if(state.nav===3)host.innerHTML=renderHabits();
+    else host.innerHTML='<section class="screen placeholder-screen"><div class="placeholder-title">Новости</div></section>';
+    host.dataset.viewKey=key;bindScreenEvents();
+    const sc=currentScroller();if(sc)sc.scrollTop=viewScroll.get(key)||0;
+    if(state.nav===3)scrollToSelectedHabitDate();
     requestAnimationFrame(()=>{
-      if(state.nav===0){
-        const s=$('.finance-scroll'); if(s)s.scrollTop=state.finance.scrollTop;
-        const h=$('.history-list'); if(h)h.scrollTop=state.finance.historyScrollTop;
-        drawFinanceCharts();
-        animateFinanceNumbers();
-      }
-      if(state.nav===3){
-        const g=$('.graph-scroller'); if(g)g.scrollLeft=state.habits.graphScrollLeft;
-        const h=$('.habits-list'); if(h)h.scrollTop=state.habits.habitsScrollTop;
-        drawHabitsVisuals();
-      }
+      if(epoch!==renderEpoch)return;
+      if(state.nav===0)drawFinanceCharts();
     });
   }
 
@@ -1078,7 +1179,7 @@ select.field { appearance:none; }
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: новый обзор финансов, графики, цели и настраиваемые блоки.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: удобные даты в привычках, компактная история и исправления прокрутки и анимаций.</p></section>
     </div></section>`;
   }
 
@@ -1124,11 +1225,15 @@ select.field { appearance:none; }
   }
   function finAnimation(key) {if(financeAnimated.has(key))return '';financeAnimated.add(key);return ' fin-enter';}
   function finRefresh(focusSelector) {storeCurrentScroll();renderScreen();if(focusSelector)$(focusSelector)?.focus({preventScroll:true});}
-  function finGo(page,category=null) {financeView.page=page;financeView.category=category;financeView.rangePeriod=category?financeView.period:null;financeView.search='';financeView.type='all';state.finance.scrollTop=0;renderScreen();$('.fin-heading')?.focus({preventScroll:true});}
+  function finGo(page,category=null) {
+    storeCurrentScroll();financeView.page=page;
+    if(page==='history'){financeView.category=category;financeView.rangePeriod=category?financeView.period:null;financeView.search='';financeView.type='all';financeView.filtersOpen=!!category;viewScroll.set('finance:history',0);}
+    renderScreen();$('.fin-heading')?.focus({preventScroll:true});
+  }
   function renderFinance() {
     const history=financeView.page==='history';
     return `<section class="screen finance-screen fin-v3"><div class="finance-scroll"><div class="fin-container">
-      <header class="fin-header"><div class="fin-heading-wrap">${history?`<button class="fin-icon" data-fin-back aria-label="Назад к обзору">${icon('chev-left')}</button>`:''}<div><p class="fin-eyebrow">D.N.A. / FINANCE</p><h1 class="fin-heading" tabindex="-1">${history?'История':'Финансы'}</h1></div></div><button class="fin-text" data-fin-customize>${icon('settings')}<span>Настроить</span></button></header>
+      <header class="fin-header"><div class="fin-heading-wrap">${history?`<button class="fin-icon" data-fin-back aria-label="Назад к обзору">${icon('chev-left')}</button>`:''}<div><p class="fin-eyebrow">D.N.A. / FINANCE</p><h1 class="fin-heading" tabindex="-1">${history?'История':'Финансы'}</h1></div></div>${history?'':`<button class="fin-text" data-fin-customize>${icon('settings')}<span>Настроить</span></button>`}</header>
       ${history?renderFinanceHistory():renderFinanceOverview()}
     </div></div><div id="fin-dialog-root"></div></section>`;
   }
@@ -1155,10 +1260,17 @@ select.field { appearance:none; }
     return `<div class="fin-transactions">${tx.map(t=>{const i=state.finance.transactions.indexOf(t),income=t.type==='income';return `<button class="fin-transaction" data-fin-tx="${i}"><span class="fin-tx-icon ${income?'fin-income':''}">${icon(income?'trend-up':categoryIcon[t.category]||'receipt')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}</small></span><span class="fin-tx-money ${income?'fin-income':''}">${income?'+':'−'}${finMoney(finAmount(t))}</span></button>`;}).join('')}</div>`;
   }
   function renderFinanceHistory() {
-    return `<section class="fin-card fin-enter"><div class="fin-history-actions"><button class="fin-text" data-fin-add="expense">− Расход</button><button class="fin-text" data-fin-add="income">+ Пополнение</button><button class="fin-text" data-fin-import>${icon('pdf')} Фото / PDF</button></div>
-      <label class="fin-label" for="fin-search">Поиск операций</label><input class="fin-field" id="fin-search" type="search" placeholder="Категория, примечание или сумма" value="${esc(financeView.search)}">
-      <div class="fin-history-filters"><label>Тип<select class="fin-field" id="fin-type"><option value="all">Все операции</option><option value="expense" ${financeView.type==='expense'?'selected':''}>Расходы</option><option value="income" ${financeView.type==='income'?'selected':''}>Пополнения</option></select></label><label>Категория<select class="fin-field" id="fin-category"><option value="">Все категории</option>${[...new Set([...categories,...state.finance.transactions.map(t=>t.category||'Другое')])].map(c=>`<option ${financeView.category===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label></div><p class="fin-muted">${financeView.rangePeriod?'Операции за период диаграммы · '+({week:'последние 7 дней',month:'с начала месяца',year:'с начала года'}[financeView.rangePeriod]):'Вся история, независимо от периода обзора'}</p>${financeView.rangePeriod?'<button class="fin-text" data-fin-clear-period>Показать за всё время</button>':''}<div id="fin-history-results">${renderFinHistoryResults()}</div></section>`;
+    const active=financeView.type!=='all'||financeView.category||financeView.rangePeriod;
+    return `<section class="fin-card fin-history-card">
+      <div class="fin-history-toolbar"><input class="fin-field" id="fin-search" type="search" aria-label="Поиск операций" placeholder="Поиск операций" value="${esc(financeView.search)}"><button class="fin-icon" data-fin-add="expense" aria-label="Добавить операцию">${icon('plus')}</button></div>
+      <details class="fin-filter-panel" ${financeView.filtersOpen?'open':''}><summary>${icon('filter')} Фильтры${active?' · применены':''}</summary><div class="fin-filter-content">
+      <div class="fin-history-filters"><label>Тип<select class="fin-field" id="fin-type"><option value="all">Все операции</option><option value="expense" ${financeView.type==='expense'?'selected':''}>Расходы</option><option value="income" ${financeView.type==='income'?'selected':''}>Пополнения</option></select></label><label>Категория<select class="fin-field" id="fin-category"><option value="">Все категории</option>${[...new Set([...categories,...state.finance.transactions.map(t=>t.category||'Другое')])].map(c=>`<option ${financeView.category===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label></div>
+      ${financeView.rangePeriod?'<button class="fin-text" data-fin-clear-period>Снять ограничение периода</button>':''}
+      <button class="fin-text" data-fin-import>${icon('pdf')} Импорт фото / PDF</button></div></details>
+      <div id="fin-history-results">${renderFinHistoryResults()}</div>
+    </section>`;
   }
+
   function renderFinHistoryResults() {
     const q=financeView.search.toLocaleLowerCase('ru-RU').trim();
     const tx=sortedTransactions().filter(t=>(!financeView.rangePeriod||(()=>{const r=finRange(financeView.rangePeriod),date=parseLocalDate(t.date);return date>=r.start&&date<r.end;})())&&(financeView.type==='all'||t.type===financeView.type)&&(!financeView.category||(t.category||'Другое')===financeView.category)&&(!q||`${t.note||''} ${t.category||''} ${finAmount(t)} ${finMoney(finAmount(t))}`.toLocaleLowerCase('ru-RU').includes(q)));
@@ -1190,9 +1302,10 @@ select.field { appearance:none; }
   }
   function finModal(title,body,setup) {
     const root=$('#fin-dialog-root');if(!root)return;
-    const previous=document.activeElement;
+    const previous=document.activeElement,originKey=currentViewKey(),originTop=currentScroller()?.scrollTop||0;
+    storeCurrentScroll();
     root.innerHTML=`<dialog class="fin-dialog" aria-labelledby="fin-dialog-title"><div class="fin-dialog-head"><h2 id="fin-dialog-title">${esc(title)}</h2><button class="fin-icon" data-fin-close aria-label="Закрыть">${icon('close')}</button></div>${body}</dialog>`;
-    const d=$('dialog',root);d.addEventListener('close',()=>{if(d.parentElement===root)root.innerHTML='';if(previous?.isConnected&&!$('dialog[open]',root))previous.focus({preventScroll:true});});
+    const d=$('dialog',root);d.addEventListener('close',()=>{if(d.parentElement===root)root.innerHTML='';if(previous?.isConnected&&!$('dialog[open]',root))previous.focus({preventScroll:true});if(currentViewKey()===originKey&&!$('dialog[open]')){viewScroll.set(originKey,originTop);const sc=currentScroller();if(sc)sc.scrollTop=originTop;}});
     const close=()=>{if(d.dataset.closing)return;d.dataset.closing='1';d.classList.add('fin-leaving');setTimeout(()=>{if(d.open)d.close();},window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:160);};
     $('[data-fin-close]',d).onclick=close;
     d.addEventListener('cancel',e=>{e.preventDefault();close();});
@@ -1219,7 +1332,7 @@ select.field { appearance:none; }
   function finTransactionForm(initial='expense',index=null) {
     const existing=index===null?null:state.finance.transactions[index];if(index!==null&&!existing)return;
     let type=existing?.type||initial;
-    finModal(existing?'Операция':'Новая операция',`<form id="fin-tx-form"><div class="fin-switch">${['expense','income'].map(t=>`<button type="button" data-tx-type="${t}" aria-pressed="${type===t}">${t==='expense'?'− Расход':'+ Пополнение'}</button>`).join('')}</div><label class="fin-label" for="fin-amount">Сумма или короткая запись</label><input class="fin-field" id="fin-amount" required autocomplete="off" placeholder="60 тысяч на Турцию" value="${existing?finAmount(existing):''}"><div class="fin-preview" id="fin-tx-preview" aria-live="polite"></div><label class="fin-label" for="fin-note">Примечание</label><input class="fin-field" id="fin-note" maxlength="500" value="${esc(existing?.note||'')}" placeholder="Например, поездка в Турцию"><label class="fin-label" for="fin-tx-category">Категория</label><select class="fin-field" id="fin-tx-category">${[...new Set([...categories,existing?.category].filter(Boolean))].map(c=>`<option ${c===(existing?.category||(type==='income'?'Пополнение':'Другое'))?'selected':''}>${esc(c)}</option>`).join('')}</select><label class="fin-label" for="fin-tx-date">Дата</label><input class="fin-field" type="date" id="fin-tx-date" required value="${esc(existing?.date?.slice(0,10)||isoDate(new Date()))}"><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary" type="submit">${existing?'Сохранить':'Добавить операцию'}</button>${existing?'<button class="fin-danger" type="button" id="fin-tx-delete">Удалить операцию</button>':''}</form>`,(d,close)=>{
+    finModal(existing?'Операция':'Новая операция',`<form id="fin-tx-form"><div class="fin-switch">${['expense','income'].map(t=>`<button type="button" data-tx-type="${t}" aria-pressed="${type===t}">${t==='expense'?'− Расход':'+ Пополнение'}</button>`).join('')}</div><label class="fin-label" for="fin-amount">Сумма или короткая запись</label><input class="fin-field" id="fin-amount" required autocomplete="off" placeholder="60 тысяч на Турцию" value="${existing?finAmount(existing):''}"><div class="fin-preview" id="fin-tx-preview" aria-live="polite"></div><label class="fin-label" for="fin-note">Примечание</label><input class="fin-field" id="fin-note" maxlength="500" value="${esc(existing?.note||'')}" placeholder="Например, поездка в Турцию"><label class="fin-label" for="fin-tx-category">Категория</label><select class="fin-field" id="fin-tx-category">${[...new Set([...categories,existing?.category].filter(Boolean))].map(c=>`<option ${c===(existing?.category||(type==='income'?'Пополнение':'Другое'))?'selected':''}>${esc(c)}</option>`).join('')}</select><label class="fin-label" for="fin-tx-date">Дата</label>${appDateField('fin-tx-date',existing?.date?.slice(0,10)||isoDate(new Date()),true)}<p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary" type="submit">${existing?'Сохранить':'Добавить операцию'}</button>${existing?'<button class="fin-danger" type="button" id="fin-tx-delete">Удалить операцию</button>':''}</form>`,(d,close)=>{
       let noteEdited=false;const amount=$('#fin-amount',d),note=$('#fin-note',d),category=$('#fin-tx-category',d);
       function setType(t){type=t;$$('[data-tx-type]',d).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.txType===type)));}
       function preview(){const p=parseFinInput(amount.value);if(p.error){$('#fin-tx-preview',d).textContent=amount.value?p.error:'';return;}if(p.type)setType(p.type);if(!noteEdited&&!existing)note.value=p.note;$('#fin-tx-preview',d).textContent=`${type==='income'?'Пополнение':'Расход'}: ${finMoney(p.amount)}${note.value?' · '+note.value:''}`;}
@@ -1231,7 +1344,7 @@ select.field { appearance:none; }
         if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();showToast('Операция сохранена',true);
       };
       $('#fin-tx-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить эту операцию?'))return;const old=state.finance.transactions;state.finance.transactions=old.filter((_,i)=>i!==index);if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();});
-      preview();amount.focus();
+      preview();amount.focus({preventScroll:true});
     });
   }
   function finOpeningForm() {
@@ -1239,7 +1352,7 @@ select.field { appearance:none; }
   }
   function finGoalForm(index=null) {
     const old=index===null?null:state.finance.goals[index];
-    finModal(old?'Цель':'Новая цель',`<form id="fin-goal-form"><label class="fin-label" for="fin-goal-name">Название</label><input class="fin-field" id="fin-goal-name" required maxlength="120" value="${esc(old?.name||'')}" placeholder="Ноутбук"><label class="fin-label" for="fin-goal-target">Нужно накопить, ₽</label><input class="fin-field" id="fin-goal-target" type="number" step="0.01" min="0.01" max="1000000000000" required value="${old?num(old.target):''}"><label class="fin-label" for="fin-goal-current">Уже отложено, ₽</label><input class="fin-field" id="fin-goal-current" type="number" step="0.01" min="0" max="1000000000000" required value="${num(old?.current)}"><label class="fin-label" for="fin-goal-deadline">Срок — необязательно</label><input class="fin-field" id="fin-goal-deadline" type="date" value="${esc(old?.deadline||'')}"><p id="fin-goal-plan" class="fin-preview" aria-live="polite"></p><p class="fin-muted">Изменение накоплений не создаёт расход или пополнение.</p><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Сохранить цель</button>${old?'<button class="fin-danger" type="button" id="fin-goal-delete">Удалить цель</button>':''}</form>`,d=>{
+    finModal(old?'Цель':'Новая цель',`<form id="fin-goal-form"><label class="fin-label" for="fin-goal-name">Название</label><input class="fin-field" id="fin-goal-name" required maxlength="120" value="${esc(old?.name||'')}" placeholder="Ноутбук"><label class="fin-label" for="fin-goal-target">Нужно накопить, ₽</label><input class="fin-field" id="fin-goal-target" type="number" step="0.01" min="0.01" max="1000000000000" required value="${old?num(old.target):''}"><label class="fin-label" for="fin-goal-current">Уже отложено, ₽</label><input class="fin-field" id="fin-goal-current" type="number" step="0.01" min="0" max="1000000000000" required value="${num(old?.current)}"><label class="fin-label" for="fin-goal-deadline">Срок — необязательно</label>${appDateField('fin-goal-deadline',old?.deadline||'')}<p id="fin-goal-plan" class="fin-preview" aria-live="polite"></p><p class="fin-muted">Изменение накоплений не создаёт расход или пополнение.</p><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Сохранить цель</button>${old?'<button class="fin-danger" type="button" id="fin-goal-delete">Удалить цель</button>':''}</form>`,d=>{
       const plan=()=>{const target=num($('#fin-goal-target',d).value),current=num($('#fin-goal-current',d).value),deadline=$('#fin-goal-deadline',d).value;const days=deadline?Math.ceil((parseLocalDate(deadline)-dateOnly())/86400000):0;$('#fin-goal-plan',d).textContent=days>0?`Ориентир на месяц: ${finMoney(Math.max(0,target-current)/Math.max(1,days/30))}`:deadline?'Срок наступил: при необходимости выбери новую дату.':'';};
       $$('input',d).forEach(x=>x.addEventListener('input',plan));plan();
       $('#fin-goal-form',d).onsubmit=e=>{e.preventDefault();const name=$('#fin-goal-name',d).value.trim(),target=Number($('#fin-goal-target',d).value),current=Number($('#fin-goal-current',d).value);if(!name||!Number.isFinite(target)||target<=0||!Number.isFinite(current)||current<0){finError(d,'Проверь название и суммы.');return;}const list=state.finance.goals,g={...(old||{}),name,target,current,deadline:$('#fin-goal-deadline',d).value};state.finance.goals=list.slice();if(index===null)state.finance.goals.push(g);else state.finance.goals[index]=g;if(!finSaveData(d,'goals')){state.finance.goals=list;return;}d.close();finRefresh();};
@@ -1280,8 +1393,9 @@ select.field { appearance:none; }
     $('[data-fin-customize]')?.addEventListener('click',finCustomize);
     $$('[data-fin-period]').forEach(b=>b.onclick=()=>{financeView.period=b.dataset.finPeriod;finRefresh(`[data-fin-period="${financeView.period}"]`);});
     const bindTx=()=>$$('[data-fin-tx]').forEach(b=>b.onclick=()=>finTransactionForm('expense',+b.dataset.finTx));bindTx();
-    const updateHistory=()=>{financeView.search=$('#fin-search').value;financeView.type=$('#fin-type').value;financeView.category=$('#fin-category').value||null;$('#fin-history-results').innerHTML=renderFinHistoryResults();bindTx();};
+    const updateHistory=()=>{storeCurrentScroll();financeView.search=$('#fin-search').value;financeView.type=$('#fin-type').value;financeView.category=$('#fin-category').value||null;$('#fin-history-results').innerHTML=renderFinHistoryResults();bindTx();};
     $('[data-fin-clear-period]')?.addEventListener('click',()=>{financeView.rangePeriod=null;finRefresh();});
+    $('.fin-filter-panel')?.addEventListener('toggle',e=>{financeView.filtersOpen=e.currentTarget.open;});
     $('#fin-search')?.addEventListener('input',updateHistory);$('#fin-type')?.addEventListener('change',updateHistory);$('#fin-category')?.addEventListener('change',updateHistory);
     $$('[data-fin-sector]').forEach(b=>{const open=()=>{const g=finGroups()[+b.dataset.finSector];if(g)finGo('history',g[0]);};b.onclick=open;if(b.tagName.toLowerCase()==='circle')b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};});
     $$('[data-fin-point]').forEach(b=>b.onclick=()=>{const p=finBuckets()[+b.dataset.finPoint];if(p){$$('[data-fin-point]').forEach(x=>x.classList.toggle('selected',x===b));$('#fin-point-value').textContent=`${p.label} · Пополнения ${finMoney(p.income)} · Расходы ${finMoney(p.expense)}`;}});
@@ -1292,35 +1406,111 @@ select.field { appearance:none; }
   }
 
   // -------- Habits rendering --------
-  function renderHabits() {
-    const streak=currentStreak(), best=bestStreak(), sel=state.habits.selectedDate, today=state.habits.today, habits=currentHabits(), prog=progressForDate(sel);
-    return `<section class="screen habits-screen">
-      <div class="streak-section"><div class="streak-badge pressable ${streak>0?'active':''}" data-action="streak-tip"><span class="streak-emoji">🔥</span><span class="streak-value" data-count-to="${streak}">${streak}</span><span class="streak-label">дней</span></div><span class="streak-divider"></span><div class="streak-badge pressable ${best>0?'active':''}" data-action="record-tip"><span class="streak-emoji">🏆</span><span class="streak-value" data-count-to="${best}">${best}</span><span class="streak-label">рекорд</span></div></div>
-      <div class="discipline-wrap">${renderDisciplineCircle(sel,today,habits,prog)}</div>
-      <div class="motivation" id="motivation-text">${esc(motivationText())}</div>
-      <div class="habits-workspace"><div class="habits-left"><div class="calendar-button pressable" data-action="calendar">${icon('calendar-month')}<div class="calendar-title">${esc(dateTitle(sel))}</div></div><div class="habits-list-wrap">${renderHabitsList()}<span class="list-fade-top"></span><span class="list-fade-bottom"></span></div><div class="add-habit-btn pressable" data-action="add-habit">+ Добавить привычку</div></div>${renderGraphPane()}</div>
-    </section>`;
+  // Shared native date control: Finance and Habits use the same picker.
+  function appDateField(id,value,required=false) {
+    return `<input class="fin-field ui-date" type="date" id="${id}" value="${esc(value)}" ${required?'required':''}>`;
   }
-  function renderDisciplineCircle(sel,today,habits,progress) {
-    const future=sel>today, empty=!habits.length;
-    if(future||empty) return `<div class="discipline-empty">${icon(empty?'fitness':'calendar')}<div class="discipline-empty-text">${empty?'Нет привычек<br>на этот день':'Будущий день'}</div></div>`;
-    const celebrating=Date.now()<state.habits.celebrationUntil;
-    return `<div class="discipline-circle"><canvas class="discipline-canvas"></canvas><div class="discipline-center">${celebrating?`<div class="celebration"><div class="celebration-fire">🔥</div><div class="celebration-streak">${currentStreak()} ${pluralDays(currentStreak())}!</div></div>`:`<div class="discipline-percent" id="discipline-percent">${Math.floor(progress*100)}%</div><div class="discipline-ratio">${habits.filter(h=>h.done===true).length} из ${habits.length}</div><div class="discipline-label">ДИСЦИПЛИНА</div>`}</div></div>`;
+  const viewScroll = new Map();
+  let renderEpoch = 0;
+  let habitAnimationFrame = 0;
+  let toastTimer = 0;
+  let toastRemoveTimer = 0;
+  function currentViewKey() {return state.nav===0?'finance:'+financeView.page:state.nav===2?'home:'+homePanel:'nav:'+state.nav;}
+  function currentScroller() {return $('.finance-scroll')||$('.hb-screen')||$('.home-settings')||$('.home-screen')||$('#screen .screen');}
+  function reducedMotion() {return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches===true;}
+  function validAppDate(s) {return /^\d{4}-\d{2}-\d{2}$/.test(s)&&isoDate(parseLocalDate(s))===s;}
+  function habitStripDates() {
+    const selected=state.habits.selectedDate,today=state.habits.today;
+    const anchor=Math.abs((selected-today)/86400000)>7?selected:today;
+    return Array.from({length:15},(_,i)=>addDays(anchor,i-7));
+  }
+  function renderHabitDays() {
+    return habitStripDates().map(d=>{const key=isoDate(d),p=progressForDate(d),sel=sameDay(d,state.habits.selectedDate),today=sameDay(d,state.habits.today);return `<button class="hb-day ${sel?'selected':''} ${today?'today':''}" data-hb-date="${key}" aria-pressed="${sel}" ${today?'aria-current="date"':''} aria-label="${esc(dateTitle(d))}${today?', сегодня':''}, выполнено ${Math.round(p*100)}%"><span>${d.toLocaleDateString('ru-RU',{weekday:'short'})}</span><strong>${d.getDate()}</strong><i class="hb-day-mark ${p>=1?'perfect':p>0?'partial':''}" aria-hidden="true"></i></button>`;}).join('');
+  }
+  function renderHabits() {
+    state.habits.today=dateOnly();
+    const selected=state.habits.selectedDate,p=progressForDate(selected),done=currentHabits().filter(h=>h.done===true).length;
+    const display=state.habits.animatingDate?state.habits.circleDisplay:p;
+    return `<section class="screen hb-screen"><div class="hb-container">
+      <header class="hb-header"><h1>Привычки</h1><button class="hb-today ${sameDay(selected,state.habits.today)?'is-today':''}" data-hb-today ${sameDay(selected,state.habits.today)?'aria-current="date"':''}>Сегодня</button></header>
+      <div class="hb-date-row"><button class="fin-icon" data-hb-step="-1" aria-label="Предыдущий день">${icon('chev-left')}</button><label class="hb-date-field"><span class="sr-only">Выбранная дата</span>${appDateField('habit-date',isoDate(selected),true)}</label><button class="fin-icon" data-hb-step="1" aria-label="Следующий день">${icon('chev-right')}</button></div>
+      <p class="hb-date-caption" id="hb-date-caption">${esc(selected.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'}))}</p>
+      <div class="hb-days" aria-label="Дни привычек">${renderHabitDays()}</div>
+      <div class="hb-layout"><div class="hb-main"><div class="hb-progress-row"><div class="hb-progress-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="43" class="hb-ring-track"/><circle id="hb-ring-value" cx="50" cy="50" r="43" pathLength="100" class="hb-ring-value" style="stroke-dashoffset:${100-display*100}"/></svg><strong id="hb-percent">${Math.round(display*100)}%</strong></div><div><h2 id="hb-ratio">${done} из ${currentHabits().length} выполнено</h2><p id="hb-progress-note">${selected>state.habits.today?'Отметки доступны в день выполнения':p===1?'Все привычки на день выполнены':currentHabits().length?'Отмечай привычки по мере выполнения':'Добавь первую привычку'}</p></div></div>
+      <div id="hb-list">${renderHabitsList()}</div><button class="hb-add" data-action="add-habit">+ Добавить привычку</button></div>
+      <aside class="hb-stats"><div class="hb-streaks"><button data-action="streak-tip"><strong id="hb-streak">${currentStreak()}</strong><span>Серия дней</span></button><button data-action="record-tip"><strong id="hb-best">${bestStreak()}</strong><span>Рекорд</span></button></div><h2>Последние 7 дней</h2><div class="hb-week" id="hb-week">${renderHabitWeek()}</div><p class="hb-week-note">Доля выполненных привычек</p></aside></div>
+    </div></section>`;
   }
   function renderHabitsList() {
-    const habits=currentHabits();
-    if(!habits.length) return `<div class="habits-empty">${icon('sparkles')}<div class="habits-empty-text">Начни создавать<br>свою систему<br>дисциплины</div></div>`;
-    const future=state.habits.selectedDate>state.habits.today;
-    return `<div class="habits-list">${habits.map((h,i)=>`<div class="habit-card ${h.done?'done':''} ${future?'future':''}" data-habit-index="${i}" style="animation-delay:${i*50}ms"><button class="habit-check ${h.done?'done':''} ${future?'future':''}" data-toggle-habit="${i}" ${future?'disabled':''}>${h.done?icon('check'):''}</button><div class="habit-name">${esc(h.name||'')}</div></div>`).join('')}</div>`;
+    const list=currentHabits(),future=state.habits.selectedDate>state.habits.today;
+    if(!list.length)return '<p class="hb-empty">На этот день привычек пока нет.</p>';
+    return list.map((h,i)=>`<div class="hb-item ${h.done===true?'done':''}" data-habit-index="${i}"><button class="hb-toggle" data-toggle-habit="${i}" role="checkbox" aria-checked="${h.done===true}" aria-label="${esc(h.name||'Привычка')}" ${future?'disabled':''}><span class="hb-check" aria-hidden="true">${h.done===true?icon('check'):''}</span><span class="hb-name">${esc(h.name||'Привычка')}</span></button><button class="hb-delete" data-hb-delete="${i}" aria-label="Удалить привычку ${esc(h.name||'')}">${icon('close')}</button></div>`).join('');
   }
-  function renderGraphPane() {
-    const dates=allDates(), labels=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-    return `<div class="graph-pane"><div class="graph-scroller"><div class="graph-inner"><div class="date-strip">${dates.map(d=>{const p=progressForDate(d),sel=sameDay(d,state.habits.selectedDate),today=sameDay(d,state.habits.today);return `<button class="date-item ${sel?'selected':''} ${today?'today':''}" data-date="${isoDate(d)}"><span class="date-day">${labels[(d.getDay()+6)%7]}</span><span class="date-num">${d.getDate()}</span>${p>0?`<span class="date-progress"><span style="width:${p*100}%"></span></span>`:''}</button>`}).join('')}</div><div class="graph-canvas-wrap"><canvas class="habits-chart"></canvas></div></div></div><span class="graph-fade-left"></span><span class="graph-fade-right"></span></div>`;
+  function renderHabitWeek() {
+    return Array.from({length:7},(_,i)=>addDays(state.habits.today,i-6)).map(d=>{const p=progressForDate(d);return `<button data-hb-date="${isoDate(d)}" class="hb-week-day" aria-label="${esc(dateTitle(d))}: ${Math.round(p*100)}%"><span class="hb-week-value">${Math.round(p*100)}%</span><span class="hb-week-track"><i style="height:${p*100}%"></i></span><small>${d.toLocaleDateString('ru-RU',{weekday:'short'})}</small></button>`;}).join('');
+  }
+  function bindHabitDateButtons(root=document) {$$('[data-hb-date]',root).forEach(b=>b.onclick=()=>selectHabitDate(parseLocalDate(b.dataset.hbDate)));}
+  function bindHabitRows() {
+    $$('[data-toggle-habit]').forEach(b=>b.onclick=()=>toggleHabit(+b.dataset.toggleHabit));
+    $$('[data-hb-delete]').forEach(b=>b.onclick=()=>showDeleteHabitDialog(+b.dataset.hbDelete));
+  }
+  function bindHabitsEvents() {
+    bindHabitRows();bindHabitDateButtons();
+    $('#habit-date')?.addEventListener('change',e=>{if(validAppDate(e.target.value))selectHabitDate(parseLocalDate(e.target.value));else e.target.value=isoDate(state.habits.selectedDate);});
+    $('[data-hb-today]')?.addEventListener('click',()=>{state.habits.today=dateOnly();selectHabitDate(state.habits.today);scrollToSelectedHabitDate();});
+    $$('[data-hb-step]').forEach(b=>b.onclick=()=>selectHabitDate(addDays(state.habits.selectedDate,+b.dataset.hbStep)));
+    $('[data-action="add-habit"]')?.addEventListener('click',showAddHabitSheet);
+    $('[data-action="streak-tip"]')?.addEventListener('click',()=>showTooltip('','Серия дней','Количество дней подряд, когда выполнены все привычки дня.'));
+    $('[data-action="record-tip"]')?.addEventListener('click',()=>showTooltip('','Рекорд','Самая длинная серия дней с выполнением всех привычек.'));
+  }
+  function updateHabitUI() {
+    if(state.nav!==3||!$('.hb-screen'))return;
+    const list=currentHabits(),existing=$$('[data-habit-index]');
+    if(existing.length!==list.length||existing.some((el,i)=>$('.hb-name',el)?.textContent!==list[i].name)){
+      $('#hb-list').innerHTML=renderHabitsList();bindHabitRows();
+    }else existing.forEach((el,i)=>{const done=list[i].done===true;el.classList.toggle('done',done);$('.hb-toggle',el).setAttribute('aria-checked',String(done));$('.hb-check',el).innerHTML=done?icon('check'):'';});
+    const p=progressForDate(state.habits.selectedDate);
+    $('#hb-ratio').textContent=`${list.filter(h=>h.done===true).length} из ${list.length} выполнено`;
+    $('#hb-progress-note').textContent=p===1?'Все привычки на день выполнены':list.length?'Отмечай привычки по мере выполнения':'Добавь первую привычку';
+    $('#hb-streak').textContent=currentStreak();$('#hb-best').textContent=bestStreak();
+    $$('.hb-day').forEach(b=>{const d=parseLocalDate(b.dataset.hbDate),value=progressForDate(d);$('.hb-day-mark',b).className='hb-day-mark '+(value>=1?'perfect':value>0?'partial':'');});
+    $$('.hb-week-day').forEach(b=>{const p=progressForDate(parseLocalDate(b.dataset.hbDate));$('.hb-week-value',b).textContent=Math.round(p*100)+'%';$('.hb-week-track i',b).style.height=p*100+'%';b.setAttribute('aria-label',dateTitle(parseLocalDate(b.dataset.hbDate))+': '+Math.round(p*100)+'%');});
+  }
+  function prepareHabitAnimation(prev,target) {
+    const from=Number.isFinite(state.habits.circleDisplay)?state.habits.circleDisplay:prev;
+    cancelAnimationFrame(habitAnimationFrame);
+    state.habits.animStart=from;state.habits.animEnd=target;state.habits.circleDisplay=from;
+    state.habits.animatingDate=new Date(state.habits.selectedDate);state.habits.celebrationUntil=0;
+    updateHabitUI();animateHabitProgress(from,target);
+  }
+  function animateHabitProgress(startValue,endValue) {
+    cancelAnimationFrame(habitAnimationFrame);
+    const key=isoDate(state.habits.selectedDate),start=performance.now(),duration=reducedMotion()?0:280;
+    const ring=$('#hb-ring-value');if(ring)ring.style.strokeDashoffset=String(100-endValue*100);
+    function frame(now){if(state.nav!==3||isoDate(state.habits.selectedDate)!==key)return;
+      const t=duration?clamp((now-start)/duration,0,1):1,value=startValue+(endValue-startValue)*easeOutCubic(t);
+      state.habits.circleDisplay=value;const el=$('#hb-percent');if(el)el.textContent=Math.round(value*100)+'%';
+      if(t<1)habitAnimationFrame=requestAnimationFrame(frame);else{state.habits.circleDisplay=endValue;state.habits.animatingDate=null;habitAnimationFrame=0;}
+    }habitAnimationFrame=requestAnimationFrame(frame);
+  }
+  function selectHabitDate(d) {
+    if(!d||Number.isNaN(d.getTime())||sameDay(d,state.habits.selectedDate))return;
+    storeCurrentScroll();cancelAnimationFrame(habitAnimationFrame);state.habits.today=dateOnly();
+    state.habits.selectedDate=dateOnly(d);state.habits.circleDisplay=progressForDate(d);state.habits.animatingDate=null;state.habits.celebrationUntil=0;
+    renderScreen();scrollToSelectedHabitDate();
+  }
+  function scrollToSelectedHabitDate() {
+    const sc=$('.hb-days'),selected=$('.hb-day.selected');if(!sc||!selected)return;
+    sc.scrollLeft=clamp(selected.offsetLeft-sc.offsetLeft-(sc.clientWidth-selected.offsetWidth)/2,0,Math.max(0,sc.scrollWidth-sc.clientWidth));
+  }
+  function showCalendarDialog() {
+    const input=$('#habit-date');if(!input)return;
+    if(typeof input.showPicker==='function'){try{input.showPicker();return;}catch(_){}}
+    input.focus({preventScroll:true});input.click();
   }
 
   // -------- Event binding --------
   function bindScreenEvents() {
-    $$('[data-nav]').forEach(b=>b.onclick=()=>switchNav(+b.dataset.nav));
     if(state.nav===0) bindFinanceEvents();
     if(state.nav===2) bindHomeEvents();
     if(state.nav===3) bindHabitsEvents();
@@ -1355,20 +1545,6 @@ select.field { appearance:none; }
       el.addEventListener('contextmenu',e=>{e.preventDefault();showTransactionActions(+el.dataset.txIndex);});
     });
   }
-  function bindHabitsEvents() {
-    $('[data-action="streak-tip"]')?.addEventListener('click',()=>showTooltip('🔥','Стрик','Стрик показывает, сколько дней подряд ты выполнял хотя бы одну привычку без пропусков.'));
-    $('[data-action="record-tip"]')?.addEventListener('click',()=>showTooltip('🏆','Рекорд','Рекорд показывает максимальную серию дней подряд, которую тебе удалось удержать.'));
-    $('[data-action="calendar"]')?.addEventListener('click',showCalendarDialog);
-    $('[data-action="add-habit"]')?.addEventListener('click',showAddHabitSheet);
-    $$('[data-toggle-habit]').forEach(b=>b.onclick=e=>{e.stopPropagation();toggleHabit(+b.dataset.toggleHabit);});
-    $$('.habit-card').forEach(el=>bindLongPress(el,()=>showDeleteHabitDialog(+el.dataset.habitIndex)));
-    $$('[data-date]').forEach(b=>b.onclick=()=>selectHabitDate(parseLocalDate(b.dataset.date)));
-    const scroller=$('.graph-scroller'); if(scroller) scroller.addEventListener('scroll',()=>state.habits.graphScrollLeft=scroller.scrollLeft,{passive:true});
-    const list=$('.habits-list'); if(list) list.addEventListener('scroll',()=>state.habits.habitsScrollTop=list.scrollTop,{passive:true});
-    const canvas=$('.habits-chart'); if(canvas) canvas.addEventListener('pointerdown',e=>{
-      const rect=canvas.getBoundingClientRect(); const x=(e.clientX-rect.left)*(canvas.width/rect.width); const idx=Math.round((x-DAY_ITEM_WIDTH)/DAY_ITEM_WIDTH); const dates=allDates(); if(idx>=0&&idx<dates.length)selectHabitDate(dates[idx]);
-    });
-  }
   function bindLongPress(el,cb) {
     let timer=null, sx=0,sy=0;
     el.addEventListener('pointerdown',e=>{sx=e.clientX;sy=e.clientY;timer=setTimeout(()=>{timer=null;cb();},600);});
@@ -1383,12 +1559,22 @@ select.field { appearance:none; }
     root.innerHTML=`<div class="overlay ${sheet?'sheet-overlay':''}" id="active-overlay">${html}</div>`;
     const ov=$('#active-overlay');
     if(closeOnBackdrop) ov.addEventListener('pointerdown',e=>{if(e.target===ov)closeOverlay();});
-    document.addEventListener('keydown',escClose,{once:true});
+    document.removeEventListener('keydown',escClose);
+    document.addEventListener('keydown',escClose);
     return ov;
   }
   function escClose(e){if(e.key==='Escape')closeOverlay();}
-  function closeOverlay(){ $('#overlay-root').innerHTML=''; }
-  function showToast(text,ok=false){const root=$('#toast-root');const d=document.createElement('div');d.className=`toast ${ok?'ok':''}`;d.textContent=text;root.appendChild(d);setTimeout(()=>d.remove(),2800);}
+  function closeOverlay(){document.removeEventListener('keydown',escClose);$('#overlay-root').innerHTML='';}
+  function showToast(text,ok=false){
+    clearTimeout(toastTimer);clearTimeout(toastRemoveTimer);
+    const root=$('#toast-root');root.replaceChildren();
+    const d=document.createElement('div');d.className='toast'+(ok?' ok':'');d.setAttribute('role','status');
+    d.dataset.expires=String(Date.now()+2500);
+    const message=document.createElement('span');message.textContent=text;
+    const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Закрыть уведомление');
+    function dismiss(){clearTimeout(toastTimer);if(!d.isConnected)return;d.classList.add('toast-exit');toastRemoveTimer=setTimeout(()=>d.remove(),reducedMotion()?0:180);}
+    close.onclick=dismiss;d.append(message,close);root.appendChild(d);toastTimer=setTimeout(dismiss,2300);
+  }
   function formField(id,placeholder,type='text',value=''){return `<input class="field" id="${id}" type="${type}" placeholder="${placeholder}" value="${esc(value)}" />`;}
   function typeToggle(value) { return `<div class="type-toggle"><button class="type-btn expense ${value==='expense'?'active':''}" data-type="expense">Расход</button><button class="type-btn income ${value==='income'?'active':''}" data-type="income">Доход</button></div>`; }
   function bindTypeToggle(container, initial, callback){let type=initial;$$('[data-type]',container).forEach(b=>b.onclick=()=>{type=b.dataset.type;$$('[data-type]',container).forEach(x=>x.classList.toggle('active',x.dataset.type===type));callback(type);});}
@@ -1552,15 +1738,12 @@ select.field { appearance:none; }
   function toggleHabit(index){if(state.habits.selectedDate>state.habits.today)return;const key=habitDateKey(state.habits.selectedDate),habits=(state.habits.data[key]||[]).map(h=>({...h}));if(index>=habits.length)return;const prev=progressForDate(state.habits.selectedDate);habits[index].done=!(habits[index].done===true);state.habits.data[key]=habits;saveHabits();prepareHabitAnimation(prev,progressForDate(state.habits.selectedDate));}
   function addHabit(name){name=String(name||'').trim();if(!name)return;const start=state.habits.selectedDate;for(let i=-CENTER_INDEX;i<=DAYS_TO_SHOW-CENTER_INDEX;i++){const d=addDays(state.habits.selectedDate,i);if(d<start)continue;const key=habitDateKey(d),arr=(state.habits.data[key]||[]).map(h=>({...h}));if(!arr.some(h=>h.name===name)){arr.push({name,done:false});state.habits.data[key]=arr;}}saveHabits();prepareHabitAnimation(progressForDate(state.habits.selectedDate),progressForDate(state.habits.selectedDate));}
   function deleteHabit(index){const habits=currentHabits();if(index>=habits.length)return;const name=habits[index].name,prev=progressForDate(state.habits.selectedDate);for(let i=0;i<=DAYS_TO_SHOW-CENTER_INDEX;i++){const d=addDays(state.habits.selectedDate,i);if(d<state.habits.selectedDate)continue;const key=habitDateKey(d),arr=(state.habits.data[key]||[]).map(h=>({...h})).filter(h=>h.name!==name);if(arr.length)state.habits.data[key]=arr;else delete state.habits.data[key];}saveHabits();prepareHabitAnimation(prev,progressForDate(state.habits.selectedDate));}
-  function prepareHabitAnimation(prev,target){state.habits.previousProgressMap[habitDateKey(state.habits.selectedDate)]=prev;state.habits.animStart=prev;state.habits.animEnd=target;state.habits.circleDisplay=prev;state.habits.animatingDate=new Date(state.habits.selectedDate);if(isPerfectDay(state.habits.selectedDate)&&target>=1){state.habits.celebrationUntil=Date.now()+1545;state.habits.perfectPulse=true;}else{state.habits.celebrationUntil=0;state.habits.perfectPulse=false;}renderScreen();animateHabitProgress(prev,target);scrollToSelectedHabitDate();if(state.habits.celebrationUntil){setTimeout(()=>{if(state.nav===3&&Date.now()>=state.habits.celebrationUntil){renderScreen();}},1600);}}
-  function selectHabitDate(d){if(sameDay(d,state.habits.selectedDate))return;storeCurrentScroll();state.habits.selectedDate=dateOnly(d);const p=progressForDate(d);state.habits.animStart=p;state.habits.animEnd=p;state.habits.circleDisplay=p;state.habits.animatingDate=new Date(d);state.habits.previousProgressMap[habitDateKey(d)]=p;state.habits.celebrationUntil=0;state.habits.perfectPulse=isPerfectDay(d);renderScreen();scrollToSelectedHabitDate();}
   function showAddHabitSheet(){const ov=overlay(`<div class="sheet" style="border-top:1px solid rgba(201,168,76,.5)"><div class="sheet-title" style="text-align:left">Новая привычка</div><div style="height:20px"></div>${formField('habit-name','Название привычки...')}<button class="primary-button" id="habit-save" style="margin-top:24px">Сохранить</button></div>`,{sheet:true});$('#habit-save',ov).onclick=()=>{addHabit($('#habit-name',ov).value);closeOverlay();};$('#habit-name',ov).addEventListener('keydown',e=>{if(e.key==='Enter'){$('#habit-save',ov).click();}});setTimeout(()=>$('#habit-name',ov)?.focus(),80);}
   function showDeleteHabitDialog(index){const h=currentHabits()[index];if(!h)return;const ov=overlay(`<div class="modal"><div class="modal-title">Удалить привычку?</div><div class="modal-content" style="color:rgba(255,255,255,.54);font-family:Georgia,'Times New Roman',serif">${esc(h.name||'')}</div><div class="modal-actions"><button class="text-btn" data-close>Отмена</button><button class="danger-action" id="habit-delete">Удалить</button></div></div>`);$('[data-close]',ov).onclick=closeOverlay;$('#habit-delete',ov).onclick=()=>{deleteHabit(index);closeOverlay();};}
   function showTooltip(emoji,title,text){const ov=overlay(`<div class="tooltip-card"><div class="tooltip-icon">${emoji}</div><div class="tooltip-title">${title}</div><div class="tooltip-text">${text}</div><button class="tooltip-ok">Понятно</button></div>`);$('.tooltip-ok',ov).onclick=closeOverlay;}
 
   // -------- Calendar --------
   const calMonthNames=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-  function showCalendarDialog(){const cal={selected:new Date(state.habits.selectedDate),display:new Date(state.habits.selectedDate.getFullYear(),state.habits.selectedDate.getMonth(),1),query:'',suggestions:[]};renderCalendarOverlay(cal);}
   function renderCalendarOverlay(cal){const ov=overlay(calendarMarkup(cal),{closeOnBackdrop:true});bindCalendarEvents(ov,cal);}
   function calendarMarkup(cal){return `<div class="calendar-modal"><div class="calendar-top"><div class="calendar-top-row"><button class="calendar-close" data-cal-close>${icon('close')}</button><div class="calendar-top-title">Календарь</div><button class="calendar-today" data-cal-today>${icon('today')}</button></div><div class="calendar-search-box"><div class="calendar-search-row">${icon('search')}<input class="calendar-search" id="cal-search" placeholder="Поиск даты..." value="${esc(cal.query)}" /></div>${cal.suggestions.length?`<div class="search-suggestions">${cal.suggestions.map((s,i)=>`<div class="suggestion" data-suggestion="${i}">${esc(s)}</div>`).join('')}</div>`:''}</div></div>
       <div class="calendar-nav"><div class="calendar-nav-group"><button class="calendar-nav-btn muted" data-cal-year="-1">${icon('skip-prev')}</button><button class="calendar-nav-btn" data-cal-month="-1">${icon('chev-left')}</button></div><div class="calendar-month-title">${calMonthNames[cal.display.getMonth()]} ${cal.display.getFullYear()}</div><div class="calendar-nav-group"><button class="calendar-nav-btn" data-cal-month="1">${icon('chev-right')}</button><button class="calendar-nav-btn muted" data-cal-year="1">${icon('skip-next')}</button></div></div>
@@ -1580,7 +1763,7 @@ select.field { appearance:none; }
   function drawDonut(canvas){const {ctx,w,h}=setupCanvas(canvas);ctx.clearRect(0,0,w,h);const exp=Object.entries(expensesByCategory()).sort((a,b)=>b[1]-a[1]),total=exp.reduce((s,e)=>s+e[1],0);if(!exp.length||!total)return;const cx=w/2,cy=h/2,r=Math.min(w,h)/2-10;let start=-Math.PI/2;ctx.lineWidth=20;ctx.lineCap='round';for(const [k,v] of exp){const sweep=v/total*Math.PI*2;ctx.beginPath();ctx.strokeStyle=categoryColors[k]||'#999';ctx.arc(cx,cy,r,start,start+sweep,false);ctx.stroke();start+=sweep;}ctx.fillStyle='#1A1A1A';ctx.beginPath();ctx.arc(cx,cy,Math.max(0,r-25),0,Math.PI*2);ctx.fill();}
   function drawFinanceLine(canvas){const {ctx,w,h}=setupCanvas(canvas);ctx.clearRect(0,0,w,h);const pts=chartPoints();if(!pts.length)return;const max=Math.max(...pts),min=Math.min(...pts),range=Math.max(1,max-min),hh=h-20;ctx.strokeStyle=GOLD;ctx.lineWidth=2;ctx.beginPath();pts.forEach((v,i)=>{const x=pts.length===1?0:i/(pts.length-1)*w,y=10+(1-(v-min)/range)*hh;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();}
   function animateFinanceNumbers(){$$('[data-animate-number]').forEach(el=>{const end=Number(el.dataset.animateNumber)||0,prefix=el.dataset.prefix||'',start=performance.now(),dur=600;function f(now){const t=clamp((now-start)/dur,0,1),v=end*easeOutCubic(t);el.textContent=prefix+formatNum(v);if(t<1)requestAnimationFrame(f);}requestAnimationFrame(f);});}
-  function drawHabitsVisuals(){drawDiscipline(progressForDate(state.habits.selectedDate));drawHabitsChart(1);animateCounts();}
+  function drawHabitsVisuals(){ /* Habits uses persistent SVG/CSS progress, not replayed canvas animations. */ }
   function drawDiscipline(progress) {
     const canvas = $('.discipline-canvas');
     if (!canvas) return;
@@ -1775,9 +1958,7 @@ select.field { appearance:none; }
     gr.addColorStop(0,'rgba(10,10,10,.95)'); gr.addColorStop(1,'rgba(10,10,10,0)');
     ctx.fillStyle=gr; ctx.fillRect(0,0,fade,h);
   }
-  function animateHabitProgress(startValue,endValue){const start=performance.now(),dur=600;function frame(now){if(state.nav!==3)return;const t=clamp((now-start)/dur,0,1),e=easeOutCubic(t),v=startValue+(endValue-startValue)*e;state.habits.circleDisplay=v;const percent=$('#discipline-percent');if(percent)percent.textContent=`${clamp(Math.floor(v*100),0,100)}%`;drawDiscipline(v);drawHabitsChart(e);if(t<1)requestAnimationFrame(frame);else{state.habits.animatingDate=null;}}requestAnimationFrame(frame);}
-  function animateCounts(){$$('[data-count-to]').forEach(el=>{const end=+el.dataset.countTo||0,start=performance.now(),dur=600;function f(now){const t=clamp((now-start)/dur,0,1);el.textContent=String(Math.round(end*easeOutCubic(t)));if(t<1)requestAnimationFrame(f);}requestAnimationFrame(f);});}
-  function scrollToSelectedHabitDate(){requestAnimationFrame(()=>{const sc=$('.graph-scroller');if(!sc)return;const dates=allDates(),i=dates.findIndex(d=>sameDay(d,state.habits.selectedDate));if(i<0)return;const sw=sc.clientWidth;const target=i*DAY_ITEM_WIDTH-(sw/2-DAY_ITEM_WIDTH/2)+DAY_ITEM_WIDTH;sc.scrollTo({left:clamp(target,0,sc.scrollWidth-sc.clientWidth),behavior:'smooth'});state.habits.graphScrollLeft=clamp(target,0,sc.scrollWidth-sc.clientWidth);});}
+  function animateCounts(){$$('[data-count-to]').forEach(el=>el.textContent=String(+el.dataset.countTo||0));}
 
   // -------- Startup --------
   $('#bottom-nav').addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(b)switchNav(+b.dataset.nav);});
@@ -1786,7 +1967,17 @@ select.field { appearance:none; }
   state.habits.circleDisplay=progressForDate(state.habits.selectedDate);
   // Broker requests are paused until a secure, verified integration is available.
 
-  setInterval(()=>{state.habits.motivationIndex++;if(state.nav===3){const el=$('#motivation-text');if(el){el.style.opacity='0';setTimeout(()=>{if($('#motivation-text')){$('#motivation-text').textContent=motivationText();$('#motivation-text').style.opacity='1';}},120);}}},8000);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)return;
+    $$('#toast-root .toast').forEach(t=>{if(Number(t.dataset.expires)<=Date.now())t.remove();});
+    const today=dateOnly();if(!sameDay(today,state.habits.today)){
+      const followedToday=sameDay(state.habits.selectedDate,state.habits.today);state.habits.today=today;
+      if(followedToday)state.habits.selectedDate=today;
+      cancelAnimationFrame(habitAnimationFrame);state.habits.animatingDate=null;
+      state.habits.circleDisplay=progressForDate(state.habits.selectedDate);
+      if(state.nav===3)renderScreen();
+    }
+  });
 
   window.addEventListener('resize',()=>{if(state.nav===0)drawFinanceCharts();if(state.nav===3)drawHabitsVisuals();});
   window.addEventListener('beforeunload',storeCurrentScroll);
