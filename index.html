@@ -839,14 +839,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-card:focus-visible {outline:2px solid var(--gold);outline-offset:2px;}
 /* Habit row actions: reveal only, never destructive full-swipe. */
 .habit-swipe {position:relative;overflow:hidden;border-radius:12px;margin-bottom:8px;isolation:isolate;touch-action:pan-y pinch-zoom;}
-.habit-swipe>.habit-card {position:relative;z-index:1;margin:0;background:var(--surface);touch-action:pan-y pinch-zoom;transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s;}
-.habit-swipe.is-dragging>.habit-card {transition:none;will-change:transform;}
-.habit-swipe-actions {position:absolute;inset:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;opacity:0;pointer-events:none;border:1px solid rgba(201,168,76,.5);border-radius:12px;overflow:hidden;background:var(--surface);transition:opacity .16s;touch-action:pan-y pinch-zoom;}
+.habit-swipe>.habit-card {position:relative;z-index:1;margin:0;min-height:56px;background:var(--surface);touch-action:pan-y pinch-zoom;transition:border-color .2s;}
+.habit-swipe.is-dragging>.habit-card {will-change:transform;}
+.habit-swipe-actions {position:absolute;inset:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:center;justify-items:center;gap:0;opacity:0;pointer-events:none;background:var(--bg);touch-action:pan-y pinch-zoom;}
 .habit-swipe.is-open .habit-swipe-actions {pointer-events:auto;}
-.habit-swipe-actions button {min-width:0;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:0;border-radius:0;background:var(--surface);color:var(--gold);font-size:12px;line-height:1.2;padding:8px 2px;touch-action:pan-y pinch-zoom;}
-.habit-swipe-actions button+button {border-left:1px solid rgba(201,168,76,.35);}
-.habit-swipe-actions .icon {width:19px;height:19px;}
-.habit-swipe-actions button:active {background:rgba(201,168,76,.12);}
+.habit-swipe-actions button {width:44px;height:44px;min-width:0;display:grid;place-items:center;border:1px solid #8b8e95;border-radius:50%;background:#111214;color:#c2c5cb;padding:0;box-shadow:0 0 8px rgba(180,186,196,.12),inset 0 0 5px rgba(180,186,196,.04);touch-action:pan-y pinch-zoom;}
+.habit-swipe-actions [data-swipe-delete] {background:#160f10;color:#f07578;border-color:#b8464e;box-shadow:0 0 9px rgba(215,63,76,.16),inset 0 0 5px rgba(215,63,76,.06);}
+.habit-swipe-actions .icon {width:20px;height:20px;}
+.habit-swipe-actions button>span:not(.icon) {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+.habit-swipe-actions button:active {filter:brightness(1.2);}
+.habit-swipe-actions button:focus-visible {outline:2px solid var(--gold);outline-offset:3px;}
 .habit-quick-menu .habit-menu-action.danger-action {color:var(--gold);}
 .sheet.habit-action-sheet {max-width:430px;margin-left:auto;margin-right:auto;padding-bottom:max(16px,var(--safe-bottom));}
 .sheet.habit-quick-menu {width:calc(100% - 24px);max-width:360px;margin:12px auto max(12px,var(--safe-bottom));padding:8px;border:1px solid #3a3323;border-radius:18px;background:#151411;box-shadow:0 12px 40px rgba(0,0,0,.35);}
@@ -883,7 +885,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.9';
+  const APP_VERSION = '0.3.10';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1257,7 +1259,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: симметричные чёрно-золотые действия привычки и удобный обратный свайп.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: непрерывный свайп с учётом скорости жеста и круглые кнопки действий.</p></section>
     </div></section>`;
   }
 
@@ -1588,32 +1590,49 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function closeHabitSwipes(except=null) {
     $$('.habit-swipe').forEach(row=>{if(row!==except)row.closeSwipe?.();});
   }
+  function habitSwipeDestination(offset,velocity,width) {
+    return clamp(offset+velocity*180,-width,0)<-width*.5;
+  }
   function bindHabitSwipe(card) {
     const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row);
-    let press=null,offset=0,open=false,suppressClick=false;
-    const width=()=>row.getBoundingClientRect().width;
-    const paint=value=>{offset=clamp(value,-width(),0);card.style.transform='translateX('+offset+'px)';actions.style.opacity=String(Math.min(1,Math.abs(offset)/Math.max(1,width())));};
-    const settle=value=>{open=value;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));card.inert=open;card.setAttribute('aria-hidden',String(open));paint(open?-width():0);};
-    row.closeSwipe=()=>{if(open){press=null;settle(false);}};
+    let press=null,offset=0,open=false,suppressClick=false,frame=0,span=0;
+    const stop=()=>{cancelAnimationFrame(frame);frame=0;};
+    const paint=value=>{offset=clamp(value,-span,0);card.style.transform='translate3d('+offset+'px,0,0)';actions.style.opacity=String(Math.min(1,Math.abs(offset)/Math.max(1,span)));};
+    const settle=(value,velocity=0)=>{
+      stop();open=value;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');
+      actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));card.inert=open;card.setAttribute('aria-hidden',String(open));
+      const target=open?-span:0;if(reducedMotion()||Math.abs(target-offset)<.2){paint(target);return;}
+      let v=clamp(velocity*1000,-1400,1400),last=performance.now(),start=last;
+      const tick=now=>{
+        if(!row.isConnected){frame=0;return;}
+        const dt=Math.min(.025,Math.max(0,(now-last)/1000));last=now;
+        v+=(420*(target-offset)-40*v)*dt;paint(offset+v*dt);
+        if((Math.abs(target-offset)<.2&&Math.abs(v)<4)||now-start>650){paint(target);frame=0;}else frame=requestAnimationFrame(tick);
+      };frame=requestAnimationFrame(tick);
+    };
+    row.closeSwipe=()=>{if(open||frame){press=null;span=row.getBoundingClientRect().width;settle(false);}};
     row.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0){press=null;settle(open);return;}
-      suppressClick=false;closeHabitSwipes(row);
-      press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,axis:null};
+      stop();span=row.getBoundingClientRect().width;suppressClick=false;closeHabitSwipes(row);
+      const now=performance.now();press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,lastX:e.clientX,wasOpen:open,axis:null,samples:[{x:e.clientX,at:now}]};
     },{passive:true});
     row.addEventListener('pointermove',e=>{
       if(!press||e.pointerId!==press.id)return;
-      const dx=e.clientX-press.x,dy=e.clientY-press.y;
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<=8)return;press.axis=Math.abs(dx)>Math.abs(dy)*1.25?'x':'y';if(press.axis==='x'){row.classList.add('is-dragging');row.setPointerCapture?.(e.pointerId);}}
+      const dx=e.clientX-press.x,dy=e.clientY-press.y,now=performance.now();
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<=5)return;press.axis=Math.abs(dx)>Math.abs(dy)*1.2?'x':'y';if(press.axis==='x'){row.classList.add('is-dragging');row.setPointerCapture?.(e.pointerId);}}
       if(press.axis!=='x')return;
-      e.preventDefault();suppressClick=true;paint(press.from+dx);
+      e.preventDefault();suppressClick=true;paint(offset+e.clientX-press.lastX);press.lastX=e.clientX;
+      press.samples.push({x:e.clientX,at:now});while(press.samples.length>2&&press.samples[0].at<now-80)press.samples.shift();
     },{passive:false});
     row.addEventListener('pointerup',e=>{
       if(!press||e.pointerId!==press.id)return;
       const gesture=press;press=null;
       if(gesture.axis==='x'){
-        suppressClick=true;const dx=e.clientX-gesture.x;
-        settle(gesture.wasOpen?dx<Math.min(24,width()*.18):-dx>=Math.min(40,width()*.3));
-      }
+        suppressClick=true;paint(offset+e.clientX-gesture.lastX);
+        const now=performance.now(),samples=gesture.samples.filter(p=>now-p.at<=100),first=samples[0];
+        const velocity=first&&now>first.at?(e.clientX-first.x)/(now-first.at):0;
+        settle(habitSwipeDestination(offset,velocity,span),velocity);
+      }else if(offset!==0&&offset!==-span)settle(gesture.wasOpen);
     },{passive:true});
     row.addEventListener('pointercancel',()=>{if(press?.axis==='x')suppressClick=true;press=null;settle(open);},{passive:true});
     row.addEventListener('click',e=>{
