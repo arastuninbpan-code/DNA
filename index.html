@@ -791,6 +791,26 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
 @media(max-width:380px){.fin-history-filters{grid-template-columns:1fr}.fin-v3 .finance-scroll{padding:16px 16px 32px}.fin-history-card{padding:0}.hb-screen{padding-left:16px;padding-right:16px}.hb-progress-row{gap:12px}.hb-progress-ring{width:76px;height:76px;flex-basis:76px}}
 @media(prefers-reduced-motion:reduce){.hb-screen *,.toast,.toast-exit,.fin-filter-content{transition:none!important;animation:none!important}}
 
+/* Preserve the original Habits composition; only fit and interaction fixes. */
+.habits-screen {overflow-y:auto;overflow-x:hidden;}
+.habits-screen>.streak-section,.habits-screen>.discipline-wrap,.habits-screen>.motivation {flex-shrink:0;}
+.habits-workspace {flex:1 0 330px;min-height:330px;}
+.habits-left {min-width:0;}
+.habit-name {white-space:normal;overflow-wrap:anywhere;}
+.habit-card {animation:none;}
+.calendar-button {position:relative;min-height:52px;}
+.calendar-title {white-space:normal;line-height:1.35;overflow-wrap:anywhere;margin-left:8px;}
+.calendar-button .icon {flex-shrink:0;}
+.calendar-button .ui-date {position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}
+.calendar-button:focus-within {outline:2px solid var(--gold);outline-offset:2px;}
+.habit-today {margin:6px 4px 0 16px;padding:8px;border:1px solid rgba(201,168,76,.35);border-radius:10px;background:transparent;color:var(--gold);min-height:36px;}
+.habit-today[aria-current] {color:rgba(201,168,76,.65);}
+.date-item.today {background:transparent;}
+.date-item.selected {background:rgba(201,168,76,.25);}
+.graph-fade-left,.graph-fade-right {width:20px;}
+@media(max-width:380px){.habit-card{padding:10px 8px}.habit-check{margin-right:8px}.calendar-button{padding:10px 8px}}
+@media(prefers-reduced-motion:reduce){.habits-screen *{animation:none!important;transition:none!important}}
+
 </style>
 </head>
 <body>
@@ -819,7 +839,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.1';
+  const APP_VERSION = '0.3.2';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1138,6 +1158,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
     const host=$('#screen'),sc=currentScroller();if(!sc)return;
     const key=host?.dataset.viewKey||currentViewKey();viewScroll.set(key,sc.scrollTop);
     if(key.startsWith('finance:'))state.finance.scrollTop=sc.scrollTop;
+    if(key==='nav:3'){const list=$('.habits-list');if(list)state.habits.habitsScrollTop=list.scrollTop;}
   }
   function renderScreen() {
     const host=$('#screen'),key=currentViewKey();
@@ -1150,7 +1171,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
     else host.innerHTML='<section class="screen placeholder-screen"><div class="placeholder-title">Новости</div></section>';
     host.dataset.viewKey=key;bindScreenEvents();
     const sc=currentScroller();if(sc)sc.scrollTop=viewScroll.get(key)||0;
-    if(state.nav===3)scrollToSelectedHabitDate();
+    if(state.nav===3){drawHabitsVisuals();scrollToSelectedHabitDate();const list=$('.habits-list');if(list)list.scrollTop=state.habits.habitsScrollTop||0;}
     requestAnimationFrame(()=>{
       if(epoch!==renderEpoch)return;
       if(state.nav===0)drawFinanceCharts();
@@ -1429,67 +1450,72 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
   }
   function renderHabits() {
     state.habits.today=dateOnly();
-    const selected=state.habits.selectedDate,p=progressForDate(selected),done=currentHabits().filter(h=>h.done===true).length;
-    const display=state.habits.animatingDate?state.habits.circleDisplay:p;
-    return `<section class="screen hb-screen"><div class="hb-container">
-      <header class="hb-header"><h1>Привычки</h1><button class="hb-today ${sameDay(selected,state.habits.today)?'is-today':''}" data-hb-today ${sameDay(selected,state.habits.today)?'aria-current="date"':''}>Сегодня</button></header>
-      <div class="hb-date-row"><button class="fin-icon" data-hb-step="-1" aria-label="Предыдущий день">${icon('chev-left')}</button><label class="hb-date-field"><span class="sr-only">Выбранная дата</span>${appDateField('habit-date',isoDate(selected),true)}</label><button class="fin-icon" data-hb-step="1" aria-label="Следующий день">${icon('chev-right')}</button></div>
-      <p class="hb-date-caption" id="hb-date-caption">${esc(selected.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'}))}</p>
-      <div class="hb-days" aria-label="Дни привычек">${renderHabitDays()}</div>
-      <div class="hb-layout"><div class="hb-main"><div class="hb-progress-row"><div class="hb-progress-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="43" class="hb-ring-track"/><circle id="hb-ring-value" cx="50" cy="50" r="43" pathLength="100" class="hb-ring-value" style="stroke-dashoffset:${100-display*100}"/></svg><strong id="hb-percent">${Math.round(display*100)}%</strong></div><div><h2 id="hb-ratio">${done} из ${currentHabits().length} выполнено</h2><p id="hb-progress-note">${selected>state.habits.today?'Отметки доступны в день выполнения':p===1?'Все привычки на день выполнены':currentHabits().length?'Отмечай привычки по мере выполнения':'Добавь первую привычку'}</p></div></div>
-      <div id="hb-list">${renderHabitsList()}</div><button class="hb-add" data-action="add-habit">+ Добавить привычку</button></div>
-      <aside class="hb-stats"><div class="hb-streaks"><button data-action="streak-tip"><strong id="hb-streak">${currentStreak()}</strong><span>Серия дней</span></button><button data-action="record-tip"><strong id="hb-best">${bestStreak()}</strong><span>Рекорд</span></button></div><h2>Последние 7 дней</h2><div class="hb-week" id="hb-week">${renderHabitWeek()}</div><p class="hb-week-note">Доля выполненных привычек</p></aside></div>
-    </div></section>`;
+    const streak=currentStreak(), best=bestStreak(), sel=state.habits.selectedDate, today=state.habits.today, habits=currentHabits(), prog=progressForDate(sel);
+    return `<section class="screen habits-screen">
+      <div class="streak-section"><div class="streak-badge pressable ${streak>0?'active':''}" data-action="streak-tip"><span class="streak-emoji">🔥</span><span class="streak-value" data-count-to="${streak}">${streak}</span><span class="streak-label">дней</span></div><span class="streak-divider"></span><div class="streak-badge pressable ${best>0?'active':''}" data-action="record-tip"><span class="streak-emoji">🏆</span><span class="streak-value" data-count-to="${best}">${best}</span><span class="streak-label">рекорд</span></div></div>
+      <div class="discipline-wrap">${renderDisciplineCircle(sel,today,habits,prog)}</div>
+      <div class="motivation" id="motivation-text">${esc(motivationText())}</div>
+      <div class="habits-workspace"><div class="habits-left"><label class="calendar-button pressable">${icon('calendar-month')}<span class="calendar-title">${esc(dateTitle(sel))}</span>${appDateField('habit-date',isoDate(sel),true)}</label><button class="habit-today" data-hb-today ${sameDay(sel,today)?'aria-current="date"':''}>Сегодня</button><div class="habits-list-wrap">${renderHabitsList()}<span class="list-fade-top"></span><span class="list-fade-bottom"></span></div><div class="add-habit-btn pressable" data-action="add-habit">+ Добавить привычку</div></div>${renderGraphPane()}</div>
+    </section>`;
+  }
+  function renderDisciplineCircle(sel,today,habits,progress) {
+    const future=sel>today, empty=!habits.length;
+    if(future||empty) return `<div class="discipline-empty">${icon(empty?'fitness':'calendar')}<div class="discipline-empty-text">${empty?'Нет привычек<br>на этот день':'Будущий день'}</div></div>`;
+    const celebrating=false;
+    return `<div class="discipline-circle"><canvas class="discipline-canvas"></canvas><div class="discipline-center">${celebrating?`<div class="celebration"><div class="celebration-fire">🔥</div><div class="celebration-streak">${currentStreak()} ${pluralDays(currentStreak())}!</div></div>`:`<div class="discipline-percent" id="discipline-percent">${Math.floor(progress*100)}%</div><div class="discipline-ratio">${habits.filter(h=>h.done===true).length} из ${habits.length}</div><div class="discipline-label">ДИСЦИПЛИНА</div>`}</div></div>`;
   }
   function renderHabitsList() {
-    const list=currentHabits(),future=state.habits.selectedDate>state.habits.today;
-    if(!list.length)return '<p class="hb-empty">На этот день привычек пока нет.</p>';
-    return list.map((h,i)=>`<div class="hb-item ${h.done===true?'done':''}" data-habit-index="${i}"><button class="hb-toggle" data-toggle-habit="${i}" role="checkbox" aria-checked="${h.done===true}" aria-label="${esc(h.name||'Привычка')}" ${future?'disabled':''}><span class="hb-check" aria-hidden="true">${h.done===true?icon('check'):''}</span><span class="hb-name">${esc(h.name||'Привычка')}</span></button><button class="hb-delete" data-hb-delete="${i}" aria-label="Удалить привычку ${esc(h.name||'')}">${icon('close')}</button></div>`).join('');
+    const habits=currentHabits();
+    if(!habits.length) return `<div class="habits-empty">${icon('sparkles')}<div class="habits-empty-text">Начни создавать<br>свою систему<br>дисциплины</div></div>`;
+    const future=state.habits.selectedDate>state.habits.today;
+    return `<div class="habits-list">${habits.map((h,i)=>`<div class="habit-card ${h.done?'done':''} ${future?'future':''}" data-habit-index="${i}" style="animation-delay:${i*50}ms"><button class="habit-check ${h.done?'done':''} ${future?'future':''}" data-toggle-habit="${i}" ${future?'disabled':''}>${h.done?icon('check'):''}</button><div class="habit-name">${esc(h.name||'')}</div></div>`).join('')}</div>`;
   }
-  function renderHabitWeek() {
-    return Array.from({length:7},(_,i)=>addDays(state.habits.today,i-6)).map(d=>{const p=progressForDate(d);return `<button data-hb-date="${isoDate(d)}" class="hb-week-day" aria-label="${esc(dateTitle(d))}: ${Math.round(p*100)}%"><span class="hb-week-value">${Math.round(p*100)}%</span><span class="hb-week-track"><i style="height:${p*100}%"></i></span><small>${d.toLocaleDateString('ru-RU',{weekday:'short'})}</small></button>`;}).join('');
+  function renderGraphPane() {
+    const dates=allDates(), labels=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+    return `<div class="graph-pane"><div class="graph-scroller"><div class="graph-inner"><div class="date-strip">${dates.map(d=>{const p=progressForDate(d),sel=sameDay(d,state.habits.selectedDate),today=sameDay(d,state.habits.today);return `<button class="date-item ${sel?'selected':''} ${today?'today':''}" data-date="${isoDate(d)}"><span class="date-day">${labels[(d.getDay()+6)%7]}</span><span class="date-num">${d.getDate()}</span>${p>0?`<span class="date-progress"><span style="width:${p*100}%"></span></span>`:''}</button>`}).join('')}</div><div class="graph-canvas-wrap"><canvas class="habits-chart"></canvas></div></div></div><span class="graph-fade-left"></span><span class="graph-fade-right"></span></div>`;
   }
-  function bindHabitDateButtons(root=document) {$$('[data-hb-date]',root).forEach(b=>b.onclick=()=>selectHabitDate(parseLocalDate(b.dataset.hbDate)));}
-  function bindHabitRows() {
-    $$('[data-toggle-habit]').forEach(b=>b.onclick=()=>toggleHabit(+b.dataset.toggleHabit));
-    $$('[data-hb-delete]').forEach(b=>b.onclick=()=>showDeleteHabitDialog(+b.dataset.hbDelete));
-  }
+
   function bindHabitsEvents() {
-    bindHabitRows();bindHabitDateButtons();
+    $('[data-action="streak-tip"]')?.addEventListener('click',()=>showTooltip('🔥','Стрик','Стрик показывает, сколько дней подряд ты выполнял хотя бы одну привычку без пропусков.'));
+    $('[data-action="record-tip"]')?.addEventListener('click',()=>showTooltip('🏆','Рекорд','Рекорд показывает максимальную серию дней подряд, которую тебе удалось удержать.'));
     $('#habit-date')?.addEventListener('change',e=>{if(validAppDate(e.target.value))selectHabitDate(parseLocalDate(e.target.value));else e.target.value=isoDate(state.habits.selectedDate);});
     $('[data-hb-today]')?.addEventListener('click',()=>{state.habits.today=dateOnly();selectHabitDate(state.habits.today);scrollToSelectedHabitDate();});
-    $$('[data-hb-step]').forEach(b=>b.onclick=()=>selectHabitDate(addDays(state.habits.selectedDate,+b.dataset.hbStep)));
     $('[data-action="add-habit"]')?.addEventListener('click',showAddHabitSheet);
-    $('[data-action="streak-tip"]')?.addEventListener('click',()=>showTooltip('','Серия дней','Количество дней подряд, когда выполнены все привычки дня.'));
-    $('[data-action="record-tip"]')?.addEventListener('click',()=>showTooltip('','Рекорд','Самая длинная серия дней с выполнением всех привычек.'));
+    $$('[data-toggle-habit]').forEach(b=>b.onclick=e=>{e.stopPropagation();toggleHabit(+b.dataset.toggleHabit);});
+    $$('.habit-card').forEach(el=>bindLongPress(el,()=>showDeleteHabitDialog(+el.dataset.habitIndex)));
+    $$('[data-date]').forEach(b=>b.onclick=()=>selectHabitDate(parseLocalDate(b.dataset.date)));
+    const scroller=$('.graph-scroller'); if(scroller) scroller.addEventListener('scroll',()=>state.habits.graphScrollLeft=scroller.scrollLeft,{passive:true});
+    const list=$('.habits-list'); if(list) list.addEventListener('scroll',()=>state.habits.habitsScrollTop=list.scrollTop,{passive:true});
+    const canvas=$('.habits-chart'); if(canvas) canvas.addEventListener('pointerdown',e=>{
+      const rect=canvas.getBoundingClientRect(); const x=e.clientX-rect.left; const idx=Math.round((x-DAY_ITEM_WIDTH)/DAY_ITEM_WIDTH); const dates=allDates(); if(idx>=0&&idx<dates.length)selectHabitDate(dates[idx]);
+    });
   }
   function updateHabitUI() {
-    if(state.nav!==3||!$('.hb-screen'))return;
+    if(state.nav!==3||!$('.habits-screen'))return;
     const list=currentHabits(),existing=$$('[data-habit-index]');
-    if(existing.length!==list.length||existing.some((el,i)=>$('.hb-name',el)?.textContent!==list[i].name)){
-      $('#hb-list').innerHTML=renderHabitsList();bindHabitRows();
-    }else existing.forEach((el,i)=>{const done=list[i].done===true;el.classList.toggle('done',done);$('.hb-toggle',el).setAttribute('aria-checked',String(done));$('.hb-check',el).innerHTML=done?icon('check'):'';});
-    const p=progressForDate(state.habits.selectedDate);
-    $('#hb-ratio').textContent=`${list.filter(h=>h.done===true).length} из ${list.length} выполнено`;
-    $('#hb-progress-note').textContent=p===1?'Все привычки на день выполнены':list.length?'Отмечай привычки по мере выполнения':'Добавь первую привычку';
-    $('#hb-streak').textContent=currentStreak();$('#hb-best').textContent=bestStreak();
-    $$('.hb-day').forEach(b=>{const d=parseLocalDate(b.dataset.hbDate),value=progressForDate(d);$('.hb-day-mark',b).className='hb-day-mark '+(value>=1?'perfect':value>0?'partial':'');});
-    $$('.hb-week-day').forEach(b=>{const p=progressForDate(parseLocalDate(b.dataset.hbDate));$('.hb-week-value',b).textContent=Math.round(p*100)+'%';$('.hb-week-track i',b).style.height=p*100+'%';b.setAttribute('aria-label',dateTitle(parseLocalDate(b.dataset.hbDate))+': '+Math.round(p*100)+'%');});
+    if(existing.length!==list.length||existing.some((el,i)=>$('.habit-name',el)?.textContent!==list[i].name)){
+      storeCurrentScroll();renderScreen();return;
+    }
+    existing.forEach((el,i)=>{const done=list[i].done===true;el.classList.toggle('done',done);const check=$('.habit-check',el);check.classList.toggle('done',done);check.setAttribute('aria-pressed',String(done));check.innerHTML=done?icon('check'):'';});
+    const ratio=$('.discipline-ratio');if(ratio)ratio.textContent=list.filter(h=>h.done===true).length+' из '+list.length;
+    const counts=$$('.streak-value');[currentStreak(),bestStreak()].forEach((v,i)=>{if(counts[i]){counts[i].textContent=v;counts[i].dataset.countTo=v;counts[i].closest('.streak-badge').classList.toggle('active',v>0);}});
+    const motivation=$('#motivation-text');if(motivation)motivation.textContent=motivationText();
+    $$('.date-item').forEach(b=>{const p=progressForDate(parseLocalDate(b.dataset.date));let mark=$('.date-progress',b);if(p>0){if(!mark){mark=document.createElement('span');mark.className='date-progress';mark.innerHTML='<span></span>';b.appendChild(mark);}mark.firstElementChild.style.width=p*100+'%';}else mark?.remove();});
   }
   function prepareHabitAnimation(prev,target) {
     const from=Number.isFinite(state.habits.circleDisplay)?state.habits.circleDisplay:prev;
     cancelAnimationFrame(habitAnimationFrame);
     state.habits.animStart=from;state.habits.animEnd=target;state.habits.circleDisplay=from;
+    state.habits.previousProgressMap[habitDateKey(state.habits.selectedDate)]=from;
     state.habits.animatingDate=new Date(state.habits.selectedDate);state.habits.celebrationUntil=0;
     updateHabitUI();animateHabitProgress(from,target);
   }
   function animateHabitProgress(startValue,endValue) {
     cancelAnimationFrame(habitAnimationFrame);
     const key=isoDate(state.habits.selectedDate),start=performance.now(),duration=reducedMotion()?0:280;
-    const ring=$('#hb-ring-value');if(ring)ring.style.strokeDashoffset=String(100-endValue*100);
     function frame(now){if(state.nav!==3||isoDate(state.habits.selectedDate)!==key)return;
       const t=duration?clamp((now-start)/duration,0,1):1,value=startValue+(endValue-startValue)*easeOutCubic(t);
-      state.habits.circleDisplay=value;const el=$('#hb-percent');if(el)el.textContent=Math.round(value*100)+'%';
+      state.habits.circleDisplay=value;drawDiscipline(value);drawHabitsChart(easeOutCubic(t));const el=$('#discipline-percent');if(el)el.textContent=Math.round(value*100)+'%';
       if(t<1)habitAnimationFrame=requestAnimationFrame(frame);else{state.habits.circleDisplay=endValue;state.habits.animatingDate=null;habitAnimationFrame=0;}
     }habitAnimationFrame=requestAnimationFrame(frame);
   }
@@ -1500,7 +1526,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
     renderScreen();scrollToSelectedHabitDate();
   }
   function scrollToSelectedHabitDate() {
-    const sc=$('.hb-days'),selected=$('.hb-day.selected');if(!sc||!selected)return;
+    const sc=$('.graph-scroller'),selected=$('.date-item.selected');if(!sc||!selected)return;
     sc.scrollLeft=clamp(selected.offsetLeft-sc.offsetLeft-(sc.clientWidth-selected.offsetWidth)/2,0,Math.max(0,sc.scrollWidth-sc.clientWidth));
   }
   function showCalendarDialog() {
@@ -1763,7 +1789,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
   function drawDonut(canvas){const {ctx,w,h}=setupCanvas(canvas);ctx.clearRect(0,0,w,h);const exp=Object.entries(expensesByCategory()).sort((a,b)=>b[1]-a[1]),total=exp.reduce((s,e)=>s+e[1],0);if(!exp.length||!total)return;const cx=w/2,cy=h/2,r=Math.min(w,h)/2-10;let start=-Math.PI/2;ctx.lineWidth=20;ctx.lineCap='round';for(const [k,v] of exp){const sweep=v/total*Math.PI*2;ctx.beginPath();ctx.strokeStyle=categoryColors[k]||'#999';ctx.arc(cx,cy,r,start,start+sweep,false);ctx.stroke();start+=sweep;}ctx.fillStyle='#1A1A1A';ctx.beginPath();ctx.arc(cx,cy,Math.max(0,r-25),0,Math.PI*2);ctx.fill();}
   function drawFinanceLine(canvas){const {ctx,w,h}=setupCanvas(canvas);ctx.clearRect(0,0,w,h);const pts=chartPoints();if(!pts.length)return;const max=Math.max(...pts),min=Math.min(...pts),range=Math.max(1,max-min),hh=h-20;ctx.strokeStyle=GOLD;ctx.lineWidth=2;ctx.beginPath();pts.forEach((v,i)=>{const x=pts.length===1?0:i/(pts.length-1)*w,y=10+(1-(v-min)/range)*hh;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();}
   function animateFinanceNumbers(){$$('[data-animate-number]').forEach(el=>{const end=Number(el.dataset.animateNumber)||0,prefix=el.dataset.prefix||'',start=performance.now(),dur=600;function f(now){const t=clamp((now-start)/dur,0,1),v=end*easeOutCubic(t);el.textContent=prefix+formatNum(v);if(t<1)requestAnimationFrame(f);}requestAnimationFrame(f);});}
-  function drawHabitsVisuals(){ /* Habits uses persistent SVG/CSS progress, not replayed canvas animations. */ }
+  function drawHabitsVisuals(){drawDiscipline(state.habits.animatingDate?state.habits.circleDisplay:progressForDate(state.habits.selectedDate));drawHabitsChart(state.habits.animatingDate?0:1);animateCounts();}
   function drawDiscipline(progress) {
     const canvas = $('.discipline-canvas');
     if (!canvas) return;
