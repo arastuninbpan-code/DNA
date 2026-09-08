@@ -167,32 +167,47 @@ button, [role="button"], .tap { cursor: pointer; user-select: none; }
 
 /* Home */
 .home-screen {
-  min-height: 100%;
-  padding: max(16px, env(safe-area-inset-top, 0px)) 24px 16px;
-  text-align: center;
-  overflow-y: auto;
+  display: flex; flex-direction: column;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) 24px max(24px, env(safe-area-inset-left, 0px));
 }
-.home-brand { color: var(--gold); font-size: 18px; letter-spacing: 6px; }
-.home-greeting { margin-top: 24px; color: #fff; font-size: 20px; font-style: italic; }
+.home-toolbar { width: 100%; max-width: 960px; margin: 0 auto; display: flex; justify-content: flex-end; }
+.home-icon-button {
+  flex: 0 0 auto; width: 48px; height: 48px; display: grid; place-items: center;
+  border: 1px solid rgba(201,168,76,.25); border-radius: 50%; background: var(--surface); color: var(--gold);
+}
+.home-icon-button .icon { width: 22px; height: 22px; }
+.home-stage { flex: 1; min-height: 240px; display: grid; place-items: center; padding: 32px 0 64px; text-align: center; }
+.home-voice { display: flex; flex-direction: column; align-items: center; gap: 18px; }
 .home-mic {
-  margin: 40px auto 0;
-  width: 110px; height: 110px; border-radius: 50%;
-  border: 1.5px solid var(--gold); display:grid; place-items:center;
+  width: clamp(120px, 24vw, 164px); height: clamp(120px, 24vw, 164px); border-radius: 50%;
+  border: 1px solid var(--gold); display: grid; place-items: center; color: var(--gold);
+  background: radial-gradient(circle at 50% 35%, rgba(201,168,76,.1), #0d0d0d 75%);
+  box-shadow: 0 0 0 10px rgba(201,168,76,.035), 0 0 48px rgba(201,168,76,.055);
 }
-.home-mic .icon { width: 44px; height: 44px; color: var(--gold); }
-.home-hint { margin-top: 16px; color: rgba(255,255,255,.38); font-size: 13px; font-style: italic; }
-.status-grid { margin-top: 40px; display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:12px; }
-.status-card {
-  aspect-ratio: 1.8;
-  background: var(--surface);
-  border: .5px solid var(--gold);
-  border-radius: 8px;
-  padding:14px;
-  display:flex; flex-direction:column; justify-content:space-between; align-items:flex-start; text-align:left;
+.home-mic .icon { width: 48px; height: 48px; }
+.home-voice-status { margin: 0; color: #b6aa88; font-size: .875rem; line-height: 1.5; }
+.home-screen button:focus-visible, .home-settings button:focus-visible, .voice-dialog button:focus-visible {
+  outline: 2px solid var(--gold2); outline-offset: 5px;
 }
-.status-card .icon { width:18px; height:18px; color:var(--gold); }
-.status-title { font-size:13px; color:#fff; }
-.status-sub { margin-top:2px; font-family:Georgia,'Times New Roman',serif; color:rgba(255,255,255,.38); font-size:11px; }
+.home-settings { padding: max(16px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 32px max(20px, env(safe-area-inset-left, 0px)); }
+.settings-inner { max-width: 640px; margin: 0 auto; }
+.settings-header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
+.settings-header h1 { margin: 0; font-size: 1.5rem; font-weight: 400; }
+.settings-card { padding: 22px; margin-top: 16px; border: 1px solid rgba(201,168,76,.2); border-radius: 18px; background: var(--surface); }
+.settings-card h2 { margin: 0 0 12px; font-size: 1rem; font-weight: 400; color: var(--gold); }
+.settings-card p, .voice-dialog p { margin: 10px 0 0; font-size: 1rem; line-height: 1.65; color: #c1bfb9; }
+.settings-meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; }
+.settings-meta dt { font-size: 1rem; color: #c1bfb9; }
+.settings-meta dd { margin: 0; font-size: 1.125rem; color: var(--gold2); font-variant-numeric: tabular-nums; }
+.settings-card .settings-note { font-size: .875rem; color: #a9a7a0; }
+.voice-dialog { width: min(440px, calc(100% - 40px)); max-height: 80dvh; overflow: auto; padding: 26px; border: 1px solid rgba(201,168,76,.4); border-radius: 22px; background: #111; color: #fff; }
+.voice-dialog::backdrop { background: rgba(0,0,0,.78); }
+.voice-dialog h2 { margin: 0; color: var(--gold); font-size: 1.375rem; font-weight: 400; }
+.voice-dialog button { margin-top: 24px; min-height: 48px; width: 100%; border: 1px solid var(--gold); border-radius: 12px; background: rgba(201,168,76,.1); color: var(--gold2); font-size: 1rem; }
+@media (prefers-reduced-motion: reduce) {
+  .home-screen .pressable, .home-settings .pressable { transition: none; }
+  .home-screen .pressable:active, .home-settings .pressable:active { transform: none; }
+}
 
 /* Placeholder */
 .placeholder-screen { height:100%; display:grid; place-items:center; padding-top:env(safe-area-inset-top,0px); background:var(--bg); }
@@ -548,6 +563,8 @@ select.field { appearance:none; }
   'use strict';
 
   const GOLD = '#c9a84c';
+  const APP_VERSION = '0.2.0';
+  let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
   const DAY_ITEM_WIDTH = 56;
@@ -665,6 +682,7 @@ select.field { appearance:none; }
       'school': '<path d="m3 10 9-5 9 5-9 5-9-5Zm4 3v4c3 2 7 2 10 0v-4m4-3v6"/>',
       'shirt': '<path d="m8 4 4 2 4-2 5 4-3 4-2-2v10H8V10l-2 2-3-4 5-4Z"/>',
       'home': '<path d="m3 11 9-8 9 8v10h-6v-6H9v6H3V11Z"/>',
+      'settings': '<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2" fill="var(--surface)"/><circle cx="16" cy="12" r="2" fill="var(--surface)"/><circle cx="10" cy="18" r="2" fill="var(--surface)"/>',
       'gift': '<rect x="3" y="8" width="18" height="13" rx="1"/><path d="M12 8v13M3 12h18M12 8H8a2 2 0 1 1 2-3c1 1 2 3 2 3Zm0 0h4a2 2 0 1 0-2-3c-1 1-2 3-2 3Z"/>',
       'swap': '<path d="M7 7h12l-3-3m3 3-3 3M17 17H5l3 3m-3-3 3-3"/>',
       'phone': '<path d="M6 3h4l1 5-2 1a14 14 0 0 0 6 6l1-2 5 1v4c0 2-2 3-4 3C9 20 4 15 3 7c0-2 1-4 3-4Z"/>',
@@ -861,6 +879,7 @@ select.field { appearance:none; }
   }
   function switchNav(index) {
     storeCurrentScroll();
+    homePanel='main';
     state.nav=index;
     renderNav();
     renderScreen();
@@ -899,18 +918,42 @@ select.field { appearance:none; }
   }
 
   function renderHome() {
-    const hour=new Date().getHours();
-    const greeting=hour<12?'Доброе утро, Никита':hour<17?'Добрый день, Никита':hour<21?'Добрый вечер, Никита':'Доброй ночи, Никита';
-    const cards=[
-      ['Финансы','₽ 0','bank'],['Планер','0 задач','calendar'],['Привычки','Нет привычек','target'],['Новости','Загрузка...','article']
-    ];
-    return `<section class="screen home-screen">
-      <div class="home-brand">D.N.A.</div>
-      <div class="home-greeting">${greeting}</div>
-      <div class="home-mic">${icon('mic')}</div>
-      <div class="home-hint">Скажи что угодно...</div>
-      <div class="status-grid">${cards.map(c=>`<div class="status-card">${icon(c[2])}<div><div class="status-title">${c[0]}</div><div class="status-sub">${c[1]}</div></div></div>`).join('')}</div>
+    if (homePanel==='settings') return renderHomeSettings();
+    return `<section class="screen home-screen" aria-label="Главная">
+      <div class="home-toolbar"><button class="home-icon-button pressable" data-home-settings aria-label="Открыть настройки" title="Настройки">${icon('settings')}</button></div>
+      <div class="home-stage"><div class="home-voice">
+        <button class="home-mic pressable" data-home-mic aria-label="Голосовой помощник — в разработке" aria-describedby="voice-status" aria-haspopup="dialog">${icon('mic')}</button>
+        <p class="home-voice-status" id="voice-status">Голосовой AI · скоро</p>
+      </div></div>
+      <dialog class="voice-dialog" id="voice-info" aria-labelledby="voice-info-title" aria-describedby="voice-info-description">
+        <h2 id="voice-info-title">Голосовой помощник</h2>
+        <p id="voice-info-description">Эта функция ещё в разработке. Сейчас микрофон не записывает звук и не отправляет данные.</p>
+        <p>Пока добавляй операции и привычки вручную в соответствующих разделах.</p>
+        <form method="dialog"><button autofocus>Понятно</button></form>
+      </dialog>
     </section>`;
+  }
+
+  function renderHomeSettings() {
+    return `<section class="screen home-settings" aria-labelledby="settings-title"><div class="settings-inner">
+      <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
+      <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
+      <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: новый главный экран и настройки.</p></section>
+    </div></section>`;
+  }
+
+  function bindHomeEvents() {
+    $('[data-home-settings]')?.addEventListener('click',()=>{
+      homePanel='settings'; renderScreen(); $('[data-home-back]')?.focus();
+    });
+    const returnHome=()=>{homePanel='main'; renderScreen(); $('[data-home-settings]')?.focus();};
+    $('[data-home-back]')?.addEventListener('click',returnHome);
+    $('.home-settings')?.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();returnHome();}});
+    $('[data-home-mic]')?.addEventListener('click',()=>{
+      const dialog=$('#voice-info');
+      if(dialog && !dialog.open) dialog.showModal();
+    });
   }
 
   // -------- Finance rendering --------
@@ -1054,6 +1097,7 @@ select.field { appearance:none; }
   function bindScreenEvents() {
     $$('[data-nav]').forEach(b=>b.onclick=()=>switchNav(+b.dataset.nav));
     if(state.nav===0) bindFinanceEvents();
+    if(state.nav===2) bindHomeEvents();
     if(state.nav===3) bindHabitsEvents();
   }
   function bindFinanceEvents() {
