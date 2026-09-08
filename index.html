@@ -811,6 +811,34 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
 @media(max-width:380px){.habit-card{padding:10px 8px}.habit-check{margin-right:8px}.calendar-button{padding:10px 8px}}
 @media(prefers-reduced-motion:reduce){.habits-screen *{animation:none!important;transition:none!important}}
 
+/* 0.3.3: fit the existing Habits surface; keep scroll inside the list. */
+.app-shell {min-height:0;}
+.habits-screen {--discipline-size:clamp(140px,26dvh,200px);overflow:hidden;}
+.habits-workspace {flex:1 1 0;min-height:0;margin-top:16px;padding-bottom:8px;}
+.habits-left {min-height:0;}
+.discipline-wrap {height:var(--discipline-size);margin-top:24px;position:relative;outline:none;touch-action:manipulation;user-select:none;}
+.discipline-wrap:focus-visible .discipline-circle,.discipline-wrap:focus-visible .discipline-empty {outline:2px solid var(--gold);outline-offset:5px;}
+.discipline-circle,.discipline-empty {width:var(--discipline-size);height:var(--discipline-size);}
+.discipline-canvas {inset:-48px;width:calc(100% + 96px);height:calc(100% + 96px);pointer-events:none;}
+.discipline-percent {font-size:clamp(32px,5dvh,40px);}
+.calendar-button {margin-top:0;min-height:48px;padding:10px 8px;}
+.calendar-title {font-size:14px;line-height:1.3;}
+.habits-list-wrap {margin-top:8px;}
+.add-habit-btn {margin-bottom:0;padding:10px 6px;min-height:44px;}
+.motivation {max-height:40px;overflow:hidden;}
+.habits-chart {min-height:0;}
+.nav-item {touch-action:manipulation;}
+.fin-destinations {display:flex;flex-wrap:wrap;gap:8px;margin:18px 0;}
+.fin-destinations button {display:flex;align-items:center;gap:8px;min-height:44px;border:1px solid #393324;border-radius:12px;background:#151510;padding:10px 14px;color:#d1bd83;font-size:.875rem;}
+.fin-destinations .icon {width:14px;height:14px;}
+.fin-wallet-foot {justify-content:flex-end;}
+.fin-period {margin-bottom:18px;}
+.fin-period button {flex:1;}
+.fin-quick button {transition:transform .16s ease,background .16s ease;}
+.fin-quick button:active,.fin-destinations button:active {transform:scale(.98);}
+@media(max-height:650px){.habits-screen{--discipline-size:140px;padding-top:max(8px,env(safe-area-inset-top,0px))}.discipline-wrap{margin-top:12px}.habits-workspace{margin-top:10px}.motivation{margin-top:8px;font-size:13px;max-height:36px}.streak-badge{padding:6px 10px}.add-habit-btn{font-size:14px}}
+@media(prefers-reduced-motion:reduce){.fin-quick button,.fin-destinations button,.nav-item{transition:none!important}}
+
 </style>
 </head>
 <body>
@@ -839,7 +867,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.2';
+  const APP_VERSION = '0.3.3';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1200,7 +1228,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: удобные даты в привычках, компактная история и исправления прокрутки и анимаций.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: исправлено свечение круга, добавлены двойные нажатия и упрощён обзор финансов.</p></section>
     </div></section>`;
   }
 
@@ -1252,24 +1280,30 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
     renderScreen();$('.fin-heading')?.focus({preventScroll:true});
   }
   function renderFinance() {
-    const history=financeView.page==='history';
+    const page=financeView.page,overview=page==='overview',titles={history:'История',goals:'Цели',investments:'Инвестиции',dynamics:'Динамика'};
     return `<section class="screen finance-screen fin-v3"><div class="finance-scroll"><div class="fin-container">
-      <header class="fin-header"><div class="fin-heading-wrap">${history?`<button class="fin-icon" data-fin-back aria-label="Назад к обзору">${icon('chev-left')}</button>`:''}<div><p class="fin-eyebrow">D.N.A. / FINANCE</p><h1 class="fin-heading" tabindex="-1">${history?'История':'Финансы'}</h1></div></div>${history?'':`<button class="fin-text" data-fin-customize>${icon('settings')}<span>Настроить</span></button>`}</header>
-      ${history?renderFinanceHistory():renderFinanceOverview()}
+      <header class="fin-header"><div class="fin-heading-wrap">${!overview?`<button class="fin-icon" data-fin-back aria-label="Назад к обзору">${icon('chev-left')}</button>`:''}<h1 class="fin-heading" tabindex="-1">${titles[page]||'Финансы'}</h1></div>${overview?`<button class="fin-icon" data-fin-customize aria-label="Настроить разделы финансов">${icon('settings')}</button>`:''}</header>
+      ${overview?renderFinanceOverview():page==='history'?renderFinanceHistory():renderFinanceDetail(page)}
     </div></div><div id="fin-dialog-root"></div></section>`;
   }
+  function renderFinancePeriod() {
+    return `<div class="fin-period" aria-label="Период аналитики">${[['week','7 дней'],['month','Месяц'],['year','Год']].map(([k,label])=>`<button data-fin-period="${k}" aria-pressed="${financeView.period===k}">${label}</button>`).join('')}</div>`;
+  }
   function renderFinanceOverview() {
-    const totals=finTotals(finPeriodTx());
+    const links=financePrefs.order.filter(k=>k!=='spending'&&!financePrefs.hidden.includes(k));
     return `<div class="fin-summary${finAnimation('summary')}">
-      <div class="fin-wallet"><button class="fin-balance-link" data-fin-history aria-label="Открыть историю операций"><span class="fin-eyebrow">Баланс по записям</span><strong class="fin-balance">${finMoney(totalBalance())}</strong><span class="fin-muted">История операций ${icon('chev-right')}</span></button><div class="fin-wallet-foot"><span>Без стоимости инвестиций</span><button class="fin-text" data-fin-opening>Начальный остаток</button></div></div>
+      <div class="fin-wallet"><button class="fin-balance-link" data-fin-history aria-label="Баланс ${finMoney(totalBalance())}. Открыть историю"><span class="fin-eyebrow">Баланс</span><strong class="fin-balance">${finMoney(totalBalance())}</strong><span class="fin-muted">История операций ${icon('chev-right')}</span></button><div class="fin-wallet-foot"><button class="fin-text" data-fin-opening>Начальный остаток</button></div></div>
       <div class="fin-quick"><button class="fin-quick-expense" data-fin-add="expense"><span>−</span> Расход</button><button class="fin-quick-income" data-fin-add="income"><span>+</span> Пополнение</button></div>
-      <div class="fin-period" aria-label="Период аналитики">${[['week','7 дней'],['month','Месяц'],['year','Год']].map(([k,label])=>`<button data-fin-period="${k}" aria-pressed="${financeView.period===k}">${label}</button>`).join('')}<span>${financeView.period==='week'?'Последние 7 дней':financeView.period==='year'?'С начала года':'С начала месяца'}</span></div>
-      <div class="fin-totals"><div><span>Пополнения</span><strong class="fin-income">+${finMoney(totals.income)}</strong></div><div><span>Расходы</span><strong>${finMoney(totals.expense)}</strong></div></div>
-      ${renderFinComment(totals)}
     </div>
-    <section class="fin-card fin-recent${finAnimation('recent')}"><div class="fin-card-head"><h2>Последние операции</h2><button class="fin-text" data-fin-history>Вся история ${icon('chev-right')}</button></div>${renderFinTransactions(sortedTransactions().slice(0,3))}</section>
-    <div class="fin-blocks">${financePrefs.order.filter(k=>!financePrefs.hidden.includes(k)).map(k=>`<section class="fin-card${finAnimation(k+financeView.period)}" data-fin-block="${k}"><div class="fin-card-head"><h2>${FIN_BLOCKS[k]}</h2>${k==='goals'?'<button class="fin-text" data-fin-goal-new>+ Цель</button>':k==='investments'?'<button class="fin-text" data-fin-asset-new>+ Актив</button>':''}</div>${k==='spending'?renderFinSpending():k==='dynamics'?renderFinDynamics():k==='goals'?renderFinanceGoals():renderInvestments()}</section>`).join('')}</div>
-    <p class="fin-footer">Только твои записи · данные хранятся в этом браузере</p>`;
+    ${links.length?`<nav class="fin-destinations" aria-label="Дополнительные разделы финансов">${links.map(k=>`<button data-fin-page="${k}">${k==='dynamics'?'Динамика':FIN_BLOCKS[k]}${icon('chev-right')}</button>`).join('')}</nav>`:''}
+    <section class="fin-card fin-recent"><div class="fin-card-head"><h2>Последние операции</h2><button class="fin-text" data-fin-history>Все ${icon('chev-right')}</button></div>${renderFinTransactions(sortedTransactions().slice(0,3))}</section>
+    ${!financePrefs.hidden.includes('spending')?`<section class="fin-card" data-fin-block="spending"><div class="fin-card-head"><h2>Расходы по категориям</h2></div>${renderFinancePeriod()}${renderFinSpending()}${renderFinComment(finTotals(finPeriodTx()))}</section>`:''}`;
+  }
+  function renderFinanceDetail(page) {
+    if(page==='goals')return `<section class="fin-card"><div class="fin-card-head"><h2>Накопления</h2><button class="fin-text" data-fin-goal-new>+ Цель</button></div>${renderFinanceGoals()}</section>`;
+    if(page==='investments')return `<section class="fin-card"><div class="fin-card-head"><h2>Портфель</h2><button class="fin-text" data-fin-asset-new>+ Актив</button></div>${renderInvestments()}</section>`;
+    const totals=finTotals(finPeriodTx());
+    return `<section class="fin-card">${renderFinancePeriod()}<div class="fin-totals"><div><span>Пополнения</span><strong class="fin-income">+${finMoney(totals.income)}</strong></div><div><span>Расходы</span><strong>${finMoney(totals.expense)}</strong></div></div>${renderFinDynamics()}${renderFinComment(totals)}</section>`;
   }
   function renderFinComment(totals) {
     const groups=finGroups(),has=totals.income||totals.expense;
@@ -1410,6 +1444,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
     $$('[data-fin-add]').forEach(b=>b.onclick=()=>finTransactionForm(b.dataset.finAdd));
     $$('[data-fin-history]').forEach(b=>b.onclick=()=>finGo('history'));
     $('[data-fin-back]')?.addEventListener('click',()=>finGo('overview'));
+    $$('[data-fin-page]').forEach(b=>b.onclick=()=>finGo(b.dataset.finPage));
     $('[data-fin-opening]')?.addEventListener('click',finOpeningForm);
     $('[data-fin-customize]')?.addEventListener('click',finCustomize);
     $$('[data-fin-period]').forEach(b=>b.onclick=()=>{financeView.period=b.dataset.finPeriod;finRefresh(`[data-fin-period="${financeView.period}"]`);});
@@ -1453,9 +1488,9 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
     const streak=currentStreak(), best=bestStreak(), sel=state.habits.selectedDate, today=state.habits.today, habits=currentHabits(), prog=progressForDate(sel);
     return `<section class="screen habits-screen">
       <div class="streak-section"><div class="streak-badge pressable ${streak>0?'active':''}" data-action="streak-tip"><span class="streak-emoji">🔥</span><span class="streak-value" data-count-to="${streak}">${streak}</span><span class="streak-label">дней</span></div><span class="streak-divider"></span><div class="streak-badge pressable ${best>0?'active':''}" data-action="record-tip"><span class="streak-emoji">🏆</span><span class="streak-value" data-count-to="${best}">${best}</span><span class="streak-label">рекорд</span></div></div>
-      <div class="discipline-wrap">${renderDisciplineCircle(sel,today,habits,prog)}</div>
+      <div class="discipline-wrap" role="button" tabindex="0" aria-label="Вернуться к текущему дню" title="Двойное нажатие — вернуться к текущему дню">${renderDisciplineCircle(sel,today,habits,prog)}</div>
       <div class="motivation" id="motivation-text">${esc(motivationText())}</div>
-      <div class="habits-workspace"><div class="habits-left"><label class="calendar-button pressable">${icon('calendar-month')}<span class="calendar-title">${esc(dateTitle(sel))}</span>${appDateField('habit-date',isoDate(sel),true)}</label><button class="habit-today" data-hb-today ${sameDay(sel,today)?'aria-current="date"':''}>Сегодня</button><div class="habits-list-wrap">${renderHabitsList()}<span class="list-fade-top"></span><span class="list-fade-bottom"></span></div><div class="add-habit-btn pressable" data-action="add-habit">+ Добавить привычку</div></div>${renderGraphPane()}</div>
+      <div class="habits-workspace"><div class="habits-left"><label class="calendar-button pressable">${icon('calendar-month')}<span class="calendar-title">${esc(sel.toLocaleDateString('ru-RU',{day:'numeric',month:'long',...(sel.getFullYear()!==today.getFullYear()?{year:'numeric'}:{})}))}</span>${appDateField('habit-date',isoDate(sel),true)}</label><div class="habits-list-wrap">${renderHabitsList()}<span class="list-fade-top"></span><span class="list-fade-bottom"></span></div><div class="add-habit-btn pressable" data-action="add-habit">+ Добавить привычку</div></div>${renderGraphPane()}</div>
     </section>`;
   }
   function renderDisciplineCircle(sel,today,habits,progress) {
@@ -1479,7 +1514,10 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
     $('[data-action="streak-tip"]')?.addEventListener('click',()=>showTooltip('🔥','Стрик','Стрик показывает, сколько дней подряд ты выполнял хотя бы одну привычку без пропусков.'));
     $('[data-action="record-tip"]')?.addEventListener('click',()=>showTooltip('🏆','Рекорд','Рекорд показывает максимальную серию дней подряд, которую тебе удалось удержать.'));
     $('#habit-date')?.addEventListener('change',e=>{if(validAppDate(e.target.value))selectHabitDate(parseLocalDate(e.target.value));else e.target.value=isoDate(state.habits.selectedDate);});
-    $('[data-hb-today]')?.addEventListener('click',()=>{state.habits.today=dateOnly();selectHabitDate(state.habits.today);scrollToSelectedHabitDate();});
+    const circle=$('.discipline-wrap');
+    if(circle){let lastTap=null;circle.addEventListener('click',e=>{if(e.detail===0){returnToToday();return;}const now=performance.now();if(lastTap!==null&&now-lastTap<=350){lastTap=null;returnToToday();}else lastTap=now;});
+      circle.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();returnToToday();}});
+    }
     $('[data-action="add-habit"]')?.addEventListener('click',showAddHabitSheet);
     $$('[data-toggle-habit]').forEach(b=>b.onclick=e=>{e.stopPropagation();toggleHabit(+b.dataset.toggleHabit);});
     $$('.habit-card').forEach(el=>bindLongPress(el,()=>showDeleteHabitDialog(+el.dataset.habitIndex)));
@@ -1518,6 +1556,10 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
       state.habits.circleDisplay=value;drawDiscipline(value);drawHabitsChart(easeOutCubic(t));const el=$('#discipline-percent');if(el)el.textContent=Math.round(value*100)+'%';
       if(t<1)habitAnimationFrame=requestAnimationFrame(frame);else{state.habits.circleDisplay=endValue;state.habits.animatingDate=null;habitAnimationFrame=0;}
     }habitAnimationFrame=requestAnimationFrame(frame);
+  }
+  function returnToToday() {
+    state.habits.today=dateOnly();selectHabitDate(state.habits.today);scrollToSelectedHabitDate();
+    const circle=$('.discipline-wrap');if(circle&&!reducedMotion())circle.animate?.([{opacity:.75},{opacity:1}],{duration:180,easing:'ease-out'});
   }
   function selectHabitDate(d) {
     if(!d||Number.isNaN(d.getTime())||sameDay(d,state.habits.selectedDate))return;
@@ -1796,24 +1838,13 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
     const {ctx,w,h} = setupCanvas(canvas);
     ctx.clearRect(0, 0, w, h);
     const cx = w / 2, cy = h / 2;
-    const r = Math.min(w, h) / 2 - 8;
+    const r = Math.min(w, h) / 2 - 56;
 
-    // DisciplineCirclePainter: two outer glow layers.
-    if (progress > 0) {
-      const k = .5 + progress * .5;
-      ctx.save();
-      ctx.fillStyle = hexAlpha(GOLD, .08 * k);
-      ctx.shadowColor = hexAlpha(GOLD, .08 * k);
-      ctx.shadowBlur = 30;
-      ctx.beginPath(); ctx.arc(cx, cy, r + 12, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-
-      ctx.save();
-      ctx.fillStyle = hexAlpha(GOLD, .04 * k);
-      ctx.shadowColor = hexAlpha(GOLD, .04 * k);
-      ctx.shadowBlur = 50;
-      ctx.beginPath(); ctx.arc(cx, cy, r + 20, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
+    // A finite radial falloff fits in the padded canvas; the ring size is unchanged.
+    if(progress>0){
+      const outer=r+40,k=.5+progress*.5,glow=ctx.createRadialGradient(cx,cy,Math.max(0,r-8),cx,cy,outer);
+      glow.addColorStop(0,hexAlpha(GOLD,.14*k));glow.addColorStop(.35,hexAlpha(GOLD,.07*k));glow.addColorStop(1,hexAlpha(GOLD,0));
+      ctx.fillStyle=glow;ctx.beginPath();ctx.arc(cx,cy,outer,0,Math.PI*2);ctx.fill();
     }
 
     ctx.fillStyle = 'rgba(255,255,255,.03)';
@@ -1987,7 +2018,21 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
   function animateCounts(){$$('[data-count-to]').forEach(el=>el.textContent=String(+el.dataset.countTo||0));}
 
   // -------- Startup --------
-  $('#bottom-nav').addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(b)switchNav(+b.dataset.nav);});
+  let lastNavTap=null;
+  function scrollSectionToTop() {
+    const key=currentViewKey(),sc=currentScroller(),behavior=reducedMotion()?'instant':'smooth';
+    viewScroll.set(key,0);if(sc){if(sc.scrollTo)sc.scrollTo({top:0,behavior});else sc.scrollTop=0;}
+    if(state.nav===0)state.finance.scrollTop=0;
+    if(state.nav===3){state.habits.habitsScrollTop=0;const list=$('.habits-list');if(list){if(list.scrollTo)list.scrollTo({top:0,behavior});else list.scrollTop=0;}}
+  }
+  function onNavTap(index,now=performance.now()) {
+    if(index<0||index>=navItems.length)return;
+    const twice=lastNavTap!==null&&lastNavTap.index===index&&now-lastNavTap.at<=350;
+    lastNavTap=twice?null:{index,at:now};switchNav(index);if(twice)scrollSectionToTop();
+  }
+  $('#bottom-nav').addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(b)onNavTap(+b.dataset.nav);});
+  $('#bottom-nav').addEventListener('keydown',e=>{if(e.key==='Home'&&e.target.closest('[data-nav]')){e.preventDefault();scrollSectionToTop();}});
+
   renderNav();
   renderScreen();
   state.habits.circleDisplay=progressForDate(state.habits.selectedDate);
