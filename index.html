@@ -535,7 +535,151 @@ select.field { appearance:none; }
 @keyframes dnaExpand300 { from { opacity:.86; transform:scale(.992); } to { opacity:1; transform:none; } }
 @keyframes dnaExpand350 { from { opacity:.84; transform:scale(.99); } to { opacity:1; transform:none; } }
 
-  </style>
+  /* Finance 0.3.0 — restrained gold, readable charts, touch-first controls. */
+.fin-v3 {display:block;background:var(--bg);padding:0;}
+.fin-v3 .finance-scroll {padding: max(20px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 40px max(20px, env(safe-area-inset-left, 0px));height:100%;}
+.fin-container {max-width:1160px;margin:auto;}
+.fin-v3 button,.fin-dialog button {font-size:.875rem;transition:background .18s ease,border-color .18s ease,transform .18s ease;}
+.fin-v3 button:active,.fin-dialog button:active {transform:scale(.98);}
+.fin-v3 button:focus-visible,.fin-dialog :is(button,input,select):focus-visible,.fin-arc:focus-visible {outline:2px solid var(--gold2);outline-offset:4px;}
+.fin-v3 button:disabled,.fin-dialog button:disabled {opacity:.25;cursor:default;transform:none;}
+.fin-header,.fin-heading-wrap,.fin-card-head {display:flex;align-items:center;justify-content:space-between;gap:14px;}
+.fin-header {margin-bottom:24px;}
+.fin-heading-wrap {justify-content:flex-start;}
+.fin-heading {font-size:1.75rem;font-weight:400;margin:6px 0 0;outline:none;}
+.fin-eyebrow {display:block;margin:0;color:#b5a477;font-size:.75rem;letter-spacing:.13em;line-height:1.6;}
+.fin-text {display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:6px 0;border:0;background:none;color:var(--gold);text-align:left;line-height:1.4;}
+.fin-text .icon {width:18px;height:18px;flex:none;}
+.fin-icon {width:44px;height:44px;flex:none;border:1px solid #383124;border-radius:50%;background:#121210;color:var(--gold);display:grid;place-items:center;}
+.fin-icon .icon {width:20px;height:20px;}
+.fin-wallet {border:1px solid #4b4027;border-radius:24px;background:radial-gradient(ellipse at 100% 0%,#302919 0%,#171611 42%,#111 85%);overflow:hidden;}
+.fin-balance-link {display:block;width:100%;padding:26px 24px 18px;text-align:left;background:none;border:0;}
+.fin-balance {display:block;font-size:clamp(1.8rem,6.7vw,2.8rem);font-weight:400;line-height:1.2;margin:14px 0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;}
+.fin-muted {color:#aaa79f;font-size:.875rem;line-height:1.6;}
+.fin-balance-link .fin-muted {display:flex;align-items:center;gap:4px;}
+.fin-balance-link .icon {width:16px;height:16px;}
+.fin-wallet-foot {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 12px;padding:8px 24px;border-top:1px solid #302b21;}
+.fin-wallet-foot>span {font-size:.75rem;line-height:1.5;color:#aaa79f;}
+.fin-quick {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 22px;}
+.fin-quick button {display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;border-radius:15px;font-size:1rem;border:1px solid #4c4027;background:#1e1b13;color:#e1c779;}
+.fin-quick .fin-quick-income {background:#151c18;border-color:#35483d;color:#abc4b3;}
+.fin-quick span {font-size:1.7rem;font-family:system-ui;line-height:1;}
+.fin-period {display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.fin-period button {padding:10px 15px;min-height:44px;background:none;color:#b5b0a5;border:1px solid transparent;border-radius:24px;}
+.fin-period button[aria-pressed=true] {background:#262116;color:#e5cb84;border-color:#514326;}
+.fin-period>span {font-size:.75rem;color:#9e998c;margin-left:auto;line-height:1.5;}
+.fin-totals {display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0;}
+.fin-totals>div {display:flex;flex-direction:column;gap:8px;min-width:0;}
+.fin-totals>div+div {border-left:1px solid #2b2922;padding-left:16px;}
+.fin-totals span {color:#aaa79f;font-size:.875rem;}
+.fin-totals strong {font-size:clamp(1rem,3vw,1.35rem);font-weight:400;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;}
+.fin-income {color:#abc4b3;}
+.fin-comment {border-left:2px solid #8d7740;background:#12120f;padding:10px 12px;margin:20px 0 24px;border-radius:0 12px 12px 0;}
+.fin-comment summary {display:flex;gap:10px;align-items:center;cursor:pointer;font-size:.875rem;line-height:1.6;list-style:none;min-height:44px;}
+.fin-comment summary::-webkit-details-marker {display:none;}
+.fin-comment summary .icon {flex:none;width:18px;height:18px;color:var(--gold);}
+.fin-comment summary span:not(.icon) {flex:1;}
+.fin-comment summary>.icon:last-child {transition:transform .22s;}
+.fin-comment[open] summary>.icon:last-child {transform:rotate(180deg);}
+.fin-detail {padding:12px 0 4px;font-size:.875rem;line-height:1.7;color:#aaa79f;animation:finReveal .22s ease both;}
+.fin-card {min-width:0;background:#111210;border:1px solid #2d2b23;border-radius:22px;padding:22px;margin:0 0 18px;}
+.fin-card-head {margin-bottom:18px;flex-wrap:wrap;}
+.fin-card h2 {margin:0;font-size:1.125rem;font-weight:400;line-height:1.5;}
+.fin-empty {padding:24px 6px;text-align:center;color:#c3bcae;line-height:1.7;font-size:1rem;}
+.fin-empty span {color:#959187;font-size:.875rem;}
+.fin-transactions {display:flex;flex-direction:column;}
+.fin-transaction {width:100%;display:flex;align-items:center;gap:12px;padding:16px 0;text-align:left;background:none;border:0;border-top:1px solid #24251f;}
+.fin-transaction:first-child {border-top:0;}
+.fin-tx-icon {display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:12px;background:#222119;color:#c9b878;}
+.fin-tx-icon .icon {width:18px;height:18px;}
+.fin-tx-main {min-width:0;flex:1;}
+.fin-tx-main strong {font-size:.9375rem;font-weight:400;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fin-tx-main small {display:block;margin-top:5px;font-size:.75rem;color:#a19d94;line-height:1.5;}
+.fin-tx-money {max-width:45%;font-size:.875rem;font-variant-numeric:tabular-nums;text-align:right;overflow-wrap:anywhere;}
+.fin-blocks {display:grid;gap:18px;}
+.fin-blocks>.fin-card {margin:0;}
+.fin-spending {display:grid;gap:16px;align-items:center;}
+.fin-ring {position:relative;width:min(240px,100%);margin:0 auto;}
+.fin-ring>svg {width:100%;display:block;overflow:visible;}
+.fin-arc {cursor:pointer;transition:stroke-width .2s ease,filter .2s ease;}
+.fin-arc:hover,.fin-arc:focus {stroke-width:25;filter:brightness(1.2);}
+.fin-ring-center {position:absolute;inset:25%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;text-align:center;}
+.fin-ring-center span {font-size:.75rem;color:#aaa79f;}
+.fin-ring-center strong {font-size:1rem;font-weight:400;overflow-wrap:anywhere;max-width:100%;}
+.fin-legend {max-height:350px;overflow:auto;}
+.fin-legend button {display:flex;align-items:center;gap:10px;width:100%;text-align:left;min-height:52px;background:none;border:0;border-bottom:1px solid #26261f;padding:9px 0;}
+.fin-swatch {flex:none;width:8px;height:22px;border-radius:6px;}
+.fin-legend button>span:nth-child(2) {flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.5;}
+.fin-legend small {display:block;font-size:.75rem;color:#aaa79f;}
+.fin-legend b {font-size:.875rem;font-weight:400;color:#b6ae9c;}
+.fin-chart-legend {display:flex;gap:16px;flex-wrap:wrap;font-size:.875rem;color:#bdb7a9;}
+.fin-chart-legend span {display:flex;align-items:center;gap:6px;}
+.fin-chart-legend i {width:8px;height:8px;border-radius:50%;}
+.fin-bars {display:flex;align-items:stretch;overflow-x:auto;gap:5px;border-bottom:1px solid #333127;scrollbar-width:thin;}
+.fin-bar-point {flex:1;min-width:24px;border:0;background:none;padding:0 1px;border-radius:6px;color:#a7a194;}
+.fin-bar-point.selected {background:#28251b;}
+.fin-bar-area {height:130px;display:flex;align-items:flex-end;gap:2px;}
+.fin-bar-area i {display:block;flex:1;border-radius:3px 3px 0 0;min-width:3px;transform-origin:bottom;transition:height .4s ease;}
+.fin-bar-point small {display:block;font-size:.75rem;line-height:1.4;min-height:38px;padding:8px 0;white-space:normal;}
+.fin-point-value {padding:16px 0 0;min-height:58px;color:#b6ae9c;font-size:.875rem;line-height:1.6;}
+.fin-goal {display:block;width:100%;padding:16px 0;text-align:left;background:none;border:0;border-bottom:1px solid #29281f;}
+.fin-goal-title {display:flex;justify-content:space-between;align-items:baseline;gap:12px;line-height:1.5;}
+.fin-goal-title strong {font-size:1rem;font-weight:400;overflow-wrap:anywhere;}
+.fin-goal-title>span {color:var(--gold);}
+.fin-progress {display:block;height:6px;background:#2b291f;border-radius:6px;overflow:hidden;margin:14px 0;}
+.fin-progress>i {display:block;height:100%;background:linear-gradient(90deg,#998044,#e1c46d);border-radius:6px;transform-origin:left;transition:width .4s ease;}
+.fin-goal-detail {display:block;font-size:.875rem;color:#d7ceba;line-height:1.6;margin-bottom:5px;}
+.fin-portfolio-total {font-size:1.8rem;color:#eee5d1;overflow-wrap:anywhere;}
+.fin-portfolio-total span {display:block;font-size:.875rem;color:#aaa79f;margin-top:6px;}
+.fin-allocation {display:flex;height:10px;gap:2px;border-radius:6px;overflow:hidden;margin:22px 0 14px;}
+.fin-allocation i {display:block;}
+.fin-footer {text-align:center;font-size:.75rem;color:#9b9586;margin:28px 0 0;line-height:1.6;}
+.fin-history-actions {display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+.fin-history-filters {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;}
+.fin-history-filters label {font-size:.875rem;color:#bcb5a7;}
+.fin-label {display:block;font-size:.875rem;color:#c5bdac;margin:18px 0 8px;line-height:1.5;}
+.fin-field {width:100%;min-width:0;min-height:48px;box-sizing:border-box;background:#191a16;border:1px solid #454030;border-radius:10px;color:#eee8da;padding:12px;font-size:1rem;color-scheme:dark;}
+.fin-field::placeholder {color:#928d7f;}
+.fin-history-filters .fin-field {margin-top:8px;}
+.fin-dialog {width:min(520px,calc(100% - 24px));max-height:88dvh;overflow:auto;border:1px solid #53452a;border-radius:24px;padding:24px;background:#11120f;color:#eee8dc;animation:finReveal .24s ease both;}
+.fin-dialog::backdrop {background:rgba(0,0,0,.78);backdrop-filter:blur(5px);}
+.fin-dialog p {font-size:.9375rem;line-height:1.7;}
+.fin-dialog-head {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;}
+.fin-dialog h2 {font-size:1.375rem;font-weight:400;margin:0;}
+.fin-switch {display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.fin-switch button {min-height:46px;border:1px solid #373428;border-radius:12px;background:#191a16;color:#aaa79f;}
+.fin-switch button[aria-pressed=true] {background:#302817;color:#e1c46d;border-color:#9c8142;}
+.fin-preview {color:#d1bd86;font-size:.875rem;line-height:1.6;min-height:24px;margin:10px 0;}
+.fin-error {color:#e1a89d;min-height:16px;}
+.fin-primary {display:block;min-height:50px;width:100%;border:1px solid #d0b565;border-radius:12px;background:#c9a84c;color:#11120f;font-size:1rem!important;margin-top:18px;padding:12px;}
+.fin-danger {display:block;min-height:48px;width:100%;background:none;border:0;color:#d6a094;margin-top:8px;}
+.fin-layout-row {display:flex;align-items:center;gap:8px;border:1px solid #373126;border-radius:12px;padding:8px;margin-top:10px;transition:background .2s,border-color .2s;}
+.fin-layout-row label {display:flex;align-items:center;gap:10px;flex:1;min-width:0;font-size:.875rem;line-height:1.5;}
+.fin-layout-row input {accent-color:#c9a84c;width:18px;height:18px;flex:none;}
+.fin-layout-row>div {display:flex;flex-direction:column;}
+.fin-move {min-height:36px;min-width:36px;border:0;background:#242219;color:#d9bd70;border-radius:6px;margin:2px;}
+.fin-drag {touch-action:none;cursor:grab;border:0;border-radius:8px;font-size:1.5rem!important;}
+.fin-dragging {opacity:.6;}
+.fin-drop {border-color:var(--gold);background:#272319;}
+.fin-import-row {display:flex;align-items:flex-start;gap:12px;border-top:1px solid #333126;padding:14px 0;font-size:.875rem;line-height:1.6;}
+.fin-import-row input {width:20px;height:20px;flex:none;accent-color:#c9a84c;}
+.fin-import-row small {display:block;color:#aaa79f;}
+.fin-enter {animation:finReveal .32s ease both;}
+.fin-enter .fin-ring {animation:finChartIn .5s ease both;}
+.fin-enter .fin-bar-area i {animation:finBarIn .45s ease both;}
+.fin-enter .fin-progress i {animation:finProgressIn .45s ease both;}
+.fin-leaving {animation:finLeave .16s ease both;}
+@keyframes finReveal {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes finChartIn {from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+@keyframes finBarIn {from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes finProgressIn {from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes finLeave {to{opacity:0;transform:translateY(8px)}}
+@media(min-width:600px){.fin-spending{grid-template-columns:minmax(180px,1fr) 1fr}.fin-tx-money{font-size:1rem}}
+@media(min-width:901px){.fin-container{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}.fin-header,.fin-blocks,.fin-footer,.fin-container>.fin-card:not(.fin-recent){grid-column:1/-1}.fin-blocks{grid-template-columns:1fr 1fr}.fin-recent{align-self:start}.fin-spending{grid-template-columns:1fr}.fin-summary{min-width:0}}
+@media(max-width:380px){.fin-v3 .finance-scroll{padding-left:14px;padding-right:14px}.fin-card{padding:16px}.fin-tx-icon{display:none}.fin-dialog{padding:18px}.fin-period>span{width:100%;margin:5px 0 0}.fin-header>.fin-text>span{display:none}.fin-history-filters{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.fin-v3 *,.fin-dialog,.fin-dialog *{animation:none!important;transition:none!important;scroll-behavior:auto!important}.fin-v3 button:active,.fin-dialog button:active{transform:none}}
+
+</style>
 </head>
 <body>
   <div id="splash" class="splash" aria-hidden="true">
@@ -563,7 +707,7 @@ select.field { appearance:none; }
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.2.0';
+  const APP_VERSION = '0.3.0';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -699,21 +843,16 @@ select.field { appearance:none; }
   }
 
   // -------- Finance computed state --------
-  function totalBalance() {
-    let b = 0;
-    for (const t of state.finance.transactions) b += t.type === 'income' ? num(t.amount) : -num(t.amount);
-    for (const a of state.finance.assets) b += num(a.currentValue);
-    return b;
-  }
-  function totalIncome() { return state.finance.transactions.filter(t=>t.type==='income').reduce((s,t)=>s+num(t.amount),0); }
-  function totalExpense() { return state.finance.transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+num(t.amount),0); }
+  function totalBalance() { return openingBalance + totalIncome() - totalExpense(); }
+  function totalIncome() { return state.finance.transactions.filter(t=>t.type==='income').reduce((s,t)=>s+Math.abs(num(t.amount)),0); }
+  function totalExpense() { return state.finance.transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+Math.abs(num(t.amount)),0); }
   function freeMoney() { return totalIncome() - totalExpense(); }
   function expensesByCategory() {
     const out = {};
     for (const t of state.finance.transactions) {
       if (t.type !== 'expense') continue;
       const cat = t.category || 'Другое';
-      out[cat] = (out[cat] || 0) + num(t.amount);
+      out[cat] = (out[cat] || 0) + Math.abs(num(t.amount));
     }
     return out;
   }
@@ -939,7 +1078,7 @@ select.field { appearance:none; }
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: новый главный экран и настройки.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: новый обзор финансов, графики, цели и настраиваемые блоки.</p></section>
     </div></section>`;
   }
 
@@ -957,113 +1096,199 @@ select.field { appearance:none; }
   }
 
   // -------- Finance rendering --------
-  function renderFinance() {
-    const f=state.finance;
-    const tabs=['Обзор','История','Цели','Инвестиции'];
-    return `<section class="screen finance-screen">
-      <div class="finance-header">
-        <div><div class="title-28">Финансы</div><div class="finance-subtitle">Личный финансовый центр</div></div>
-        <button class="round-link pressable ${f.token!==null?'connected':''}" data-action="finance-token">${icon(f.token!==null?'link':'link-off')}</button>
-      </div>
-      <div class="finance-tabs">${tabs.map((t,i)=>`<button class="finance-tab ${f.tab===i?'active':''}" data-fin-tab="${i}">${t}</button>`).join('')}</div>
-      <div class="finance-content fade-switch">${renderFinanceContent()}</div>
-    </section>`;
+  // Finance 0.3.0: local data retained; no broker or recognition credentials sent.
+  const FIN_BLOCKS = {spending:'Расходы по категориям', dynamics:'Доходы и расходы', goals:'Цели', investments:'Инвестиции'};
+  const FIN_COLORS = ['#c9a84c','#809c9b','#b98d7f','#8985aa','#a6a77c','#8b9faf','#b993ad','#b2a293'];
+  const financePrefs = readFinancePrefs(loadJSON('dna_finance_layout_v1', null));
+  const financeView = {page:'overview', period:'month', category:null, search:'', type:'all', rangePeriod:null};
+  let openingBalance = num(loadJSON('dna_finance_opening_v1', 0));
+  let financeAnimated = new Set();
+  function readFinancePrefs(raw) {
+    const known=Object.keys(FIN_BLOCKS), order=Array.isArray(raw?.order)?raw.order.filter((k,i,a)=>known.includes(k)&&a.indexOf(k)===i):[];
+    const hidden=Array.isArray(raw?.hidden)?raw.hidden.filter(k=>known.includes(k)):['investments'];
+    return {order:[...order,...known.filter(k=>!order.includes(k))],hidden};
   }
-  function renderFinanceContent() {
-    switch(state.finance.tab){
-      case 0:return renderFinanceOverview();
-      case 1:return renderFinanceHistory();
-      case 2:return renderFinanceGoals();
-      case 3:return renderInvestments();
-      default:return'';
-    }
+  function finAmount(t) {return Math.abs(num(t.amount));}
+  function finMoney(v) {return new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:2}).format(num(v));}
+  function finDate(s) {const d=parseLocalDate(s);return Number.isNaN(d.getTime())?'Без даты':d.toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'});}
+  function finRange(period=financeView.period, now=new Date()) {
+    const end=addDays(dateOnly(now),1);
+    const start=period==='week'?addDays(dateOnly(now),-6):period==='year'?new Date(now.getFullYear(),0,1):new Date(now.getFullYear(),now.getMonth(),1);
+    return {start,end};
+  }
+  function finPeriodTx() {const {start,end}=finRange();return state.finance.transactions.filter(t=>{const d=parseLocalDate(t.date);return d>=start&&d<end;});}
+  function finTotals(tx) {return tx.reduce((a,t)=>{if(t.type==='income')a.income+=finAmount(t);else if(t.type==='expense')a.expense+=finAmount(t);return a;},{income:0,expense:0});}
+  function finGroups(tx=finPeriodTx()) {
+    const m=new Map();tx.filter(t=>t.type==='expense').forEach(t=>{const c=t.category||'Другое';m.set(c,(m.get(c)||0)+finAmount(t));});
+    return [...m].filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
+  }
+  function finAnimation(key) {if(financeAnimated.has(key))return '';financeAnimated.add(key);return ' fin-enter';}
+  function finRefresh(focusSelector) {storeCurrentScroll();renderScreen();if(focusSelector)$(focusSelector)?.focus({preventScroll:true});}
+  function finGo(page,category=null) {financeView.page=page;financeView.category=category;financeView.rangePeriod=category?financeView.period:null;financeView.search='';financeView.type='all';state.finance.scrollTop=0;renderScreen();$('.fin-heading')?.focus({preventScroll:true});}
+  function renderFinance() {
+    const history=financeView.page==='history';
+    return `<section class="screen finance-screen fin-v3"><div class="finance-scroll"><div class="fin-container">
+      <header class="fin-header"><div class="fin-heading-wrap">${history?`<button class="fin-icon" data-fin-back aria-label="Назад к обзору">${icon('chev-left')}</button>`:''}<div><p class="fin-eyebrow">D.N.A. / FINANCE</p><h1 class="fin-heading" tabindex="-1">${history?'История':'Финансы'}</h1></div></div><button class="fin-text" data-fin-customize>${icon('settings')}<span>Настроить</span></button></header>
+      ${history?renderFinanceHistory():renderFinanceOverview()}
+    </div></div><div id="fin-dialog-root"></div></section>`;
   }
   function renderFinanceOverview() {
-    return `<div class="finance-scroll">
-      ${renderBalanceCard()}
-      <div class="metric-row">${renderMetric('Доходы',totalIncome(),GREEN,'trend-up',0)}${renderMetric('Расходы',totalExpense(),RED,'trend-down',1)}${renderMetric('Свободно',freeMoney(),freeMoney()>=0?GREEN:RED,'wallet',2)}</div>
-      ${renderAdvice()}
-      ${renderDynamics()}
-      ${state.finance.transactions.length?renderRecent():''}
-      <button class="primary-button pressable" data-action="finance-add-sheet">${icon('plus-circle')}Добавить операцию</button>
-    </div>`;
+    const totals=finTotals(finPeriodTx());
+    return `<div class="fin-summary${finAnimation('summary')}">
+      <div class="fin-wallet"><button class="fin-balance-link" data-fin-history aria-label="Открыть историю операций"><span class="fin-eyebrow">Баланс по записям</span><strong class="fin-balance">${finMoney(totalBalance())}</strong><span class="fin-muted">История операций ${icon('chev-right')}</span></button><div class="fin-wallet-foot"><span>Без стоимости инвестиций</span><button class="fin-text" data-fin-opening>Начальный остаток</button></div></div>
+      <div class="fin-quick"><button class="fin-quick-expense" data-fin-add="expense"><span>−</span> Расход</button><button class="fin-quick-income" data-fin-add="income"><span>+</span> Пополнение</button></div>
+      <div class="fin-period" aria-label="Период аналитики">${[['week','7 дней'],['month','Месяц'],['year','Год']].map(([k,label])=>`<button data-fin-period="${k}" aria-pressed="${financeView.period===k}">${label}</button>`).join('')}<span>${financeView.period==='week'?'Последние 7 дней':financeView.period==='year'?'С начала года':'С начала месяца'}</span></div>
+      <div class="fin-totals"><div><span>Пополнения</span><strong class="fin-income">+${finMoney(totals.income)}</strong></div><div><span>Расходы</span><strong>${finMoney(totals.expense)}</strong></div></div>
+      ${renderFinComment(totals)}
+    </div>
+    <section class="fin-card fin-recent${finAnimation('recent')}"><div class="fin-card-head"><h2>Последние операции</h2><button class="fin-text" data-fin-history>Вся история ${icon('chev-right')}</button></div>${renderFinTransactions(sortedTransactions().slice(0,3))}</section>
+    <div class="fin-blocks">${financePrefs.order.filter(k=>!financePrefs.hidden.includes(k)).map(k=>`<section class="fin-card${finAnimation(k+financeView.period)}" data-fin-block="${k}"><div class="fin-card-head"><h2>${FIN_BLOCKS[k]}</h2>${k==='goals'?'<button class="fin-text" data-fin-goal-new>+ Цель</button>':k==='investments'?'<button class="fin-text" data-fin-asset-new>+ Актив</button>':''}</div>${k==='spending'?renderFinSpending():k==='dynamics'?renderFinDynamics():k==='goals'?renderFinanceGoals():renderInvestments()}</section>`).join('')}</div>
+    <p class="fin-footer">Только твои записи · данные хранятся в этом браузере</p>`;
   }
-  function renderBalanceCard() {
-    const f=state.finance;
-    if(f.balanceExpanded) {
-      const exp=Object.entries(expensesByCategory()).sort((a,b)=>b[1]-a[1]);
-      if(!exp.length) return `<div class="balance-card expanded pressable" data-action="balance-toggle"><div style="min-height:180px;display:grid;place-items:center;color:rgba(255,255,255,.38);font-family:Georgia,'Times New Roman',serif;font-size:13px">Добавьте операции для аналитики</div></div>`;
-      const total=exp.reduce((s,e)=>s+e[1],0);
-      return `<div class="balance-card expanded pressable" data-action="balance-toggle">
-        <div class="donut-wrap"><div class="donut-title">Расходы по категориям</div><canvas class="donut-canvas" width="360" height="360"></canvas>
-        <div class="donut-legend">${exp.slice(0,6).map(([k,v])=>`<span class="legend-item"><span class="legend-dot" style="background:${categoryColors[k]||'#999'}"></span>${esc(k)} ${Math.round(v/total*100)}%</span>`).join('')}</div></div>
-      </div>`;
-    }
-    return `<div class="balance-card pressable" data-action="balance-toggle">
-      <div class="balance-label">Общий баланс</div>
-      <div class="balance-value" data-animate-number="${totalBalance()}" data-prefix="₽ ">₽ 0</div>
-      <div class="balance-totals">
-        <div class="balance-total" style="color:${GREEN}">${icon('trend-up')}<span>Доходы: ₽${formatNum(totalIncome())}</span></div>
-        <div class="balance-total" style="color:${RED}">${icon('trend-down')}<span>Расходы: ₽${formatNum(totalExpense())}</span></div>
-      </div>
-      <div class="balance-hint">Нажмите для аналитики</div>
-    </div>`;
+  function renderFinComment(totals) {
+    const groups=finGroups(),has=totals.income||totals.expense;
+    const title=!has?'Добавь первую операцию за этот период':totals.expense>totals.income?`Расходы больше пополнений на ${finMoney(totals.expense-totals.income)}`:`Разница пополнений и расходов: ${finMoney(totals.income-totals.expense)}`;
+    return `<details class="fin-comment"><summary>${icon('sparkles')}<span>${esc(title)}</span>${icon('chev-down')}</summary><div class="fin-detail">${groups.length?`Больше всего потрачено в категории «${esc(groups[0][0])}»: ${finMoney(groups[0][1])}. `:''}Это расчёт по внесённым операциям за выбранный период, а не AI-рекомендация. Переводы и неполная история могут влиять на результат.</div></details>`;
   }
-  function renderMetric(label,value,color,ico,index) {
-    const ex=state.finance.expandedMetric===index;
-    const extra=index===0?'Поступления за всё время':index===1?'Траты за всё время':'Доходы − Расходы';
-    return `<div class="metric-card pressable ${ex?'expanded':''}" style="${ex?`border-color:${hexAlpha(color,.3)}`:''}" data-metric="${index}">
-      <span style="color:${color}">${icon(ico)}</span><div class="metric-label">${label}</div><div class="metric-value" style="color:${color}">₽${formatNum(value)}</div>${ex?`<div class="metric-extra">${extra}</div>`:''}
-    </div>`;
-  }
-  function renderAdvice() {
-    const insights=aiInsights();
-    return `<div class="advice-card card pressable" data-action="advice-toggle">
-      <div class="advice-row"><span class="advice-pulse"></span><div class="advice-body"><div class="advice-head">${icon('sparkles')}<span>Финансовый совет</span></div><div class="advice-text">${esc(aiAdvice())}</div></div></div>
-      ${state.finance.adviceExpanded&&insights.length?`<div>${insights.map(s=>`<div class="insight">${icon('bulb')}<span>${esc(s)}</span></div>`).join('')}</div>`:''}
-    </div>`;
-  }
-  function renderDynamics() {
-    const periods=['7Д','30Д','3М','Год'], modes=['Баланс','Доходы','Расходы'];
-    return `<div class="chart-section card"><div class="section-title">Динамика</div>
-      <div class="pill-row">${periods.map((p,i)=>`<button class="pill ${state.finance.chartPeriod===i?'active-period':''}" data-chart-period="${i}">${p}</button>`).join('')}</div>
-      <div class="pill-row" style="margin-top:8px">${modes.map((m,i)=>`<button class="pill ${state.finance.chartMode===i?'active-mode':''}" data-chart-mode="${i}">${m}</button>`).join('')}</div>
-      ${state.finance.transactions.length?`<div class="line-chart-wrap"><canvas class="line-chart"></canvas></div>`:`<div class="empty-data">Нет данных</div>`}
-    </div>`;
-  }
-  function renderRecent() {
-    return `<div class="recent-card card"><div class="section-title">Последние операции</div><div style="height:14px"></div>${sortedTransactions().slice(0,5).map(renderTxTile).join('')}</div>`;
-  }
-  function renderTxTile(t, history=false) {
-    const isIncome=t.type==='income', cat=t.category||'Другое', note=t.note||'', amount=num(t.amount), color=isIncome?GREEN:RED;
-    const originalIndex=state.finance.transactions.indexOf(t);
-    const tile = `<div class="tx-tile ${history?'tx-interactive':''}" ${history?`data-tx-index="${originalIndex}"`:''}>
-      <div class="tx-icon" style="background:${hexAlpha(color,.1)};color:${color}">${icon(categoryIcon[cat]||'more')}</div>
-      <div class="tx-main"><div class="tx-cat">${esc(cat)}</div>${note?`<div class="tx-note">${esc(note)}</div>`:''}</div>
-      <div class="tx-amount" style="color:${color}">${isIncome?'+':'-'}${formatNum(Math.abs(amount))} ₽</div>
-    </div>`;
-    return history ? `<div class="tx-swipe-wrap"><div class="tx-swipe-bg">${icon('edit')}${icon('trash')}</div>${tile}</div>` : tile;
+  function renderFinTransactions(tx) {
+    if(!tx.length)return '<div class="fin-empty">Здесь появятся твои операции.<br><span>Добавь расход или пополнение кнопками выше.</span></div>';
+    return `<div class="fin-transactions">${tx.map(t=>{const i=state.finance.transactions.indexOf(t),income=t.type==='income';return `<button class="fin-transaction" data-fin-tx="${i}"><span class="fin-tx-icon ${income?'fin-income':''}">${icon(income?'trend-up':categoryIcon[t.category]||'receipt')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}</small></span><span class="fin-tx-money ${income?'fin-income':''}">${income?'+':'−'}${finMoney(finAmount(t))}</span></button>`;}).join('')}</div>`;
   }
   function renderFinanceHistory() {
-    if(!state.finance.transactions.length) return `<div class="center-state"><div class="state-icon small">${icon('receipt')}</div><div class="state-title">Операций пока нет</div><div class="state-sub">Добавьте вручную или импортируйте выписку</div><button class="primary-button pressable" data-action="finance-add-sheet">${icon('plus-circle')}Добавить операцию</button></div>`;
-    const groups=groupedTransactions();
-    return `<div class="history-wrap"><div class="history-head"><div class="history-head-title">История операций</div><button class="filter-btn pressable" data-action="filter-sheet">${esc(state.finance.historyFilter)}${icon('filter')}</button><button class="add-round pressable" data-action="finance-add-sheet">${icon('plus')}</button></div><div style="height:12px"></div>
-      <div class="history-list">${groups.size?[...groups].map(([k,items])=>`<div class="date-group"><div class="date-group-title">${esc(k.toUpperCase())}</div>${items.map(t=>renderTxTile(t,true)).join('')}</div>`).join(''):`<div class="center-state" style="min-height:240px;color:rgba(255,255,255,.3);font-family:Georgia,'Times New Roman',serif">Нет операций по фильтру</div>`}</div></div>`;
+    return `<section class="fin-card fin-enter"><div class="fin-history-actions"><button class="fin-text" data-fin-add="expense">− Расход</button><button class="fin-text" data-fin-add="income">+ Пополнение</button><button class="fin-text" data-fin-import>${icon('pdf')} Фото / PDF</button></div>
+      <label class="fin-label" for="fin-search">Поиск операций</label><input class="fin-field" id="fin-search" type="search" placeholder="Категория, примечание или сумма" value="${esc(financeView.search)}">
+      <div class="fin-history-filters"><label>Тип<select class="fin-field" id="fin-type"><option value="all">Все операции</option><option value="expense" ${financeView.type==='expense'?'selected':''}>Расходы</option><option value="income" ${financeView.type==='income'?'selected':''}>Пополнения</option></select></label><label>Категория<select class="fin-field" id="fin-category"><option value="">Все категории</option>${[...new Set([...categories,...state.finance.transactions.map(t=>t.category||'Другое')])].map(c=>`<option ${financeView.category===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label></div><p class="fin-muted">${financeView.rangePeriod?'Операции за период диаграммы · '+({week:'последние 7 дней',month:'с начала месяца',year:'с начала года'}[financeView.rangePeriod]):'Вся история, независимо от периода обзора'}</p>${financeView.rangePeriod?'<button class="fin-text" data-fin-clear-period>Показать за всё время</button>':''}<div id="fin-history-results">${renderFinHistoryResults()}</div></section>`;
+  }
+  function renderFinHistoryResults() {
+    const q=financeView.search.toLocaleLowerCase('ru-RU').trim();
+    const tx=sortedTransactions().filter(t=>(!financeView.rangePeriod||(()=>{const r=finRange(financeView.rangePeriod),date=parseLocalDate(t.date);return date>=r.start&&date<r.end;})())&&(financeView.type==='all'||t.type===financeView.type)&&(!financeView.category||(t.category||'Другое')===financeView.category)&&(!q||`${t.note||''} ${t.category||''} ${finAmount(t)} ${finMoney(finAmount(t))}`.toLocaleLowerCase('ru-RU').includes(q)));
+    return `<p class="fin-muted" role="status">Операций: ${tx.length}</p>${tx.length?renderFinTransactions(tx):'<div class="fin-empty">Операций не найдено. Попробуй изменить фильтры.</div>'}`;
+  }
+  function renderFinSpending() {
+    const groups=finGroups(),total=groups.reduce((s,x)=>s+x[1],0);if(!total)return '<div class="fin-empty">Нет расходов за этот период.<br><span>Кольцо появится после добавления расхода.</span></div>';
+    let offset=0;
+    const arcs=groups.map(([name,value],i)=>{const share=value/total*100,start=offset;offset+=share;return `<circle class="fin-arc" cx="100" cy="100" r="76" pathLength="100" fill="none" stroke="${FIN_COLORS[i%FIN_COLORS.length]}" stroke-width="20" stroke-dasharray="${Math.max(0,share-(groups.length>1?.5:0))} ${100-share+(groups.length>1?.5:0)}" stroke-dashoffset="${-start}" transform="rotate(-90 100 100)" data-fin-sector="${i}" tabindex="0" role="button" aria-label="${esc(name)}: ${finMoney(value)}, ${(share).toFixed(1)} процентов. Открыть операции"><title>${esc(name)}: ${finMoney(value)}</title></circle>`;}).join('');
+    return `<div class="fin-spending"><div class="fin-ring"><svg viewBox="0 0 200 200" aria-label="Распределение расходов">${arcs}</svg><div class="fin-ring-center"><span>Расходы</span><strong>${finMoney(total)}</strong></div></div><div class="fin-legend">${groups.map(([name,value],i)=>`<button data-fin-sector="${i}"><span class="fin-swatch" style="background:${FIN_COLORS[i%FIN_COLORS.length]}"></span><span>${esc(name)}<small>${finMoney(value)}</small></span><b>${(value/total*100).toLocaleString('ru-RU',{maximumFractionDigits:1})}%</b></button>`).join('')}</div></div>`;
+  }
+  function finBuckets() {
+    const {start,end}=finRange(),buckets=[],year=financeView.period==='year';
+    for(let d=new Date(start);d<end;d=year?new Date(d.getFullYear(),d.getMonth()+1,1):addDays(d,1))buckets.push({key:year?`${d.getFullYear()}-${d.getMonth()}`:isoDate(d),label:d.toLocaleDateString('ru-RU',year?{month:'short'}:{day:'numeric',month:'short'}),income:0,expense:0});
+    const map=new Map(buckets.map(b=>[b.key,b]));for(const t of finPeriodTx()){const d=parseLocalDate(t.date),b=map.get(year?`${d.getFullYear()}-${d.getMonth()}`:isoDate(d));if(b&&(t.type==='income'||t.type==='expense'))b[t.type]+=finAmount(t);}return buckets;
+  }
+  function renderFinDynamics() {
+    const b=finBuckets(),max=Math.max(1,...b.flatMap(x=>[x.income,x.expense]));
+    if(!b.some(x=>x.income||x.expense))return '<div class="fin-empty">Нет операций за этот период.<br><span>Здесь будет график пополнений и расходов.</span></div>';
+    return `<div class="fin-chart-legend"><span><i style="background:#8ea99a"></i>Пополнения</span><span><i style="background:#c9a84c"></i>Расходы</span></div><p class="fin-muted">Верх шкалы: ${finMoney(max)} · нажми на столбец</p><div class="fin-bars">${b.map((x,i)=>`<button class="fin-bar-point" data-fin-point="${i}" aria-label="${x.label}: пополнения ${finMoney(x.income)}, расходы ${finMoney(x.expense)}"><span class="fin-bar-area"><i style="height:${x.income/max*100}%;background:#8ea99a"></i><i style="height:${x.expense/max*100}%;background:#c9a84c"></i></span><small>${b.length<=7||i%5===0||i===b.length-1?x.label:''}</small></button>`).join('')}</div><div id="fin-point-value" class="fin-point-value" aria-live="polite">Выбери день или месяц для точных сумм</div>`;
   }
   function renderFinanceGoals() {
-    const goals=state.finance.goals;
-    if(!goals.length) return `<div class="center-state"><div class="state-icon">${icon('trophy')}</div><div class="state-title">Финансовые цели</div><div class="state-sub">Создайте цель и отслеживайте прогресс</div><button class="primary-button pressable" data-action="add-goal">${icon('plus-circle')}Создать цель</button></div>`;
-    return `<div class="goal-list">${goals.map((g,i)=>{
-      const current=num(g.current),target=num(g.target)||1,progress=clamp(current/target,0,1),ex=state.finance.expandedGoal===i,circ=2*Math.PI*23;
-      return `<div class="goal-card pressable ${ex?'expanded':''}" data-goal="${i}"><div class="goal-row"><div class="goal-ring"><svg viewBox="0 0 52 52"><circle class="goal-ring-track" cx="26" cy="26" r="23"/><circle class="goal-ring-value" cx="26" cy="26" r="23" stroke-dasharray="${circ}" stroke-dashoffset="${circ*(1-progress)}"/></svg><span class="goal-ring-text">${Math.round(progress*100)}%</span></div><div class="goal-main"><div class="goal-name">${esc(g.name||'Цель')}</div><div class="goal-progress-label">₽${formatNum(current)} из ₽${formatNum(target)}</div></div><button class="icon-button" data-delete-goal="${i}">${icon('trash')}</button></div>${ex?`<div class="goal-extra">Осталось накопить: ₽${formatNum(target-current)}<small>В день: ₽${formatNum(target>0?(target-current)/30:0)}</small></div>`:''}</div>`;
-    }).join('')}<button class="secondary-button pressable" data-action="add-goal">${icon('plus-circle')}Новая цель</button></div>`;
+    if(!state.finance.goals.length)return '<div class="fin-empty">На что хочешь накопить?<br><span>Добавь цель — например, новый ноутбук.</span></div>';
+    return `<div class="fin-goals">${state.finance.goals.map((g,i)=>{const current=Math.max(0,num(g.current)),target=Math.max(0,num(g.target)),p=target?clamp(current/target,0,1):0,left=Math.max(0,target-current);return `<button class="fin-goal" data-fin-goal="${i}"><span class="fin-goal-title"><strong>${esc(g.name||'Цель')}</strong><span>${Math.round(p*100)}%</span></span><span class="fin-progress"><i style="width:${p*100}%"></i></span><span class="fin-goal-detail">${finMoney(current)} из ${finMoney(target)}</span><span class="fin-muted">${left?`Осталось ${finMoney(left)}`:'Цель достигнута'}${g.deadline?` · до ${finDate(g.deadline)}`:''}</span></button>`;}).join('')}<p class="fin-muted">Накопления отмечаются вручную и не вычитаются из баланса повторно.</p></div>`;
   }
   function renderInvestments() {
-    const a=state.finance.assets;
-    if(!a.length) return `<div class="center-state"><div class="state-icon">${icon('trend-up')}</div><div class="state-title">Инвестиционный портфель</div><div class="state-sub">${state.finance.token!==null?'Загрузите портфель':'Подключите Т-Инвестиции'}</div><button class="primary-button pressable" data-action="${state.finance.token!==null?'refresh-portfolio':'finance-token'}">${icon('link')}${state.finance.token!==null?'Загрузить портфель':'Подключить Т-Инвестиции'}</button>${state.finance.token!==null?`<button class="secondary-button pressable" data-action="add-asset">${icon('plus-circle')}Добавить актив</button>`:''}</div>`;
-    const total=a.reduce((s,x)=>s+num(x.currentValue),0);
-    return `<div class="asset-list"><div class="portfolio-card"><div class="portfolio-label">Стоимость портфеля</div><div class="portfolio-value">₽ ${formatNum(total)}</div><div class="portfolio-actions"><button class="mini-gold-btn pressable" data-action="refresh-portfolio">Обновить</button><button class="mini-gold-btn pressable" data-action="add-asset">+ Актив</button></div></div><div style="height:18px"></div>
-      ${a.map((x,i)=>{const value=num(x.currentValue),ex=state.finance.expandedAsset===i;return `<div class="asset-card pressable ${ex?'expanded':''}" data-asset="${i}"><div class="asset-row"><div class="asset-icon">${icon('trend-up')}</div><div class="asset-name">${esc(x.name||'Актив')}</div><div class="asset-value">₽ ${formatNum(value)}</div><button class="icon-button" data-delete-asset="${i}">${icon('trash')}</button></div>${ex?`<div class="asset-extra">Доля в портфеле: ${total>0?Math.round(value/total*100):0}%</div>`:''}</div>`}).join('')}</div>`;
+    const assets=state.finance.assets,total=assets.reduce((s,a)=>s+Math.max(0,num(a.currentValue)),0);
+    return `<div class="fin-portfolio-total">${finMoney(total)}<span>Последняя сохранённая стоимость</span></div>${assets.length?`<div class="fin-allocation" aria-hidden="true">${assets.map((a,i)=>`<i style="width:${total?Math.max(0,num(a.currentValue))/total*100:0}%;background:${FIN_COLORS[i%FIN_COLORS.length]}"></i>`).join('')}</div><div class="fin-legend">${assets.map((a,i)=>`<button data-fin-asset="${i}"><span class="fin-swatch" style="background:${FIN_COLORS[i%FIN_COLORS.length]}"></span><span>${esc(a.name||'Актив')}<small>${finMoney(a.currentValue)}</small></span><b>${total?(Math.max(0,num(a.currentValue))/total*100).toFixed(1):0}%</b></button>`).join('')}</div>`:'<div class="fin-empty">Добавь активы вручную, чтобы видеть состав портфеля.</div>'}<p class="fin-muted">График доходности появится, когда будет история стоимости и пополнений. Текущая сумма не показывает заработок.</p><button class="fin-text" data-fin-broker>${icon('link')} Т‑Инвестиции · подключение в разработке</button>`;
+  }
+  function finModal(title,body,setup) {
+    const root=$('#fin-dialog-root');if(!root)return;
+    const previous=document.activeElement;
+    root.innerHTML=`<dialog class="fin-dialog" aria-labelledby="fin-dialog-title"><div class="fin-dialog-head"><h2 id="fin-dialog-title">${esc(title)}</h2><button class="fin-icon" data-fin-close aria-label="Закрыть">${icon('close')}</button></div>${body}</dialog>`;
+    const d=$('dialog',root);d.addEventListener('close',()=>{if(d.parentElement===root)root.innerHTML='';if(previous?.isConnected&&!$('dialog[open]',root))previous.focus({preventScroll:true});});
+    const close=()=>{if(d.dataset.closing)return;d.dataset.closing='1';d.classList.add('fin-leaving');setTimeout(()=>{if(d.open)d.close();},window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:160);};
+    $('[data-fin-close]',d).onclick=close;
+    d.addEventListener('cancel',e=>{e.preventDefault();close();});
+    d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close();}});
+    d.showModal();if(setup)setup(d,close);
+  }
+  function finError(d,text) {const e=$('[data-fin-error]',d);if(e)e.textContent=text;}
+  function finSaveData(d,key) {
+    try {localStorage.setItem(key,JSON.stringify(state.finance[key]));return true;}catch(e){finError(d,'Не удалось сохранить в браузере. Освободи место и повтори.');return false;}
+  }
+  function parseFinInput(raw) {
+    const s=String(raw).trim().replace(/\u00a0|\u202f/g,' ').replace(/−/g,'-');
+    const re=/[+-]?\d+(?:[ ]\d{3})*(?:[.,]\d{1,2})?(?:\s*(?:тысяч(?:а|и|у)?|тыс\.?|[кk]|млн|миллион(?:а|ов)?)(?![a-zа-яё]))?/gi;
+    const matches=[...s.matchAll(re)];if(matches.length!==1)return {error:matches.length?'В записи несколько чисел. Оставь одну сумму, остальные детали перенеси в примечание.':'Введи сумму, например 60 000 или 60 тысяч на Турцию.'};
+    const token=matches[0][0],match=token.match(/^([+-]?\d+(?:[ ]\d{3})*(?:[.,]\d{1,2})?)\s*(.*)$/i);
+    const unit=match[2].toLowerCase(),factor=/млн|миллион/.test(unit)?1000000:unit?1000:1;
+    const amount=Math.round(Math.abs(Number(match[1].replace(/ /g,'').replace(',','.')))*factor*100)/100;
+    if(!Number.isFinite(amount)||amount<=0||amount>1e12)return {error:'Укажи положительную сумму до 1 трлн ₽.'};
+    const expense=/(?:потрат|оплат|купил|купила|расход)/i.test(s),income=/(?:получил|получила|поступил|пополнил|пополнила|зарплат|доход)/i.test(s);
+    if(expense&&income)return {error:'Неясно, расход это или пополнение. Уточни запись.'};
+    let note=(s.slice(0,matches[0].index)+s.slice(matches[0].index+token.length)).replace(/(?:руб(?:лей|ля|ль)?\.?|₽)/gi,'').replace(/\bRUB\b/gi,'').replace(/(?:я\s+)?(?:потратил[аи]?|оплатил[аи]?|купил[аи]?|получил[аи]?|пополнил[аи]?|поступило|расход|доход)\s*/gi,'').replace(/\s+/g,' ').trim();
+    return {amount,note,type:expense||match[1].startsWith('-')?'expense':income||match[1].startsWith('+')?'income':null};
+  }
+  function finTransactionForm(initial='expense',index=null) {
+    const existing=index===null?null:state.finance.transactions[index];if(index!==null&&!existing)return;
+    let type=existing?.type||initial;
+    finModal(existing?'Операция':'Новая операция',`<form id="fin-tx-form"><div class="fin-switch">${['expense','income'].map(t=>`<button type="button" data-tx-type="${t}" aria-pressed="${type===t}">${t==='expense'?'− Расход':'+ Пополнение'}</button>`).join('')}</div><label class="fin-label" for="fin-amount">Сумма или короткая запись</label><input class="fin-field" id="fin-amount" required autocomplete="off" placeholder="60 тысяч на Турцию" value="${existing?finAmount(existing):''}"><div class="fin-preview" id="fin-tx-preview" aria-live="polite"></div><label class="fin-label" for="fin-note">Примечание</label><input class="fin-field" id="fin-note" maxlength="500" value="${esc(existing?.note||'')}" placeholder="Например, поездка в Турцию"><label class="fin-label" for="fin-tx-category">Категория</label><select class="fin-field" id="fin-tx-category">${[...new Set([...categories,existing?.category].filter(Boolean))].map(c=>`<option ${c===(existing?.category||(type==='income'?'Пополнение':'Другое'))?'selected':''}>${esc(c)}</option>`).join('')}</select><label class="fin-label" for="fin-tx-date">Дата</label><input class="fin-field" type="date" id="fin-tx-date" required value="${esc(existing?.date?.slice(0,10)||isoDate(new Date()))}"><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary" type="submit">${existing?'Сохранить':'Добавить операцию'}</button>${existing?'<button class="fin-danger" type="button" id="fin-tx-delete">Удалить операцию</button>':''}</form>`,(d,close)=>{
+      let noteEdited=false;const amount=$('#fin-amount',d),note=$('#fin-note',d),category=$('#fin-tx-category',d);
+      function setType(t){type=t;$$('[data-tx-type]',d).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.txType===type)));}
+      function preview(){const p=parseFinInput(amount.value);if(p.error){$('#fin-tx-preview',d).textContent=amount.value?p.error:'';return;}if(p.type)setType(p.type);if(!noteEdited&&!existing)note.value=p.note;$('#fin-tx-preview',d).textContent=`${type==='income'?'Пополнение':'Расход'}: ${finMoney(p.amount)}${note.value?' · '+note.value:''}`;}
+      amount.addEventListener('input',preview);note.addEventListener('input',()=>{noteEdited=true;preview();});
+      $$('[data-tx-type]',d).forEach(b=>b.onclick=()=>{setType(b.dataset.txType);const p=parseFinInput(amount.value);if(!p.error)$('#fin-tx-preview',d).textContent=`${type==='income'?'Пополнение':'Расход'}: ${finMoney(p.amount)}`;});
+      $('#fin-tx-form',d).onsubmit=e=>{e.preventDefault();const p=parseFinInput(amount.value),date=$('#fin-tx-date',d).value;if(p.error){finError(d,p.error);return;}if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||isoDate(parseLocalDate(date))!==date){finError(d,'Проверь дату операции.');return;}
+        const tx={...(existing||{}),amount:type==='income'?p.amount:-p.amount,type,category:category.value,note:note.value.trim(),date};const old=state.finance.transactions;
+        state.finance.transactions=old.slice();if(index===null)state.finance.transactions.push(tx);else state.finance.transactions[index]=tx;
+        if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();showToast('Операция сохранена',true);
+      };
+      $('#fin-tx-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить эту операцию?'))return;const old=state.finance.transactions;state.finance.transactions=old.filter((_,i)=>i!==index);if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();});
+      preview();amount.focus();
+    });
+  }
+  function finOpeningForm() {
+    finModal('Начальный остаток',`<p class="fin-muted">Сумма, которая была у тебя до первой внесённой операции. Это не доход и не стоимость инвестиций.</p><form id="fin-opening-form"><label class="fin-label" for="fin-opening">Начальный остаток, ₽</label><input class="fin-field" type="number" step="0.01" min="-1000000000000" max="1000000000000" required id="fin-opening" value="${openingBalance}"><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Сохранить</button></form>`,d=>{$('#fin-opening-form',d).onsubmit=e=>{e.preventDefault();const value=Number($('#fin-opening',d).value);if(!Number.isFinite(value))return;try{localStorage.setItem('dna_finance_opening_v1',JSON.stringify(value));}catch(_){finError(d,'Не удалось сохранить остаток.');return;}openingBalance=value;d.close();finRefresh();};});
+  }
+  function finGoalForm(index=null) {
+    const old=index===null?null:state.finance.goals[index];
+    finModal(old?'Цель':'Новая цель',`<form id="fin-goal-form"><label class="fin-label" for="fin-goal-name">Название</label><input class="fin-field" id="fin-goal-name" required maxlength="120" value="${esc(old?.name||'')}" placeholder="Ноутбук"><label class="fin-label" for="fin-goal-target">Нужно накопить, ₽</label><input class="fin-field" id="fin-goal-target" type="number" step="0.01" min="0.01" max="1000000000000" required value="${old?num(old.target):''}"><label class="fin-label" for="fin-goal-current">Уже отложено, ₽</label><input class="fin-field" id="fin-goal-current" type="number" step="0.01" min="0" max="1000000000000" required value="${num(old?.current)}"><label class="fin-label" for="fin-goal-deadline">Срок — необязательно</label><input class="fin-field" id="fin-goal-deadline" type="date" value="${esc(old?.deadline||'')}"><p id="fin-goal-plan" class="fin-preview" aria-live="polite"></p><p class="fin-muted">Изменение накоплений не создаёт расход или пополнение.</p><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Сохранить цель</button>${old?'<button class="fin-danger" type="button" id="fin-goal-delete">Удалить цель</button>':''}</form>`,d=>{
+      const plan=()=>{const target=num($('#fin-goal-target',d).value),current=num($('#fin-goal-current',d).value),deadline=$('#fin-goal-deadline',d).value;const days=deadline?Math.ceil((parseLocalDate(deadline)-dateOnly())/86400000):0;$('#fin-goal-plan',d).textContent=days>0?`Ориентир на месяц: ${finMoney(Math.max(0,target-current)/Math.max(1,days/30))}`:deadline?'Срок наступил: при необходимости выбери новую дату.':'';};
+      $$('input',d).forEach(x=>x.addEventListener('input',plan));plan();
+      $('#fin-goal-form',d).onsubmit=e=>{e.preventDefault();const name=$('#fin-goal-name',d).value.trim(),target=Number($('#fin-goal-target',d).value),current=Number($('#fin-goal-current',d).value);if(!name||!Number.isFinite(target)||target<=0||!Number.isFinite(current)||current<0){finError(d,'Проверь название и суммы.');return;}const list=state.finance.goals,g={...(old||{}),name,target,current,deadline:$('#fin-goal-deadline',d).value};state.finance.goals=list.slice();if(index===null)state.finance.goals.push(g);else state.finance.goals[index]=g;if(!finSaveData(d,'goals')){state.finance.goals=list;return;}d.close();finRefresh();};
+      $('#fin-goal-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить цель? Операции останутся без изменений.'))return;const list=state.finance.goals;state.finance.goals=list.filter((_,i)=>i!==index);if(!finSaveData(d,'goals')){state.finance.goals=list;return;}d.close();finRefresh();});
+    });
+  }
+  function finAssetForm(index=null) {
+    const old=index===null?null:state.finance.assets[index];
+    finModal(old?'Актив':'Новый актив',`<form id="fin-asset-form"><label class="fin-label" for="fin-asset-name">Название</label><input class="fin-field" id="fin-asset-name" required maxlength="120" value="${esc(old?.name||'')}"><label class="fin-label" for="fin-asset-value">Текущая стоимость, ₽</label><input class="fin-field" id="fin-asset-value" type="number" step="0.01" min="0" max="1000000000000" required value="${old?num(old.currentValue):''}"><p class="fin-muted">Стоимость указывается вручную. Это не прибыль и не доход на баланс.</p><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Сохранить актив</button>${old?'<button class="fin-danger" type="button" id="fin-asset-delete">Удалить актив</button>':''}</form>`,d=>{
+      $('#fin-asset-form',d).onsubmit=e=>{e.preventDefault();const name=$('#fin-asset-name',d).value.trim(),currentValue=Number($('#fin-asset-value',d).value);if(!name||!Number.isFinite(currentValue)||currentValue<0){finError(d,'Проверь название и стоимость.');return;}const list=state.finance.assets,a={...(old||{}),name,currentValue,source:'manual'};state.finance.assets=list.slice();if(index===null)state.finance.assets.push(a);else state.finance.assets[index]=a;if(!finSaveData(d,'assets')){state.finance.assets=list;return;}d.close();finRefresh();};
+      $('#fin-asset-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить актив?'))return;const list=state.finance.assets;state.finance.assets=list.filter((_,i)=>i!==index);if(!finSaveData(d,'assets')){state.finance.assets=list;return;}d.close();finRefresh();});
+    });
+  }
+  function finCustomize() {
+    const draft={order:[...financePrefs.order],hidden:[...financePrefs.hidden]};
+    finModal('Твой обзор',`<p class="fin-muted">Скрывай ненужное и меняй порядок. Перетащи за ручку или используй стрелки. Данные скрытых блоков сохраняются.</p><div id="fin-layout-list"></div><p class="fin-muted" role="status" id="fin-layout-status"></p><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary" id="fin-layout-save">Применить</button>`,d=>{
+      function move(key,dir){const i=draft.order.indexOf(key),j=clamp(i+dir,0,draft.order.length-1);draft.order.splice(i,1);draft.order.splice(j,0,key);draw();$(`[data-layout-handle="${key}"]`,d)?.focus();$('#fin-layout-status',d).textContent=`${FIN_BLOCKS[key]}: позиция ${j+1}`;}
+      function draw(){const list=$('#fin-layout-list',d);list.innerHTML=draft.order.map((k,i)=>`<div class="fin-layout-row" data-layout-row="${k}"><button class="fin-icon fin-drag" type="button" data-layout-handle="${k}" aria-label="Переместить ${FIN_BLOCKS[k]}. Можно использовать стрелки вверх и вниз">⠿</button><label><input type="checkbox" data-layout-toggle="${k}" ${draft.hidden.includes(k)?'':'checked'}><span>${FIN_BLOCKS[k]}</span></label><div><button type="button" class="fin-move" data-layout-up="${k}" ${i===0?'disabled':''} aria-label="${FIN_BLOCKS[k]} выше">↑</button><button type="button" class="fin-move" data-layout-down="${k}" ${i===draft.order.length-1?'disabled':''} aria-label="${FIN_BLOCKS[k]} ниже">↓</button></div></div>`).join('');
+        $$('[data-layout-toggle]',d).forEach(b=>b.onchange=()=>{draft.hidden=draft.hidden.filter(k=>k!==b.dataset.layoutToggle);if(!b.checked)draft.hidden.push(b.dataset.layoutToggle);});
+        $$('[data-layout-up]',d).forEach(b=>b.onclick=()=>move(b.dataset.layoutUp,-1));$$('[data-layout-down]',d).forEach(b=>b.onclick=()=>move(b.dataset.layoutDown,1));
+        $$('[data-layout-handle]',d).forEach(h=>{h.onkeydown=e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();move(h.dataset.layoutHandle,e.key==='ArrowUp'?-1:1);}};let target=null;
+          h.onpointerdown=e=>{if(e.button!==0)return;e.preventDefault();h.setPointerCapture(e.pointerId);h.closest('[data-layout-row]').classList.add('fin-dragging');};
+          h.onpointermove=e=>{if(!h.hasPointerCapture(e.pointerId))return;const row=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-layout-row]');$$('[data-layout-row]',d).forEach(r=>r.classList.remove('fin-drop'));target=row?.dataset.layoutRow;if(row&&list.contains(row))row.classList.add('fin-drop');};
+          h.onpointerup=e=>{if(!h.hasPointerCapture(e.pointerId))return;h.releasePointerCapture(e.pointerId);const key=h.dataset.layoutHandle;if(target&&draft.order.includes(target)){move(key,draft.order.indexOf(target)-draft.order.indexOf(key));}else draw();};
+          h.onpointercancel=()=>draw();
+        });
+      }draw();$('#fin-layout-save',d).onclick=()=>{try{localStorage.setItem('dna_finance_layout_v1',JSON.stringify(draft));}catch(_){finError(d,'Не удалось сохранить настройки.');return;}Object.assign(financePrefs,draft);d.close();finRefresh();};
+    });
+  }
+  function finImportInfo() {
+    finModal('Фото и банковские выписки',`<p>Распознавание скриншотов и универсальный импорт PDF ещё не подключены.</p><p class="fin-muted">Экспериментальный PDF-импорт умеет читать только отдельные текстовые выписки Т‑Банка. Он не распознаёт сканы. Проверь суммы и даты перед добавлением; перевод между своими счетами не считай расходом.</p><button class="fin-primary" id="fin-pdf-experimental">Попробовать текстовый PDF</button><button class="fin-text" id="fin-import-manual">Добавить вручную</button>`,d=>{$('#fin-pdf-experimental',d).onclick=()=>{d.close();pickDocuments();};$('#fin-import-manual',d).onclick=()=>{d.close();finTransactionForm();};});
+  }
+  function bindFinanceEvents() {
+    $$('[data-fin-add]').forEach(b=>b.onclick=()=>finTransactionForm(b.dataset.finAdd));
+    $$('[data-fin-history]').forEach(b=>b.onclick=()=>finGo('history'));
+    $('[data-fin-back]')?.addEventListener('click',()=>finGo('overview'));
+    $('[data-fin-opening]')?.addEventListener('click',finOpeningForm);
+    $('[data-fin-customize]')?.addEventListener('click',finCustomize);
+    $$('[data-fin-period]').forEach(b=>b.onclick=()=>{financeView.period=b.dataset.finPeriod;finRefresh(`[data-fin-period="${financeView.period}"]`);});
+    const bindTx=()=>$$('[data-fin-tx]').forEach(b=>b.onclick=()=>finTransactionForm('expense',+b.dataset.finTx));bindTx();
+    const updateHistory=()=>{financeView.search=$('#fin-search').value;financeView.type=$('#fin-type').value;financeView.category=$('#fin-category').value||null;$('#fin-history-results').innerHTML=renderFinHistoryResults();bindTx();};
+    $('[data-fin-clear-period]')?.addEventListener('click',()=>{financeView.rangePeriod=null;finRefresh();});
+    $('#fin-search')?.addEventListener('input',updateHistory);$('#fin-type')?.addEventListener('change',updateHistory);$('#fin-category')?.addEventListener('change',updateHistory);
+    $$('[data-fin-sector]').forEach(b=>{const open=()=>{const g=finGroups()[+b.dataset.finSector];if(g)finGo('history',g[0]);};b.onclick=open;if(b.tagName.toLowerCase()==='circle')b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};});
+    $$('[data-fin-point]').forEach(b=>b.onclick=()=>{const p=finBuckets()[+b.dataset.finPoint];if(p){$$('[data-fin-point]').forEach(x=>x.classList.toggle('selected',x===b));$('#fin-point-value').textContent=`${p.label} · Пополнения ${finMoney(p.income)} · Расходы ${finMoney(p.expense)}`;}});
+    $('[data-fin-goal-new]')?.addEventListener('click',()=>finGoalForm());$$('[data-fin-goal]').forEach(b=>b.onclick=()=>finGoalForm(+b.dataset.finGoal));
+    $('[data-fin-asset-new]')?.addEventListener('click',()=>finAssetForm());$$('[data-fin-asset]').forEach(b=>b.onclick=()=>finAssetForm(+b.dataset.finAsset));
+    $('[data-fin-broker]')?.addEventListener('click',()=>finModal('Т‑Инвестиции',`<p>Безопасное подключение брокера ещё в разработке.</p><p class="fin-muted">Сохранённые активы доступны. Сейчас приложение не отправляет токен брокеру и не обновляет котировки автоматически. Не вводи секретный токен в публичные файлы проекта.</p>`));
+    $('[data-fin-import]')?.addEventListener('click',finImportInfo);
   }
 
   // -------- Habits rendering --------
@@ -1099,25 +1324,6 @@ select.field { appearance:none; }
     if(state.nav===0) bindFinanceEvents();
     if(state.nav===2) bindHomeEvents();
     if(state.nav===3) bindHabitsEvents();
-  }
-  function bindFinanceEvents() {
-    $$('[data-fin-tab]').forEach(b=>b.onclick=()=>{storeCurrentScroll();state.finance.tab=+b.dataset.finTab;state.finance.scrollTop=0;renderScreen();});
-    $('[data-action="finance-token"]')?.addEventListener('click',showTokenDialog);
-    $$('[data-action="balance-toggle"]').forEach(b=>b.onclick=()=>{state.finance.balanceExpanded=!state.finance.balanceExpanded;renderScreen();});
-    $$('[data-metric]').forEach(b=>b.onclick=()=>{const i=+b.dataset.metric;state.finance.expandedMetric=state.finance.expandedMetric===i?null:i;renderScreen();});
-    $('[data-action="advice-toggle"]')?.addEventListener('click',()=>{state.finance.adviceExpanded=!state.finance.adviceExpanded;renderScreen();});
-    $$('[data-chart-period]').forEach(b=>b.onclick=()=>{state.finance.chartPeriod=+b.dataset.chartPeriod;renderScreen();});
-    $$('[data-chart-mode]').forEach(b=>b.onclick=()=>{state.finance.chartMode=+b.dataset.chartMode;renderScreen();});
-    $$('[data-action="finance-add-sheet"]').forEach(b=>b.onclick=showAddOperationSheet);
-    $('[data-action="filter-sheet"]')?.addEventListener('click',showFilterSheet);
-    $$('[data-action="add-goal"]').forEach(b=>b.onclick=showAddGoalDialog);
-    $$('[data-goal]').forEach(card=>card.onclick=(e)=>{if(e.target.closest('[data-delete-goal]'))return;const i=+card.dataset.goal;state.finance.expandedGoal=state.finance.expandedGoal===i?null:i;renderScreen();});
-    $$('[data-delete-goal]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();state.finance.goals.splice(+b.dataset.deleteGoal,1);saveFinance();renderScreen();});
-    $$('[data-action="add-asset"]').forEach(b=>b.onclick=showAddAssetDialog);
-    $$('[data-action="refresh-portfolio"]').forEach(b=>b.onclick=loadTinkoffPortfolio);
-    $$('[data-asset]').forEach(card=>card.onclick=(e)=>{if(e.target.closest('[data-delete-asset]'))return;const i=+card.dataset.asset;state.finance.expandedAsset=state.finance.expandedAsset===i?null:i;renderScreen();});
-    $$('[data-delete-asset]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();state.finance.assets.splice(+b.dataset.deleteAsset,1);saveFinance();renderScreen();});
-    bindTransactionGestures();
   }
   function bindTransactionGestures() {
     $$('.tx-interactive').forEach(el=>{
@@ -1246,7 +1452,22 @@ select.field { appearance:none; }
   // -------- File import / DocumentParser parity --------
   function pickDocuments(){const inp=$('#file-input');inp.accept='.pdf,.csv,.txt,application/pdf,text/csv,text/plain';inp.multiple=true;inp.onchange=async()=>{const files=[...inp.files];inp.value='';if(!files.length){showToast('Файл не выбран');return;}const all=[];try{for(const file of files){const ext=file.name.split('.').pop().toLowerCase();if(ext==='pdf'){const tx=await parsePdfFile(file);all.push(...tx);}else{/* parseTransactions in Flutter source is a stub and returns [] */}}if(!all.length){showToast('Операции не найдены');return;}showImportDialog(all);}catch(_){showToast('Не удалось прочитать файл');}};inp.click();}
   function pickScreenshot(){const inp=$('#file-input');inp.accept='image/*';inp.multiple=false;inp.onchange=()=>{const has=inp.files&&inp.files.length;inp.value='';if(!has)showToast('Изображение не выбрано');else showToast('Распознавание скриншотов недоступно в веб-версии');};inp.click();}
-  function showImportDialog(txs){const ov=overlay(`<div class="modal"><div class="modal-title">Импорт</div><div class="modal-content" style="text-align:center">${icon('check')}<div style="margin-top:16px;color:var(--gold);font-family:Georgia,'Times New Roman',serif;font-size:18px;font-weight:600">Найдено операций: ${txs.length}</div></div><div class="modal-actions"><button class="text-btn" data-close>Отмена</button><button class="gold-action" id="import-save">Добавить</button></div></div>`);$('[data-close]',ov).onclick=closeOverlay;$('#import-save',ov).onclick=()=>{state.finance.transactions.push(...txs);saveFinance();closeOverlay();renderScreen();};}
+  function showImportDialog(txs) {
+    if(!Array.isArray(txs)||!txs.length){showToast('Операции не найдены');return;}
+    if(txs.length>500){showToast('Для проверки выбери выписку короче: не более 500 операций.');return;}
+    const key=t=>[String(t.date||'').slice(0,10),t.type,finAmount(t).toFixed(2),String(t.note||'').trim().toLowerCase()].join('|');
+    const seen=new Set(state.finance.transactions.map(key));
+    const rows=txs.map(t=>{const id=key(t),duplicate=seen.has(id);seen.add(id);const valid=['income','expense'].includes(t.type)&&Number.isFinite(Number(t.amount))&&finAmount(t)>0&&/^\d{4}-\d{2}-\d{2}/.test(String(t.date))&&isoDate(parseLocalDate(t.date))===t.date.slice(0,10);return {t,duplicate,valid};});
+    finModal('Проверь импорт',`<p class="fin-muted">Сверь каждую запись с выпиской. Подозреваемые повторы не выбраны; это может быть и отдельная одинаковая операция. Сними отметки с переводов между своими счетами.</p><div>${rows.map(({t,duplicate,valid},i)=>`<label class="fin-import-row"><input type="checkbox" data-import-row="${i}" ${valid&&!duplicate?'checked':''} ${valid?'':'disabled'}><span>${t.type==='income'?'+':'−'}${finMoney(finAmount(t))} · ${finDate(t.date)}<small>${esc(t.note||t.category||'Без описания')}</small>${duplicate?'<small>Возможный повтор — проверь</small>':''}${valid?'':'<small>Некорректная запись — пропущена</small>'}</span></label>`).join('')}</div><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary" id="fin-import-save">Добавить выбранные</button>`,d=>{
+      $('#fin-import-save',d).onclick=()=>{
+        const selected=$$('[data-import-row]:checked',d).map(el=>rows[+el.dataset.importRow]).filter(r=>r.valid).map(({t})=>({...t,amount:t.type==='income'?finAmount(t):-finAmount(t)}));
+        if(!selected.length){finError(d,'Выбери хотя бы одну операцию.');return;}
+        const previous=state.finance.transactions;state.finance.transactions=[...previous,...selected];
+        if(!finSaveData(d,'transactions')){state.finance.transactions=previous;return;}
+        d.close();finRefresh();showToast('Добавлено операций: '+selected.length,true);
+      };
+    });
+  }
   let pdfJsPromise=null;
   async function ensurePdfJs(){if(window.pdfjsLib)return window.pdfjsLib;if(!pdfJsPromise){pdfJsPromise=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';resolve(window.pdfjsLib);};s.onerror=reject;document.head.appendChild(s);});}return pdfJsPromise;}
   async function parsePdfFile(file){const lib=await ensurePdfJs();const bytes=new Uint8Array(await file.arrayBuffer());const doc=await lib.getDocument({data:bytes}).promise;let text='';for(let i=1;i<=doc.numPages;i++){const page=await doc.getPage(i);const tc=await page.getTextContent();let lastY=null,line='';for(const item of tc.items){const y=item.transform?.[5];if(lastY!==null&&Math.abs(y-lastY)>3){text+=line+'\n';line='';}line+=(line?' ':'')+item.str;lastY=y;}text+=line+'\n';}text=text.replace(/afii\d+/g,'').replace(/[^\w\s\d.,:;+₽\nа-яА-ЯёЁa-zA-Z-]/g,' ').replace(/ {2,}/g,' ');const lines=text.split('\n').map(s=>s.trim()).filter(Boolean);return parsePdfLines(lines);}
@@ -1563,7 +1784,7 @@ select.field { appearance:none; }
   renderNav();
   renderScreen();
   state.habits.circleDisplay=progressForDate(state.habits.selectedDate);
-  if(state.finance.token!=null&&state.finance.token!=='') loadTinkoffPortfolio();
+  // Broker requests are paused until a secure, verified integration is available.
 
   setInterval(()=>{state.habits.motivationIndex++;if(state.nav===3){const el=$('#motivation-text');if(el){el.style.opacity='0';setTimeout(()=>{if($('#motivation-text')){$('#motivation-text').textContent=motivationText();$('#motivation-text').style.opacity='1';}},120);}}},8000);
 
