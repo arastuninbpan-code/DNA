@@ -831,6 +831,12 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
 input,textarea,[contenteditable="true"],[contenteditable=""],.selectable {-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
 input::selection,textarea::selection,[contenteditable]::selection {background:rgba(201,168,76,.32);color:inherit;}
 .habit-card,.date-item,.discipline-wrap {-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+.habit-action-sheet .sheet-title {font-size:20px;font-weight:400;text-align:left;overflow-wrap:anywhere;margin:0 0 20px;}
+.habit-menu-action {display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:48px;padding:12px;border:0;border-top:1px solid rgba(201,168,76,.14);background:transparent;color:var(--gold);}
+.habit-menu-action.danger-action {color:#de9090;}
+.habit-menu-action:active {background:rgba(201,168,76,.08);}
+.habit-edit-note {font-size:13px;line-height:1.5;color:rgba(255,255,255,.54);}
+.habit-card:focus-visible {outline:2px solid var(--gold);outline-offset:2px;}
 </style>
 </head>
 <body>
@@ -857,7 +863,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.6';
+  const APP_VERSION = '0.3.7';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1231,7 +1237,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: удержание карточек без выделения текста, короткий тактильный отклик на поддерживаемых устройствах.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: меню привычки при удержании и редактирование названия с сохранением отметок.</p></section>
     </div></section>`;
   }
 
@@ -1523,7 +1529,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     }
     $('[data-action="add-habit"]')?.addEventListener('click',showAddHabitSheet);
     $$('[data-toggle-habit]').forEach(b=>b.onclick=e=>{e.stopPropagation();toggleHabit(+b.dataset.toggleHabit);});
-    $$('.habit-card').forEach(el=>bindLongPress(el,()=>showDeleteHabitDialog(+el.dataset.habitIndex)));
+    $$('.habit-card').forEach(el=>{bindLongPress(el,()=>showHabitActions(+el.dataset.habitIndex));el.tabIndex=0;el.setAttribute('aria-label',(currentHabits()[+el.dataset.habitIndex]?.name||'Привычка')+'. Enter — действия');el.addEventListener('keydown',e=>{if(e.target===el&&(e.key==='Enter'||e.key===' ')){e.preventDefault();showHabitActions(+el.dataset.habitIndex);}});});
     $$('[data-date]').forEach(b=>b.onclick=()=>selectHabitDate(parseLocalDate(b.dataset.date)));
     const scroller=$('.graph-scroller'); if(scroller) scroller.addEventListener('scroll',()=>state.habits.graphScrollLeft=scroller.scrollLeft,{passive:true});
     const list=$('.habits-list'); if(list) list.addEventListener('scroll',()=>state.habits.habitsScrollTop=list.scrollTop,{passive:true});
@@ -1859,6 +1865,35 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function addHabit(name){name=String(name||'').trim();if(!name)return;const start=state.habits.selectedDate;for(let i=-CENTER_INDEX;i<=DAYS_TO_SHOW-CENTER_INDEX;i++){const d=addDays(state.habits.selectedDate,i);if(d<start)continue;const key=habitDateKey(d),arr=(state.habits.data[key]||[]).map(h=>({...h}));if(!arr.some(h=>h.name===name)){arr.push({name,done:false});state.habits.data[key]=arr;}}saveHabits();prepareHabitAnimation(progressForDate(state.habits.selectedDate),progressForDate(state.habits.selectedDate));}
   function deleteHabit(index){const habits=currentHabits();if(index>=habits.length)return;const name=habits[index].name,prev=progressForDate(state.habits.selectedDate);for(let i=0;i<=DAYS_TO_SHOW-CENTER_INDEX;i++){const d=addDays(state.habits.selectedDate,i);if(d<state.habits.selectedDate)continue;const key=habitDateKey(d),arr=(state.habits.data[key]||[]).map(h=>({...h})).filter(h=>h.name!==name);if(arr.length)state.habits.data[key]=arr;else delete state.habits.data[key];}saveHabits();prepareHabitAnimation(prev,progressForDate(state.habits.selectedDate));}
   function showAddHabitSheet(){const ov=overlay(`<div class="sheet" style="border-top:1px solid rgba(201,168,76,.5)"><div class="sheet-title" style="text-align:left">Новая привычка</div><div style="height:20px"></div>${formField('habit-name','Название привычки...')}<button class="primary-button" id="habit-save" style="margin-top:24px">Сохранить</button></div>`,{sheet:true});$('#habit-save',ov).onclick=()=>{addHabit($('#habit-name',ov).value);closeOverlay();};$('#habit-name',ov).addEventListener('keydown',e=>{if(e.key==='Enter'){$('#habit-save',ov).click();}});setTimeout(()=>$('#habit-name',ov)?.focus(),80);}
+  function renameHabit(index,name,dateKey,expectedName) {
+    name=String(name||'').trim();
+    if(!name)return {ok:false,error:'Введи название привычки.'};
+    if(name.length>120)return {ok:false,error:'Название — не длиннее 120 символов.'};
+    const current=state.habits.data[dateKey]?.[index];
+    if(!current||current.name!==expectedName||habitDateKey(state.habits.selectedDate)!==dateKey)return {ok:false,error:'Список изменился. Открой привычку заново.'};
+    if(name===expectedName)return {ok:true};
+    const keys=Object.keys(state.habits.data).filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k)&&k>=dateKey&&Array.isArray(state.habits.data[k])&&state.habits.data[k].some(h=>h.name===expectedName));
+    if(keys.some(k=>state.habits.data[k].some(h=>h.name===name)))return {ok:false,error:'Привычка с таким названием уже есть. Выбери другое.'};
+    const next={...state.habits.data};keys.forEach(k=>{next[k]=next[k].map(h=>h.name===expectedName?{...h,name}:h);});
+    try{localStorage.setItem('dna_habits_v2',JSON.stringify(next));}catch(_){return {ok:false,error:'Не удалось сохранить. Проверь свободное место в браузере.'};}
+    state.habits.data=next;return {ok:true};
+  }
+  function showHabitActions(index) {
+    const h=currentHabits()[index];if(!h)return;
+    const ov=overlay(`<div class="sheet habit-action-sheet" role="dialog" aria-modal="true" aria-labelledby="habit-action-title"><h2 class="sheet-title" id="habit-action-title">${esc(h.name||'Привычка')}</h2><button class="habit-menu-action" data-habit-edit>${icon('edit')} Редактировать</button><button class="habit-menu-action danger-action" data-habit-remove>${icon('trash')} Удалить</button><button class="habit-menu-action" data-habit-cancel>Отмена</button></div>`,{sheet:true});
+    $('[data-habit-edit]',ov).onclick=()=>showEditHabitSheet(index);
+    $('[data-habit-remove]',ov).onclick=()=>showDeleteHabitDialog(index);
+    $('[data-habit-cancel]',ov).onclick=closeOverlay;
+    $('[data-habit-edit]',ov).focus({preventScroll:true});
+  }
+  function showEditHabitSheet(index) {
+    const h=currentHabits()[index];if(!h)return;
+    const key=habitDateKey(state.habits.selectedDate),oldName=h.name;
+    const ov=overlay(`<div class="sheet habit-action-sheet" role="dialog" aria-modal="true" aria-labelledby="habit-edit-title"><h2 class="sheet-title" id="habit-edit-title">Редактировать привычку</h2><form id="habit-edit-form"><label class="fin-label" for="habit-edit-name">Название</label><input class="fin-field" id="habit-edit-name" type="text" maxlength="120" required value="${esc(h.name||'')}" autocomplete="off"><p class="habit-edit-note">Изменится с ${esc(formatHabitDate(state.habits.selectedDate))} и в последующие дни. Отметки выполнения сохранятся.</p><p class="fin-error" id="habit-edit-error" role="alert"></p><button class="primary-button" type="submit">Сохранить</button><button class="habit-menu-action" type="button" data-edit-cancel>Отмена</button></form></div>`,{sheet:true});
+    $('#habit-edit-form',ov).onsubmit=e=>{e.preventDefault();const result=renameHabit(index,$('#habit-edit-name',ov).value,key,oldName);if(!result.ok){$('#habit-edit-error',ov).textContent=result.error;return;}closeOverlay();updateHabitUI();showToast('Привычка обновлена',true);};
+    $('[data-edit-cancel]',ov).onclick=closeOverlay;
+    requestAnimationFrame(()=>{const input=$('#habit-edit-name',ov);if(input?.isConnected)input.focus({preventScroll:true});});
+  }
   function showDeleteHabitDialog(index){const h=currentHabits()[index];if(!h)return;const ov=overlay(`<div class="modal"><div class="modal-title">Удалить привычку?</div><div class="modal-content" style="color:rgba(255,255,255,.54);font-family:Georgia,'Times New Roman',serif">${esc(h.name||'')}</div><div class="modal-actions"><button class="text-btn" data-close>Отмена</button><button class="danger-action" id="habit-delete">Удалить</button></div></div>`);$('[data-close]',ov).onclick=closeOverlay;$('#habit-delete',ov).onclick=()=>{deleteHabit(index);closeOverlay();};}
   function showTooltip(emoji,title,text){const ov=overlay(`<div class="tooltip-card"><div class="tooltip-icon">${emoji}</div><div class="tooltip-title">${title}</div><div class="tooltip-text">${text}</div><button class="tooltip-ok">Понятно</button></div>`);$('.tooltip-ok',ov).onclick=closeOverlay;}
 
