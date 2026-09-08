@@ -867,7 +867,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.3';
+  const APP_VERSION = '0.3.4';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1130,10 +1130,10 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
     }
     return formatHabitDate(d);
   }
-  function getTimeOfDay() { const h=new Date().getHours(); if(h>=5&&h<12)return'morning'; if(h>=12&&h<18)return'afternoon'; if(h>=18&&h<23)return'evening'; return'night'; }
-  function hoursUntilEndOfDay() { const now=new Date(), end=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59); return Math.floor((end-now)/3600000); }
-  function motivationText() {
-    const tod=getTimeOfDay(), progress=progressForDate(state.habits.selectedDate), hoursLeft=hoursUntilEndOfDay();
+  function getTimeOfDay(now=new Date()) { const h=now.getHours(); if(h>=5&&h<12)return'morning'; if(h>=12&&h<18)return'afternoon'; if(h>=18&&h<23)return'evening'; return'night'; }
+  function hoursUntilEndOfDay(now=new Date()) { const end=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59); return Math.floor((end-now)/3600000); }
+  function motivationText(now=new Date()) {
+    const tod=getTimeOfDay(now), progress=progressForDate(state.habits.selectedDate), hoursLeft=hoursUntilEndOfDay(now);
     const low=progress<.3, high=progress>=.8, perfect=progress>=1;
     const sel=state.habits.selectedDate, today=state.habits.today;
     if (perfect && sameDay(sel,today)) {
@@ -1146,8 +1146,13 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
       if (progress>0) return '📊 Прогресс сохранён';
       return '📭 Здесь пока пусто';
     }
+    if(now.getHours()>=21&&hoursLeft<=2){
+      if(low)return'🌙 Ещё есть время для одной привычки.';
+      return'✨ Можно успеть ещё немного до конца дня.';
+    }
     if (tod==='morning') {
-      if(low)return'🌅 Отличное начало дня. Первый шаг уже сделан!';
+      if(progress===0)return'🌅 Новый день — начни с одной привычки.';
+      if(low)return'🌅 Хорошее начало — первый шаг уже сделан!';
       if(high)return'⚡ Отличное утро! Ты уже почти всё сделал!';
       return'🚀 Сегодня хороший день для новых рекордов.';
     }
@@ -1163,7 +1168,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
       if(hoursLeft<=2)return'🔥 Последний рывок перед завершением дня. Успевай!';
       return'🌆 День почти завершён. Осталось совсем немного.';
     }
-    if(low)return'🌙 Даже одна привычка лучше, чем ни одной.';
+    if(low)return'🌙 Время отдохнуть. Утром — новый старт.';
     if(high)return'✨ Отличная работа перед сном!';
     return'🌟 Ночная дисциплина — путь к успеху.';
   }
@@ -1228,7 +1233,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: исправлено свечение круга, добавлены двойные нажатия и упрощён обзор финансов.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: подсказки обновляются по времени суток, а график различает нажатие на точку и прокрутку.</p></section>
     </div></section>`;
   }
 
@@ -1524,9 +1529,33 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
     $$('[data-date]').forEach(b=>b.onclick=()=>selectHabitDate(parseLocalDate(b.dataset.date)));
     const scroller=$('.graph-scroller'); if(scroller) scroller.addEventListener('scroll',()=>state.habits.graphScrollLeft=scroller.scrollLeft,{passive:true});
     const list=$('.habits-list'); if(list) list.addEventListener('scroll',()=>state.habits.habitsScrollTop=list.scrollTop,{passive:true});
-    const canvas=$('.habits-chart'); if(canvas) canvas.addEventListener('pointerdown',e=>{
-      const rect=canvas.getBoundingClientRect(); const x=e.clientX-rect.left; const idx=Math.round((x-DAY_ITEM_WIDTH)/DAY_ITEM_WIDTH); const dates=allDates(); if(idx>=0&&idx<dates.length)selectHabitDate(dates[idx]);
-    });
+    const canvas=$('.habits-chart');if(canvas&&scroller)bindHabitChartGestures(canvas,scroller);
+  }
+  function habitChartHit(canvas,clientX,clientY) {
+    const rect=canvas.getBoundingClientRect(),x=clientX-rect.left,y=clientY-rect.top;
+    if(x<0||y<0||x>rect.width||y>rect.height)return null;
+    let closest=null,distance=18;
+    for(const point of canvas.habitHitPoints||[]){const d=Math.hypot(point.x-x,point.y-y);if(d<=distance){closest=point;distance=d;}}
+    return closest;
+  }
+  function bindHabitChartGestures(canvas,scroller) {
+    let press=null,lastScroll=-Infinity;
+    scroller.addEventListener('scroll',()=>{lastScroll=performance.now();if(press&&Math.abs(scroller.scrollLeft-press.scroll)>3)press=null;},{passive:true});
+    canvas.addEventListener('pointerdown',e=>{
+      if(e.isPrimary===false||e.button!==0){press=null;return;}
+      if(performance.now()-lastScroll<120){press=null;return;}
+      const hit=habitChartHit(canvas,e.clientX,e.clientY);
+      press=hit?{id:e.pointerId,x:e.clientX,y:e.clientY,at:performance.now(),scroll:scroller.scrollLeft,date:hit.date}:null;
+    },{passive:true});
+    canvas.addEventListener('pointermove',e=>{if(press&&e.pointerId===press.id&&Math.hypot(e.clientX-press.x,e.clientY-press.y)>8)press=null;},{passive:true});
+    canvas.addEventListener('pointercancel',()=>{press=null;},{passive:true});
+    canvas.addEventListener('pointerleave',()=>{press=null;},{passive:true});
+    canvas.addEventListener('pointerup',e=>{
+      const start=press;press=null;
+      if(!start||e.pointerId!==start.id||performance.now()-start.at>450||Math.hypot(e.clientX-start.x,e.clientY-start.y)>8||Math.abs(scroller.scrollLeft-start.scroll)>3)return;
+      const hit=habitChartHit(canvas,e.clientX,e.clientY);
+      if(hit&&sameDay(hit.date,start.date))selectHabitDate(hit.date);
+    },{passive:true});
   }
   function updateHabitUI() {
     if(state.nav!==3||!$('.habits-screen'))return;
@@ -1954,6 +1983,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
       points.push([x,yBase-chartH*clamp(display,0,1)]);
     }
 
+    canvas.habitHitPoints=points.map(([x,y],i)=>({x,y,date:dates[i]}));
     for(let i=0;i<points.length-1;i++){
       const [x1,y1]=points[i],[x2,y2]=points[i+1];
       ctx.save();
@@ -2017,6 +2047,20 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
   }
   function animateCounts(){$$('[data-count-to]').forEach(el=>el.textContent=String(+el.dataset.countTo||0));}
 
+  function refreshHabitClock(now=new Date()) {
+    const today=dateOnly(now);
+    if(!sameDay(today,state.habits.today)){
+      const followedToday=sameDay(state.habits.selectedDate,state.habits.today);state.habits.today=today;
+      if(followedToday)state.habits.selectedDate=today;
+      cancelAnimationFrame(habitAnimationFrame);state.habits.animatingDate=null;
+      state.habits.circleDisplay=progressForDate(state.habits.selectedDate);
+      if(state.nav===3)renderScreen();
+    }
+    if(state.nav!==3)return;
+    const label=$('#motivation-text'),text=motivationText(now);
+    if(label&&label.textContent!==text){label.textContent=text;if(!reducedMotion())label.animate?.([{opacity:.5},{opacity:1}],{duration:180,easing:'ease-out'});}
+  }
+
   // -------- Startup --------
   let lastNavTap=null;
   function scrollSectionToTop() {
@@ -2041,14 +2085,9 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden)return;
     $$('#toast-root .toast').forEach(t=>{if(Number(t.dataset.expires)<=Date.now())t.remove();});
-    const today=dateOnly();if(!sameDay(today,state.habits.today)){
-      const followedToday=sameDay(state.habits.selectedDate,state.habits.today);state.habits.today=today;
-      if(followedToday)state.habits.selectedDate=today;
-      cancelAnimationFrame(habitAnimationFrame);state.habits.animatingDate=null;
-      state.habits.circleDisplay=progressForDate(state.habits.selectedDate);
-      if(state.nav===3)renderScreen();
-    }
+    refreshHabitClock();
   });
+  setInterval(()=>{if(!document.hidden&&state.nav===3)refreshHabitClock();},30000);
 
   window.addEventListener('resize',()=>{if(state.nav===0)drawFinanceCharts();if(state.nav===3)drawHabitsVisuals();});
   window.addEventListener('beforeunload',storeCurrentScroll);
