@@ -381,7 +381,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .habits-list-wrap { position:relative; margin-top:8px; flex:1; min-height:0; overflow:hidden; }
 .habits-list { position:relative; height:100%; overflow-y:auto; padding:0 4px 24px 16px; scrollbar-width:none; }
 .habits-list::-webkit-scrollbar { display:none; }
-.habit-card { margin-bottom:8px; padding:12px; border-radius:12px; background:var(--surface); border:1px solid rgba(255,255,255,.05); display:flex; align-items:center; transition:all .3s ease; animation:habitIn .35s ease both; }
+.habit-card { margin-bottom:8px; padding:12px; border-radius:12px; background:var(--surface); border:1px solid rgba(255,255,255,.05); display:flex; align-items:center; transition:all .3s ease; animation:habitIn .35s ease backwards; }
 .habit-card.done { border-color:rgba(201,168,76,.3); box-shadow:0 0 10px rgba(201,168,76,.05); }
 @keyframes habitIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
 .habit-check { width:24px; height:24px; margin-right:12px; flex:0 0 auto; border-radius:6px; border:1.5px solid rgba(255,255,255,.15); background:transparent; display:grid; place-items:center; color:var(--gold); padding:0; transition:all .3s ease; }
@@ -937,7 +937,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.20';
+  const APP_VERSION = '0.3.21';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1314,7 +1314,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: лента дат больше не «выезжает» заново при удалении или перетаскивании привычки — плавный скролл теперь только при осознанном переключении дня, а кнопки свайпа и значок числового режима видно уже на коротком движении пальца.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: найдена и устранена настоящая причина «невидимых» кнопок свайпа — анимация появления карточки блокировала её движение под пальцем; кнопки «Править»/«Удалить» и значок числового режима теперь появляются с первых пикселей жеста. Также счётные привычки («7 раз», «3 подхода») считают по 1 за нажатие, а не дробями.</p></section>
     </div></section>`;
   }
 
@@ -1664,6 +1664,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button')),numberPanel=$('.habit-number-reveal',row),numberBadge=$('.habit-number-badge',numberPanel);
     const editBtn=buttons[0],delBtn=buttons[1];
     let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,softCap=0,deleteThreshold=0,suppressUntil=0,busy=false,cancelSpring=()=>{};
+    let editDockThreshold=0,editDockCap=0,delDockThreshold=0,delDockCap=0,badgeDockThreshold=0,badgeDockCap=0;
     // revealWidth — под фактический размер кнопок (иначе «Править» остаётся под карточкой на узких строках);
     // deleteThreshold — заметно дальше revealWidth, чтобы «просто открыть» не читалось как «уже готово удалить».
     const measure=()=>{
@@ -1673,6 +1674,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       rightThreshold=Math.min(52,width*.38);
       softCap=revealWidth+width*.3;
       deleteThreshold=revealWidth+Math.max(90,width*.55);
+      // Кнопки в своей "родной" flex-позиции остаются физически под непрозрачной карточкой почти весь жест —
+      // opacity тут не спасает. Меряем реальные rect'ы и считаем, на сколько нужно "притянуть" кнопку к
+      // уже раскрытому краю, пока карточка не отъедет достаточно далеко, чтобы родная позиция уже была видна.
+      const rowRect=row.getBoundingClientRect();
+      if(delBtn){const r=delBtn.getBoundingClientRect();delDockCap=Math.max(0,rowRect.right-r.right);delDockThreshold=delDockCap+r.width;}
+      if(editBtn){const r=editBtn.getBoundingClientRect();editDockCap=Math.max(0,rowRect.right-r.right);editDockThreshold=editDockCap+r.width;}
+      if(numberBadge){const r=numberBadge.getBoundingClientRect();badgeDockCap=Math.max(0,r.left-rowRect.left);badgeDockThreshold=badgeDockCap+r.width;}
     };
     // Только transform/opacity — никаких width/flexGrow за кадр, чтобы не форсировать layout на каждый пиксель драга.
     // Раскрытие идёт по кривой (^.45), а не линейно: на первых пикселях жеста кнопки уже хорошо видны,
@@ -1682,11 +1690,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const distance=Math.max(0,-offset),reveal=Math.pow(clamp(distance/revealWidth,0,1),.45),merge=clamp((distance-revealWidth)/Math.max(1,deleteThreshold-revealWidth),0,1);
       actions.style.opacity=reveal>0?'1':'0';
       row.classList.toggle('delete-ready',merge>=1);
-      if(editBtn){editBtn.style.opacity=String(reveal*(1-merge));editBtn.style.transform='scale('+((.65+.35*reveal)*(1-merge*.4))+')';}
-      if(delBtn){delBtn.style.opacity=String(reveal);delBtn.style.transform='scale('+(.65+.35*reveal+merge*.2)+')';}
+      if(editBtn){
+        const dock=clamp(editDockThreshold-distance,0,editDockCap);
+        editBtn.style.opacity=String(reveal*(1-merge));
+        editBtn.style.transform='translate3d('+dock+'px,0,0) scale('+((.65+.35*reveal)*(1-merge*.4))+')';
+      }
+      if(delBtn){
+        const dock=clamp(delDockThreshold-distance,0,delDockCap);
+        delBtn.style.opacity=String(reveal);
+        delBtn.style.transform='translate3d('+dock+'px,0,0) scale('+(.65+.35*reveal+merge*.2)+')';
+      }
       const rightDistance=Math.max(0,offset),rightReveal=Math.pow(clamp(rightDistance/Math.max(1,rightThreshold),0,1),.45);
       numberPanel.style.opacity=String(rightReveal);numberPanel.classList.toggle('ready',rightDistance>=rightThreshold);
-      if(numberBadge)numberBadge.style.transform='scale('+(.6+.4*rightReveal)+')';
+      if(numberBadge){
+        const dock=clamp(badgeDockThreshold-rightDistance,0,badgeDockCap);
+        numberBadge.style.transform='translate3d(-'+dock+'px,0,0) scale('+(.6+.4*rightReveal)+')';
+      }
     };
     const settle=(value,velocity=0)=>{cancelSpring();open=value;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));cancelSpring=habitSpring(offset,open?-revealWidth:0,velocity*1000,paint,null,()=>row.isConnected);};
     row.closeSwipe=()=>{if(!busy&&!press&&(open||offset)){measure();settle(false);}};
@@ -2105,6 +2124,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     setHabitQuantity(index,q);
   }
   function habitQuantityStep(target){
+    // Для «7 раз», «3 подхода» и т.п. — по 1 за тап, а не дробью (7/4=1.75 не считается людьми).
+    // Дробный шаг на «порции» оставлен только для крупных непрерывных целей, где тапать по 1 неудобно.
+    if(Number.isInteger(target)&&target>0&&target<=30)return 1;
     const portions=Number.isInteger(target)&&target%3===0?3:4;
     return target/portions;
   }
