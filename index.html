@@ -911,6 +911,71 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    and the motivation line reserves its full height so switching days never reflows anything below it. */
 .calendar-button{height:52px;min-height:52px;max-height:52px;}
 .motivation{height:40px;min-height:40px;max-height:40px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+
+/* Planner */
+.pl-screen{display:flex;flex-direction:column;height:100%;overflow:hidden;padding-top:max(16px,env(safe-area-inset-top,0px));background:var(--bg);}
+.pl-header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.pl-header h1{margin:0;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:1.5rem;color:#fff;}
+.pl-inbox-btn{position:relative;width:40px;height:40px;border-radius:50%;border:1px solid rgba(201,168,76,.35);background:var(--surface);color:var(--gold);display:grid;place-items:center;padding:0;}
+.pl-inbox-btn .icon{width:20px;height:20px;}
+.pl-inbox-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--gold);color:#1a1508;font-size:10px;font-weight:700;display:grid;place-items:center;line-height:1;}
+.pl-sections{display:flex;gap:8px;overflow-x:auto;padding:14px 20px 4px;scrollbar-width:none;flex-shrink:0;}
+.pl-sections::-webkit-scrollbar{display:none;}
+.pl-chip{flex:0 0 auto;padding:7px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:var(--surface);color:rgba(255,255,255,.6);font-size:.8125rem;font-family:Georgia,'Times New Roman',serif;white-space:nowrap;}
+.pl-chip.active{border-color:var(--gold);background:rgba(201,168,76,.14);color:var(--gold2);}
+.pl-chip-add{width:32px;padding:0;display:grid;place-items:center;color:var(--gold);}
+.pl-chip-add .icon{width:16px;height:16px;}
+.pl-daynav{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;flex-shrink:0;}
+.pl-daynav button{width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid rgba(255,255,255,.1);color:#c1bfb9;display:grid;place-items:center;padding:0;}
+.pl-daynav button .icon{width:16px;height:16px;}
+.pl-day-label{font-family:Georgia,'Times New Roman',serif;font-size:1rem;color:#fff;text-transform:capitalize;}
+.pl-scroll{flex:1;min-height:0;overflow-y:auto;padding:4px 20px 100px;scrollbar-width:none;}
+.pl-scroll::-webkit-scrollbar{display:none;}
+.pl-notime-title,.pl-timeline-title{margin:10px 0 8px;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.35);}
+.pl-notime-list{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+.pl-task{display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--surface);border:1px solid rgba(255,255,255,.05);border-left:3px solid var(--pl-color,var(--gold));}
+.pl-task.done{opacity:.5;}
+.pl-task-check{width:22px;height:22px;flex:0 0 auto;border-radius:6px;border:1.5px solid rgba(255,255,255,.2);display:grid;place-items:center;color:var(--gold);background:transparent;padding:0;}
+.pl-task-check.done{border-color:var(--gold);background:rgba(201,168,76,.15);}
+.pl-task-check .icon{width:13px;height:13px;}
+.pl-task-body{flex:1;min-width:0;}
+.pl-task-title{font-family:Georgia,'Times New Roman',serif;font-size:.9375rem;color:#fff;overflow-wrap:anywhere;}
+.pl-task.done .pl-task-title{text-decoration:line-through;color:rgba(255,255,255,.4);}
+.pl-task-meta{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:2px;}
+.pl-timeline{position:relative;border-top:1px solid rgba(255,255,255,.06);}
+.pl-hour-row{position:relative;height:56px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;}
+.pl-hour-label{flex:0 0 44px;font-size:.6875rem;color:rgba(255,255,255,.32);padding-top:2px;font-variant-numeric:tabular-nums;}
+.pl-hour-slot{flex:1;position:relative;}
+.pl-timeline-events{position:absolute;left:52px;right:0;top:0;bottom:0;pointer-events:none;}
+.pl-event{position:absolute;left:0;right:4px;padding:6px 10px;border-radius:10px;background:var(--surface);border:1px solid rgba(255,255,255,.08);border-left:3px solid var(--pl-color,var(--gold));pointer-events:auto;overflow:hidden;}
+.pl-event.done{opacity:.5;}
+.pl-event-title{font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#fff;overflow-wrap:anywhere;line-height:1.25;}
+.pl-event.done .pl-event-title{text-decoration:line-through;color:rgba(255,255,255,.4);}
+.pl-event-time{font-size:.6875rem;color:rgba(255,255,255,.4);}
+.pl-empty{text-align:center;color:rgba(255,255,255,.35);padding:24px 12px;font-size:.875rem;}
+.pl-add-fab{position:fixed;right:20px;bottom:calc(var(--nav-h) + var(--safe-bottom) + 16px);width:52px;height:52px;border-radius:50%;background:var(--gold);color:#1a1508;border:0;display:grid;place-items:center;box-shadow:0 8px 24px rgba(201,168,76,.35);padding:0;z-index:5;}
+.pl-add-fab .icon{width:24px;height:24px;}
+.pl-form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.pl-form-row label{font-size:.75rem;color:rgba(255,255,255,.5);}
+.pl-toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.pl-switch{width:44px;height:26px;border-radius:13px;background:rgba(255,255,255,.12);border:0;position:relative;padding:0;flex-shrink:0;}
+.pl-switch::after{content:'';position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .18s ease;}
+.pl-switch.on{background:rgba(201,168,76,.4);}
+.pl-switch.on::after{transform:translateX(18px);background:var(--gold);}
+.pl-section-picker{display:flex;flex-wrap:wrap;gap:8px;}
+.pl-detail{padding:4px 4px 0;}
+.pl-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px;}
+.pl-detail-title{font-family:Georgia,'Times New Roman',serif;font-size:1.25rem;color:#fff;margin:0;overflow-wrap:anywhere;flex:1;}
+.pl-detail-meta{color:rgba(255,255,255,.45);font-size:.8125rem;margin:2px 0 18px;}
+.pl-detail h3{font-size:.8125rem;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.4);margin:18px 0 10px;}
+.pl-subtask-row{display:flex;align-items:center;gap:10px;padding:8px 0;}
+.pl-subtask-text{flex:1;font-size:.875rem;color:#fff;}
+.pl-subtask-row.done .pl-subtask-text{text-decoration:line-through;color:rgba(255,255,255,.35);}
+.pl-subtask-add{display:flex;gap:8px;margin-top:6px;}
+.pl-comment-item{padding:10px 0;border-top:1px solid rgba(255,255,255,.06);}
+.pl-comment-date{font-size:.6875rem;color:rgba(255,255,255,.35);margin-bottom:4px;}
+.pl-comment-text{font-size:.875rem;color:#eee;white-space:pre-wrap;overflow-wrap:anywhere;}
+@media(prefers-reduced-motion:reduce){.pl-switch::after{transition:none;}}
 </style>
 </head>
 <body>
@@ -937,7 +1002,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.23';
+  const APP_VERSION = '0.4.0';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1010,6 +1075,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       previousProgressMap: {},
       celebrationUntil: 0,
       perfectPulse: false,
+    },
+    planner: {
+      events: Array.isArray(loadJSON('planner_events', [])) ? loadJSON('planner_events', []) : [],
+      sections: Array.isArray(loadJSON('planner_sections', null)) ? loadJSON('planner_sections', null) : ['Работа','Учёба'],
+      activeSection: null,
+      viewDate: dateOnly(),
     }
   };
 
@@ -1062,6 +1133,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       'swap': '<path d="M7 7h12l-3-3m3 3-3 3M17 17H5l3 3m-3-3 3-3"/>',
       'phone': '<path d="M6 3h4l1 5-2 1a14 14 0 0 0 6 6l1-2 5 1v4c0 2-2 3-4 3C9 20 4 15 3 7c0-2 1-4 3-4Z"/>',
       'more': '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+      'inbox': '<path d="M4 4h16l2 9v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-6l2-9Z"/><path d="M2 13h6a2 2 0 0 0 4 0h6"/>',
+      'message': '<path d="M4 5h16v11H8l-4 4V5Z"/>',
     }[name] || '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>';
     return `<span class="icon ${cls}"><svg ${common}>${p}</svg></span>`;
   }
@@ -1271,7 +1344,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(host.dataset.viewKey===key)storeCurrentScroll();
     const epoch=++renderEpoch;
     if(state.nav===0)host.innerHTML=renderFinance();
-    else if(state.nav===1)host.innerHTML=renderUnavailable('Планер','Планирование событий ещё в разработке.');
+    else if(state.nav===1)host.innerHTML=renderPlanner();
     else if(state.nav===2)host.innerHTML=renderHome();
     else if(state.nav===3)host.innerHTML=renderHabits();
     else host.innerHTML=renderUnavailable('Новости','Персональная лента ещё в разработке.');
@@ -1291,6 +1364,180 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function renderUnavailable(title,description) {
     return `<section class="screen dna-unavailable">${renderDnaLoader('Скоро',true)}<h1>${esc(title)}</h1><p>${esc(description)}</p></section>`;
+  }
+
+  // -------- Planner --------
+  const PL_START_HOUR=9,PL_END_HOUR=20,PL_HOUR_PX=56,PL_COLORS=['#c9a84c','#7fb8e0','#e08fa0','#8fd19e','#d6a8e8','#e0b17f'];
+  function plannerId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+  function savePlannerEvents(){saveJSON('planner_events',state.planner.events);}
+  function savePlannerSections(){saveJSON('planner_sections',state.planner.sections);}
+  function plannerSectionColor(name){
+    if(!name)return 'var(--gold)';
+    let h=0;for(let i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))>>>0;
+    return PL_COLORS[h%PL_COLORS.length];
+  }
+  function plannerEventsFor(dateIso){return state.planner.events.filter(e=>e.date===dateIso&&(!state.planner.activeSection||e.section===state.planner.activeSection));}
+  function plannerInboxEvents(){return state.planner.events.filter(e=>e.date==null&&(!state.planner.activeSection||e.section===state.planner.activeSection));}
+  function plannerMinutesFromTime(t){const p=t.split(':').map(Number);return p[0]*60+p[1];}
+  function formatPlannerDate(iso){return parseLocalDate(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});}
+  function formatPlannerDateTime(iso){const d=new Date(iso);return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+', '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
+
+  function renderPlanner() {
+    const dateIso=isoDate(state.planner.viewDate);
+    const dayEvents=plannerEventsFor(dateIso);
+    const timed=dayEvents.filter(e=>e.time).sort((a,b)=>a.time.localeCompare(b.time));
+    const untimed=dayEvents.filter(e=>!e.time);
+    const inboxCount=plannerInboxEvents().length;
+    const dayLabel=state.planner.viewDate.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+    return `<section class="screen pl-screen" aria-label="Планер">
+      <header class="pl-header"><h1>Планер</h1><button class="pl-inbox-btn" data-pl-inbox aria-label="Инбокс">${icon('inbox')}${inboxCount?`<span class="pl-inbox-badge">${inboxCount>99?'99+':inboxCount}</span>`:''}</button></header>
+      <div class="pl-sections">
+        <button class="pl-chip ${state.planner.activeSection?'':'active'}" data-pl-section="">Все</button>
+        ${state.planner.sections.map(s=>`<button class="pl-chip ${state.planner.activeSection===s?'active':''}" data-pl-section="${esc(s)}" style="--pl-color:${plannerSectionColor(s)}">${esc(s)}</button>`).join('')}
+        <button class="pl-chip pl-chip-add" data-pl-add-section aria-label="Новый раздел">${icon('plus')}</button>
+      </div>
+      <div class="pl-daynav">
+        <button data-pl-day="-1" aria-label="Предыдущий день">${icon('chev-left')}</button>
+        <div class="pl-day-label">${esc(dayLabel)}</div>
+        <button data-pl-day="1" aria-label="Следующий день">${icon('chev-right')}</button>
+      </div>
+      <div class="pl-scroll">
+        ${untimed.length?`<div class="pl-notime-title">Без времени</div><div class="pl-notime-list">${untimed.map(plannerTaskCard).join('')}</div>`:''}
+        <div class="pl-timeline-title">Расписание</div>
+        ${renderPlannerTimeline(timed)}
+      </div>
+      <button class="pl-add-fab" data-pl-add aria-label="Новая задача">${icon('plus')}</button>
+    </section>`;
+  }
+  function plannerTaskCard(e){
+    return `<button class="pl-task ${e.done?'done':''}" data-pl-open="${e.id}" style="--pl-color:${plannerSectionColor(e.section)}">
+      <span class="pl-task-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
+      <span class="pl-task-body"><span class="pl-task-title">${esc(e.title)}</span>${e.section?`<span class="pl-task-meta">${esc(e.section)}</span>`:''}</span>
+    </button>`;
+  }
+  function renderPlannerTimeline(timed){
+    const rows=[];
+    for(let h=PL_START_HOUR;h<PL_END_HOUR;h++)rows.push(`<div class="pl-hour-row"><span class="pl-hour-label">${String(h).padStart(2,'0')}:00</span><span class="pl-hour-slot"></span></div>`);
+    const totalMinutes=(PL_END_HOUR-PL_START_HOUR)*60;
+    const events=timed.map(e=>{
+      const mins=clamp(plannerMinutesFromTime(e.time)-PL_START_HOUR*60,0,totalMinutes);
+      const dur=clamp(e.duration||60,20,Math.max(20,totalMinutes-mins));
+      const top=mins/60*PL_HOUR_PX,height=Math.max(30,dur/60*PL_HOUR_PX-2);
+      return `<button class="pl-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;--pl-color:${plannerSectionColor(e.section)}">
+        <span class="pl-event-time">${esc(e.time)}</span><span class="pl-event-title">${esc(e.title)}</span>
+      </button>`;
+    }).join('');
+    return `<div class="pl-timeline">${rows.join('')}<div class="pl-timeline-events">${events}</div></div>`;
+  }
+  function bindPlannerEvents(){
+    $$('[data-pl-section]').forEach(b=>b.onclick=()=>{state.planner.activeSection=b.dataset.plSection||null;renderScreen();});
+    $('[data-pl-add-section]')?.addEventListener('click',plannerAddSectionPrompt);
+    $('[data-pl-inbox]')?.addEventListener('click',showPlannerInbox);
+    $$('[data-pl-day]').forEach(b=>b.onclick=()=>{state.planner.viewDate=addDays(state.planner.viewDate,+b.dataset.plDay);renderScreen();});
+    $('[data-pl-add]')?.addEventListener('click',()=>showPlannerEditSheet(null));
+    $$('[data-pl-toggle]').forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);});
+    $$('[data-pl-open]').forEach(b=>b.onclick=()=>showPlannerDetail(b.dataset.plOpen));
+  }
+  function plannerToggleDone(id){const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;ev.done=!ev.done;savePlannerEvents();renderScreen();}
+  function plannerDelete(id){state.planner.events=state.planner.events.filter(x=>x.id!==id);savePlannerEvents();renderScreen();}
+  function plannerAddSectionPrompt(){
+    const ov=overlay(`<div class="modal"><div class="modal-title">Новый раздел</div><div class="modal-content">${formField('pl-section-name','Название раздела')}</div><div class="modal-actions"><button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-section-save">Сохранить</button></div></div>`);
+    $('[data-close]',ov).onclick=closeOverlay;
+    $('#pl-section-save',ov).onclick=()=>{
+      const name=$('#pl-section-name',ov).value.trim();
+      if(name&&!state.planner.sections.includes(name)){state.planner.sections.push(name);savePlannerSections();}
+      closeOverlay();renderScreen();
+    };
+  }
+  function showPlannerInbox(){
+    const items=plannerInboxEvents();
+    const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">Инбокс</div>
+      ${items.length?`<div class="pl-notime-list">${items.map(plannerTaskCard).join('')}</div>`:'<div class="pl-empty">Пусто. Задача без даты будет ждать здесь.</div>'}
+      <div style="height:16px"></div></div>`,{sheet:true});
+    $$('[data-pl-toggle]',ov).forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);closeOverlay();showPlannerInbox();});
+    $$('[data-pl-open]',ov).forEach(b=>b.onclick=()=>{closeOverlay();showPlannerDetail(b.dataset.plOpen);});
+  }
+  function showPlannerEditSheet(id){
+    const existing=id?state.planner.events.find(x=>x.id===id):null;
+    const hasDate=!!existing?.date,hasTime=!!existing?.time;
+    const dateVal=existing?.date||isoDate(state.planner.viewDate),timeVal=existing?.time||'09:00';
+    const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${existing?'Редактировать задачу':'Новая задача'}</div>
+      <div class="pl-form-row"><label>Название</label>${formField('pl-title','Что нужно сделать','text',existing?.title||'')}</div>
+      <div class="pl-toggle-row"><label>Дата</label><button class="pl-switch ${hasDate?'on':''}" id="pl-date-toggle" type="button" aria-pressed="${hasDate}"></button></div>
+      <div class="pl-form-row" id="pl-date-row" ${hasDate?'':'style="display:none"'}><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>
+      <div class="pl-toggle-row" id="pl-time-toggle-row" ${hasDate?'':'style="display:none"'}><label>Время</label><button class="pl-switch ${hasTime?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${hasTime}"></button></div>
+      <div class="pl-form-row" id="pl-time-row" ${hasTime?'':'style="display:none"'}><input class="field" id="pl-time-value" type="time" value="${esc(timeVal)}"></div>
+      <div class="pl-form-row"><label>Раздел</label><div class="pl-section-picker" id="pl-section-picker">
+        <button type="button" class="pl-chip ${!existing?.section?'active':''}" data-section="">Без раздела</button>
+        ${state.planner.sections.map(s=>`<button type="button" class="pl-chip ${existing?.section===s?'active':''}" data-section="${esc(s)}">${esc(s)}</button>`).join('')}
+      </div></div>
+      <div class="modal-actions">${existing?'<button class="text-btn" id="pl-form-delete" style="color:#ff5a5a">Удалить</button>':''}<button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-form-save">Сохранить</button></div>
+    </div>`,{sheet:true});
+    let section=existing?.section||null;
+    $$('[data-section]',ov).forEach(b=>b.onclick=()=>{section=b.dataset.section||null;$$('[data-section]',ov).forEach(x=>x.classList.toggle('active',x.dataset.section===section));});
+    $('#pl-date-toggle',ov).onclick=()=>{
+      const on=!$('#pl-date-toggle',ov).classList.contains('on');
+      $('#pl-date-toggle',ov).classList.toggle('on',on);$('#pl-date-toggle',ov).setAttribute('aria-pressed',String(on));
+      $('#pl-date-row',ov).style.display=on?'':'none';$('#pl-time-toggle-row',ov).style.display=on?'':'none';
+      if(!on){$('#pl-time-toggle',ov).classList.remove('on');$('#pl-time-row',ov).style.display='none';}
+    };
+    $('#pl-time-toggle',ov).onclick=()=>{
+      const on=!$('#pl-time-toggle',ov).classList.contains('on');
+      $('#pl-time-toggle',ov).classList.toggle('on',on);$('#pl-time-toggle',ov).setAttribute('aria-pressed',String(on));
+      $('#pl-time-row',ov).style.display=on?'':'none';
+    };
+    $('[data-close]',ov).onclick=closeOverlay;
+    $('#pl-form-delete',ov)?.addEventListener('click',()=>{plannerDelete(existing.id);closeOverlay();});
+    $('#pl-form-save',ov).onclick=()=>{
+      const title=$('#pl-title',ov).value.trim();if(!title)return;
+      const dateOn=$('#pl-date-toggle',ov).classList.contains('on');
+      const timeOn=dateOn&&$('#pl-time-toggle',ov).classList.contains('on');
+      const date=dateOn?$('#pl-date-value',ov).value:null,time=timeOn?$('#pl-time-value',ov).value:null;
+      if(existing){existing.title=title;existing.date=date;existing.time=time;existing.section=section;}
+      else state.planner.events.push({id:plannerId(),title,date,time,section,subtasks:[],comments:[],done:false});
+      savePlannerEvents();closeOverlay();renderScreen();
+    };
+  }
+  function plannerSubtaskList(ev){
+    if(!ev.subtasks.length)return '<div class="pl-empty" style="padding:8px 0">Пока пусто</div>';
+    return ev.subtasks.map(s=>`<div class="pl-subtask-row ${s.done?'done':''}"><span class="pl-task-check ${s.done?'done':''}" data-sub-toggle="${s.id}">${s.done?icon('check'):''}</span><span class="pl-subtask-text">${esc(s.text)}</span><button class="text-btn" data-sub-remove="${s.id}" aria-label="Удалить пункт">${icon('close')}</button></div>`).join('');
+  }
+  function plannerCommentList(ev){
+    if(!ev.comments.length)return '';
+    return ev.comments.slice().reverse().map(c=>`<div class="pl-comment-item"><div class="pl-comment-date">${formatPlannerDateTime(c.date)}</div><div class="pl-comment-text">${esc(c.text)}</div></div>`).join('');
+  }
+  function showPlannerDetail(id){
+    const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;
+    const meta=[ev.section,ev.date?formatPlannerDate(ev.date):null,ev.time].filter(Boolean).join(' · ')||'Инбокс';
+    const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="pl-detail">
+      <div class="pl-detail-head"><h2 class="pl-detail-title">${esc(ev.title)}</h2><button class="text-btn" data-pl-edit aria-label="Редактировать">${icon('edit')}</button></div>
+      <div class="pl-detail-meta">${esc(meta)}</div>
+      <h3>Подзадачи</h3>
+      <div id="pl-subtask-list">${plannerSubtaskList(ev)}</div>
+      <div class="pl-subtask-add">${formField('pl-subtask-new','Добавить пункт')}<button class="gold-action" id="pl-subtask-add-btn" style="flex:0 0 auto">+</button></div>
+      <h3>Комментарии</h3>
+      <div id="pl-comment-list">${plannerCommentList(ev)}</div>
+      <textarea class="field" id="pl-comment-new" placeholder="Написать комментарий..." rows="2" style="margin-top:10px;resize:vertical"></textarea>
+      <div class="modal-actions" style="margin-top:18px"><button class="text-btn" style="color:#ff5a5a" id="pl-detail-delete">Удалить событие</button><button class="text-btn" data-close>Закрыть</button></div>
+    </div></div>`,{sheet:true});
+    const refreshSub=()=>{$('#pl-subtask-list',ov).innerHTML=plannerSubtaskList(ev);bindSubtasks();};
+    const bindSubtasks=()=>{
+      $$('[data-sub-toggle]',ov).forEach(b=>b.onclick=()=>{const s=ev.subtasks.find(x=>x.id===b.dataset.subToggle);if(s){s.done=!s.done;savePlannerEvents();refreshSub();}});
+      $$('[data-sub-remove]',ov).forEach(b=>b.onclick=()=>{ev.subtasks=ev.subtasks.filter(x=>x.id!==b.dataset.subRemove);savePlannerEvents();refreshSub();});
+    };
+    bindSubtasks();
+    $('#pl-subtask-add-btn',ov).onclick=()=>{
+      const input=$('#pl-subtask-new',ov),text=input.value.trim();if(!text)return;
+      ev.subtasks.push({id:plannerId(),text,done:false});input.value='';savePlannerEvents();refreshSub();
+    };
+    $('#pl-comment-new',ov).addEventListener('blur',()=>{
+      const text=$('#pl-comment-new',ov).value.trim();if(!text)return;
+      ev.comments.push({id:plannerId(),text,date:new Date().toISOString()});$('#pl-comment-new',ov).value='';savePlannerEvents();
+      $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
+    });
+    $('[data-close]',ov).onclick=closeOverlay;
+    $('#pl-detail-delete',ov).onclick=()=>{if(!confirm('Удалить событие?'))return;plannerDelete(ev.id);closeOverlay();};
+    $('[data-pl-edit]',ov).onclick=()=>{closeOverlay();showPlannerEditSheet(ev.id);};
   }
   function renderHome() {
     if (homePanel==='settings') return renderHomeSettings();
@@ -1314,7 +1561,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: свайп привычки переделан по образцу Telegram/iOS — карточка следует за пальцем без задержки, кнопки лежат под ней неподвижно и просто открываются движением, а резкий короткий свайп теперь тоже доводит панель до конца (раньше срабатывал только достаточно длинный жест). Открыта всегда только одна карточка, тап вне неё закрывает. Шаг числовых привычек для «неудобных» целей вроде 7 или 11 делится на 3-5 частей с остатком на последнем нажатии, а не по одному разу на большие числа.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: раздел «Планер» — день с расписанием по часам, блок «Без времени», разделы с фильтром, Инбокс для задач без даты, карточка события с подзадачами и комментариями. Свайп привычки переделан по образцу Telegram/iOS: карточка следует за пальцем без задержки, короткий резкий свайп тоже открывает панель до конца. Шаг числовых привычек для «неудобных» целей вроде 7 или 11 теперь делится на 3-5 частей с остатком на последнем нажатии.</p></section>
     </div></section>`;
   }
 
@@ -1558,7 +1805,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   let toastTimer = 0;
   let toastRemoveTimer = 0;
   function currentViewKey() {return state.nav===0?'finance:'+financeView.page:state.nav===2?'home:'+homePanel:'nav:'+state.nav;}
-  function currentScroller() {return $('.finance-scroll')||$('.hb-screen')||$('.home-settings')||$('.home-screen')||$('#screen .screen');}
+  function currentScroller() {return $('.finance-scroll')||$('.hb-screen')||$('.pl-scroll')||$('.home-settings')||$('.home-screen')||$('#screen .screen');}
   function reducedMotion() {return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches===true;}
   function validAppDate(s) {return /^\d{4}-\d{2}-\d{2}$/.test(s)&&isoDate(parseLocalDate(s))===s;}
   function habitStripDates() {
@@ -1788,6 +2035,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // -------- Event binding --------
   function bindScreenEvents() {
     if(state.nav===0) bindFinanceEvents();
+    if(state.nav===1) bindPlannerEvents();
     if(state.nav===2) bindHomeEvents();
     if(state.nav===3) bindHabitsEvents();
   }
