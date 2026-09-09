@@ -860,7 +860,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 @media(prefers-reduced-motion:reduce){.habit-swipe>.habit-card,.habit-swipe-actions{transition:none}}
 
 /* Habits 0.3.17: transform-driven swipe, insertion line, contour undo, completion ring for all habits. */
-.habit-swipe-actions{left:auto;right:0;gap:12px;padding:0 16px;justify-content:flex-end;transition:background-color .18s ease;}
+.habit-swipe-actions{left:auto;right:0;gap:8px;padding:0 10px;justify-content:flex-end;transition:background-color .18s ease;}
 .habit-swipe.delete-ready .habit-swipe-actions{background:#331315;border-radius:12px;}
 .habit-swipe.delete-ready [data-swipe-delete] .icon{box-shadow:0 0 16px #c94a5060;}
 .habit-body{flex:1;min-width:0;}.habit-body .habit-name{overflow-wrap:anywhere;line-height:1.35;}
@@ -871,8 +871,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-check .icon,.habit-swipe-actions .icon{display:block;flex:none;margin:0;}
 .habit-card .habit-check,.habit-swipe-actions button{display:grid;place-items:center;padding:0;flex-shrink:0;box-sizing:border-box;}
 .habit-check .icon svg,.habit-swipe-actions .icon svg,.habit-drag-bar .icon svg{display:block;width:100%;height:100%;}
-.habit-swipe-actions button{border:0;background:transparent;box-shadow:none;border-radius:0;width:44px;height:44px;flex:0 0 44px;}
-.habit-swipe-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:7px;border:1px solid #74777e;border-radius:50%;background:#111214;box-shadow:0 0 8px #b4bac41f;flex-shrink:0;}
+.habit-swipe-actions button{border:0;background:transparent;box-shadow:none;border-radius:0;width:36px;height:36px;flex:0 0 36px;}
+.habit-swipe-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:6px;border:1px solid #74777e;border-radius:50%;background:#111214;box-shadow:0 0 8px #b4bac41f;flex-shrink:0;}
 .habit-swipe-actions [data-swipe-delete] .icon{border-color:#c94a50;background:#1b1011;box-shadow:0 0 8px #e6404c20;}
 @media(prefers-reduced-motion:reduce){.habit-outline rect{transition:none;}}
 
@@ -890,16 +890,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-drag-bar{position:fixed;z-index:600;left:50%;bottom:calc(var(--nav-h) + var(--safe-bottom) + 20px);transform:translateX(-50%);display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:0 6px 25px #0009;}
 .habit-drag-bar button{display:grid;place-items:center;box-sizing:border-box;padding:0;width:52px;height:52px;border:1px solid #625630;border-radius:50%;color:var(--gold);background:#1c1a15;font:16px Georgia;}
 .habit-drag-bar [data-lift-delete]{color:#ff696d;border-color:#ad444a;background:#221416;}
-.habit-drag-bar [data-lift-delete].ready{background:#922f36;transform:scale(1.12);box-shadow:0 0 15px #dc465b44;}
+.habit-drag-bar [data-lift-delete].ready{background:#922f36;box-shadow:0 0 18px #dc465b55;}
+.habit-drag-bar [data-lift-delete]{transition:background-color .15s ease,box-shadow .15s ease;}
 .habit-drag-bar .icon{display:block;width:20px;height:20px;margin:0;}
 .habit-drop-line{position:absolute;top:0;left:16px;right:4px;height:3px;border-radius:2px;background:linear-gradient(90deg,rgba(201,168,76,.15),var(--gold) 18%,var(--gold) 82%,rgba(201,168,76,.15));box-shadow:0 0 10px 1px rgba(201,168,76,.65),0 0 22px 4px rgba(201,168,76,.28);opacity:0;pointer-events:none;z-index:6;transform:translateY(-1.5px);transition:opacity .15s ease,transform .12s ease;will-change:transform;}
 .habit-drop-line.visible{opacity:1;}
 
 /* Undo-delete toast: contour outline instead of a bottom bar. */
-.habit-undo{pointer-events:auto;position:relative;overflow:visible;background:#1a1812;color:#eee;border:1px solid #6d5a2d;border-radius:12px;padding:14px;display:flex;gap:16px;align-items:center;}
-.habit-undo button{border:0;background:none;color:var(--gold);font:inherit;}
-.habit-undo-outline{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;}
-.habit-undo-outline rect{fill:none;stroke:var(--gold);stroke-width:1.5;stroke-linecap:round;stroke-dasharray:100 100;}
+.habit-undo{pointer-events:none;display:flex;justify-content:center;}
+.habit-undo-circle{pointer-events:auto;position:relative;width:56px;height:56px;flex:0 0 56px;border-radius:50%;border:1px solid #4a4a46;background:#26251f;color:#d9cfa8;display:grid;place-items:center;padding:0;box-shadow:0 8px 22px rgba(0,0,0,.4);}
+.habit-undo-circle:active{filter:brightness(1.15);}
+.habit-undo-icon{display:grid;place-items:center;}
+.habit-undo-icon .icon{width:22px;height:22px;}
+.habit-undo-ring{position:absolute;inset:-1px;width:calc(100% + 2px);height:calc(100% + 2px);overflow:visible;pointer-events:none;}
+.habit-undo-ring circle{fill:none;stroke:var(--gold);stroke-width:2;stroke-linecap:round;stroke-dasharray:100 100;transform:rotate(-90deg);transform-origin:50% 50%;}
 @media(prefers-reduced-motion:reduce){.habit-drop-line{transition:none;}}
 
 /* Layout stability: calendar plate locked to the date-pill height and habit-card width
@@ -933,7 +937,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.18';
+  const APP_VERSION = '0.3.19';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1030,6 +1034,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       'plus': '<path d="M12 5v14M5 12h14"/>',
       'receipt': '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/>',
       'edit': '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
+      'undo': '<path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 6 6v1"/>',
       'trash': '<path d="M4 7h16M9 7V4h6v3m-8 0 1 14h8l1-14M10 11v6m4-6v6"/>',
       'pdf': '<path d="M6 2h8l4 4v16H6V2Z"/><path d="M14 2v5h5M8 16h8M8 12h5"/>',
       'image': '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m5 18 5-5 3 3 2-2 4 4"/>',
@@ -1309,7 +1314,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: кнопки свайпа больше не прячутся под карточкой, редактирование числовой привычки позволяет менять цель напрямую, переключение дня и возврат «на сегодня» стали плавными, линия вставки при перетаскивании подсвечена и по размеру карточки, а пустой день центрируется как список привычек.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: панель свайпа компактнее, круг дисциплины при смене дня доезжает от прежнего значения, а не прыгает, перетаскивание привычек больше не перерисовывает весь список, мусорка при удержании плавно растёт навстречу, а окно отмены удаления — теперь круглая кнопка с таймером-обводкой.</p></section>
     </div></section>`;
   }
 
@@ -1663,7 +1668,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // deleteThreshold — заметно дальше revealWidth, чтобы «просто открыть» не читалось как «уже готово удалить».
     const measure=()=>{
       width=row.getBoundingClientRect().width;
-      const neededReveal=buttons.length*44+Math.max(0,buttons.length-1)*12+32;
+      const neededReveal=buttons.length*36+Math.max(0,buttons.length-1)*8+20;
       revealWidth=Math.min(neededReveal,Math.max(64,width-8));
       rightThreshold=Math.min(72,width*.45);
       softCap=revealWidth+width*.3;
@@ -1744,13 +1749,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function selectHabitDate(d) {
     if(!d||Number.isNaN(d.getTime())||sameDay(d,state.habits.selectedDate))return;
     storeCurrentScroll();cancelAnimationFrame(habitAnimationFrame);state.habits.today=dateOnly();
-    state.habits.selectedDate=dateOnly(d);state.habits.circleDisplay=progressForDate(d);state.habits.animatingDate=null;state.habits.celebrationUntil=0;
+    // Круг должен доехать ОТ текущего отображаемого значения, а не мгновенно показать значение нового дня —
+    // раньше animatingDate обнулялся, поэтому drawHabitsVisuals() рисовал сразу конечный процент.
+    const from=Number.isFinite(state.habits.circleDisplay)?state.habits.circleDisplay:progressForDate(state.habits.selectedDate);
+    const target=progressForDate(d);
+    state.habits.selectedDate=dateOnly(d);
+    state.habits.animStart=from;state.habits.animEnd=target;state.habits.circleDisplay=from;
+    state.habits.animatingDate=new Date(state.habits.selectedDate);state.habits.celebrationUntil=0;
     renderScreen();scrollToSelectedHabitDate();
-    // Полный рендер меняет контент мгновенно — мягкий кросс-фейд вместо резкой «телепортации».
-    if(!reducedMotion()){
-      $('.discipline-wrap')?.animate?.([{opacity:.4},{opacity:1}],{duration:220,easing:'ease-out'});
-      $('.habits-list-wrap')?.animate?.([{opacity:.3,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:220,easing:'ease-out'});
-    }
+    animateHabitProgress(from,target);
+    if(!reducedMotion())$('.habits-list-wrap')?.animate?.([{opacity:.3,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:220,easing:'ease-out'});
   }
   function scrollToSelectedHabitDate() {
     const sc=$('.graph-scroller'),selected=$('.date-item.selected');if(!sc||!selected)return;
@@ -2120,12 +2128,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     for(const k of Object.keys(next)){if(k<key||!Array.isArray(next[k]))continue;const at=next[k].findIndex(x=>x.name===h.name);if(at<0)continue;removed.push({key:k,at,habit:next[k][at]});next[k]=next[k].filter((_,i)=>i!==at);}
     const row=$('[data-habit-index="'+index+'"]')?.closest('.habit-swipe'),card=row?.querySelector('.habit-card'),prev=progressForDate(state.habits.selectedDate);
     state.habits.data=next;
-    const root=$('#toast-root'),notice=document.createElement('div');notice.className='habit-undo';notice.setAttribute('role','status');notice.append(document.createTextNode('Привычка удалена '));
-    const undo=document.createElement('button');undo.textContent='Отменить';notice.append(undo);
-    const svgNS='http://www.w3.org/2000/svg',outline=document.createElementNS(svgNS,'svg'),outlineRect=document.createElementNS(svgNS,'rect');
-    outline.setAttribute('class','habit-undo-outline');outline.setAttribute('aria-hidden','true');outlineRect.setAttribute('pathLength','100');outline.append(outlineRect);notice.append(outline);
-    root.append(notice);
-    requestAnimationFrame(()=>{const w=notice.clientWidth,h=notice.clientHeight;if(w>4&&h>4){outline.setAttribute('viewBox','0 0 '+w+' '+h);outlineRect.setAttribute('x','1');outlineRect.setAttribute('y','1');outlineRect.setAttribute('rx','11');outlineRect.setAttribute('width',String(w-2));outlineRect.setAttribute('height',String(h-2));}});
+    const root=$('#toast-root'),notice=document.createElement('div');notice.className='habit-undo';notice.setAttribute('role','status');
+    const undo=document.createElement('button');undo.type='button';undo.className='habit-undo-circle';undo.setAttribute('aria-label','Привычка «'+(h.name||'')+'» удалена. Нажми, чтобы отменить.');
+    const svgNS='http://www.w3.org/2000/svg',ring=document.createElementNS(svgNS,'svg'),outlineRect=document.createElementNS(svgNS,'circle');
+    ring.setAttribute('class','habit-undo-ring');ring.setAttribute('viewBox','0 0 60 60');ring.setAttribute('aria-hidden','true');
+    outlineRect.setAttribute('cx','30');outlineRect.setAttribute('cy','30');outlineRect.setAttribute('r','28');outlineRect.setAttribute('pathLength','100');
+    ring.append(outlineRect);undo.append(ring);
+    const undoIcon=document.createElement('span');undoIcon.className='habit-undo-icon';undoIcon.innerHTML=icon('undo');undo.append(undoIcon);
+    notice.append(undo);root.append(notice);
     let timer=0,ending=false,collapse=null,stopSlide=()=>{},internalRender=false;
     const reveal=()=>{internalRender=true;prepareHabitAnimation(prev,progressForDate(state.habits.selectedDate));internalRender=false;};
     const finish=(restore=false,immediate=false)=>{
@@ -2154,7 +2164,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function moveHabit(from,to) {
     const list=currentHabits();if(from===to||!list[from]||!list[to])return;const name=list[from].name,anchor=list[to].name,key=habitDateKey(state.habits.selectedDate),next={...state.habits.data};
     for(const k of Object.keys(next)){if(k<key||!Array.isArray(next[k]))continue;const arr=[...next[k]],i=arr.findIndex(h=>h.name===name);if(i<0||!arr.some(h=>h.name===anchor))continue;const [item]=arr.splice(i,1),j=arr.findIndex(h=>h.name===anchor);arr.splice(j+(to>from?1:0),0,item);next[k]=arr;}
-    if(commitHabitData(next))updateHabitUI();
+    // FLIP: список почти всегда перерисовывается целиком (сдвинулись имена на всех позициях между from/to),
+    // поэтому вместо мгновенной подмены плавно доезжаем каждую строку из старого места в новое.
+    const before=new Map($$('.habit-card').map(el=>[el.dataset.habitName,el.closest('.habit-swipe')?.getBoundingClientRect()]));
+    if(!commitHabitData(next))return;
+    updateHabitUI();
+    if(reducedMotion())return;
+    requestAnimationFrame(()=>{
+      $$('.habit-card').forEach(card=>{
+        const row=card.closest('.habit-swipe'),prevRect=before.get(card.dataset.habitName);
+        if(!row||!prevRect)return;
+        const newRect=row.getBoundingClientRect(),dy=prevRect.top-newRect.top;
+        if(Math.abs(dy)<1)return;
+        row.style.transition='none';row.style.transform='translateY('+dy+'px)';
+        requestAnimationFrame(()=>{
+          row.style.transition='transform .28s cubic-bezier(.2,.7,.3,1)';row.style.transform='';
+          row.addEventListener('transitionend',()=>{row.style.transition='';},{once:true});
+        });
+      });
+    });
   }
   let activeHabitLiftCleanup=null;
   function bindHabitLift(card){
@@ -2170,17 +2198,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         const bounds=card.getBoundingClientRect();ghost=card.cloneNode(true);ghost.classList.add('habit-drag-ghost');ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.style.cssText='position:fixed;left:'+bounds.left+'px;top:'+bounds.top+'px;width:'+bounds.width+'px;height:'+bounds.height+'px;margin:0;z-index:590;pointer-events:none;box-sizing:border-box;';document.body.append(ghost);if(!reducedMotion())ghost.animate?.([{opacity:.5},{opacity:1}],{duration:140,easing:'ease-out'});
         bar=document.createElement('div');bar.className='habit-drag-bar';bar.innerHTML='<button type="button" data-lift-delete aria-label="Удалить">'+icon('trash')+'</button>';
         document.body.append(bar);
+        const trashBtn=$('[data-lift-delete]',bar),trashHome=trashBtn.getBoundingClientRect(),homeX=trashHome.left+trashHome.width/2,homeY=trashHome.top+trashHome.height/2;
         line=document.createElement('div');line.className='habit-drop-line';row.closest('.habits-list').append(line);
         activeHabitLiftCleanup=cleanup;
         $('[data-lift-delete]',bar).onclick=()=>{const i=index();cleanup();if(i>=0)deleteHabitWithUndo(i);};
-        const tick=()=>{if(!hold?.active||!row.isConnected){if(!row.isConnected)cleanup();return;}const now=performance.now(),dt=Math.min((now-hold.lastFrame)/1000,.032);hold.lastFrame=now;for(let t=0;t<dt;){const step=Math.min(.008,dt-t);for(const [pos,vel,target] of [['px','vx',hold.lastX-hold.x],['py','vy',hold.lastY-hold.y],['scale','vs',1.05]]){hold[vel]+=(150*(target-hold[pos])-15*hold[vel])*step;hold[pos]+=hold[vel]*step;}t+=step;}if(ghost)ghost.style.transform='translate3d('+hold.px+'px,'+hold.py+'px,0) scale('+hold.scale+')';const list=row.closest('.habits-list'),r=list.getBoundingClientRect();if(hold.lastY<r.top+25)list.scrollTop-=4;else if(hold.lastY>Math.min(r.bottom,window.innerHeight-110)-25)list.scrollTop+=4;frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);
+        const tick=()=>{if(!hold?.active||!row.isConnected){if(!row.isConnected)cleanup();return;}const now=performance.now(),dt=Math.min((now-hold.lastFrame)/1000,.032);hold.lastFrame=now;for(let t=0;t<dt;){const step=Math.min(.008,dt-t);for(const [pos,vel,target] of [['px','vx',hold.lastX-hold.x],['py','vy',hold.lastY-hold.y],['scale','vs',1.05]]){hold[vel]+=(150*(target-hold[pos])-15*hold[vel])*step;hold[pos]+=hold[vel]*step;}t+=step;}if(ghost)ghost.style.transform='translate3d('+hold.px+'px,'+hold.py+'px,0) scale('+hold.scale+')';
+          // Мусорка не просто вкл/выкл на 16px хитбоксе — растёт плавно с приближением и слегка "тянется" к тому месту, откуда её тащат.
+          const dx=hold.lastX-homeX,dy=hold.lastY-homeY,dist=Math.hypot(dx,dy),proximity=clamp(1-dist/220,0,1);
+          hold.remove=dist<86;trashBtn.classList.toggle('ready',hold.remove);
+          trashBtn.style.transform='translate3d('+clamp(dx/220,-1,1)*14+'px,0,0) scale('+(1+proximity*.4)+')';
+          const list=row.closest('.habits-list'),r=list.getBoundingClientRect();if(hold.lastY<r.top+25)list.scrollTop-=4;else if(hold.lastY>Math.min(r.bottom,window.innerHeight-110)-25)list.scrollTop+=4;frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);
       },420);
     },{passive:true});
     row.addEventListener('pointermove',e=>{
       if(!hold||hold.id!==e.pointerId)return;
       if(!hold.active){if(Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>7)cancelTimer();return;}
       e.preventDefault();hold.lastY=e.clientY;hold.lastX=e.clientX;hold.moved=Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>12;
-      const trash=$('[data-lift-delete]',bar),r=trash.getBoundingClientRect();hold.remove=e.clientX>=r.left-16&&e.clientX<=r.right+16&&e.clientY>=r.top-16&&e.clientY<=r.bottom+16;trash.classList.toggle('ready',hold.remove);
       const rows=$$('.habit-swipe');let best=hold.from,dist=Infinity;
       rows.forEach((other,i)=>{if(other===row)return;const b=other.getBoundingClientRect(),d=Math.abs(e.clientY-(b.top+b.height/2));if(d<dist){dist=d;best=i;}});
       hold.to=hold.moved?best:hold.from;
