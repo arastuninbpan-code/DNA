@@ -388,6 +388,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .habit-check.done { border-color:var(--gold); background:rgba(201,168,76,.15); }
 .habit-check.future { border-color:rgba(255,255,255,.1); color:transparent; cursor:default; }
 .habit-check .icon { width:16px; height:16px; }
+.habit-check-qty { font-size:9px; font-weight:600; line-height:1; letter-spacing:-.2px; }
 .habit-name { min-width:0; flex:1; color:#fff; font-family:Georgia,'Times New Roman',serif; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:all .3s ease; }
 .habit-card.done .habit-name { color:rgba(255,255,255,.38); text-decoration:line-through; text-decoration-color:rgba(201,168,76,.4); text-decoration-thickness:2px; }
 .habit-card.future .habit-name { color:rgba(255,255,255,.2); }
@@ -772,6 +773,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
 .toast {pointer-events:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#251b19;color:#e4c5bd;border:1px solid #675047;box-shadow:none;max-width:460px;padding:10px 14px;}
 .toast.ok {background:#1c2018;color:#d8d6ba;border-color:#4c5136;}
 .toast button {background:none;border:0;color:inherit;min-width:32px;min-height:32px;font-size:1.25rem;}
+.toast button.toast-action {min-width:0;min-height:0;font-size:13px;font-weight:600;color:var(--gold);padding:4px 10px;white-space:nowrap;}
 .toast.toast-exit {animation:toastOut .18s ease both;}
 @keyframes toastOut {to{opacity:0;transform:translateY(6px)}}
 @media(min-width:901px){.hb-layout{grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:36px}.hb-stats{border-top:0;border-left:1px solid #24241e;padding:16px 0 0 28px}.hb-days{max-width:820px;margin-left:auto;margin-right:auto}.hb-header{margin-bottom:24px}}
@@ -795,7 +797,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
 .date-item.today {background:transparent;}
 .date-item.selected {background:rgba(201,168,76,.25);}
 .graph-fade-left,.graph-fade-right {width:20px;}
-@media(max-width:380px){.habit-card{padding:10px 8px}.habit-check{margin-right:8px}.calendar-button{padding:10px 8px}}
+@media(max-width:380px){.habit-card{padding:10px 8px}.habit-check{margin-right:8px}.calendar-button{padding:10px 8px}.habit-swipe-actions{padding:0 8px;gap:8px}}
 @media(prefers-reduced-motion:reduce){.habits-screen *{animation:none!important;transition:none!important}}
 
 /* 0.3.3: fit the existing Habits surface; keep scroll inside the list. */
@@ -841,7 +843,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-swipe {position:relative;overflow:hidden;border-radius:12px;margin-bottom:8px;isolation:isolate;touch-action:pan-y pinch-zoom;}
 .habit-swipe>.habit-card {position:relative;z-index:1;margin:0;min-height:64px;background:var(--surface);touch-action:pan-y pinch-zoom;transition:border-color .2s;}
 .habit-swipe.is-dragging>.habit-card {will-change:transform;}
-.habit-swipe-actions {position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:12px;opacity:0;pointer-events:none;background:var(--bg);touch-action:pan-y pinch-zoom;}
+.habit-swipe-actions {position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:0 16px;opacity:0;pointer-events:none;background:var(--bg);touch-action:pan-y pinch-zoom;}
 .habit-swipe.is-open .habit-swipe-actions {pointer-events:auto;}
 .habit-swipe-actions button {width:44px;height:44px;flex:0 0 44px;min-width:0;display:grid;place-items:center;border:1px solid #74777e;border-radius:50%;background:#111214;color:#c2c5cb;padding:0;box-shadow:0 0 8px rgba(180,186,196,.12),inset 0 0 5px rgba(180,186,196,.04);touch-action:pan-y pinch-zoom;}
 .habit-swipe-actions [data-swipe-delete] {background:#1b1011;color:#ff696d;border-color:#c94a50;box-shadow:0 0 6px rgba(230,64,76,.12);}
@@ -885,7 +887,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.11';
+  const APP_VERSION = '0.3.12';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1102,6 +1104,57 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // -------- Habits computed state --------
   function habitDateKey(d) { return isoDate(d); }
   function habitsForDate(d) { return state.habits.data[habitDateKey(d)] || []; }
+  // -------- Habit quantity parsing (numeric mode) --------
+  const RU_ONES = {'один':1,'одна':1,'одно':1,'два':2,'две':2,'три':3,'четыре':4,'пять':5,'шесть':6,'семь':7,'восемь':8,'девять':9};
+  const RU_TEENS = {'десять':10,'одиннадцать':11,'двенадцать':12,'тринадцать':13,'четырнадцать':14,'пятнадцать':15,'шестнадцать':16,'семнадцать':17,'восемнадцать':18,'девятнадцать':19};
+  const RU_TENS = {'двадцать':20,'тридцать':30,'сорок':40,'пятьдесят':50,'шестьдесят':60,'семьдесят':70,'восемьдесят':80,'девяносто':90};
+  const RU_HUNDREDS = {'сто':100,'двести':200,'триста':300,'четыреста':400,'пятьсот':500,'шестьсот':600,'семьсот':700,'восемьсот':800,'девятьсот':900};
+  const RU_THOUSAND_WORDS = new Set(['тысяча','тысячи','тысяч','тысячу']);
+  const HABIT_TIME_WORDS = new Set(['утра','вечера','дня','ночи','час','часа','часов','часу']);
+  const HABIT_TIME_PREFIXES = new Set(['в','к','до','с']);
+  function ruWordNumber(token) {
+    if (token in RU_ONES) return RU_ONES[token];
+    if (token in RU_TEENS) return RU_TEENS[token];
+    if (token in RU_TENS) return RU_TENS[token];
+    if (token in RU_HUNDREDS) return RU_HUNDREDS[token];
+    return null;
+  }
+  // Извлекает целевое число из названия привычки ("выпить 1000 капель", "съесть тысячу семечек",
+  // "две тысячи триста шагов"), но не путает его со временем суток ("встать в 8 утра", "лечь в 23:00").
+  function parseHabitQuantity(name) {
+    const text = String(name||'').toLowerCase().replace(/\b\d{1,2}:\d{2}\b/g,' ');
+    if (!text.trim()) return null;
+    const tokens = text.match(/[а-яё]+|\d+/gi);
+    if (!tokens) return null;
+    for (let i=0;i<tokens.length;i++) {
+      const tok=tokens[i], isDigit=/^\d+$/.test(tok), isThousandWord=RU_THOUSAND_WORDS.has(tok);
+      const wordVal = isDigit ? null : ruWordNumber(tok);
+      if (!isDigit && !isThousandWord && wordVal==null) continue;
+      const prev = tokens[i-1];
+      if (prev && HABIT_TIME_PREFIXES.has(prev)) {
+        const after1=tokens[i+1], after2=tokens[i+2];
+        if (HABIT_TIME_WORDS.has(after1)||HABIT_TIME_WORDS.has(after2)) continue;
+      }
+      if (isDigit) return parseInt(tok,10);
+      let total=0, current=0, j=i;
+      while (j<tokens.length) {
+        const t=tokens[j];
+        if (RU_THOUSAND_WORDS.has(t)) { total += (current||1)*1000; current=0; j++; continue; }
+        const v=ruWordNumber(t);
+        if (v==null) break;
+        current+=v; j++;
+      }
+      const result=total+current;
+      if (result>0) return result;
+    }
+    return null;
+  }
+  function habitHasNumericMode(h) { return !!h && !h.numericOff && parseHabitQuantity(h.name)!=null; }
+  function habitCheckContent(h) {
+    if (h.done===true) return icon('check');
+    const qty=parseHabitQuantity(h.name);
+    return (qty!=null && !h.numericOff) ? `<span class="habit-check-qty">${qty}</span>` : '';
+  }
   function progressForDate(d) {
     const habits = habitsForDate(d);
     if (!habits.length) return 0;
@@ -1259,7 +1312,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: плавное раскрытие кнопок привычки, ровное расположение и свайп, который можно развернуть в любой момент.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: свайп привычки двигается ровно за пальцем, кнопки «Править»/«Удалить» больше не съезжают, сильный свайп удаляет привычку с возможностью отмены, а числовые цели («выпить тысячу капель») распознаются точнее.</p></section>
     </div></section>`;
   }
 
@@ -1534,7 +1587,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const habits=currentHabits();
     if(!habits.length) return `<div class="habits-empty">${icon('sparkles')}<div class="habits-empty-text">Начни создавать<br>свою систему<br>дисциплины</div></div>`;
     const future=state.habits.selectedDate>state.habits.today;
-    return `<div class="habits-list">${habits.map((h,i)=>`<div class="habit-swipe"><div class="habit-swipe-actions" aria-hidden="true" inert><button type="button" data-swipe-edit="${i}" aria-label="Редактировать привычку ${esc(h.name||'')}">${icon('edit')}<span>Править</span></button><button type="button" data-swipe-delete="${i}" aria-label="Удалить привычку ${esc(h.name||'')}">${icon('trash')}<span>Удалить</span></button></div><div class="habit-card ${h.done?'done':''} ${future?'future':''}" data-habit-index="${i}"><button class="habit-check ${h.done?'done':''} ${future?'future':''}" data-toggle-habit="${i}" ${future?'disabled':''} aria-label="Выполнить привычку ${esc(h.name||'')}" aria-pressed="${h.done===true}">${h.done?icon('check'):''}</button><div class="habit-name">${esc(h.name||'')}</div></div></div>`).join('')}</div>`;
+    return `<div class="habits-list">${habits.map((h,i)=>{
+      const qty=parseHabitQuantity(h.name),numericMode=qty!=null&&!h.numericOff;
+      const qtyLabel=numericMode&&h.done!==true?` Числовая цель: ${qty}.`:'';
+      return `<div class="habit-swipe"><div class="habit-swipe-actions" aria-hidden="true" inert><button type="button" data-swipe-edit="${i}" aria-label="Редактировать привычку ${esc(h.name||'')}">${icon('edit')}<span>Править</span></button><button type="button" data-swipe-delete="${i}" aria-label="Удалить привычку ${esc(h.name||'')}">${icon('trash')}<span>Удалить</span></button></div><div class="habit-card ${h.done?'done':''} ${future?'future':''}" data-habit-index="${i}"><button class="habit-check ${h.done?'done':''} ${future?'future':''}" data-toggle-habit="${i}" ${future?'disabled':''} aria-label="Выполнить привычку ${esc(h.name||'')}.${qtyLabel}" aria-pressed="${h.done===true}">${habitCheckContent(h)}</button><div class="habit-name">${esc(h.name||'')}</div></div></div>`;
+    }).join('')}</div>`;
   }
   function renderGraphPane() {
     const dates=allDates(), labels=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
@@ -1590,71 +1647,94 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function closeHabitSwipes(except=null) {
     $$('.habit-swipe').forEach(row=>{if(row!==except)row.closeSwipe?.();});
   }
-  function habitSwipeDestination(offset,velocity,width) {
-    return Math.abs(velocity)>.35 ? velocity<0 : offset<-width*.45;
+  // offset — итоговое смещение (px, отрицательное = влево); velocity — px/мс на отпускании.
+  // revealSpan — расстояние до полностью открытой панели действий; deleteDist — порог полного удаления.
+  function habitSwipeAction(offset,velocity,revealSpan,deleteDist) {
+    const dragLeft=Math.max(0,-offset);
+    if(dragLeft>=deleteDist||(velocity<-.8&&dragLeft>=revealSpan*.6))return 'delete';
+    const shouldOpen=Math.abs(velocity)>.35 ? velocity<0 : offset<-revealSpan*.45;
+    return shouldOpen?'open':'closed';
   }
   function bindHabitSwipe(card) {
     const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button'));
-    let press=null,offset=0,open=false,suppressClick=false,frame=0,span=0;
+    const revealSpan=buttons.length*44+Math.max(0,buttons.length-1)*12+24;
+    const deleteDist=revealSpan*2.4;
+    let press=null,offset=0,open=false,suppressClick=false,frame=0,rowWidth=0;
     const stop=()=>{cancelAnimationFrame(frame);frame=0;};
+    // Карточка двигается за пальцем 1:1 влево (без верхней границы — так возможен "сильный" свайп-удаление);
+    // вправо — короткий resistance-эффект: панели действий справа нет, так тактильно подтверждается сам жест.
     const paint=value=>{
-      offset=clamp(value,-span,0);
+      offset = value<0 ? Math.max(value,-Math.max(rowWidth*1.6,deleteDist+40)) : Math.min(24,value*.35);
       card.style.transform='translate3d('+offset+'px,0,0)';
-      const progress=Math.abs(offset)/Math.max(1,span);
+      const progress=clamp(Math.max(0,-offset)/revealSpan,0,1);
       const reveal=1-Math.pow(1-progress,2.7);
       actions.style.opacity=progress>0?'1':'0';
-      buttons.forEach((button,i)=>{
-        const center=span/2+(i-.5)*56;
-        const travel=(span-22-center)*(1-reveal);
-        button.style.transform='translate3d('+travel+'px,0,0) scale('+(reducedMotion()?1:.3+.7*reveal)+')';
+      buttons.forEach(button=>{
+        button.style.transform='scale('+(reducedMotion()?1:.3+.7*reveal)+')';
         button.style.opacity=String(reveal);
       });
     };
-    const settle=(value,velocity=0)=>{
-      stop();open=value;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');
+    const finishDelete=()=>{
+      const index=+card.dataset.habitIndex;
+      if(Number.isFinite(index))deleteHabitWithUndo(index);
+    };
+    // mode: 'closed' | 'open' | 'delete'
+    const settle=(mode,velocity=0)=>{
+      stop();
+      const deleting=mode==='delete';
+      open=mode==='open';
+      row.classList.toggle('is-open',open);row.classList.remove('is-dragging');
       actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));card.inert=open;card.setAttribute('aria-hidden',String(open));
-      const target=open?-span:0;if(reducedMotion()||Math.abs(target-offset)<.2){paint(target);return;}
+      const target=deleting?-Math.max(rowWidth+40,deleteDist+40):(open?-revealSpan:0);
+      if(reducedMotion()||Math.abs(target-offset)<.2){paint(target);if(deleting)finishDelete();return;}
       const from=offset,start=performance.now(),omega=24;
-      const initialVelocity=clamp(velocity*1000,-1200,1200),delta=from-target;
+      const initialVelocity=clamp(velocity*1000,-1400,1400),delta=from-target;
       const tick=now=>{
         if(!row.isConnected){frame=0;return;}
         const t=(now-start)/1000;
         const next=target+(delta+(initialVelocity+omega*delta)*t)*Math.exp(-omega*t);
         paint(next);
-        if(Math.abs(target-next)<.15||t>.55){paint(target);frame=0;}
+        if(Math.abs(target-next)<.15||t>.55){paint(target);frame=0;if(deleting)finishDelete();}
         else frame=requestAnimationFrame(tick);
       };frame=requestAnimationFrame(tick);
     };
-    row.closeSwipe=()=>{if(open||press?.axis==='x'){press=null;span=row.getBoundingClientRect().width;settle(false);}};
+    row.closeSwipe=()=>{if(open||press?.axis==='x'){press=null;settle('closed');}};
     row.addEventListener('pointerdown',e=>{
-      if(e.isPrimary===false||e.button!==0){press=null;settle(open);return;}
-      stop();span=row.getBoundingClientRect().width;suppressClick=false;closeHabitSwipes(row);
-      const now=performance.now();press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,lastX:e.clientX,wasOpen:open,axis:null,samples:[{x:e.clientX,at:now}]};
+      if(e.isPrimary===false||e.button!==0){press=null;settle(open?'open':'closed');return;}
+      stop();rowWidth=row.getBoundingClientRect().width;suppressClick=false;closeHabitSwipes(row);
+      const now=performance.now();press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,at:now}]};
     },{passive:true});
     row.addEventListener('pointermove',e=>{
       if(!press||e.pointerId!==press.id)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y,now=performance.now();
       if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<=8)return;press.axis=Math.abs(dx)>Math.abs(dy)*1.2?'x':'y';if(press.axis==='x'){row.classList.add('is-dragging');row.setPointerCapture?.(e.pointerId);card.cancelLongPress?.();}}
       if(press.axis!=='x')return;
-      e.preventDefault();suppressClick=true;paint(press.from+dx);press.lastX=e.clientX;
+      e.preventDefault();suppressClick=true;paint(press.from+dx);
       press.samples.push({x:e.clientX,at:now});while(press.samples.length>2&&press.samples[0].at<now-80)press.samples.shift();
     },{passive:false});
     row.addEventListener('pointerup',e=>{
       if(!press||e.pointerId!==press.id)return;
       const gesture=press;press=null;
       if(gesture.axis==='x'){
-        suppressClick=true;paint(gesture.from+e.clientX-gesture.x);
+        suppressClick=true;
+        const rawDx=e.clientX-gesture.x;
+        paint(gesture.from+rawDx);
         const now=performance.now(),samples=gesture.samples.filter(p=>now-p.at<=100),first=samples[0];
         const velocity=first&&now>first.at?(e.clientX-first.x)/(now-first.at):0;
-        settle(habitSwipeDestination(offset,velocity,span),velocity);
-      }else if(offset!==0&&offset!==-span)settle(gesture.wasOpen);
+        // Свайп вправо на уже закрытой строке — не открытие, а переключатель числового режима.
+        if(!gesture.wasOpen&&rawDx>40){
+          const index=+card.dataset.habitIndex;
+          if(Number.isFinite(index)&&disableHabitNumericMode(index))return;
+        }
+        settle(habitSwipeAction(offset,velocity,revealSpan,deleteDist),velocity);
+      }else if(offset!==0&&offset!==-revealSpan)settle(gesture.wasOpen?'open':'closed');
     },{passive:true});
-    row.addEventListener('pointercancel',()=>{if(press?.axis==='x')suppressClick=true;press=null;settle(open);},{passive:true});
+    row.addEventListener('pointercancel',()=>{if(press?.axis==='x')suppressClick=true;press=null;settle(open?'open':'closed');},{passive:true});
     row.addEventListener('click',e=>{
       if(suppressClick){suppressClick=false;e.preventDefault();e.stopImmediatePropagation();return;}
-      if(open&&e.target.closest('.habit-card')){e.preventDefault();e.stopImmediatePropagation();settle(false);}
+      if(open&&e.target.closest('.habit-card')){e.preventDefault();e.stopImmediatePropagation();settle('closed');}
     },{capture:true});
-    row.addEventListener('keydown',e=>{if(e.key==='Escape'&&open){e.preventDefault();settle(false);card.focus({preventScroll:true});}});
+    row.addEventListener('keydown',e=>{if(e.key==='Escape'&&open){e.preventDefault();settle('closed');card.focus({preventScroll:true});}});
   }
   function updateHabitUI() {
     if(state.nav!==3||!$('.habits-screen'))return;
@@ -1662,7 +1742,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(existing.length!==list.length||existing.some((el,i)=>$('.habit-name',el)?.textContent!==list[i].name)){
       storeCurrentScroll();renderScreen();return;
     }
-    existing.forEach((el,i)=>{const done=list[i].done===true;el.classList.toggle('done',done);const check=$('.habit-check',el);check.classList.toggle('done',done);check.setAttribute('aria-pressed',String(done));check.innerHTML=done?icon('check'):'';});
+    existing.forEach((el,i)=>{const h=list[i],done=h.done===true;el.classList.toggle('done',done);const check=$('.habit-check',el);check.classList.toggle('done',done);check.setAttribute('aria-pressed',String(done));check.innerHTML=habitCheckContent(h);});
     const ratio=$('.discipline-ratio');if(ratio)ratio.textContent=list.filter(h=>h.done===true).length+' из '+list.length;
     const counts=$$('.streak-value');[currentStreak(),bestStreak()].forEach((v,i)=>{if(counts[i]){counts[i].textContent=v;counts[i].dataset.countTo=v;counts[i].closest('.streak-badge').classList.toggle('active',v>0);}});
     const motivation=$('#motivation-text');if(motivation)motivation.textContent=motivationText();
@@ -1772,15 +1852,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function escClose(e){if(e.key==='Escape')closeOverlay();}
   function closeOverlay(){document.removeEventListener('keydown',escClose);$('#overlay-root').innerHTML='';}
-  function showToast(text,ok=false){
+  function showToast(text,ok=false,action=null){
     clearTimeout(toastTimer);clearTimeout(toastRemoveTimer);
     const root=$('#toast-root');root.replaceChildren();
     const d=document.createElement('div');d.className='toast'+(ok?' ok':'');d.setAttribute('role','status');
-    d.dataset.expires=String(Date.now()+2500);
+    const life=action?4000:2500;d.dataset.expires=String(Date.now()+life);
     const message=document.createElement('span');message.textContent=text;
     const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Закрыть уведомление');
     function dismiss(){clearTimeout(toastTimer);if(!d.isConnected)return;d.classList.add('toast-exit');toastRemoveTimer=setTimeout(()=>d.remove(),reducedMotion()?0:180);}
-    close.onclick=dismiss;d.append(message,close);root.appendChild(d);toastTimer=setTimeout(dismiss,2300);
+    close.onclick=dismiss;
+    if(action){const btn=document.createElement('button');btn.type='button';btn.className='toast-action';btn.textContent=action.label;btn.onclick=()=>{dismiss();action.onClick();};d.append(message,btn,close);}
+    else d.append(message,close);
+    root.appendChild(d);toastTimer=setTimeout(dismiss,action?3800:2300);
   }
   function formField(id,placeholder,type='text',value=''){return `<input class="field" id="${id}" type="${type}" placeholder="${placeholder}" value="${esc(value)}" />`;}
   function typeToggle(value) { return `<div class="type-toggle"><button class="type-btn expense ${value==='expense'?'active':''}" data-type="expense">Расход</button><button class="type-btn income ${value==='income'?'active':''}" data-type="income">Доход</button></div>`; }
@@ -1960,6 +2043,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function toggleHabit(index){if(state.habits.selectedDate>state.habits.today)return;const key=habitDateKey(state.habits.selectedDate),habits=(state.habits.data[key]||[]).map(h=>({...h}));if(index>=habits.length)return;const prev=progressForDate(state.habits.selectedDate);habits[index].done=!(habits[index].done===true);state.habits.data[key]=habits;saveHabits();prepareHabitAnimation(prev,progressForDate(state.habits.selectedDate));}
   function addHabit(name){name=String(name||'').trim();if(!name)return;const start=state.habits.selectedDate;for(let i=-CENTER_INDEX;i<=DAYS_TO_SHOW-CENTER_INDEX;i++){const d=addDays(state.habits.selectedDate,i);if(d<start)continue;const key=habitDateKey(d),arr=(state.habits.data[key]||[]).map(h=>({...h}));if(!arr.some(h=>h.name===name)){arr.push({name,done:false});state.habits.data[key]=arr;}}saveHabits();prepareHabitAnimation(progressForDate(state.habits.selectedDate),progressForDate(state.habits.selectedDate));}
   function deleteHabit(index){const habits=currentHabits();if(index>=habits.length)return;const name=habits[index].name,prev=progressForDate(state.habits.selectedDate);for(let i=0;i<=DAYS_TO_SHOW-CENTER_INDEX;i++){const d=addDays(state.habits.selectedDate,i);if(d<state.habits.selectedDate)continue;const key=habitDateKey(d),arr=(state.habits.data[key]||[]).map(h=>({...h})).filter(h=>h.name!==name);if(arr.length)state.habits.data[key]=arr;else delete state.habits.data[key];}saveHabits();prepareHabitAnimation(prev,progressForDate(state.habits.selectedDate));}
+  // Удаление сильным свайпом — без модалки, но с окном отмены (снимок данных на момент удаления).
+  function deleteHabitWithUndo(index){
+    const habits=currentHabits();if(index<0||index>=habits.length)return;
+    const name=habits[index].name||'Привычка';
+    const snapshot=JSON.parse(JSON.stringify(state.habits.data));
+    deleteHabit(index);
+    showToast(`«${name}» удалена`,false,{label:'Отменить',onClick:()=>{
+      state.habits.data=snapshot;saveHabits();
+      prepareHabitAnimation(progressForDate(state.habits.selectedDate),progressForDate(state.habits.selectedDate));
+    }});
+  }
+  function disableHabitNumericMode(index){
+    const key=habitDateKey(state.habits.selectedDate),habits=state.habits.data[key]||[];
+    const h=habits[index];
+    if(!habitHasNumericMode(h))return false;
+    state.habits.data[key]=habits.map((it,i)=>i===index?{...it,numericOff:true}:it);
+    saveHabits();storeCurrentScroll();renderScreen();
+    return true;
+  }
   function showAddHabitSheet(){const ov=overlay(`<div class="sheet" style="border-top:1px solid rgba(201,168,76,.5)"><div class="sheet-title" style="text-align:left">Новая привычка</div><div style="height:20px"></div>${formField('habit-name','Название привычки...')}<button class="primary-button" id="habit-save" style="margin-top:24px">Сохранить</button></div>`,{sheet:true});$('#habit-save',ov).onclick=()=>{addHabit($('#habit-name',ov).value);closeOverlay();};$('#habit-name',ov).addEventListener('keydown',e=>{if(e.key==='Enter'){$('#habit-save',ov).click();}});setTimeout(()=>$('#habit-name',ov)?.focus(),80);}
   function renameHabit(index,name,dateKey,expectedName) {
     name=String(name||'').trim();
