@@ -531,9 +531,12 @@ select.field { appearance:none; }
 .fin-v3 button:focus-visible,.fin-dialog :is(button,input,select):focus-visible,.fin-arc:focus-visible {outline:2px solid var(--gold2);outline-offset:4px;}
 .fin-v3 button:disabled,.fin-dialog button:disabled {opacity:.25;cursor:default;transform:none;}
 .fin-header,.fin-heading-wrap,.fin-card-head {display:flex;align-items:center;justify-content:space-between;gap:14px;}
-.fin-header {margin-bottom:24px;}
+.fin-header {margin-bottom:16px;}
 .fin-heading-wrap {justify-content:flex-start;}
 .fin-heading {font-size:1.75rem;font-weight:400;margin:6px 0 0;outline:none;}
+.fin-tabs {display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:22px;}
+.fin-tab {padding:10px 4px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:#111210;color:rgba(255,255,255,.55);font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fin-tab.active {border-color:var(--gold);background:rgba(201,168,76,.14);color:var(--gold2);}
 .fin-eyebrow {display:block;margin:0;color:#b5a477;font-size:.75rem;letter-spacing:.13em;line-height:1.6;}
 .fin-text {display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:6px 0;border:0;background:none;color:var(--gold);text-align:left;line-height:1.4;}
 .fin-text .icon {width:18px;height:18px;flex:none;}
@@ -577,6 +580,14 @@ select.field { appearance:none; }
 .fin-transactions {display:flex;flex-direction:column;}
 .fin-transaction {width:100%;display:flex;align-items:center;gap:12px;padding:16px 0;text-align:left;background:none;border:0;border-top:1px solid #24251f;}
 .fin-transaction:first-child {border-top:0;}
+.fin-tx-swipe{position:relative;overflow:hidden;touch-action:pan-y pinch-zoom;}
+.fin-tx-swipe .fin-transaction{position:relative;z-index:1;background:var(--bg);touch-action:pan-y pinch-zoom;transition:border-color .2s;}
+.fin-tx-actions{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 6px;pointer-events:none;background:var(--bg);touch-action:pan-y pinch-zoom;transition:background-color .18s ease;}
+.fin-tx-swipe.is-open .fin-tx-actions{pointer-events:auto;}
+.fin-tx-actions button{border:0;background:transparent;width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;padding:0;touch-action:pan-y pinch-zoom;}
+.fin-tx-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:6px;border:1px solid #74777e;border-radius:50%;background:#111214;box-shadow:0 0 8px #b4bac41f;width:20px;height:20px;flex-shrink:0;color:#c2c5cb;}
+.fin-tx-actions [data-fin-swipe-delete] .icon{border-color:#c94a50;background:#1b1011;box-shadow:0 0 8px #e6404c20;color:#ff696d;}
+.fin-tx-swipe.delete-ready .fin-tx-actions{background:#331315;}
 .fin-tx-icon {display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:12px;background:#222119;color:#c9b878;}
 .fin-tx-icon .icon {width:18px;height:18px;}
 .fin-tx-main {min-width:0;flex:1;}
@@ -1002,7 +1013,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.4.0';
+  const APP_VERSION = '0.4.1';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1338,7 +1349,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(key==='nav:3'){const list=$('.habits-list');if(list)state.habits.habitsScrollTop=list.scrollTop;}
   }
   function renderScreen(smoothDateScroll) {
-    pendingHabitUndo?.render();
+    pendingHabitUndo?.render();pendingFinTxUndo?.render();
     habitOutlineObserver?.disconnect();activeHabitLiftCleanup?.();
     const host=$('#screen'),key=currentViewKey();
     if(host.dataset.viewKey===key)storeCurrentScroll();
@@ -1353,7 +1364,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(state.nav===3){drawHabitsVisuals();scrollToSelectedHabitDate(smoothDateScroll);const list=$('.habits-list');if(list)list.scrollTop=state.habits.habitsScrollTop||0;}
     requestAnimationFrame(()=>{
       if(epoch!==renderEpoch)return;
-      if(state.nav===0)drawFinanceCharts();
+      if(state.nav===0){drawFinanceCharts();if(financeView.page==='overview')animateFinBalance();}
     });
   }
 
@@ -1561,7 +1572,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: раздел «Планер» — день с расписанием по часам, блок «Без времени», разделы с фильтром, Инбокс для задач без даты, карточка события с подзадачами и комментариями. Свайп привычки переделан по образцу Telegram/iOS: карточка следует за пальцем без задержки, короткий резкий свайп тоже открывает панель до конца. Шаг числовых привычек для «неудобных» целей вроде 7 или 11 теперь делится на 3-5 частей с остатком на последнем нажатии.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: в «Финансах» сверху появились 4 вкладки — Главная / История / Цели / Инвестиции; баланс на Главной анимированно считается при открытии; в Истории свайп влево открывает «Править»/«Удалить» тем же жестом, что и в привычках, а удаление — через 5-секундный undo-тост, а не мгновенно. Плюс раздел «Планер» из прошлого обновления и переписанный свайп привычек.</p></section>
     </div></section>`;
   }
 
@@ -1593,6 +1604,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function finAmount(t) {return Math.abs(num(t.amount));}
   function finMoney(v) {return new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:2}).format(num(v));}
+  let finBalanceFrame=0;
+  function animateFinBalance() {
+    const el=$('.fin-balance');if(!el)return;
+    cancelAnimationFrame(finBalanceFrame);
+    const target=totalBalance();
+    if(reducedMotion()){el.textContent=finMoney(target);return;}
+    const start=performance.now(),duration=650;
+    const frame=now=>{
+      const t=clamp((now-start)/duration,0,1);
+      el.textContent=finMoney(target*easeOutCubic(t));
+      if(t<1)finBalanceFrame=requestAnimationFrame(frame);else el.textContent=finMoney(target);
+    };
+    finBalanceFrame=requestAnimationFrame(frame);
+  }
   function finDate(s) {const d=parseLocalDate(s);return Number.isNaN(d.getTime())?'Без даты':d.toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'});}
   function finRange(period=financeView.period, now=new Date()) {
     const end=addDays(dateOnly(now),1);
@@ -1612,10 +1637,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(page==='history'){financeView.category=category;financeView.rangePeriod=category?financeView.period:null;financeView.search='';financeView.type='all';financeView.filtersOpen=!!category;viewScroll.set('finance:history',0);}
     renderScreen();$('.fin-heading')?.focus({preventScroll:true});
   }
+  const FIN_TABS=[['overview','Главная'],['history','История'],['goals','Цели'],['investments','Инвестиции']];
   function renderFinance() {
     const page=financeView.page,overview=page==='overview',titles={history:'История',goals:'Цели',investments:'Инвестиции',dynamics:'Динамика'};
     return `<section class="screen finance-screen fin-v3"><div class="finance-scroll"><div class="fin-container">
-      <header class="fin-header"><div class="fin-heading-wrap">${!overview?`<button class="fin-icon" data-fin-back aria-label="Назад к обзору">${icon('chev-left')}</button>`:''}<h1 class="fin-heading" tabindex="-1">${titles[page]||'Финансы'}</h1></div>${overview?`<button class="fin-icon" data-fin-customize aria-label="Настроить разделы финансов">${icon('settings')}</button>`:''}</header>
+      <header class="fin-header"><h1 class="fin-heading" tabindex="-1">${overview?'Финансы':titles[page]||'Финансы'}</h1>${overview?`<button class="fin-icon" data-fin-customize aria-label="Настроить разделы финансов">${icon('settings')}</button>`:''}</header>
+      <nav class="fin-tabs" role="tablist" aria-label="Разделы финансов">${FIN_TABS.map(([k,label])=>`<button class="fin-tab ${page===k?'active':''}" data-fin-page="${k}" role="tab" aria-selected="${page===k}">${esc(label)}</button>`).join('')}</nav>
       ${overview?renderFinanceOverview():page==='history'?renderFinanceHistory():renderFinanceDetail(page)}
     </div></div><div id="fin-dialog-root"></div></section>`;
   }
@@ -1623,7 +1650,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `<div class="fin-period" aria-label="Период аналитики">${[['week','7 дней'],['month','Месяц'],['year','Год']].map(([k,label])=>`<button data-fin-period="${k}" aria-pressed="${financeView.period===k}">${label}</button>`).join('')}</div>`;
   }
   function renderFinanceOverview() {
-    const links=financePrefs.order.filter(k=>k!=='spending'&&!financePrefs.hidden.includes(k));
+    const links=financePrefs.order.filter(k=>k!=='spending'&&k!=='goals'&&k!=='investments'&&!financePrefs.hidden.includes(k));
     return `<div class="fin-summary${finAnimation('summary')}">
       <div class="fin-wallet"><button class="fin-balance-link" data-fin-history aria-label="Баланс ${finMoney(totalBalance())}. Открыть историю"><span class="fin-eyebrow">Баланс</span><strong class="fin-balance">${finMoney(totalBalance())}</strong><span class="fin-muted">История операций ${icon('chev-right')}</span></button><div class="fin-wallet-foot"><button class="fin-text" data-fin-opening>Начальный остаток</button></div></div>
       <div class="fin-quick"><button class="fin-quick-expense" data-fin-add="expense"><span>−</span> Расход</button><button class="fin-quick-income" data-fin-add="income"><span>+</span> Пополнение</button></div>
@@ -1643,9 +1670,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const title=!has?'Добавь первую операцию за этот период':totals.expense>totals.income?`Расходы больше пополнений на ${finMoney(totals.expense-totals.income)}`:`Разница пополнений и расходов: ${finMoney(totals.income-totals.expense)}`;
     return `<details class="fin-comment"><summary>${icon('sparkles')}<span>${esc(title)}</span>${icon('chev-down')}</summary><div class="fin-detail">${groups.length?`Больше всего потрачено в категории «${esc(groups[0][0])}»: ${finMoney(groups[0][1])}. `:''}Это расчёт по внесённым операциям за выбранный период, а не AI-рекомендация. Переводы и неполная история могут влиять на результат.</div></details>`;
   }
-  function renderFinTransactions(tx) {
+  function renderFinTransactions(tx, swipeable=false) {
     if(!tx.length)return '<div class="fin-empty">Здесь появятся твои операции.<br><span>Добавь расход или пополнение кнопками выше.</span></div>';
-    return `<div class="fin-transactions">${tx.map(t=>{const i=state.finance.transactions.indexOf(t),income=t.type==='income';return `<button class="fin-transaction" data-fin-tx="${i}"><span class="fin-tx-icon ${income?'fin-income':''}">${icon(income?'trend-up':categoryIcon[t.category]||'receipt')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}</small></span><span class="fin-tx-money ${income?'fin-income':''}">${income?'+':'−'}${finMoney(finAmount(t))}</span></button>`;}).join('')}</div>`;
+    return `<div class="fin-transactions">${tx.map(t=>{
+      const i=state.finance.transactions.indexOf(t),income=t.type==='income';
+      const card=`<button class="fin-transaction" data-fin-tx="${i}"><span class="fin-tx-icon ${income?'fin-income':''}">${icon(income?'trend-up':categoryIcon[t.category]||'receipt')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}</small></span><span class="fin-tx-money ${income?'fin-income':''}">${income?'+':'−'}${finMoney(finAmount(t))}</span></button>`;
+      if(!swipeable)return card;
+      // Свайп влево — тот же паттерн, что у привычек: карточка следует за пальцем, кнопки лежат
+      // неподвижно под ней; удаление — через 5-секундный undo-тост, а не мгновенно.
+      return `<div class="fin-tx-swipe" data-fin-tx-index="${i}"><div class="fin-tx-actions"><button data-fin-swipe-edit="${i}" aria-label="Редактировать операцию">${icon('edit')}</button><button data-fin-swipe-delete="${i}" aria-label="Удалить операцию">${icon('trash')}</button></div>${card}</div>`;
+    }).join('')}</div>`;
   }
   function renderFinanceHistory() {
     const active=financeView.type!=='all'||financeView.category||financeView.rangePeriod;
@@ -1662,7 +1696,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function renderFinHistoryResults() {
     const q=financeView.search.toLocaleLowerCase('ru-RU').trim();
     const tx=sortedTransactions().filter(t=>(!financeView.rangePeriod||(()=>{const r=finRange(financeView.rangePeriod),date=parseLocalDate(t.date);return date>=r.start&&date<r.end;})())&&(financeView.type==='all'||t.type===financeView.type)&&(!financeView.category||(t.category||'Другое')===financeView.category)&&(!q||`${t.note||''} ${t.category||''} ${finAmount(t)} ${finMoney(finAmount(t))}`.toLocaleLowerCase('ru-RU').includes(q)));
-    return `<p class="fin-muted" role="status">Операций: ${tx.length}</p>${tx.length?renderFinTransactions(tx):'<div class="fin-empty">Операций не найдено. Попробуй изменить фильтры.</div>'}`;
+    return `<p class="fin-muted" role="status">Операций: ${tx.length}</p>${tx.length?renderFinTransactions(tx,true):'<div class="fin-empty">Операций не найдено. Попробуй изменить фильтры.</div>'}`;
   }
   function renderFinSpending() {
     const groups=finGroups(),total=groups.reduce((s,x)=>s+x[1],0);if(!total)return '<div class="fin-empty">Нет расходов за этот период.<br><span>Кольцо появится после добавления расхода.</span></div>';
@@ -1776,13 +1810,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function bindFinanceEvents() {
     $$('[data-fin-add]').forEach(b=>b.onclick=()=>finTransactionForm(b.dataset.finAdd));
     $$('[data-fin-history]').forEach(b=>b.onclick=()=>finGo('history'));
-    $('[data-fin-back]')?.addEventListener('click',()=>finGo('overview'));
     $$('[data-fin-page]').forEach(b=>b.onclick=()=>finGo(b.dataset.finPage));
     $('[data-fin-opening]')?.addEventListener('click',finOpeningForm);
     $('[data-fin-customize]')?.addEventListener('click',finCustomize);
     $$('[data-fin-period]').forEach(b=>b.onclick=()=>{financeView.period=b.dataset.finPeriod;finRefresh(`[data-fin-period="${financeView.period}"]`);});
     const bindTx=()=>$$('[data-fin-tx]').forEach(b=>b.onclick=()=>finTransactionForm('expense',+b.dataset.finTx));bindTx();
-    const updateHistory=()=>{storeCurrentScroll();financeView.search=$('#fin-search').value;financeView.type=$('#fin-type').value;financeView.category=$('#fin-category').value||null;$('#fin-history-results').innerHTML=renderFinHistoryResults();bindTx();};
+    const bindTxSwipe=()=>{
+      $$('.fin-tx-swipe').forEach(bindFinTxSwipe);
+      $$('[data-fin-swipe-edit]').forEach(b=>b.onclick=()=>{closeFinTxSwipes();finTransactionForm('expense',+b.dataset.finSwipeEdit);});
+      $$('[data-fin-swipe-delete]').forEach(b=>b.onclick=()=>{closeFinTxSwipes();deleteFinTxWithUndo(+b.dataset.finSwipeDelete);});
+    };
+    bindTxSwipe();
+    const updateHistory=()=>{storeCurrentScroll();financeView.search=$('#fin-search').value;financeView.type=$('#fin-type').value;financeView.category=$('#fin-category').value||null;$('#fin-history-results').innerHTML=renderFinHistoryResults();bindTx();bindTxSwipe();};
     $('[data-fin-clear-period]')?.addEventListener('click',()=>{financeView.rangePeriod=null;finRefresh();});
     $('.fin-filter-panel')?.addEventListener('toggle',e=>{financeView.filtersOpen=e.currentTarget.open;});
     $('#fin-search')?.addEventListener('input',updateHistory);$('#fin-type')?.addEventListener('change',updateHistory);$('#fin-category')?.addEventListener('change',updateHistory);
@@ -1792,6 +1831,78 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('[data-fin-asset-new]')?.addEventListener('click',()=>finAssetForm());$$('[data-fin-asset]').forEach(b=>b.onclick=()=>finAssetForm(+b.dataset.finAsset));
     $('[data-fin-broker]')?.addEventListener('click',()=>finModal('Т‑Инвестиции',`${renderDnaLoader('Скоро',true)}<p>Безопасное подключение брокера ещё в разработке.</p><p class="fin-muted">Сохранённые активы доступны. Сейчас приложение не отправляет токен брокеру и не обновляет котировки автоматически. Не вводи секретный токен в публичные файлы проекта.</p>`));
     $('[data-fin-import]')?.addEventListener('click',finImportInfo);
+  }
+  function closeFinTxSwipes(except) {$$('.fin-tx-swipe').forEach(row=>{if(row!==except)row.closeSwipe?.();});}
+  function bindFinTxSwipe(row) {
+    // Тот же Telegram/iOS-жест, что у свайпа привычек: карточка следует за пальцем 1:1 без
+    // transition во время драга, кнопки статично лежат под ней, snap — только CSS-transition
+    // на отпускании. Здесь только «редактировать»/«удалить» — числового правого свайпа нет.
+    const card=$('.fin-transaction',row),actions=$('.fin-tx-actions',row);if(!card||!actions)return;
+    let press=null,offset=0,open=false,width=0,revealWidth=0,deleteThreshold=0,suppressUntil=0,busy=false;
+    const measure=()=>{width=row.getBoundingClientRect().width;revealWidth=Math.min(2*36+8+20,Math.max(64,width-8));deleteThreshold=revealWidth+Math.max(90,width*.55);};
+    const rubberBand=raw=>raw<-revealWidth?-(revealWidth+(-revealWidth-raw)*.25):raw;
+    const paint=(value,animate)=>{
+      offset=value;
+      card.style.transition=(animate?'transform .22s cubic-bezier(.2,.8,.2,1),':'')+'border-color .2s ease';
+      card.style.transform='translate3d('+offset+'px,0,0)';
+      const merge=clamp((-offset-revealWidth)/Math.max(1,deleteThreshold-revealWidth),0,1);
+      row.classList.toggle('delete-ready',merge>=1);
+    };
+    const settle=(toOpen,animate=true)=>{open=toOpen;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));paint(open?-revealWidth:0,animate);};
+    row.closeSwipe=()=>{if(!busy&&!press&&(open||offset)){measure();settle(false);}};
+    row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0)return;measure();closeFinTxSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,samples:[{x:e.clientX,t:performance.now()}],axis:null};},{passive:true});
+    row.addEventListener('pointermove',e=>{
+      if(!press||press.id!==e.pointerId)return;
+      const dx=e.clientX-press.x,dy=e.clientY-press.y;
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<10)return;press.axis=Math.abs(dx)>Math.abs(dy)*.8?'x':'y';if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
+      if(press.axis!=='x')return;
+      e.preventDefault();suppressUntil=performance.now()+500;
+      const raw=Math.min(0,press.from+dx);
+      paint(rubberBand(raw),false);
+      const now=performance.now();press.direction=Math.sign(e.clientX-press.samples[press.samples.length-1].x);press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
+    },{passive:false});
+    row.addEventListener('pointerup',e=>{
+      if(!press||press.id!==e.pointerId)return;const g=press;press=null;
+      if(g.axis!=='x'){if(offset&&!open)settle(false);return;}
+      const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
+      if(dx<-25&&offset<=-deleteThreshold){busy=true;row.classList.remove('is-dragging');closeFinTxSwipes();deleteFinTxWithUndo(+row.dataset.finTxIndex);return;}
+      const shouldOpen=offset<0&&(offset<=-revealWidth*.5||v<-.35);
+      settle(g.wasOpen&&dx>12?false:shouldOpen);
+    },{passive:true});
+    row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;settle(open);},{passive:true});
+    row.addEventListener('click',e=>{if(e.target.closest('.fin-tx-actions'))return;if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();return;}if(open){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
+  }
+  let pendingFinTxUndo=null;
+  function deleteFinTxWithUndo(index) {
+    pendingFinTxUndo?.finish(false,true);
+    const tx=state.finance.transactions[index];if(!tx)return;
+    const removedIndex=index,removedTx=tx;
+    state.finance.transactions=state.finance.transactions.filter((_,i)=>i!==index);
+    saveFinance();finRefresh();
+    const root=$('#toast-root'),notice=document.createElement('div');notice.className='habit-undo';notice.setAttribute('role','status');
+    const undo=document.createElement('button');undo.type='button';undo.className='habit-undo-circle';undo.setAttribute('aria-label','Операция удалена. Нажми, чтобы отменить.');
+    const svgNS='http://www.w3.org/2000/svg',ring=document.createElementNS(svgNS,'svg'),outlineRect=document.createElementNS(svgNS,'circle');
+    ring.setAttribute('class','habit-undo-ring');ring.setAttribute('viewBox','0 0 60 60');ring.setAttribute('aria-hidden','true');
+    outlineRect.setAttribute('cx','30');outlineRect.setAttribute('cy','30');outlineRect.setAttribute('r','28');outlineRect.setAttribute('pathLength','100');
+    ring.append(outlineRect);undo.append(ring);
+    const undoIcon=document.createElement('span');undoIcon.className='habit-undo-icon';undoIcon.innerHTML=icon('undo');undo.append(undoIcon);
+    notice.append(undo);root.append(notice);
+    let timer=0,ending=false;
+    const finish=(restore=false,immediate=false)=>{
+      if(ending)return;ending=true;clearTimeout(timer);
+      document.removeEventListener('pointerdown',interrupt,true);document.removeEventListener('wheel',interrupt,true);document.removeEventListener('touchmove',interrupt,true);document.removeEventListener('keydown',interrupt,true);window.removeEventListener('pagehide',interrupt);
+      if(pendingFinTxUndo?.notice===notice)pendingFinTxUndo=null;
+      if(restore&&!state.finance.transactions.includes(removedTx)){const arr=state.finance.transactions.slice();arr.splice(Math.min(removedIndex,arr.length),0,removedTx);state.finance.transactions=arr;saveFinance();finRefresh();}
+      notice.getAnimations?.().forEach(a=>a.cancel());outlineRect.getAnimations?.().forEach(a=>a.cancel());
+      if(immediate||reducedMotion()||!notice.animate)notice.remove();else{const out=notice.animate([{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(12px)'}],{duration:200,easing:'ease-out'});out.onfinish=()=>notice.remove();}
+    };
+    const interrupt=e=>{if(e?.target&&notice.contains?.(e.target))return;finish(false,true);};
+    pendingFinTxUndo={notice,finish,render:()=>finish(false,true)};
+    undo.onclick=()=>finish(true,true);
+    document.addEventListener('pointerdown',interrupt,true);document.addEventListener('wheel',interrupt,{capture:true,passive:true});document.addEventListener('touchmove',interrupt,{capture:true,passive:true});document.addEventListener('keydown',interrupt,true);window.addEventListener('pagehide',interrupt);
+    outlineRect.animate?.([{strokeDashoffset:100},{strokeDashoffset:0}],{duration:5000,easing:'linear',fill:'forwards'});
+    if(!reducedMotion())notice.animate?.([{opacity:0,transform:'translateY(16px)'},{opacity:1,transform:'translateY(0)'}],{duration:220,easing:'ease-out'});
+    timer=setTimeout(()=>finish(false),5000);
   }
 
   // -------- Habits rendering --------
