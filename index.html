@@ -861,12 +861,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 @media(prefers-reduced-motion:reduce){.habit-swipe>.habit-card,.habit-swipe-actions{transition:none}}
 
 /* Habits 0.3.12: continuous gestures and quantitative progress. */
-.habit-swipe-actions{left:auto;right:0;gap:8px;justify-content:space-evenly;}
+.habit-swipe-actions{left:auto;right:0;gap:0;justify-content:space-evenly;}
 .habit-number-reveal{position:absolute;inset:0 auto 0 0;width:64px;display:grid;place-items:center;color:var(--gold);font-size:20px;opacity:0;pointer-events:none;}
 .habit-swipe.delete-ready .habit-swipe-actions{background:#331315;border-radius:12px;}
 .habit-swipe.delete-ready [data-swipe-delete]{box-shadow:0 0 16px #c94a5040;}
 .habit-body{flex:1;min-width:0;}.habit-body .habit-name{overflow-wrap:anywhere;}
-.habit-card{gap:6px;}.habit-card .habit-check{margin-right:0;}.habit-swipe-actions button{width:38px;height:38px;flex-basis:38px;}.habit-counter{display:block;max-width:100%;padding:6px 0 0;border:0;background:none;color:var(--gold);font:12px Georgia;line-height:1.5;text-align:left;overflow-wrap:anywhere;touch-action:pan-y;}
+.habit-card{gap:6px;}.habit-card .habit-check{margin-right:0;}.habit-swipe-actions button{width:44px;height:44px;flex-basis:44px;}.habit-counter{display:block;max-width:100%;padding:6px 0 0;border:0;background:none;color:var(--gold);font:12px Georgia;line-height:1.5;text-align:left;overflow-wrap:anywhere;touch-action:pan-y;}
 .habit-counter span{display:inline-block;opacity:.6;margin-left:3px;font-size:10px;}
 .habit-grip{align-self:stretch;flex:0 0 20px;width:20px;padding:0;border:0;background:none;color:#877344;font-size:21px;touch-action:none;cursor:grab;}
 .habit-outline{position:absolute;inset:0;overflow:visible;pointer-events:none;}.habit-outline rect{fill:none;stroke:var(--gold);stroke-width:2;transition:stroke-dasharray .25s ease;}
@@ -1788,7 +1788,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function closeOverlay(){document.removeEventListener('keydown',escClose);$('#overlay-root').innerHTML='';}
   function showToast(text,ok=false){
     clearTimeout(toastTimer);clearTimeout(toastRemoveTimer);
-    const root=$('#toast-root');root.replaceChildren();
+    const root=$('#toast-root');Array.from(root.children).filter(t=>t.className.split(' ').includes('toast')).forEach(t=>t.remove());
     const d=document.createElement('div');d.className='toast'+(ok?' ok':'');d.setAttribute('role','status');
     d.dataset.expires=String(Date.now()+2500);
     const message=document.createElement('span');message.textContent=text;
