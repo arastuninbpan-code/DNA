@@ -2076,7 +2076,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       activeHabitLiftCleanup?.();hold={id:e.pointerId,x:e.clientX,y:e.clientY,lastY:e.clientY,lastX:e.clientX,from:index(),to:index(),active:false,moved:false,remove:false,scroll:row.closest('.habits-list').scrollTop};
       timer=setTimeout(()=>{
         if(!hold||!row.isConnected)return;hold.active=true;row.habitLiftActive=true;row.classList.add('is-reordering');row.setPointerCapture?.(hold.id);holdFeedback(card);
-        const bounds=card.getBoundingClientRect();ghost=card.cloneNode(true);ghost.classList.add('habit-drag-ghost');ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.style.cssText='position:fixed;left:'+bounds.left+'px;top:'+bounds.top+'px;width:'+bounds.width+'px;height:'+bounds.height+'px;margin:0;z-index:590;pointer-events:none;box-sizing:border-box;';document.body.append(ghost);
+        const bounds=card.getBoundingClientRect();ghost=card.cloneNode(true);ghost.classList.add('habit-drag-ghost');ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.style.cssText='position:fixed;left:'+bounds.left+'px;top:'+bounds.top+'px;width:'+bounds.width+'px;height:'+bounds.height+'px;margin:0;z-index:590;pointer-events:none;box-sizing:border-box;';document.body.append(ghost);if(!reducedMotion())ghost.animate?.([{opacity:.5},{opacity:1}],{duration:140,easing:'ease-out'});
         bar=document.createElement('div');bar.className='habit-drag-bar';bar.innerHTML='<button data-lift-edit aria-label="Редактировать">'+icon('edit')+'</button><button data-lift-count aria-label="Числовой режим">123</button><button data-lift-delete aria-label="Удалить">'+icon('trash')+'</button>';
         document.body.append(bar);activeHabitLiftCleanup=cleanup;
         $('[data-lift-edit]',bar).onclick=()=>{const i=index();cleanup();if(i>=0)showEditHabitSheet(i);};
@@ -2094,7 +2094,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       rows.forEach((other,i)=>{other.classList.remove('drop-target');if(other===row)return;const b=other.getBoundingClientRect(),d=Math.abs(e.clientY-(b.top+b.height/2));if(d<dist){dist=d;best=i;}});
       hold.to=hold.moved?best:hold.from;if(!hold.remove&&hold.to!==hold.from)rows[hold.to]?.classList.add('drop-target');
     },{passive:false});
-    row.addEventListener('pointerup',()=>{cancelTimer();if(!hold)return;const h=hold;hold=null;cancelAnimationFrame(frame);if(!h.active)return;row.habitLiftActive=false;if(h.remove){const i=index();cleanup();if(i>=0)deleteHabitWithUndo(i);}else if(h.moved){cleanup();moveHabit(h.from,h.to);}else{row.style.transform='';row.classList.remove('is-reordering');ghost?.remove();ghost=null;}});
+    row.addEventListener('pointerup',()=>{cancelTimer();if(!hold)return;const h=hold;hold=null;cancelAnimationFrame(frame);if(!h.active)return;row.habitLiftActive=false;
+      const finish=()=>{if(h.remove){const i=index();cleanup();if(i>=0)deleteHabitWithUndo(i);}else if(h.moved){cleanup();moveHabit(h.from,h.to);}else{row.style.transform='';row.classList.remove('is-reordering');ghost?.remove();ghost=null;}};
+      if((h.remove||h.moved)&&ghost?.animate&&!reducedMotion()){
+        const target=$$('.habit-swipe')[h.to]?.getBoundingClientRect(),from=ghost.style.transform||'none';
+        const to=h.remove?from+' scale(.5)':target?'translate3d('+(target.left-parseFloat(ghost.style.left))+'px,'+(target.top-parseFloat(ghost.style.top))+'px,0)':from;
+        const anim=ghost.animate([{transform:from,opacity:1},{transform:to,opacity:h.remove?0:1}],{duration:180,easing:'ease-out',fill:'forwards'});
+        anim.onfinish=()=>{if(bar&&row.isConnected)finish();else cleanup();};
+      }else finish();});
     row.addEventListener('pointercancel',()=>{hold=null;cleanup();});
     card.addEventListener('contextmenu',e=>e.preventDefault());
   }
