@@ -394,12 +394,12 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .list-fade-top,.list-fade-bottom { position:absolute; left:0; right:0; pointer-events:none; z-index:2; }
 .list-fade-top { top:0; height:16px; background:linear-gradient(to bottom,rgba(10,10,10,.95),rgba(10,10,10,0)); }
 .list-fade-bottom { bottom:0; height:24px; background:linear-gradient(to bottom,rgba(10,10,10,0),rgba(10,10,10,.8)); }
-.habits-empty { height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px; text-align:center; }
+.habits-empty { height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px 4px 20px 16px; text-align:center; box-sizing:border-box; }
 .habits-empty .icon { width:32px; height:32px; color:rgba(255,255,255,.2); }
 .habits-empty-text { margin-top:12px; color:rgba(255,255,255,.25); font-family:Georgia,'Times New Roman',serif; font-size:13px; line-height:1.5; }
 .add-habit-btn { margin:8px 4px 16px 16px; padding:14px 6px; border-radius:14px; border:1px solid rgba(201,168,76,.5); background:linear-gradient(135deg,rgba(201,168,76,.1),rgba(201,168,76,.05)); color:var(--gold); font-family:Georgia,'Times New Roman',serif; font-size:15px; font-weight:600; text-align:center; }
 .graph-pane { flex:1; min-width:0; position:relative; overflow:hidden; }
-.graph-scroller { position:absolute; inset:0; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; }
+.graph-scroller { position:absolute; inset:0; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; scroll-behavior:smooth; }
 .graph-scroller::-webkit-scrollbar{display:none}
 .graph-inner { width:1736px; min-height:100%; height:100%; display:flex; flex-direction:column; }
 .date-strip { height:64px; flex:0 0 64px; display:flex; align-items:flex-start; padding-left:28px; padding-right:28px; }
@@ -784,7 +784,6 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
 .habits-workspace {flex:1 0 330px;min-height:330px;}
 .habits-left {min-width:0;}
 .habit-name {white-space:normal;overflow-wrap:anywhere;}
-.habit-card {animation:none;}
 .calendar-button {position:relative;min-height:52px;}
 .calendar-title {white-space:normal;line-height:1.35;overflow-wrap:anywhere;margin-left:8px;}
 .calendar-button .icon {flex-shrink:0;}
@@ -796,7 +795,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
 .date-item.selected {background:rgba(201,168,76,.25);}
 .graph-fade-left,.graph-fade-right {width:20px;}
 @media(max-width:380px){.habit-card{padding:10px 8px}.habit-check{margin-right:8px}.calendar-button{padding:10px 8px}}
-@media(prefers-reduced-motion:reduce){.habits-screen *{animation:none!important;transition:none!important}}
+@media(prefers-reduced-motion:reduce){.habits-screen *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 /* 0.3.3: fit the existing Habits surface; keep scroll inside the list. */
 .app-shell {min-height:0;}
@@ -893,7 +892,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-drag-bar [data-lift-delete]{color:#ff696d;border-color:#ad444a;background:#221416;}
 .habit-drag-bar [data-lift-delete].ready{background:#922f36;transform:scale(1.12);box-shadow:0 0 15px #dc465b44;}
 .habit-drag-bar .icon{display:block;width:20px;height:20px;margin:0;}
-.habit-drop-line{position:absolute;top:0;left:4px;right:4px;height:2px;border-radius:1px;background:var(--gold);box-shadow:0 0 8px rgba(201,168,76,.5);opacity:0;pointer-events:none;z-index:6;transform:translateY(-1px);transition:opacity .15s ease,transform .12s ease;will-change:transform;}
+.habit-drop-line{position:absolute;top:0;left:16px;right:4px;height:3px;border-radius:2px;background:linear-gradient(90deg,rgba(201,168,76,.15),var(--gold) 18%,var(--gold) 82%,rgba(201,168,76,.15));box-shadow:0 0 10px 1px rgba(201,168,76,.65),0 0 22px 4px rgba(201,168,76,.28);opacity:0;pointer-events:none;z-index:6;transform:translateY(-1.5px);transition:opacity .15s ease,transform .12s ease;will-change:transform;}
 .habit-drop-line.visible{opacity:1;}
 
 /* Undo-delete toast: contour outline instead of a bottom bar. */
@@ -934,7 +933,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.17';
+  const APP_VERSION = '0.3.18';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1310,7 +1309,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: обычные привычки выполняются тапом по всей карточке и обводятся при выполнении, свайпы стали плавнее, перетаскивание показывает линию вставки, окно отмены удаления обводится по контуру, а плашка календаря и текст-подсказка больше не сдвигают список при переключении дня.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: кнопки свайпа больше не прячутся под карточкой, редактирование числовой привычки позволяет менять цель напрямую, переключение дня и возврат «на сегодня» стали плавными, линия вставки при перетаскивании подсвечена и по размеру карточки, а пустой день центрируется как список привычек.</p></section>
     </div></section>`;
   }
 
@@ -1659,12 +1658,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function bindHabitSwipe(card) {
     const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button')),numberPanel=$('.habit-number-reveal',row),numberBadge=$('.habit-number-badge',numberPanel);
     const editBtn=buttons[0],delBtn=buttons[1];
-    let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,suppressUntil=0,busy=false,cancelSpring=()=>{};
-    const measure=()=>{width=row.getBoundingClientRect().width;revealWidth=Math.min(112,width*.56);rightThreshold=Math.min(72,width*.45);};
+    let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,softCap=0,deleteThreshold=0,suppressUntil=0,busy=false,cancelSpring=()=>{};
+    // revealWidth — под фактический размер кнопок (иначе «Править» остаётся под карточкой на узких строках);
+    // deleteThreshold — заметно дальше revealWidth, чтобы «просто открыть» не читалось как «уже готово удалить».
+    const measure=()=>{
+      width=row.getBoundingClientRect().width;
+      const neededReveal=buttons.length*44+Math.max(0,buttons.length-1)*12+32;
+      revealWidth=Math.min(neededReveal,Math.max(64,width-8));
+      rightThreshold=Math.min(72,width*.45);
+      softCap=revealWidth+width*.3;
+      deleteThreshold=revealWidth+Math.max(90,width*.55);
+    };
     // Только transform/opacity — никаких width/flexGrow за кадр, чтобы не форсировать layout на каждый пиксель драга.
     const paint=value=>{
       offset=value;card.style.transform='translate3d('+offset+'px,0,0)';
-      const distance=Math.max(0,-offset),reveal=clamp(distance/revealWidth,0,1),merge=clamp((distance-revealWidth)/Math.max(1,width*.68-revealWidth),0,1);
+      const distance=Math.max(0,-offset),reveal=clamp(distance/revealWidth,0,1),merge=clamp((distance-revealWidth)/Math.max(1,deleteThreshold-revealWidth),0,1);
       actions.style.opacity=reveal>0?'1':'0';
       row.classList.toggle('delete-ready',merge>=1);
       if(editBtn){editBtn.style.opacity=String(reveal*(1-merge));editBtn.style.transform='scale('+((.65+.35*reveal)*(1-merge*.4))+')';}
@@ -1683,14 +1691,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(press.axis!=='x')return;
       e.preventDefault();suppressUntil=performance.now()+500;
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
-      const threshold=width*.7,sign=Math.sign(raw),distance=Math.abs(raw);paint(sign*(distance>threshold?threshold+(distance-threshold)*.3:distance));
+      const sign=Math.sign(raw),distance=Math.abs(raw);paint(sign*(distance>softCap?softCap+(distance-softCap)*.3:distance));
       const now=performance.now();press.direction=Math.sign(e.clientX-press.samples[press.samples.length-1].x);press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
     },{passive:false});
     row.addEventListener('pointerup',e=>{
       if(!press||press.id!==e.pointerId)return;const g=press;press=null;if(row.habitLiftActive){suppressUntil=performance.now()+500;return;}
       if(g.axis!=='x'){if(offset&&!open)settle(false);return;}
       const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
-      if(dx<-25&&(offset<=-width*.68||(v<-.8&&g.direction<0&&offset<-width*.2))){busy=true;row.classList.remove('is-dragging');deleteHabitWithUndo(+card.dataset.habitIndex);return;}
+      if(dx<-25&&(offset<=-deleteThreshold||(v<-.8&&g.direction<0&&offset<-width*.2))){busy=true;row.classList.remove('is-dragging');deleteHabitWithUndo(+card.dataset.habitIndex);return;}
       if(!g.wasOpen&&offset>rightThreshold){holdFeedback(card);settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
       settle(g.wasOpen&&dx>12?false:offset<0&&(offset<-width*.3||v<-.35),v);
     },{passive:true});
@@ -1731,14 +1739,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     }habitAnimationFrame=requestAnimationFrame(frame);
   }
   function returnToToday() {
-    state.habits.today=dateOnly();selectHabitDate(state.habits.today);scrollToSelectedHabitDate();
-    const circle=$('.discipline-wrap');if(circle&&!reducedMotion())circle.animate?.([{opacity:.75},{opacity:1}],{duration:180,easing:'ease-out'});
+    state.habits.today=dateOnly();selectHabitDate(state.habits.today);
   }
   function selectHabitDate(d) {
     if(!d||Number.isNaN(d.getTime())||sameDay(d,state.habits.selectedDate))return;
     storeCurrentScroll();cancelAnimationFrame(habitAnimationFrame);state.habits.today=dateOnly();
     state.habits.selectedDate=dateOnly(d);state.habits.circleDisplay=progressForDate(d);state.habits.animatingDate=null;state.habits.celebrationUntil=0;
     renderScreen();scrollToSelectedHabitDate();
+    // Полный рендер меняет контент мгновенно — мягкий кросс-фейд вместо резкой «телепортации».
+    if(!reducedMotion()){
+      $('.discipline-wrap')?.animate?.([{opacity:.4},{opacity:1}],{duration:220,easing:'ease-out'});
+      $('.habits-list-wrap')?.animate?.([{opacity:.3,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:220,easing:'ease-out'});
+    }
   }
   function scrollToSelectedHabitDate() {
     const sc=$('.graph-scroller'),selected=$('.date-item.selected');if(!sc||!selected)return;
@@ -2211,7 +2223,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function showHabitActions(index) {
     const h=currentHabits()[index];if(!h)return;
-    const ov=overlay(`<div class="sheet habit-action-sheet habit-quick-menu" role="dialog" aria-modal="true" aria-labelledby="habit-action-title"><div class="habit-menu-head"><h2 id="habit-action-title">${esc(h.name||'Привычка')}</h2><button class="habit-menu-close" data-habit-cancel aria-label="Закрыть">${icon('close')}</button></div><button class="habit-menu-action" data-habit-edit>${icon('edit')}<span>Редактировать</span></button><button class="habit-menu-action" data-habit-count>123 <span>${h.quantity?'Обычный режим':'Числовой режим'}</span></button><button class="habit-menu-action danger-action" data-habit-remove>${icon('trash')}<span>Удалить</span></button></div>`,{sheet:true});
+    const ov=overlay(`<div class="sheet habit-action-sheet habit-quick-menu" role="dialog" aria-modal="true" aria-labelledby="habit-action-title"><div class="habit-menu-head"><h2 id="habit-action-title">${esc(h.name||'Привычка')}</h2><button class="habit-menu-close" data-habit-cancel aria-label="Закрыть">${icon('close')}</button></div><button class="habit-menu-action" data-habit-edit>${icon('edit')}<span>Редактировать</span></button><button class="habit-menu-action" data-habit-count>${icon('target')}<span>${h.quantity?'Сделать обычной привычкой':'Задать числовую цель'}</span></button><button class="habit-menu-action danger-action" data-habit-remove>${icon('trash')}<span>Удалить</span></button></div>`,{sheet:true});
     $('[data-habit-edit]',ov).onclick=()=>showEditHabitSheet(index);
     $('[data-habit-count]',ov).onclick=()=>{closeOverlay();if(h.quantity)setHabitQuantity(index,null);else enableHabitNumbers(index);};
     $('[data-habit-remove]',ov).onclick=()=>showDeleteHabitDialog(index);
@@ -2221,8 +2233,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function showEditHabitSheet(index) {
     const h=currentHabits()[index];if(!h)return;
     const key=habitDateKey(state.habits.selectedDate),oldName=h.name;
-    const ov=overlay(`<div class="sheet habit-action-sheet" role="dialog" aria-modal="true" aria-labelledby="habit-edit-title"><h2 class="sheet-title" id="habit-edit-title">Редактировать привычку</h2><form id="habit-edit-form"><label class="fin-label" for="habit-edit-name">Название</label><input class="fin-field" id="habit-edit-name" type="text" maxlength="120" required value="${esc(h.name||'')}" autocomplete="off"><p class="habit-edit-note">Изменится с ${esc(formatHabitDate(state.habits.selectedDate))} и в последующие дни. Отметки выполнения сохранятся.</p><p class="fin-error" id="habit-edit-error" role="alert"></p><button class="primary-button" type="submit">Сохранить</button><button class="habit-menu-action" type="button" data-edit-cancel>Отмена</button></form></div>`,{sheet:true});
-    $('#habit-edit-form',ov).onsubmit=e=>{e.preventDefault();const result=renameHabit(index,$('#habit-edit-name',ov).value,key,oldName);if(!result.ok){$('#habit-edit-error',ov).textContent=result.error;return;}closeOverlay();updateHabitUI();showToast('Привычка обновлена',true);};
+    const targetField=h.quantity?`<label class="fin-label" for="habit-edit-target">Цель${h.quantity.unit?' ('+esc(h.quantity.unit)+')':''}</label><input class="fin-field" id="habit-edit-target" type="number" inputmode="decimal" min="0.001" max="10000000" step="any" required value="${h.quantity.target}">`:'';
+    const ov=overlay(`<div class="sheet habit-action-sheet" role="dialog" aria-modal="true" aria-labelledby="habit-edit-title"><h2 class="sheet-title" id="habit-edit-title">Редактировать привычку</h2><form id="habit-edit-form"><label class="fin-label" for="habit-edit-name">Название</label><input class="fin-field" id="habit-edit-name" type="text" maxlength="120" required value="${esc(h.name||'')}" autocomplete="off">${targetField}<p class="habit-edit-note">Изменится с ${esc(formatHabitDate(state.habits.selectedDate))} и в последующие дни. Отметки выполнения сохранятся.</p><p class="fin-error" id="habit-edit-error" role="alert"></p><button class="primary-button" type="submit">Сохранить</button><button class="habit-menu-action" type="button" data-edit-cancel>Отмена</button></form></div>`,{sheet:true});
+    $('#habit-edit-form',ov).onsubmit=e=>{
+      e.preventDefault();
+      const result=renameHabit(index,$('#habit-edit-name',ov).value,key,oldName);
+      if(!result.ok){$('#habit-edit-error',ov).textContent=result.error;return;}
+      const targetInput=$('#habit-edit-target',ov);
+      if(targetInput){
+        const target=Number(targetInput.value);
+        if(!(target>0)){$('#habit-edit-error',ov).textContent='Цель должна быть больше нуля.';return;}
+        setHabitQuantity(index,{target,step:habitQuantityStep(target),unit:h.quantity.unit});
+      }
+      closeOverlay();updateHabitUI();showToast('Привычка обновлена',true);
+    };
     $('[data-edit-cancel]',ov).onclick=closeOverlay;
     requestAnimationFrame(()=>{const input=$('#habit-edit-name',ov);if(input?.isConnected)input.focus({preventScroll:true});});
   }
