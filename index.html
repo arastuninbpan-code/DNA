@@ -347,7 +347,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .streak-section { display:flex; justify-content:center; align-items:center; }
 .streak-divider { width:1px; height:30px; background:rgba(255,255,255,.1); margin:0 20px; }
 .streak-badge {
-  width:120px; padding:8px 12px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+  width:120px; height:40px; padding:8px 12px; border-radius:16px; display:flex; align-items:center; justify-content:center; box-sizing:border-box;
   border:1px solid rgba(255,255,255,.05); background:rgba(255,255,255,.03); transition:all .3s ease;
 }
 .streak-badge.active { background:rgba(201,168,76,.1); border-color:rgba(201,168,76,.4); box-shadow:0 0 20px rgba(201,168,76,.15); }
@@ -379,7 +379,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .calendar-button .icon { width:24px; height:24px; color:var(--gold); }
 .calendar-title { margin-left:12px; flex:1; min-width:0; font-family:Georgia,'Times New Roman',serif; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .habits-list-wrap { position:relative; margin-top:8px; flex:1; min-height:0; overflow:hidden; }
-.habits-list { height:100%; overflow-y:auto; padding:0 4px 24px 16px; scrollbar-width:none; }
+.habits-list { position:relative; height:100%; overflow-y:auto; padding:0 4px 24px 16px; scrollbar-width:none; }
 .habits-list::-webkit-scrollbar { display:none; }
 .habit-card { margin-bottom:8px; padding:12px; border-radius:12px; background:var(--surface); border:1px solid rgba(255,255,255,.05); display:flex; align-items:center; transition:all .3s ease; animation:habitIn .35s ease both; }
 .habit-card.done { border-color:rgba(201,168,76,.3); box-shadow:0 0 10px rgba(201,168,76,.05); }
@@ -860,43 +860,54 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-quick-menu .habit-menu-action+ .habit-menu-action {margin-top:2px;}
 @media(prefers-reduced-motion:reduce){.habit-swipe>.habit-card,.habit-swipe-actions{transition:none}}
 
-/* Habits 0.3.15: continuous gestures and quantitative progress. */
-.habit-swipe-actions{left:auto;right:0;gap:0;justify-content:space-evenly;}
-.habit-number-reveal{position:absolute;inset:0 auto 0 0;width:64px;display:grid;place-items:center;color:var(--gold);font-size:20px;opacity:0;pointer-events:none;}
+/* Habits 0.3.17: transform-driven swipe, insertion line, contour undo, completion ring for all habits. */
+.habit-swipe-actions{left:auto;right:0;gap:12px;padding:0 16px;justify-content:flex-end;transition:background-color .18s ease;}
 .habit-swipe.delete-ready .habit-swipe-actions{background:#331315;border-radius:12px;}
-.habit-swipe.delete-ready [data-swipe-delete]{box-shadow:0 0 16px #c94a5040;}
-.habit-body{flex:1;min-width:0;}.habit-body .habit-name{overflow-wrap:anywhere;}
-.habit-card{gap:6px;}.habit-card .habit-check{margin-right:0;}.habit-swipe-actions button{width:44px;height:44px;flex-basis:44px;}
+.habit-swipe.delete-ready [data-swipe-delete] .icon{box-shadow:0 0 16px #c94a5060;}
+.habit-body{flex:1;min-width:0;}.habit-body .habit-name{overflow-wrap:anywhere;line-height:1.35;}
+.habit-card{gap:6px;}.habit-card .habit-check{margin-right:0;}
 .habit-outline{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:2;}
 .habit-outline rect{fill:none;stroke:var(--gold);stroke-width:2;stroke-linecap:round;stroke-dasharray:100 100;transition:stroke-dashoffset .3s ease;}
 .habit-inline-value{color:var(--gold);font-variant-numeric:tabular-nums;}
-.habit-card .habit-name{line-height:1.35;}.habit-card .habit-body{min-width:0;}
-
 .habit-check .icon,.habit-swipe-actions .icon{display:block;flex:none;margin:0;}
-.habit-swipe.is-reordering{z-index:5;overflow:visible;box-shadow:0 8px 20px #0009;opacity:.92;}
-.habit-swipe.drop-target{outline:1px dashed var(--gold);outline-offset:2px;}
-.habit-undo{pointer-events:auto;background:#1a1812;color:#eee;border:1px solid #6d5a2d;border-radius:12px;padding:14px;display:flex;gap:16px;align-items:center;}
-.habit-undo button{border:0;background:none;color:var(--gold);font:inherit;}
+.habit-card .habit-check,.habit-swipe-actions button{display:grid;place-items:center;padding:0;flex-shrink:0;box-sizing:border-box;}
+.habit-check .icon svg,.habit-swipe-actions .icon svg,.habit-drag-bar .icon svg{display:block;width:100%;height:100%;}
+.habit-swipe-actions button{border:0;background:transparent;box-shadow:none;border-radius:0;width:44px;height:44px;flex:0 0 44px;}
+.habit-swipe-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:7px;border:1px solid #74777e;border-radius:50%;background:#111214;box-shadow:0 0 8px #b4bac41f;flex-shrink:0;}
+.habit-swipe-actions [data-swipe-delete] .icon{border-color:#c94a50;background:#1b1011;box-shadow:0 0 8px #e6404c20;}
 @media(prefers-reduced-motion:reduce){.habit-outline rect{transition:none;}}
 
+/* Right swipe: numeric-goal toggle reveal (Telegram mark-read style). */
+.habit-number-reveal{position:absolute;inset:0 auto 0 0;width:72px;display:grid;place-items:center;opacity:0;pointer-events:none;}
+.habit-number-badge{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--gold);background:#171512;border:1px solid #6d5a2d;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease;}
+.habit-number-badge .icon{width:18px;height:18px;}
+.habit-number-reveal.ready .habit-number-badge{background:#3a2f13;border-color:var(--gold);box-shadow:0 0 12px rgba(201,168,76,.35);}
+
+/* Drag reorder: floating insertion line instead of an outline on the target row. */
 .habit-swipe,.habit-swipe>.habit-card,.habit-swipe-actions,.habit-swipe-actions button{touch-action:pan-y pinch-zoom;}
 .habit-card .habit-check{touch-action:pan-y pinch-zoom;}
+.habit-swipe.is-reordering{z-index:5;overflow:visible;opacity:.35;box-shadow:none;}
+.habit-drag-ghost{transition:none!important;animation:none!important;will-change:transform;border-color:var(--gold);box-shadow:0 10px 32px #0009;border-radius:12px;}
 .habit-drag-bar{position:fixed;z-index:600;left:50%;bottom:calc(var(--nav-h) + var(--safe-bottom) + 20px);transform:translateX(-50%);display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:0 6px 25px #0009;}
 .habit-drag-bar button{display:grid;place-items:center;box-sizing:border-box;padding:0;width:52px;height:52px;border:1px solid #625630;border-radius:50%;color:var(--gold);background:#1c1a15;font:16px Georgia;}
 .habit-drag-bar [data-lift-delete]{color:#ff696d;border-color:#ad444a;background:#221416;}
 .habit-drag-bar [data-lift-delete].ready{background:#922f36;transform:scale(1.12);box-shadow:0 0 15px #dc465b44;}
 .habit-drag-bar .icon{display:block;width:20px;height:20px;margin:0;}
-.habit-card .habit-check,.habit-swipe-actions button{display:grid;place-items:center;padding:0;flex-shrink:0;box-sizing:border-box;}
-.habit-check .icon svg,.habit-swipe-actions .icon svg,.habit-drag-bar .icon svg{display:block;width:100%;height:100%;}
-.habit-swipe.drop-target{outline:none;border-top:2px solid var(--gold);}
-.habit-swipe.is-reordering{opacity:.35;box-shadow:none;}
-.habit-drag-ghost{transition:none!important;animation:none!important;will-change:transform;border-color:var(--gold);box-shadow:0 10px 32px #0009;border-radius:12px;}
+.habit-drop-line{position:absolute;top:0;left:4px;right:4px;height:2px;border-radius:1px;background:var(--gold);box-shadow:0 0 8px rgba(201,168,76,.5);opacity:0;pointer-events:none;z-index:6;transform:translateY(-1px);transition:opacity .15s ease,transform .12s ease;will-change:transform;}
+.habit-drop-line.visible{opacity:1;}
 
-.habit-swipe-actions button{border:0;background:transparent!important;box-shadow:none!important;border-radius:0;transition:none;}
-.habit-swipe-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:7px;border:1px solid #74777e;border-radius:50%;background:#111214;box-shadow:0 0 8px #b4bac41f;flex-shrink:0;}
-.habit-swipe-actions [data-swipe-delete] .icon{border-color:#c94a50;background:#1b1011;box-shadow:0 0 8px #e6404c20;}
-.habit-undo{position:relative;overflow:hidden;}
-.habit-undo-progress{position:absolute;left:0;bottom:0;height:2px;width:100%;background:var(--gold);transform-origin:left;transform:scaleX(0);}
+/* Undo-delete toast: contour outline instead of a bottom bar. */
+.habit-undo{pointer-events:auto;position:relative;overflow:visible;background:#1a1812;color:#eee;border:1px solid #6d5a2d;border-radius:12px;padding:14px;display:flex;gap:16px;align-items:center;}
+.habit-undo button{border:0;background:none;color:var(--gold);font:inherit;}
+.habit-undo-outline{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;}
+.habit-undo-outline rect{fill:none;stroke:var(--gold);stroke-width:1.5;stroke-linecap:round;stroke-dasharray:100 100;}
+@media(prefers-reduced-motion:reduce){.habit-drop-line{transition:none;}}
+
+/* Layout stability: calendar plate locked to the date-pill height and habit-card width
+   (top-left corner of a "Г" — date strip runs right from it, habit list runs down from it),
+   and the motivation line reserves its full height so switching days never reflows anything below it. */
+.calendar-button{height:52px;min-height:52px;max-height:52px;}
+.motivation{height:40px;min-height:40px;max-height:40px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
 </style>
 </head>
 <body>
@@ -923,7 +934,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.16';
+  const APP_VERSION = '0.3.17';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1299,7 +1310,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: числовые цели привычек точнее распознают названия — «тысячу», «двести пятьдесят» и другие числительные, — и больше не путают их со временем суток вроде «в 8 утра».</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: обычные привычки выполняются тапом по всей карточке и обводятся при выполнении, свайпы стали плавнее, перетаскивание показывает линию вставки, окно отмены удаления обводится по контуру, а плашка календаря и текст-подсказка больше не сдвигают список при переключении дня.</p></section>
     </div></section>`;
   }
 
@@ -1574,7 +1585,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const habits=currentHabits();
     if(!habits.length) return `<div class="habits-empty">${icon('sparkles')}<div class="habits-empty-text">Начни создавать<br>свою систему<br>дисциплины</div></div>`;
     const future=state.habits.selectedDate>state.habits.today;
-    return `<div class="habits-list">${habits.map((h,i)=>`<div class="habit-swipe"><div class="habit-number-reveal" aria-hidden="true">123</div><div class="habit-swipe-actions" aria-hidden="true" inert><button type="button" data-swipe-edit="${i}" aria-label="Редактировать привычку ${esc(h.name||'')}">${icon('edit')}<span>Править</span></button><button type="button" data-swipe-delete="${i}" aria-label="Удалить привычку ${esc(h.name||'')}">${icon('trash')}<span>Удалить</span></button></div><div class="habit-card ${h.done?'done':''} ${future?'future':''}" data-habit-index="${i}"><button class="habit-check ${h.done?'done':''} ${future?'future':''}" data-toggle-habit="${i}" ${future?'disabled':''} aria-label="Выполнить привычку ${esc(h.name||'')}" aria-pressed="${h.done===true}">${h.done?icon('check'):''}</button><div class="habit-body"><div class="habit-name">${habitTitle(h)}</div></div>${h.quantity?`<svg class="habit-outline" aria-hidden="true"><rect x="1.5" y="1.5" rx="10.5" pathLength="100" style="stroke-dashoffset:${100-habitFraction(h)*100}"/></svg>`:''}</div></div>`).join('')}</div>`;
+    return `<div class="habits-list">${habits.map((h,i)=>`<div class="habit-swipe"><div class="habit-number-reveal" aria-hidden="true"><span class="habit-number-badge">${icon('target')}</span></div><div class="habit-swipe-actions" aria-hidden="true" inert><button type="button" data-swipe-edit="${i}" aria-label="Редактировать привычку ${esc(h.name||'')}">${icon('edit')}<span>Править</span></button><button type="button" data-swipe-delete="${i}" aria-label="Удалить привычку ${esc(h.name||'')}">${icon('trash')}<span>Удалить</span></button></div><div class="habit-card ${h.done?'done':''} ${future?'future':''}" data-habit-index="${i}"><button class="habit-check ${h.done?'done':''} ${future?'future':''}" data-toggle-habit="${i}" ${future?'disabled':''} aria-label="Выполнить привычку ${esc(h.name||'')}" aria-pressed="${h.done===true}">${h.done?icon('check'):''}</button><div class="habit-body"><div class="habit-name">${habitTitle(h)}</div></div><svg class="habit-outline" aria-hidden="true"><rect x="1.5" y="1.5" rx="10.5" pathLength="100" style="stroke-dashoffset:${100-habitFraction(h)*100}"/></svg></div></div>`).join('')}</div>`;
   }
   function renderGraphPane() {
     const dates=allDates(), labels=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
@@ -1594,7 +1605,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     bindHabitOutlines();
     $$('.habit-card').forEach(card=>{
       card.dataset.habitName=currentHabits()[+card.dataset.habitIndex]?.name||'';
-      card.addEventListener('click',e=>{if(e.target.closest('button'))return;const i=+card.dataset.habitIndex;if(currentHabits()[i]?.quantity)incrementHabit(i);});
+      card.addEventListener('click',e=>{if(e.target.closest('button'))return;const i=+card.dataset.habitIndex,h=currentHabits()[i];if(!h)return;if(h.quantity)incrementHabit(i);else toggleHabit(i);});
     });
     
     $$('.habit-card').forEach(el=>{bindHabitSwipe(el);bindHabitLift(el);el.tabIndex=0;el.setAttribute('aria-label',(currentHabits()[+el.dataset.habitIndex]?.name||'Привычка')+'. Enter — действия');el.addEventListener('keydown',e=>{if(e.target===el&&(e.key==='Enter'||e.key===' ')){e.preventDefault();closeHabitSwipes();showHabitActions(+el.dataset.habitIndex);}});});
@@ -1646,15 +1657,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function habitSwipeDestination(offset,velocity,width){return velocity<-.35||(velocity<=.35&&offset<-width*.45);}
   function bindHabitSwipe(card) {
-    const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button')),numberPanel=$('.habit-number-reveal',row);
-    let press=null,offset=0,open=false,width=0,revealWidth=0,suppressUntil=0,busy=false,cancelSpring=()=>{};
-    const measure=()=>{width=row.getBoundingClientRect().width;revealWidth=Math.min(112,width*.56);};
+    const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button')),numberPanel=$('.habit-number-reveal',row),numberBadge=$('.habit-number-badge',numberPanel);
+    const editBtn=buttons[0],delBtn=buttons[1];
+    let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,suppressUntil=0,busy=false,cancelSpring=()=>{};
+    const measure=()=>{width=row.getBoundingClientRect().width;revealWidth=Math.min(112,width*.56);rightThreshold=Math.min(72,width*.45);};
+    // Только transform/opacity — никаких width/flexGrow за кадр, чтобы не форсировать layout на каждый пиксель драга.
     const paint=value=>{
       offset=value;card.style.transform='translate3d('+offset+'px,0,0)';
-      const distance=Math.max(0,-offset),p=clamp(distance/revealWidth,0,1),merge=clamp((distance-revealWidth)/Math.max(1,width*.68-revealWidth),0,1);
-      actions.style.width=Math.max(0,distance)+'px';actions.style.opacity=String(p);
-      row.classList.toggle('delete-ready',merge>=1);numberPanel.style.opacity=String(clamp(offset/65,0,1));
-      buttons.forEach((button,i)=>{button.style.flexBasis='0px';button.style.flexGrow=String(i===0?1-merge:1+merge);button.style.minWidth='0';button.style.overflow='hidden';button.style.opacity=String(p*(i===0?1-merge:1));button.style.transform='scale('+(.65+.35*p)+')';});
+      const distance=Math.max(0,-offset),reveal=clamp(distance/revealWidth,0,1),merge=clamp((distance-revealWidth)/Math.max(1,width*.68-revealWidth),0,1);
+      actions.style.opacity=reveal>0?'1':'0';
+      row.classList.toggle('delete-ready',merge>=1);
+      if(editBtn){editBtn.style.opacity=String(reveal*(1-merge));editBtn.style.transform='scale('+((.65+.35*reveal)*(1-merge*.4))+')';}
+      if(delBtn){delBtn.style.opacity=String(reveal);delBtn.style.transform='scale('+(.65+.35*reveal+merge*.2)+')';}
+      const rightDistance=Math.max(0,offset),rightReveal=clamp(rightDistance/Math.max(1,rightThreshold),0,1);
+      numberPanel.style.opacity=String(rightReveal);numberPanel.classList.toggle('ready',rightReveal>=1);
+      if(numberBadge)numberBadge.style.transform='scale('+(.6+.4*rightReveal)+')';
     };
     const settle=(value,velocity=0)=>{cancelSpring();open=value;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));cancelSpring=habitSpring(offset,open?-revealWidth:0,velocity*1000,paint,null,()=>row.isConnected);};
     row.closeSwipe=()=>{if(!busy&&!press&&(open||offset)){measure();settle(false);}};
@@ -1674,7 +1691,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(g.axis!=='x'){if(offset&&!open)settle(false);return;}
       const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
       if(dx<-25&&(offset<=-width*.68||(v<-.8&&g.direction<0&&offset<-width*.2))){busy=true;row.classList.remove('is-dragging');deleteHabitWithUndo(+card.dataset.habitIndex);return;}
-      if(!g.wasOpen&&offset>Math.min(72,width*.45)){settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
+      if(!g.wasOpen&&offset>rightThreshold){holdFeedback(card);settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
       settle(g.wasOpen&&dx>12?false:offset<0&&(offset<-width*.3||v<-.35),v);
     },{passive:true});
     row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;if(!row.habitLiftActive)settle(open);},{passive:true});
@@ -1684,7 +1701,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function updateHabitUI() {
     if(state.nav!==3||!$('.habits-screen'))return;
     const list=currentHabits(),existing=$$('[data-habit-index]');
-    if(existing.length!==list.length||existing.some((el,i)=>el.dataset.habitName!==list[i].name||!!$('.habit-outline',el)!==!!list[i].quantity)){
+    if(existing.length!==list.length||existing.some((el,i)=>el.dataset.habitName!==list[i].name)){
       storeCurrentScroll();renderScreen();return;
     }
     existing.forEach((el,i)=>{const done=list[i].done===true;el.classList.toggle('done',done);const check=$('.habit-check',el);check.classList.toggle('done',done);check.setAttribute('aria-pressed',String(done));check.innerHTML=done?icon('check'):'';
@@ -2092,7 +2109,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const row=$('[data-habit-index="'+index+'"]')?.closest('.habit-swipe'),card=row?.querySelector('.habit-card'),prev=progressForDate(state.habits.selectedDate);
     state.habits.data=next;
     const root=$('#toast-root'),notice=document.createElement('div');notice.className='habit-undo';notice.setAttribute('role','status');notice.append(document.createTextNode('Привычка удалена '));
-    const undo=document.createElement('button');undo.textContent='Отменить';notice.append(undo);const progress=document.createElement('span');progress.className='habit-undo-progress';notice.append(progress);root.append(notice);
+    const undo=document.createElement('button');undo.textContent='Отменить';notice.append(undo);
+    const svgNS='http://www.w3.org/2000/svg',outline=document.createElementNS(svgNS,'svg'),outlineRect=document.createElementNS(svgNS,'rect');
+    outline.setAttribute('class','habit-undo-outline');outline.setAttribute('aria-hidden','true');outlineRect.setAttribute('pathLength','100');outline.append(outlineRect);notice.append(outline);
+    root.append(notice);
+    requestAnimationFrame(()=>{const w=notice.clientWidth,h=notice.clientHeight;if(w>4&&h>4){outline.setAttribute('viewBox','0 0 '+w+' '+h);outlineRect.setAttribute('x','1');outlineRect.setAttribute('y','1');outlineRect.setAttribute('rx','11');outlineRect.setAttribute('width',String(w-2));outlineRect.setAttribute('height',String(h-2));}});
     let timer=0,ending=false,collapse=null,stopSlide=()=>{},internalRender=false;
     const reveal=()=>{internalRender=true;prepareHabitAnimation(prev,progressForDate(state.habits.selectedDate));internalRender=false;};
     const finish=(restore=false,immediate=false)=>{
@@ -2101,7 +2122,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(pendingHabitUndo?.notice===notice)pendingHabitUndo=null;
       if(restore){const restored={...state.habits.data};for(const entry of removed){const arr=[...(restored[entry.key]||[])];if(!arr.some(x=>x.name===entry.habit.name)){arr.splice(Math.min(entry.at,arr.length),0,entry.habit);restored[entry.key]=arr;}}state.habits.data=restored;}
       if(!commitHabitData(state.habits.data)){for(const entry of removed){const arr=[...(state.habits.data[entry.key]||[])];if(!arr.some(x=>x.name===entry.habit.name)){arr.splice(Math.min(entry.at,arr.length),0,entry.habit);state.habits.data[entry.key]=arr;}}showToast('Удаление отменено: не удалось сохранить данные.');}
-      notice.getAnimations?.().forEach(a=>a.cancel());progress.getAnimations?.().forEach(a=>a.cancel());
+      notice.getAnimations?.().forEach(a=>a.cancel());outlineRect.getAnimations?.().forEach(a=>a.cancel());
       if(immediate||reducedMotion()||!notice.animate)notice.remove();else{const out=notice.animate([{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(12px)'}],{duration:200,easing:'ease-out'});out.onfinish=()=>notice.remove();}
       reveal();if(restore){const restoredCard=$$('[data-habit-index]').find(el=>el.dataset.habitName===h.name);if(!reducedMotion())restoredCard?.animate?.([{opacity:0,transform:'scale(.96)'},{opacity:1,transform:'scale(1)'}],{duration:250,easing:'ease-out'});}
     };
@@ -2109,7 +2130,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     pendingHabitUndo={notice,finish,render:()=>{if(!internalRender)finish(false,true);}};
     undo.onclick=()=>finish(true,true);
     document.addEventListener('pointerdown',interrupt,true);document.addEventListener('wheel',interrupt,{capture:true,passive:true});document.addEventListener('touchmove',interrupt,{capture:true,passive:true});document.addEventListener('keydown',interrupt,true);window.addEventListener('pagehide',interrupt);
-    progress.animate?.([{transform:'scaleX(0)'},{transform:'scaleX(1)'}],{duration:5000,easing:'linear',fill:'forwards'});
+    outlineRect.animate?.([{strokeDashoffset:100},{strokeDashoffset:0}],{duration:5000,easing:'linear',fill:'forwards'});
     if(!reducedMotion())notice.animate?.([{opacity:0,transform:'translateY(16px)'},{opacity:1,transform:'translateY(0)'}],{duration:220,easing:'ease-out'});
     timer=setTimeout(()=>finish(false),5000);
     if(row&&card&&!reducedMotion()&&row.animate){
@@ -2125,9 +2146,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   let activeHabitLiftCleanup=null;
   function bindHabitLift(card){
-    const row=card.closest('.habit-swipe');let hold=null,timer=0,bar=null,ghost=null,frame=0;
+    const row=card.closest('.habit-swipe');let hold=null,timer=0,bar=null,ghost=null,line=null,frame=0;
     const cancelTimer=()=>{clearTimeout(timer);timer=0;};card.cancelLongPress=cancelTimer;
-    const cleanup=()=>{cancelTimer();cancelAnimationFrame(frame);row.habitLiftActive=false;row.classList.remove('is-reordering');row.style.transform='';bar?.remove();bar=null;ghost?.remove();ghost=null;$$('.habit-swipe').forEach(r=>r.classList.remove('drop-target'));if(activeHabitLiftCleanup===cleanup)activeHabitLiftCleanup=null;};
+    const cleanup=()=>{cancelTimer();cancelAnimationFrame(frame);row.habitLiftActive=false;row.classList.remove('is-reordering');row.style.transform='';bar?.remove();bar=null;ghost?.remove();ghost=null;line?.remove();line=null;if(activeHabitLiftCleanup===cleanup)activeHabitLiftCleanup=null;};
     const index=()=>currentHabits().findIndex(h=>h.name===card.dataset.habitName);
     row.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0||e.target.closest('button')||row.classList.contains('is-open'))return;
@@ -2136,7 +2157,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(!hold||!row.isConnected)return;hold.active=true;row.habitLiftActive=true;row.classList.add('is-reordering');row.setPointerCapture?.(hold.id);holdFeedback(card);
         const bounds=card.getBoundingClientRect();ghost=card.cloneNode(true);ghost.classList.add('habit-drag-ghost');ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.style.cssText='position:fixed;left:'+bounds.left+'px;top:'+bounds.top+'px;width:'+bounds.width+'px;height:'+bounds.height+'px;margin:0;z-index:590;pointer-events:none;box-sizing:border-box;';document.body.append(ghost);if(!reducedMotion())ghost.animate?.([{opacity:.5},{opacity:1}],{duration:140,easing:'ease-out'});
         bar=document.createElement('div');bar.className='habit-drag-bar';bar.innerHTML='<button type="button" data-lift-delete aria-label="Удалить">'+icon('trash')+'</button>';
-        document.body.append(bar);activeHabitLiftCleanup=cleanup;
+        document.body.append(bar);
+        line=document.createElement('div');line.className='habit-drop-line';row.closest('.habits-list').append(line);
+        activeHabitLiftCleanup=cleanup;
         $('[data-lift-delete]',bar).onclick=()=>{const i=index();cleanup();if(i>=0)deleteHabitWithUndo(i);};
         const tick=()=>{if(!hold?.active||!row.isConnected){if(!row.isConnected)cleanup();return;}const now=performance.now(),dt=Math.min((now-hold.lastFrame)/1000,.032);hold.lastFrame=now;for(let t=0;t<dt;){const step=Math.min(.008,dt-t);for(const [pos,vel,target] of [['px','vx',hold.lastX-hold.x],['py','vy',hold.lastY-hold.y],['scale','vs',1.05]]){hold[vel]+=(150*(target-hold[pos])-15*hold[vel])*step;hold[pos]+=hold[vel]*step;}t+=step;}if(ghost)ghost.style.transform='translate3d('+hold.px+'px,'+hold.py+'px,0) scale('+hold.scale+')';const list=row.closest('.habits-list'),r=list.getBoundingClientRect();if(hold.lastY<r.top+25)list.scrollTop-=4;else if(hold.lastY>Math.min(r.bottom,window.innerHeight-110)-25)list.scrollTop+=4;frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);
       },420);
@@ -2147,8 +2170,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       e.preventDefault();hold.lastY=e.clientY;hold.lastX=e.clientX;hold.moved=Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>12;
       const trash=$('[data-lift-delete]',bar),r=trash.getBoundingClientRect();hold.remove=e.clientX>=r.left-16&&e.clientX<=r.right+16&&e.clientY>=r.top-16&&e.clientY<=r.bottom+16;trash.classList.toggle('ready',hold.remove);
       const rows=$$('.habit-swipe');let best=hold.from,dist=Infinity;
-      rows.forEach((other,i)=>{other.classList.remove('drop-target');if(other===row)return;const b=other.getBoundingClientRect(),d=Math.abs(e.clientY-(b.top+b.height/2));if(d<dist){dist=d;best=i;}});
-      hold.to=hold.moved?best:hold.from;if(!hold.remove&&hold.to!==hold.from)rows[hold.to]?.classList.add('drop-target');
+      rows.forEach((other,i)=>{if(other===row)return;const b=other.getBoundingClientRect(),d=Math.abs(e.clientY-(b.top+b.height/2));if(d<dist){dist=d;best=i;}});
+      hold.to=hold.moved?best:hold.from;
+      if(line){
+        if(hold.remove||hold.to===hold.from)line.classList.remove('visible');
+        else{
+          const list=row.closest('.habits-list'),listRect=list.getBoundingClientRect(),targetRect=rows[hold.to].getBoundingClientRect();
+          const edgeY=(hold.to>hold.from?targetRect.bottom:targetRect.top)-listRect.top+list.scrollTop;
+          line.style.transform='translateY('+edgeY+'px)';line.classList.add('visible');
+        }
+      }
     },{passive:false});
     row.addEventListener('pointerup',()=>{cancelTimer();if(!hold)return;const h=hold;hold=null;cancelAnimationFrame(frame);if(!h.active)return;row.habitLiftActive=false;
       const finish=()=>{if(h.remove){const i=index();cleanup();if(i>=0)deleteHabitWithUndo(i);}else if(h.moved){cleanup();moveHabit(h.from,h.to);}else{row.style.transform='';row.classList.remove('is-reordering');ghost?.remove();ghost=null;}};
