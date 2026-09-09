@@ -937,7 +937,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.21';
+  const APP_VERSION = '0.3.22';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1314,7 +1314,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: найдена и устранена настоящая причина «невидимых» кнопок свайпа — анимация появления карточки блокировала её движение под пальцем; кнопки «Править»/«Удалить» и значок числового режима теперь появляются с первых пикселей жеста. Также счётные привычки («7 раз», «3 подхода») считают по 1 за нажатие, а не дробями.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: быстрый свайп с небольшим отклонением вверх/вниз больше не проваливается в вертикальный скролл — кнопки открываются и при резком жесте. Шаг числовых привычек для «неудобных» целей вроде 7 или 11 теперь делится на 3-5 частей с остатком на последнем нажатии (2,4,6,8,10,11), а не по одному разу на большие числа.</p></section>
     </div></section>`;
   }
 
@@ -1713,7 +1713,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId||row.habitLiftActive)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<7)return;press.axis=Math.abs(dx)>Math.abs(dy)*1.2?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
+      // Порог направления смягчён (было dx>dy*1.2): у быстрого свайпа в сторону почти всегда есть
+      // небольшая вертикальная примесь от естественного движения пальца, и раньше такой жест часто
+      // ошибочно навсегда запирался как вертикальный скролл, из-за чего свайп «не срабатывал».
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<7)return;press.axis=Math.abs(dx)>Math.abs(dy)*.8?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
       if(press.axis!=='x')return;
       e.preventDefault();suppressUntil=performance.now()+500;
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
@@ -2124,11 +2127,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     setHabitQuantity(index,q);
   }
   function habitQuantityStep(target){
-    // Для «7 раз», «3 подхода» и т.п. — по 1 за тап, а не дробью (7/4=1.75 не считается людьми).
-    // Дробный шаг на «порции» оставлен только для крупных непрерывных целей, где тапать по 1 неудобно.
-    if(Number.isInteger(target)&&target>0&&target<=30)return 1;
-    const portions=Number.isInteger(target)&&target%3===0?3:4;
-    return target/portions;
+    if(!Number.isFinite(target)||target<=0)return 1;
+    if(!Number.isInteger(target))return target/4;
+    // Ровное деление на 3/4/5 — красивый целый шаг (30 -> 6 по 5 тапов, а не 30 тапов по 1).
+    for(const portions of [5,4,3]){if(target%portions===0)return target/portions;}
+    // «Неудобные» числа (7, 11, 13…), не делящиеся ровно ни на одно из них: шаг ~target/5,
+    // а остаток на последнем тапе забирает существующий Math.min(target,...) в incrementHabit —
+    // например 11 при шаге 2 даёт 2,4,6,8,10,11, а не дробное 11/4=2.75.
+    return Math.max(2,Math.round(target/5));
   }
   function habitTitle(h){
     if(!h.quantity)return esc(h.name||'');
