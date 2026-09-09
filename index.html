@@ -923,7 +923,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.15';
+  const APP_VERSION = '0.3.16';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1299,7 +1299,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: плавное раскрытие кнопок привычки, ровное расположение и свайп, который можно развернуть в любой момент.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: числовые цели привычек точнее распознают названия — «тысячу», «двести пятьдесят» и другие числительные, — и больше не путают их со временем суток вроде «в 8 утра».</p></section>
     </div></section>`;
   }
 
@@ -2001,13 +2001,55 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     else h.done=!h.done;
     if(commitHabitData({...state.habits.data,[key]:arr}))prepareHabitAnimation(prev,progressForDate(state.habits.selectedDate));
   }
+  const HABIT_NUM_ONES={'один':1,'одна':1,'одно':1,'два':2,'две':2,'три':3,'четыре':4,'пять':5,'шесть':6,'семь':7,'восемь':8,'девять':9};
+  const HABIT_NUM_TEENS={'десять':10,'одиннадцать':11,'двенадцать':12,'тринадцать':13,'четырнадцать':14,'пятнадцать':15,'шестнадцать':16,'семнадцать':17,'восемнадцать':18,'девятнадцать':19};
+  const HABIT_NUM_TENS={'двадцать':20,'тридцать':30,'сорок':40,'пятьдесят':50,'шестьдесят':60,'семьдесят':70,'восемьдесят':80,'девяносто':90};
+  const HABIT_NUM_HUNDREDS={'сто':100,'двести':200,'триста':300,'четыреста':400,'пятьсот':500,'шестьсот':600,'семьсот':700,'восемьсот':800,'девятьсот':900};
+  const HABIT_NUM_THOUSANDS=new Set(['тысяча','тысячи','тысяч','тысячу']);
+  const HABIT_NUM_WORD_RE=(()=>{
+    const words=[...Object.keys(HABIT_NUM_ONES),...Object.keys(HABIT_NUM_TEENS),...Object.keys(HABIT_NUM_TENS),...Object.keys(HABIT_NUM_HUNDREDS),...HABIT_NUM_THOUSANDS]
+      .sort((a,b)=>b.length-a.length);
+    // Trailing "not another Cyrillic letter" lookahead stops a short word ("три") from
+    // matching as a prefix of a longer one ("триста") it happens to start with.
+    const word='(?:'+words.join('|')+')(?![а-яё])';
+    return new RegExp('\\d+(?!:)|(?<![а-яёa-z0-9])'+word+'(?:\\s+'+word+')*','gi');
+  })();
+  const HABIT_TIME_WORDS=new Set(['утра','вечера','дня','ночи','час','часа','часов','часу']);
+  const HABIT_TIME_PREFIXES=new Set(['в','к','до','с']);
+  function habitWordsToNumber(span) {
+    const tokens=span.trim().split(/\s+/);
+    if(tokens.length===1&&/^\d+$/.test(tokens[0]))return parseInt(tokens[0],10);
+    let total=0,current=0;
+    for(const t of tokens){
+      if(HABIT_NUM_THOUSANDS.has(t)){total+=(current||1)*1000;current=0;continue;}
+      current+=(HABIT_NUM_ONES[t]||HABIT_NUM_TEENS[t]||HABIT_NUM_TENS[t]||HABIT_NUM_HUNDREDS[t]||0);
+    }
+    return total+current;
+  }
+  // Извлекает целевое число из названия привычки ("выпить 1000 капель", "съесть тысячу семечек",
+  // "две тысячи триста шагов"), но не путает его со временем суток ("встать в 8 утра", "лечь в 23:00").
   function parseHabitQuantity(name) {
-    const re=/(\d+(?:[ \u00a0]\d{3})*(?:[.,]\d+)?|один|одна|одно|два|две|три|четыре|пять|шесть|семь|восемь|девять|десять|двенадцать)\s*(тыс(?:яч[аи]?)?\.?|[кk])?\s*(литр[а-я]*|мл|л|шаг[а-я]*|steps?|км|km|минут[а-я]*|мин|час[а-я]*|страниц[а-я]*|стр|раз|повтор[а-я]*)/gi;
-    const matches=[...String(name).matchAll(re)].filter(m=>!/[а-яa-z]/i.test(String(name)[m.index+m[0].length]||'')&&!/[а-яa-z\d]/i.test(String(name)[m.index-1]||''));
-    if(matches.length!==1)return null;const m=matches[0],words={один:1,одна:1,одно:1,два:2,две:2,три:3,четыре:4,пять:5,шесть:6,семь:7,восемь:8,девять:9,десять:10,двенадцать:12},target=(words[m[1].toLowerCase()]||Number(m[1].replace(/[ \u00a0]/g,'').replace(',','.')))*(m[2]?1000:1);
-    if(!(target>0&&target<=1e7))return null;
-    const raw=m[3].toLowerCase(),unit=/^(литр|л$)/.test(raw)?'л':/^(шаг|step)/.test(raw)?'шагов':/^(мин)/.test(raw)?'мин':/^(час)/.test(raw)?'ч':/^(стр)/.test(raw)?'стр.':raw;
-    return {target,step:habitQuantityStep(target),unit,value:0,start:m.index,end:m.index+m[0].length,unitText:m[3]};
+    const raw=String(name||''),text=raw.toLowerCase();
+    const masked=text.replace(/\d{1,2}:\d{2}/g,s=>' '.repeat(s.length));
+    HABIT_NUM_WORD_RE.lastIndex=0;
+    let m;
+    while((m=HABIT_NUM_WORD_RE.exec(masked))){
+      const matchText=m[0],start=m.index,end=start+matchText.length;
+      const prevWord=masked.slice(0,start).trimEnd().split(/\s+/).pop()||'';
+      const nextWords=masked.slice(end).trimStart().split(/\s+/).slice(0,2);
+      if(HABIT_TIME_PREFIXES.has(prevWord)&&nextWords.some(w=>HABIT_TIME_WORDS.has(w)))continue;
+      const target=habitWordsToNumber(matchText);
+      if(!(target>0&&target<=1e7))continue;
+      const unitMatch=masked.slice(end).match(/^\s+([а-яё]+)/);
+      let unitText='',fullEnd=end;
+      if(unitMatch&&!HABIT_TIME_WORDS.has(unitMatch[1])&&!HABIT_TIME_PREFIXES.has(unitMatch[1])){
+        const rawUnit=raw.slice(end).match(/^\s+([^\s.,!?;:]+)/);
+        unitText=rawUnit?rawUnit[1]:'';
+        fullEnd=end+unitMatch[0].length;
+      }
+      return {target,step:habitQuantityStep(target),unit:unitText,value:0,start,end:fullEnd,unitText};
+    }
+    return null;
   }
   function setHabitQuantity(index,q) {
     const h=currentHabits()[index];if(!h)return false;const key=habitDateKey(state.habits.selectedDate),next={...state.habits.data};
