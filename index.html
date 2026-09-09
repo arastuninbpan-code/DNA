@@ -860,7 +860,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-quick-menu .habit-menu-action+ .habit-menu-action {margin-top:2px;}
 @media(prefers-reduced-motion:reduce){.habit-swipe>.habit-card,.habit-swipe-actions{transition:none}}
 
-/* Habits 0.3.13: continuous gestures and quantitative progress. */
+/* Habits 0.3.14: continuous gestures and quantitative progress. */
 .habit-swipe-actions{left:auto;right:0;gap:0;justify-content:space-evenly;}
 .habit-number-reveal{position:absolute;inset:0 auto 0 0;width:64px;display:grid;place-items:center;color:var(--gold);font-size:20px;opacity:0;pointer-events:none;}
 .habit-swipe.delete-ready .habit-swipe-actions{background:#331315;border-radius:12px;}
@@ -881,14 +881,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 
 .habit-swipe,.habit-swipe>.habit-card,.habit-swipe-actions,.habit-swipe-actions button{touch-action:none;}
 .habit-card .habit-check{touch-action:none;}
-.habit-drag-bar{position:fixed;z-index:600;left:50%;bottom:calc(var(--nav-h) + var(--safe-bottom) + 20px);transform:translateX(-50%);display:flex;gap:12px;padding:10px;border:1px solid #66532c;border-radius:40px;background:#141310;box-shadow:0 6px 25px #0009;}
-.habit-drag-bar button{display:grid;place-items:center;width:44px;height:44px;border:1px solid #625630;border-radius:50%;color:var(--gold);background:#1c1a15;font:16px Georgia;}
+.habit-drag-bar{position:fixed;z-index:600;left:50%;bottom:calc(var(--nav-h) + var(--safe-bottom) + 20px);transform:translateX(-50%);display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:0 6px 25px #0009;}
+.habit-drag-bar button{display:grid;place-items:center;box-sizing:border-box;padding:0;width:52px;height:52px;border:1px solid #625630;border-radius:50%;color:var(--gold);background:#1c1a15;font:16px Georgia;}
 .habit-drag-bar [data-lift-delete]{color:#ff696d;border-color:#ad444a;background:#221416;}
 .habit-drag-bar [data-lift-delete].ready{background:#922f36;transform:scale(1.12);box-shadow:0 0 15px #dc465b44;}
-.habit-drag-bar .icon{display:block;width:20px;height:20px;}
+.habit-drag-bar .icon{display:block;width:20px;height:20px;margin:0;}
+.habit-card .habit-check,.habit-swipe-actions button{display:grid;place-items:center;padding:0;flex-shrink:0;box-sizing:border-box;}
+.habit-check .icon svg,.habit-swipe-actions .icon svg,.habit-drag-bar .icon svg{display:block;width:100%;height:100%;}
 .habit-swipe.drop-target{outline:none;border-top:2px solid var(--gold);}
 .habit-swipe.is-reordering{opacity:.35;box-shadow:none;}
-.habit-drag-ghost{border-color:var(--gold);box-shadow:0 10px 32px #0009;border-radius:12px;}
+.habit-drag-ghost{transition:none!important;animation:none!important;will-change:transform;border-color:var(--gold);box-shadow:0 10px 32px #0009;border-radius:12px;}
 </style>
 </head>
 <body>
@@ -915,7 +917,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.13';
+  const APP_VERSION = '0.3.14';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -2008,7 +2010,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(state.habits.selectedDate>state.habits.today)return;
     const key=habitDateKey(state.habits.selectedDate),arr=currentHabits().map(h=>({...h, ...(h.quantity?{quantity:{...h.quantity}}:{})})),h=arr[index];if(!h)return;
     const prev=progressForDate(state.habits.selectedDate);
-    if(h.quantity){h.quantity.step=habitQuantityStep(h.quantity.target);h.quantity.value=complete?(h.done?0:h.quantity.target):Math.min(h.quantity.target,Number((h.quantity.value+h.quantity.step).toFixed(9)));h.done=h.quantity.value>=h.quantity.target;}
+    if(h.quantity){h.quantity.step=habitQuantityStep(h.quantity.target);h.quantity.value=complete?(h.done?0:h.quantity.target):(h.quantity.value>=h.quantity.target?0:Math.min(h.quantity.target,Number((h.quantity.value+h.quantity.step).toFixed(9))));h.done=h.quantity.value>=h.quantity.target;}
     else h.done=!h.done;
     if(commitHabitData({...state.habits.data,[key]:arr}))prepareHabitAnimation(prev,progressForDate(state.habits.selectedDate));
   }
@@ -2026,7 +2028,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const prev=progressForDate(state.habits.selectedDate);if(!commitHabitData(next))return false;prepareHabitAnimation(prev,progressForDate(state.habits.selectedDate));return true;
   }
   function enableHabitNumbers(index) {
-    const h=currentHabits()[index];if(!h||h.quantity)return;
+    const h=currentHabits()[index];if(!h)return;if(h.quantity){setHabitQuantity(index,null);return;}
     const q=parseHabitQuantity(h.name);
     if(!q){showToast('Укажи одну цель в названии: например, «Пить 3 л воды»');return;}
     setHabitQuantity(index,q);
@@ -2077,18 +2079,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       timer=setTimeout(()=>{
         if(!hold||!row.isConnected)return;hold.active=true;row.habitLiftActive=true;row.classList.add('is-reordering');row.setPointerCapture?.(hold.id);holdFeedback(card);
         const bounds=card.getBoundingClientRect();ghost=card.cloneNode(true);ghost.classList.add('habit-drag-ghost');ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.style.cssText='position:fixed;left:'+bounds.left+'px;top:'+bounds.top+'px;width:'+bounds.width+'px;height:'+bounds.height+'px;margin:0;z-index:590;pointer-events:none;box-sizing:border-box;';document.body.append(ghost);if(!reducedMotion())ghost.animate?.([{opacity:.5},{opacity:1}],{duration:140,easing:'ease-out'});
-        bar=document.createElement('div');bar.className='habit-drag-bar';bar.innerHTML='<button data-lift-edit aria-label="Редактировать">'+icon('edit')+'</button><button data-lift-count aria-label="Числовой режим">123</button><button data-lift-delete aria-label="Удалить">'+icon('trash')+'</button>';
+        bar=document.createElement('div');bar.className='habit-drag-bar';bar.innerHTML='<button type="button" data-lift-delete aria-label="Удалить">'+icon('trash')+'</button>';
         document.body.append(bar);activeHabitLiftCleanup=cleanup;
-        $('[data-lift-edit]',bar).onclick=()=>{const i=index();cleanup();if(i>=0)showEditHabitSheet(i);};
-        $('[data-lift-count]',bar).onclick=()=>{const i=index();cleanup();if(i>=0){if(currentHabits()[i]?.quantity)setHabitQuantity(i,null);else enableHabitNumbers(i);}};
         $('[data-lift-delete]',bar).onclick=()=>{const i=index();cleanup();if(i>=0)deleteHabitWithUndo(i);};
-        const tick=()=>{if(!hold?.active||!row.isConnected){if(!row.isConnected)cleanup();return;}const list=row.closest('.habits-list'),r=list.getBoundingClientRect();if(hold.lastY<r.top+25)list.scrollTop-=4;else if(hold.lastY>Math.min(r.bottom,window.innerHeight-110)-25)list.scrollTop+=4;if(ghost)ghost.style.transform='translate3d('+(hold.lastX-hold.x)+'px,'+(hold.lastY-hold.y)+'px,0) scale(1.025)';frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);
+        const tick=()=>{if(!hold?.active||!row.isConnected){if(!row.isConnected)cleanup();return;}const list=row.closest('.habits-list'),r=list.getBoundingClientRect();if(hold.lastY<r.top+25)list.scrollTop-=4;else if(hold.lastY>Math.min(r.bottom,window.innerHeight-110)-25)list.scrollTop+=4;frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);
       },420);
     },{passive:true});
     row.addEventListener('pointermove',e=>{
       if(!hold||hold.id!==e.pointerId)return;
       if(!hold.active){if(Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>7)cancelTimer();return;}
-      e.preventDefault();hold.lastY=e.clientY;hold.lastX=e.clientX;hold.moved=Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>12;
+      e.preventDefault();hold.lastY=e.clientY;hold.lastX=e.clientX;hold.moved=Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>12;if(ghost)ghost.style.transform='translate3d('+(hold.lastX-hold.x)+'px,'+(hold.lastY-hold.y)+'px,0) scale(1.025)';
       const trash=$('[data-lift-delete]',bar),r=trash.getBoundingClientRect();hold.remove=e.clientX>=r.left-16&&e.clientX<=r.right+16&&e.clientY>=r.top-16&&e.clientY<=r.bottom+16;trash.classList.toggle('ready',hold.remove);
       const rows=$$('.habit-swipe');let best=hold.from,dist=Infinity;
       rows.forEach((other,i)=>{other.classList.remove('drop-target');if(other===row)return;const b=other.getBoundingClientRect(),d=Math.abs(e.clientY-(b.top+b.height/2));if(d<dist){dist=d;best=i;}});
