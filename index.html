@@ -840,7 +840,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-swipe {position:relative;overflow:hidden;border-radius:12px;margin-bottom:8px;isolation:isolate;touch-action:pan-y pinch-zoom;}
 .habit-swipe>.habit-card {position:relative;z-index:1;margin:0;min-height:64px;background:var(--surface);touch-action:pan-y pinch-zoom;transition:border-color .2s;}
 .habit-swipe.is-dragging>.habit-card {will-change:transform;}
-.habit-swipe-actions {position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:12px;opacity:0;pointer-events:none;background:var(--bg);touch-action:pan-y pinch-zoom;}
+.habit-swipe-actions {position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:12px;pointer-events:none;background:var(--bg);touch-action:pan-y pinch-zoom;}
 .habit-swipe.is-open .habit-swipe-actions {pointer-events:auto;}
 .habit-swipe-actions button {width:44px;height:44px;flex:0 0 44px;min-width:0;display:grid;place-items:center;border:1px solid #74777e;border-radius:50%;background:#111214;color:#c2c5cb;padding:0;box-shadow:0 0 8px rgba(180,186,196,.12),inset 0 0 5px rgba(180,186,196,.04);touch-action:pan-y pinch-zoom;}
 .habit-swipe-actions [data-swipe-delete] {background:#1b1011;color:#ff696d;border-color:#c94a50;box-shadow:0 0 6px rgba(230,64,76,.12);}
@@ -877,7 +877,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 @media(prefers-reduced-motion:reduce){.habit-outline rect{transition:none;}}
 
 /* Right swipe: numeric-goal toggle reveal (Telegram mark-read style). */
-.habit-number-reveal{position:absolute;inset:0 auto 0 0;width:72px;display:grid;place-items:center;opacity:0;pointer-events:none;}
+.habit-number-reveal{position:absolute;inset:0 auto 0 0;width:72px;display:grid;place-items:center;pointer-events:none;}
 .habit-number-badge{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--gold);background:#171512;border:1px solid #6d5a2d;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease;}
 .habit-number-badge .icon{width:18px;height:18px;}
 .habit-number-reveal.ready .habit-number-badge{background:#3a2f13;border-color:var(--gold);box-shadow:0 0 12px rgba(201,168,76,.35);}
@@ -937,7 +937,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.22';
+  const APP_VERSION = '0.3.23';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1314,7 +1314,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: быстрый свайп с небольшим отклонением вверх/вниз больше не проваливается в вертикальный скролл — кнопки открываются и при резком жесте. Шаг числовых привычек для «неудобных» целей вроде 7 или 11 теперь делится на 3-5 частей с остатком на последнем нажатии (2,4,6,8,10,11), а не по одному разу на большие числа.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: свайп привычки переделан по образцу Telegram/iOS — карточка следует за пальцем без задержки, кнопки лежат под ней неподвижно и просто открываются движением, а резкий короткий свайп теперь тоже доводит панель до конца (раньше срабатывал только достаточно длинный жест). Открыта всегда только одна карточка, тап вне неё закрывает. Шаг числовых привычек для «неудобных» целей вроде 7 или 11 делится на 3-5 частей с остатком на последнем нажатии, а не по одному разу на большие числа.</p></section>
     </div></section>`;
   }
 
@@ -1615,7 +1615,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $$('.habit-card').forEach(el=>{bindHabitSwipe(el);bindHabitLift(el);el.tabIndex=0;el.setAttribute('aria-label',(currentHabits()[+el.dataset.habitIndex]?.name||'Привычка')+'. Enter — действия');el.addEventListener('keydown',e=>{if(e.target===el&&(e.key==='Enter'||e.key===' ')){e.preventDefault();closeHabitSwipes();showHabitActions(+el.dataset.habitIndex);}});});
     $$('[data-date]').forEach(b=>b.onclick=()=>selectHabitDate(parseLocalDate(b.dataset.date)));
     $$('[data-swipe-edit]').forEach(b=>b.onclick=()=>{closeHabitSwipes();showEditHabitSheet(+b.dataset.swipeEdit);});
-    $$('[data-swipe-delete]').forEach(b=>b.onclick=()=>{closeHabitSwipes();showDeleteHabitDialog(+b.dataset.swipeDelete);});
+    $$('[data-swipe-delete]').forEach(b=>b.onclick=()=>{closeHabitSwipes();deleteHabitWithUndo(+b.dataset.swipeDelete);});
     $('.habits-list')?.addEventListener('scroll',()=>closeHabitSwipes(),{passive:true});
     $('.habits-screen')?.addEventListener('pointerdown',e=>{if(!e.target.closest('.habit-swipe')){closeHabitSwipes();activeHabitLiftCleanup?.();}},{passive:true});
     const scroller=$('.graph-scroller'); if(scroller) scroller.addEventListener('scroll',()=>state.habits.graphScrollLeft=scroller.scrollLeft,{passive:true});
@@ -1661,66 +1661,49 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function habitSwipeDestination(offset,velocity,width){return velocity<-.35||(velocity<=.35&&offset<-width*.45);}
   function bindHabitSwipe(card) {
-    const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button')),numberPanel=$('.habit-number-reveal',row),numberBadge=$('.habit-number-badge',numberPanel);
-    const editBtn=buttons[0],delBtn=buttons[1];
-    let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,softCap=0,deleteThreshold=0,suppressUntil=0,busy=false,cancelSpring=()=>{};
-    let editDockThreshold=0,editDockCap=0,delDockThreshold=0,delDockCap=0,badgeDockThreshold=0,badgeDockCap=0;
-    // revealWidth — под фактический размер кнопок (иначе «Править» остаётся под карточкой на узких строках);
-    // deleteThreshold — заметно дальше revealWidth, чтобы «просто открыть» не читалось как «уже готово удалить».
+    // Telegram/iOS-style reveal: карточка следует за пальцем 1:1 (голый translate3d, никакого transition
+    // во время драга — плавность идёт от самого 1:1 слежения, не от анимации). Кнопки лежат неподвижно
+    // ПОД карточкой на своих обычных местах (никакой отдельной fade/scale-анимации у них самих) — их
+    // просто открывает движение карточки сверху, как штору. transition включается только на snap после
+    // отпускания пальца, и только на этот один шаг.
+    const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button')),numberPanel=$('.habit-number-reveal',row);
+    let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,deleteThreshold=0,suppressUntil=0,busy=false;
     const measure=()=>{
       width=row.getBoundingClientRect().width;
       const neededReveal=buttons.length*36+Math.max(0,buttons.length-1)*8+20;
       revealWidth=Math.min(neededReveal,Math.max(64,width-8));
       rightThreshold=Math.min(52,width*.38);
-      softCap=revealWidth+width*.3;
       deleteThreshold=revealWidth+Math.max(90,width*.55);
-      // Кнопки в своей "родной" flex-позиции остаются физически под непрозрачной карточкой почти весь жест —
-      // opacity тут не спасает. Меряем реальные rect'ы и считаем, на сколько нужно "притянуть" кнопку к
-      // уже раскрытому краю, пока карточка не отъедет достаточно далеко, чтобы родная позиция уже была видна.
-      const rowRect=row.getBoundingClientRect();
-      if(delBtn){const r=delBtn.getBoundingClientRect();delDockCap=Math.max(0,rowRect.right-r.right);delDockThreshold=delDockCap+r.width;}
-      if(editBtn){const r=editBtn.getBoundingClientRect();editDockCap=Math.max(0,rowRect.right-r.right);editDockThreshold=editDockCap+r.width;}
-      if(numberBadge){const r=numberBadge.getBoundingClientRect();badgeDockCap=Math.max(0,r.left-rowRect.left);badgeDockThreshold=badgeDockCap+r.width;}
     };
-    // Только transform/opacity — никаких width/flexGrow за кадр, чтобы не форсировать layout на каждый пиксель драга.
-    // Раскрытие идёт по кривой (^.45), а не линейно: на первых пикселях жеста кнопки уже хорошо видны,
-    // иначе на узкой строке короткий/быстрый свайп реального пальца читается как "ничего не появилось".
-    const paint=value=>{
-      offset=value;card.style.transform='translate3d('+offset+'px,0,0)';
-      const distance=Math.max(0,-offset),reveal=Math.pow(clamp(distance/revealWidth,0,1),.45),merge=clamp((distance-revealWidth)/Math.max(1,deleteThreshold-revealWidth),0,1);
-      actions.style.opacity=reveal>0?'1':'0';
+    // Резина за пределами revealWidth/rightThreshold: движение пальца дальше даёт лишь четверть
+    // сдвига, а не жёсткий упор в стену — то же ощущение, что у нативных iOS-свайпов.
+    const rubberBand=raw=>{
+      if(raw<-revealWidth)return -(revealWidth+(-revealWidth-raw)*.25);
+      if(raw>rightThreshold)return rightThreshold+(raw-rightThreshold)*.25;
+      return raw;
+    };
+    const paint=(value,animate)=>{
+      offset=value;
+      card.style.transition=(animate?'transform .22s cubic-bezier(.2,.8,.2,1),':'')+'border-color .2s ease';
+      card.style.transform='translate3d('+offset+'px,0,0)';
+      const merge=clamp((-offset-revealWidth)/Math.max(1,deleteThreshold-revealWidth),0,1);
       row.classList.toggle('delete-ready',merge>=1);
-      if(editBtn){
-        const dock=clamp(editDockThreshold-distance,0,editDockCap);
-        editBtn.style.opacity=String(reveal*(1-merge));
-        editBtn.style.transform='translate3d('+dock+'px,0,0) scale('+((.65+.35*reveal)*(1-merge*.4))+')';
-      }
-      if(delBtn){
-        const dock=clamp(delDockThreshold-distance,0,delDockCap);
-        delBtn.style.opacity=String(reveal);
-        delBtn.style.transform='translate3d('+dock+'px,0,0) scale('+(.65+.35*reveal+merge*.2)+')';
-      }
-      const rightDistance=Math.max(0,offset),rightReveal=Math.pow(clamp(rightDistance/Math.max(1,rightThreshold),0,1),.45);
-      numberPanel.style.opacity=String(rightReveal);numberPanel.classList.toggle('ready',rightDistance>=rightThreshold);
-      if(numberBadge){
-        const dock=clamp(badgeDockThreshold-rightDistance,0,badgeDockCap);
-        numberBadge.style.transform='translate3d(-'+dock+'px,0,0) scale('+(.6+.4*rightReveal)+')';
-      }
+      numberPanel.classList.toggle('ready',offset>=rightThreshold);
     };
-    const settle=(value,velocity=0)=>{cancelSpring();open=value;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));cancelSpring=habitSpring(offset,open?-revealWidth:0,velocity*1000,paint,null,()=>row.isConnected);};
+    const settle=(toOpen,animate=true)=>{open=toOpen;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));paint(open?-revealWidth:0,animate);};
     row.closeSwipe=()=>{if(!busy&&!press&&(open||offset)){measure();settle(false);}};
-    row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0)return;cancelSpring();measure();closeHabitSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}]};},{passive:true});
+    row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0)return;measure();closeHabitSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}]};},{passive:true});
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId||row.habitLiftActive)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
-      // Порог направления смягчён (было dx>dy*1.2): у быстрого свайпа в сторону почти всегда есть
-      // небольшая вертикальная примесь от естественного движения пальца, и раньше такой жест часто
-      // ошибочно навсегда запирался как вертикальный скролл, из-за чего свайп «не срабатывал».
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<7)return;press.axis=Math.abs(dx)>Math.abs(dy)*.8?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
+      // Direction lock в первые ~10px: горизонтальный жест ведёт драг карточки и блокирует скролл списка,
+      // вертикальный — не перехватывается, список скроллится как обычно. Порог смягчён (0.8x, не 1:1) —
+      // у быстрого свайпа в сторону почти всегда есть небольшая вертикальная примесь от движения пальца.
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<10)return;press.axis=Math.abs(dx)>Math.abs(dy)*.8?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
       if(press.axis!=='x')return;
       e.preventDefault();suppressUntil=performance.now()+500;
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
-      const sign=Math.sign(raw),distance=Math.abs(raw);paint(sign*(distance>softCap?softCap+(distance-softCap)*.3:distance));
+      paint(rubberBand(raw),false);
       const now=performance.now();press.direction=Math.sign(e.clientX-press.samples[press.samples.length-1].x);press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
     },{passive:false});
     row.addEventListener('pointerup',e=>{
@@ -1728,11 +1711,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(g.axis!=='x'){if(offset&&!open)settle(false);return;}
       const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
       if(dx<-25&&(offset<=-deleteThreshold||(v<-.8&&g.direction<0&&offset<-width*.2))){busy=true;row.classList.remove('is-dragging');deleteHabitWithUndo(+card.dataset.habitIndex);return;}
-      if(!g.wasOpen&&offset>rightThreshold){holdFeedback(card);settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
-      settle(g.wasOpen&&dx>12?false:offset<0&&(offset<-width*.3||v<-.35),v);
+      if(!g.wasOpen&&offset>0&&(offset>=rightThreshold||v>.35)){holdFeedback(card);settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
+      // Snap: сдвиг дальше половины revealWidth ИЛИ быстрая скорость (даже на маленьком сдвиге) — доводим
+      // до полностью открытого; иначе — обратно в закрытое. В обоих случаях анимированно (snap-transition).
+      const shouldOpen=offset<0&&(offset<=-revealWidth*.5||v<-.35);
+      settle(g.wasOpen&&dx>12?false:shouldOpen);
     },{passive:true});
     row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;if(!row.habitLiftActive)settle(open);},{passive:true});
-    row.addEventListener('click',e=>{if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();return;}if(open&&e.target.closest('.habit-card')){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
+    // Подавление клика после драга — только для самой карточки (чтобы отпускание свайпа не засчиталось
+    // как тап-тогл выполнения); кнопки в открывшейся панели должны быть кликабельны сразу, без этой паузы.
+    row.addEventListener('click',e=>{if(e.target.closest('.habit-swipe-actions'))return;if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();return;}if(open&&e.target.closest('.habit-card')){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
     row.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();settle(false);}});
   }
   function updateHabitUI() {
