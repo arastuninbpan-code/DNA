@@ -399,7 +399,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .habits-empty-text { margin-top:12px; color:rgba(255,255,255,.25); font-family:Georgia,'Times New Roman',serif; font-size:13px; line-height:1.5; }
 .add-habit-btn { margin:8px 4px 16px 16px; padding:14px 6px; border-radius:14px; border:1px solid rgba(201,168,76,.5); background:linear-gradient(135deg,rgba(201,168,76,.1),rgba(201,168,76,.05)); color:var(--gold); font-family:Georgia,'Times New Roman',serif; font-size:15px; font-weight:600; text-align:center; }
 .graph-pane { flex:1; min-width:0; position:relative; overflow:hidden; }
-.graph-scroller { position:absolute; inset:0; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; scroll-behavior:smooth; }
+.graph-scroller { position:absolute; inset:0; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; }
 .graph-scroller::-webkit-scrollbar{display:none}
 .graph-inner { width:1736px; min-height:100%; height:100%; display:flex; flex-direction:column; }
 .date-strip { height:64px; flex:0 0 64px; display:flex; align-items:flex-start; padding-left:28px; padding-right:28px; }
@@ -937,7 +937,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.3.19';
+  const APP_VERSION = '0.3.20';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1264,7 +1264,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(key.startsWith('finance:'))state.finance.scrollTop=sc.scrollTop;
     if(key==='nav:3'){const list=$('.habits-list');if(list)state.habits.habitsScrollTop=list.scrollTop;}
   }
-  function renderScreen() {
+  function renderScreen(smoothDateScroll) {
     pendingHabitUndo?.render();
     habitOutlineObserver?.disconnect();activeHabitLiftCleanup?.();
     const host=$('#screen'),key=currentViewKey();
@@ -1277,7 +1277,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     else host.innerHTML=renderUnavailable('Новости','Персональная лента ещё в разработке.');
     host.dataset.viewKey=key;bindScreenEvents();
     const sc=currentScroller();if(sc)sc.scrollTop=viewScroll.get(key)||0;
-    if(state.nav===3){drawHabitsVisuals();scrollToSelectedHabitDate();const list=$('.habits-list');if(list)list.scrollTop=state.habits.habitsScrollTop||0;}
+    if(state.nav===3){drawHabitsVisuals();scrollToSelectedHabitDate(smoothDateScroll);const list=$('.habits-list');if(list)list.scrollTop=state.habits.habitsScrollTop||0;}
     requestAnimationFrame(()=>{
       if(epoch!==renderEpoch)return;
       if(state.nav===0)drawFinanceCharts();
@@ -1314,7 +1314,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: панель свайпа компактнее, круг дисциплины при смене дня доезжает от прежнего значения, а не прыгает, перетаскивание привычек больше не перерисовывает весь список, мусорка при удержании плавно растёт навстречу, а окно отмены удаления — теперь круглая кнопка с таймером-обводкой.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: лента дат больше не «выезжает» заново при удалении или перетаскивании привычки — плавный скролл теперь только при осознанном переключении дня, а кнопки свайпа и значок числового режима видно уже на коротком движении пальца.</p></section>
     </div></section>`;
   }
 
@@ -1670,20 +1670,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       width=row.getBoundingClientRect().width;
       const neededReveal=buttons.length*36+Math.max(0,buttons.length-1)*8+20;
       revealWidth=Math.min(neededReveal,Math.max(64,width-8));
-      rightThreshold=Math.min(72,width*.45);
+      rightThreshold=Math.min(52,width*.38);
       softCap=revealWidth+width*.3;
       deleteThreshold=revealWidth+Math.max(90,width*.55);
     };
     // Только transform/opacity — никаких width/flexGrow за кадр, чтобы не форсировать layout на каждый пиксель драга.
+    // Раскрытие идёт по кривой (^.45), а не линейно: на первых пикселях жеста кнопки уже хорошо видны,
+    // иначе на узкой строке короткий/быстрый свайп реального пальца читается как "ничего не появилось".
     const paint=value=>{
       offset=value;card.style.transform='translate3d('+offset+'px,0,0)';
-      const distance=Math.max(0,-offset),reveal=clamp(distance/revealWidth,0,1),merge=clamp((distance-revealWidth)/Math.max(1,deleteThreshold-revealWidth),0,1);
+      const distance=Math.max(0,-offset),reveal=Math.pow(clamp(distance/revealWidth,0,1),.45),merge=clamp((distance-revealWidth)/Math.max(1,deleteThreshold-revealWidth),0,1);
       actions.style.opacity=reveal>0?'1':'0';
       row.classList.toggle('delete-ready',merge>=1);
       if(editBtn){editBtn.style.opacity=String(reveal*(1-merge));editBtn.style.transform='scale('+((.65+.35*reveal)*(1-merge*.4))+')';}
       if(delBtn){delBtn.style.opacity=String(reveal);delBtn.style.transform='scale('+(.65+.35*reveal+merge*.2)+')';}
-      const rightDistance=Math.max(0,offset),rightReveal=clamp(rightDistance/Math.max(1,rightThreshold),0,1);
-      numberPanel.style.opacity=String(rightReveal);numberPanel.classList.toggle('ready',rightReveal>=1);
+      const rightDistance=Math.max(0,offset),rightReveal=Math.pow(clamp(rightDistance/Math.max(1,rightThreshold),0,1),.45);
+      numberPanel.style.opacity=String(rightReveal);numberPanel.classList.toggle('ready',rightDistance>=rightThreshold);
       if(numberBadge)numberBadge.style.transform='scale('+(.6+.4*rightReveal)+')';
     };
     const settle=(value,velocity=0)=>{cancelSpring();open=value;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));cancelSpring=habitSpring(offset,open?-revealWidth:0,velocity*1000,paint,null,()=>row.isConnected);};
@@ -1756,13 +1758,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     state.habits.selectedDate=dateOnly(d);
     state.habits.animStart=from;state.habits.animEnd=target;state.habits.circleDisplay=from;
     state.habits.animatingDate=new Date(state.habits.selectedDate);state.habits.celebrationUntil=0;
-    renderScreen();scrollToSelectedHabitDate();
+    renderScreen(true);
     animateHabitProgress(from,target);
     if(!reducedMotion())$('.habits-list-wrap')?.animate?.([{opacity:.3,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:220,easing:'ease-out'});
   }
-  function scrollToSelectedHabitDate() {
+  function scrollToSelectedHabitDate(smooth) {
     const sc=$('.graph-scroller'),selected=$('.date-item.selected');if(!sc||!selected)return;
-    sc.scrollLeft=clamp(selected.offsetLeft-sc.offsetLeft-(sc.clientWidth-selected.offsetWidth)/2,0,Math.max(0,sc.scrollWidth-sc.clientWidth));
+    const target=clamp(selected.offsetLeft-sc.offsetLeft-(sc.clientWidth-selected.offsetWidth)/2,0,Math.max(0,sc.scrollWidth-sc.clientWidth));
+    // smooth только для намеренного переключения дня (selectHabitDate) — иначе любой ре-рендер (удаление,
+    // добавление, реордер) заново центрирует список и лента дат "выезжает" из старой позиции при каждом чихе.
+    if(smooth&&!reducedMotion())sc.scrollTo({left:target,behavior:'smooth'});else sc.scrollLeft=target;
   }
   function showCalendarDialog() {
     const input=$('#habit-date');if(!input)return;
