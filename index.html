@@ -882,14 +882,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-check .icon,.habit-swipe-actions .icon{display:block;flex:none;margin:0;}
 .habit-card .habit-check,.habit-swipe-actions button{display:grid;place-items:center;padding:0;flex-shrink:0;box-sizing:border-box;}
 .habit-check .icon svg,.habit-swipe-actions .icon svg,.habit-drag-bar .icon svg{display:block;width:100%;height:100%;}
-.habit-swipe-actions button{border:0;background:transparent;box-shadow:none;border-radius:0;width:36px;height:36px;flex:0 0 36px;}
+.habit-swipe-actions button{border:0;background:transparent;box-shadow:none;border-radius:0;width:40px;height:40px;flex:0 0 40px;}
 .habit-swipe-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:6px;border:1px solid #74777e;border-radius:50%;background:#111214;box-shadow:0 0 8px #b4bac41f;flex-shrink:0;}
 .habit-swipe-actions [data-swipe-delete] .icon{border-color:#c94a50;background:#1b1011;box-shadow:0 0 8px #e6404c20;}
 @media(prefers-reduced-motion:reduce){.habit-outline rect{transition:none;}}
 
 /* Right swipe: numeric-goal toggle reveal (Telegram mark-read style). */
 .habit-number-reveal{position:absolute;inset:0 auto 0 0;width:72px;display:grid;place-items:center;pointer-events:none;}
-.habit-number-badge{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--gold);background:#171512;border:1px solid #6d5a2d;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease;}
+.habit-number-badge{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--gold);background:#171512;border:1px solid #6d5a2d;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease;}
 .habit-number-badge .icon{width:18px;height:18px;}
 .habit-number-reveal.ready .habit-number-badge{background:#3a2f13;border-color:var(--gold);box-shadow:0 0 12px rgba(201,168,76,.35);}
 
@@ -1013,7 +1013,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.4.1';
+  const APP_VERSION = '0.4.2';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1572,7 +1572,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: в «Финансах» сверху появились 4 вкладки — Главная / История / Цели / Инвестиции; баланс на Главной анимированно считается при открытии; в Истории свайп влево открывает «Править»/«Удалить» тем же жестом, что и в привычках, а удаление — через 5-секундный undo-тост, а не мгновенно. Плюс раздел «Планер» из прошлого обновления и переписанный свайп привычек.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: настоящая причина «телепорта» ленты дат — при каждом переключении дня лента сбрасывалась в начало и заново доезжала до центра; теперь она остаётся на месте. Кнопки свайпа больше не могут залипнуть открытыми после прерванного жеста (карточка гарантированно сбрасывается при каждой перерисовке). Правый свайп (числовой режим) больше не упирается в резину сразу в точке срабатывания. Кнопки свайпа немного крупнее.</p></section>
     </div></section>`;
   }
 
@@ -1850,6 +1850,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     };
     const settle=(toOpen,animate=true)=>{open=toOpen;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));paint(open?-revealWidth:0,animate);};
     row.closeSwipe=()=>{if(!busy&&!press&&(open||offset)){measure();settle(false);}};
+    measure();actions.inert=true;actions.setAttribute('aria-hidden','true');row.classList.remove('is-open','is-dragging','delete-ready');paint(0,false);
     row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0)return;measure();closeFinTxSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,samples:[{x:e.clientX,t:performance.now()}],axis:null};},{passive:true});
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId)return;
@@ -2025,19 +2026,23 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // просто открывает движение карточки сверху, как штору. transition включается только на snap после
     // отпускания пальца, и только на этот один шаг.
     const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button')),numberPanel=$('.habit-number-reveal',row);
-    let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,deleteThreshold=0,suppressUntil=0,busy=false;
+    let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,rightCap=0,deleteThreshold=0,suppressUntil=0,busy=false;
     const measure=()=>{
       width=row.getBoundingClientRect().width;
-      const neededReveal=buttons.length*36+Math.max(0,buttons.length-1)*8+20;
+      const neededReveal=buttons.length*40+Math.max(0,buttons.length-1)*8+20;
       revealWidth=Math.min(neededReveal,Math.max(64,width-8));
       rightThreshold=Math.min(52,width*.38);
+      // rightCap — отдельно от rightThreshold: раньше резина начиналась ровно в точке активации,
+      // и палец «упирался в стену» сразу же, как только жест срабатывал — правый свайп ощущался
+      // рывком на фоне левого (где резина далеко за revealWidth). Даём такой же запас хода.
+      rightCap=Math.max(rightThreshold*1.8,90);
       deleteThreshold=revealWidth+Math.max(90,width*.55);
     };
-    // Резина за пределами revealWidth/rightThreshold: движение пальца дальше даёт лишь четверть
+    // Резина за пределами revealWidth/rightCap: движение пальца дальше даёт лишь четверть
     // сдвига, а не жёсткий упор в стену — то же ощущение, что у нативных iOS-свайпов.
     const rubberBand=raw=>{
       if(raw<-revealWidth)return -(revealWidth+(-revealWidth-raw)*.25);
-      if(raw>rightThreshold)return rightThreshold+(raw-rightThreshold)*.25;
+      if(raw>rightCap)return rightCap+(raw-rightCap)*.25;
       return raw;
     };
     const paint=(value,animate)=>{
@@ -2050,6 +2055,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     };
     const settle=(toOpen,animate=true)=>{open=toOpen;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));paint(open?-revealWidth:0,animate);};
     row.closeSwipe=()=>{if(!busy&&!press&&(open||offset)){measure();settle(false);}};
+    // Защитный сброс при каждой перепривязке: без этого унаследованный transform/классы с предыдущего
+    // рендера (например, оборванный жест) могли бы оставить карточку сдвинутой и обе панели кнопок
+    // видимыми одновременно — карточка выглядит "пустой", а под ней видны сразу edit/delete и цифры.
+    measure();actions.inert=true;actions.setAttribute('aria-hidden','true');row.classList.remove('is-open','is-dragging','delete-ready');paint(0,false);
     row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0)return;measure();closeHabitSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}]};},{passive:true});
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId||row.habitLiftActive)return;
@@ -2135,7 +2144,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const target=clamp(selected.offsetLeft-sc.offsetLeft-(sc.clientWidth-selected.offsetWidth)/2,0,Math.max(0,sc.scrollWidth-sc.clientWidth));
     // smooth только для намеренного переключения дня (selectHabitDate) — иначе любой ре-рендер (удаление,
     // добавление, реордер) заново центрирует список и лента дат "выезжает" из старой позиции при каждом чихе.
-    if(smooth&&!reducedMotion())sc.scrollTo({left:target,behavior:'smooth'});else sc.scrollLeft=target;
+    if(smooth&&!reducedMotion()){
+      // selectHabitDate делает полный ре-рендер экрана — .graph-scroller пересоздаётся заново с
+      // scrollLeft=0, поэтому smooth-скролл без этой строки едет не с текущей позиции ленты, а с
+      // самого начала (в 0): читается как телепорт "с какого-то другого места". Восстанавливаем
+      // прежнюю позицию мгновенно, и уже от неё анимируем к цели.
+      sc.scrollLeft=state.habits.graphScrollLeft||0;
+      sc.scrollTo({left:target,behavior:'smooth'});
+    }else sc.scrollLeft=target;
   }
   function showCalendarDialog() {
     const input=$('#habit-date');if(!input)return;
