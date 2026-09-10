@@ -978,11 +978,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-daynav{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;flex-shrink:0;}
 .pl-daynav button{width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid rgba(255,255,255,.1);color:#c1bfb9;display:grid;place-items:center;padding:0;}
 .pl-daynav button .icon{width:16px;height:16px;}
-.pl-day-label{font-family:Georgia,'Times New Roman',serif;font-size:1rem;color:#fff;text-transform:capitalize;}
-.pl-scroll{flex:1;min-height:0;overflow-y:auto;padding:4px 20px 100px;scrollbar-width:none;}
+.pl-day-label{flex:1;min-width:0;font-family:Georgia,'Times New Roman',serif;font-size:1rem;color:#fff;text-transform:capitalize;border:0;background:transparent;padding:4px 10px;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pl-day-label:active{background:rgba(255,255,255,.06);}
+.pl-scroll{flex:1;min-height:0;overflow-y:auto;padding:0 20px 100px;scrollbar-width:none;}
 .pl-scroll::-webkit-scrollbar{display:none;}
+.pl-day-block{position:relative;}
+.pl-day-divider{position:sticky;top:0;z-index:2;margin:0 -20px;padding:10px 20px 6px;background:var(--bg);font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;text-transform:capitalize;color:rgba(255,255,255,.4);}
+.pl-day-divider.is-today{color:var(--gold);}
 .pl-notime-title,.pl-timeline-title{margin:10px 0 8px;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.35);}
-.pl-notime-list{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+.pl-notime-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;}
 .pl-task{display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--surface);border:1px solid rgba(255,255,255,.05);border-left:3px solid var(--pl-color,var(--gold));}
 .pl-task.done{opacity:.5;}
 .pl-task-check{width:22px;height:22px;flex:0 0 auto;border-radius:6px;border:1.5px solid rgba(255,255,255,.2);display:grid;place-items:center;color:var(--gold);background:transparent;padding:0;}
@@ -997,6 +1001,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-hour-label{flex:0 0 44px;font-size:.6875rem;color:rgba(255,255,255,.32);padding-top:2px;font-variant-numeric:tabular-nums;}
 .pl-hour-slot{flex:1;position:relative;}
 .pl-timeline-events{position:absolute;left:52px;right:0;top:0;bottom:0;pointer-events:none;}
+.pl-now-line{position:absolute;left:-52px;right:0;height:0;border-top:1.5px solid #e0464f;pointer-events:none;}
+.pl-now-line::before{content:'';position:absolute;left:48px;top:-4px;width:8px;height:8px;border-radius:50%;background:#e0464f;}
 .pl-event{position:absolute;left:0;right:4px;padding:6px 10px;border-radius:10px;background:var(--surface);border:1px solid rgba(255,255,255,.08);border-left:3px solid var(--pl-color,var(--gold));pointer-events:auto;overflow:hidden;}
 .pl-event.done{opacity:.5;}
 .pl-event-title{font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#fff;overflow-wrap:anywhere;line-height:1.25;}
@@ -1052,7 +1058,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.6.4';
+  const APP_VERSION = '0.7.0';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1472,7 +1478,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
 
   // -------- Planner --------
-  const PL_START_HOUR=9,PL_END_HOUR=20,PL_HOUR_PX=56;
+  // Круглосуточная непрерывная лента: сутки 0-24, те же 56px/час, что и раньше.
+  // Экран рисует окно из PL_WINDOW_RADIUS*2+1 дней подряд (пузырь вокруг viewDate);
+  // при подскролле к краю окна оно пересобирается вокруг текущего видимого дня —
+  // так и получается "бесконечный" скролл сквозь полночь без реальной виртуализации.
+  const PL_START_HOUR=0,PL_END_HOUR=24,PL_HOUR_PX=56,PL_WINDOW_RADIUS=6;
+  let plannerScrolledOnce=false,plannerExtending=false,pendingPlannerScroll=null;
   function plannerId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
   function savePlannerEvents(){saveJSON('planner_events',state.planner.events);}
   function savePlannerSections(){saveJSON('planner_sections',state.planner.sections);}
@@ -1487,13 +1498,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function formatPlannerDate(iso){return parseLocalDate(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});}
   function formatPlannerDateTime(iso){const d=new Date(iso);return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+', '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
 
+  function dayLabelFor(d){return d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});}
+  function nowMinutes(){const n=new Date();return n.getHours()*60+n.getMinutes();}
   function renderPlanner() {
-    const dateIso=isoDate(state.planner.viewDate);
-    const dayEvents=plannerEventsFor(dateIso);
-    const timed=dayEvents.filter(e=>e.time).sort((a,b)=>a.time.localeCompare(b.time));
-    const untimed=dayEvents.filter(e=>!e.time);
     const inboxCount=plannerInboxEvents().length;
-    const dayLabel=state.planner.viewDate.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+    const center=state.planner.viewDate;
+    const days=[];
+    for(let i=-PL_WINDOW_RADIUS;i<=PL_WINDOW_RADIUS;i++)days.push(addDays(center,i));
     return `<section class="screen pl-screen" aria-label="Планер">
       <header class="pl-header"><h1>Планер</h1><button class="pl-inbox-btn" data-pl-inbox aria-label="Инбокс">${icon('inbox')}${inboxCount?`<span class="pl-inbox-badge">${inboxCount>99?'99+':inboxCount}</span>`:''}</button></header>
       <div class="pl-sections">
@@ -1503,16 +1514,24 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </div>
       <div class="pl-daynav">
         <button data-pl-day="-1" aria-label="Предыдущий день">${icon('chev-left')}</button>
-        <div class="pl-day-label">${esc(dayLabel)}</div>
+        <button class="pl-day-label" data-pl-today type="button">${esc(dayLabelFor(center))}</button>
         <button data-pl-day="1" aria-label="Следующий день">${icon('chev-right')}</button>
       </div>
-      <div class="pl-scroll">
-        ${untimed.length?`<div class="pl-notime-title">Без времени</div><div class="pl-notime-list">${untimed.map(plannerTaskCard).join('')}</div>`:''}
-        <div class="pl-timeline-title">Расписание</div>
-        ${renderPlannerTimeline(timed)}
-      </div>
+      <div class="pl-scroll" data-pl-scroll>${days.map(renderPlannerDayBlock).join('')}</div>
       <button class="pl-add-fab" data-pl-add aria-label="Новая задача">${icon('plus')}</button>
     </section>`;
+  }
+  function renderPlannerDayBlock(d){
+    const dateIso=isoDate(d);
+    const dayEvents=plannerEventsFor(dateIso);
+    const timed=dayEvents.filter(e=>e.time).sort((a,b)=>a.time.localeCompare(b.time));
+    const untimed=dayEvents.filter(e=>!e.time);
+    const isToday=dateIso===isoDate(dateOnly());
+    return `<div class="pl-day-block" data-pl-date="${dateIso}">
+      <div class="pl-day-divider ${isToday?'is-today':''}">${esc(dayLabelFor(d))}${isToday?' · сегодня':''}</div>
+      ${untimed.length?`<div class="pl-notime-list">${untimed.map(plannerTaskCard).join('')}</div>`:''}
+      ${renderPlannerTimeline(timed,isToday)}
+    </div>`;
   }
   function plannerTaskCard(e){
     const sec=plannerSectionById(e.sectionId);
@@ -1521,28 +1540,106 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <span class="pl-task-body"><span class="pl-task-title">${esc(e.title)}</span>${sec?`<span class="pl-task-meta">${esc(sec.name)}</span>`:''}</span>
     </button>`;
   }
-  function renderPlannerTimeline(timed){
+  function renderPlannerTimeline(timed,isToday){
     const rows=[];
     for(let h=PL_START_HOUR;h<PL_END_HOUR;h++)rows.push(`<div class="pl-hour-row"><span class="pl-hour-label">${String(h).padStart(2,'0')}:00</span><span class="pl-hour-slot"></span></div>`);
     const totalMinutes=(PL_END_HOUR-PL_START_HOUR)*60;
     const events=timed.map(e=>{
-      const mins=clamp(plannerMinutesFromTime(e.time)-PL_START_HOUR*60,0,totalMinutes);
+      const mins=clamp(plannerMinutesFromTime(e.time),0,totalMinutes);
       const dur=clamp(e.duration||60,20,Math.max(20,totalMinutes-mins));
       const top=mins/60*PL_HOUR_PX,height=Math.max(30,dur/60*PL_HOUR_PX-2);
       return `<button class="pl-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;--pl-color:${plannerSectionColor(e.sectionId)}">
         <span class="pl-event-time">${esc(e.time)}</span><span class="pl-event-title">${esc(e.title)}</span>
       </button>`;
     }).join('');
-    return `<div class="pl-timeline">${rows.join('')}<div class="pl-timeline-events">${events}</div></div>`;
+    const nowLine=isToday?`<div class="pl-now-line" style="top:${nowMinutes()/60*PL_HOUR_PX}px"></div>`:'';
+    return `<div class="pl-timeline">${rows.join('')}<div class="pl-timeline-events">${events}${nowLine}</div></div>`;
   }
   function bindPlannerEvents(){
     $$('[data-pl-section]').forEach(b=>b.onclick=()=>{state.planner.activeSection=b.dataset.plSection||null;renderScreen();});
     $('[data-pl-add-section]')?.addEventListener('click',plannerAddSectionPrompt);
     $('[data-pl-inbox]')?.addEventListener('click',showPlannerInbox);
-    $$('[data-pl-day]').forEach(b=>b.onclick=()=>{state.planner.viewDate=addDays(state.planner.viewDate,+b.dataset.plDay);renderScreen();});
+    $$('[data-pl-day]').forEach(b=>b.onclick=()=>plannerJumpTo(addDays(state.planner.viewDate,+b.dataset.plDay)));
+    $('[data-pl-today]')?.addEventListener('click',()=>plannerJumpTo(dateOnly()));
     $('[data-pl-add]')?.addEventListener('click',()=>showPlannerEditSheet(null));
     $$('[data-pl-toggle]').forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);});
     $$('[data-pl-open]').forEach(b=>b.onclick=()=>showPlannerDetail(b.dataset.plOpen));
+    bindPlannerScroll();
+  }
+  // Сумма offsetHeight всех .pl-day-block перед искомой датой — не зависит от offsetParent,
+  // просто "сколько пикселей пролистать, чтобы этот день оказался вверху".
+  function plannerBlockTop(sc,iso){
+    let top=0;
+    for(const child of sc.children){
+      if(child.dataset.plDate===iso)return top;
+      top+=child.offsetHeight;
+    }
+    return null;
+  }
+  function plannerJumpTo(date){
+    const sc=$('[data-pl-scroll]'),iso=isoDate(date);
+    if(sc){
+      const top=plannerBlockTop(sc,iso);
+      if(top!=null){
+        state.planner.viewDate=date;
+        const label=$('[data-pl-today]');if(label)label.textContent=dayLabelFor(date);
+        sc.scrollTo({top:Math.max(0,top),behavior:reducedMotion()?'auto':'smooth'});
+        return;
+      }
+    }
+    state.planner.viewDate=date;
+    pendingPlannerScroll={type:'date',iso};
+    renderScreen();
+  }
+  function bindPlannerScroll(){
+    const sc=$('[data-pl-scroll]');
+    if(!sc)return;
+    if(!plannerScrolledOnce){plannerScrolledOnce=true;pendingPlannerScroll={type:'now'};}
+    if(pendingPlannerScroll){
+      const req=pendingPlannerScroll;pendingPlannerScroll=null;
+      let top=null;
+      if(req.type==='now'){
+        top=plannerBlockTop(sc,isoDate(state.planner.viewDate));
+        if(top!=null)top+=Math.max(0,nowMinutes()-120)/60*PL_HOUR_PX;
+      } else if(req.type==='anchor'){
+        top=plannerBlockTop(sc,req.iso);
+        if(top!=null)top+=req.offset;
+      } else if(req.type==='date'){
+        top=plannerBlockTop(sc,req.iso);
+      }
+      if(top!=null)viewScroll.set(currentViewKey(),Math.max(0,top));
+    }
+    let ticking=false;
+    sc.addEventListener('scroll',()=>{
+      if(ticking)return;ticking=true;
+      requestAnimationFrame(()=>{ticking=false;plannerHandleScroll(sc);});
+    },{passive:true});
+  }
+  function plannerActiveBlock(sc){
+    const scTop=sc.getBoundingClientRect().top;
+    const blocks=Array.from(sc.children);
+    let active=blocks[0];
+    for(const b of blocks){
+      if(b.getBoundingClientRect().top-scTop<=44)active=b;else break;
+    }
+    return active;
+  }
+  function plannerHandleScroll(sc){
+    if(plannerExtending||!sc.isConnected)return;
+    const active=plannerActiveBlock(sc);
+    if(!active)return;
+    const iso=active.dataset.plDate;
+    if(iso!==isoDate(state.planner.viewDate)){
+      state.planner.viewDate=parseLocalDate(iso);
+      const label=$('[data-pl-today]');if(label)label.textContent=dayLabelFor(state.planner.viewDate);
+    }
+    const blocks=Array.from(sc.children),idx=blocks.indexOf(active);
+    if(idx<2||idx>blocks.length-3){
+      plannerExtending=true;
+      pendingPlannerScroll={type:'anchor',iso,offset:sc.scrollTop-plannerBlockTop(sc,iso)};
+      renderScreen();
+      plannerExtending=false;
+    }
   }
   function plannerToggleDone(id){const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;ev.done=!ev.done;savePlannerEvents();renderScreen();}
   function plannerDelete(id){state.planner.events=state.planner.events.filter(x=>x.id!==id);savePlannerEvents();renderScreen();}
@@ -1671,7 +1768,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Маленький секрет: 5 быстрых тапов по номеру версии выше открывают скрытую игру 🐍 — теперь на весь экран, без пульта, поле бесконечное (уходишь за край — появляешься с другого), управление свайпами.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: расписание теперь круглосуточное (0–24), а не 9–20, с той же высотой часа. Лента дней непрерывная — прокручиваешь мимо полуночи, и день меняется сам. Открывается сразу на сегодня и текущем времени, с красной линией «сейчас». Дальше — зум неделя/месяц.</p></section>
     </div></section>`;
   }
 
