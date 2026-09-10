@@ -883,10 +883,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 @media(prefers-reduced-motion:reduce){.habit-swipe>.habit-card,.habit-swipe-actions{transition:none}}
 
 /* Habits 0.3.17: transform-driven swipe, insertion line, contour undo, completion ring for all habits. */
-/* iOS Notification Center reference: rectangular full-height buttons filling the revealed area
-   edge-to-edge (no gaps, no floating circles) — .habit-swipe's own overflow:hidden+border-radius
-   already rounds the outer corners, so the buttons themselves stay plain rectangles. */
-.habit-swipe-actions{left:auto;right:0;gap:0;padding:0;align-items:stretch;justify-content:flex-end;}
+/* Кнопки чуть меньше высоты строки (top/bottom инсет) и со скруглённым внутренним краем —
+   когда карточка отъезжает, видна не прямая обрубленная грань, а закруглённая панель,
+   будто кнопки лежат чуть ПОД карточкой, а не встык вровень с ней. */
+.habit-swipe-actions{left:auto;right:0;top:5px;bottom:5px;gap:0;padding:0;align-items:stretch;justify-content:flex-end;border-radius:10px 0 0 10px;overflow:hidden;box-shadow:inset 5px 0 8px -5px rgba(0,0,0,.65);}
 .habit-swipe.delete-ready [data-swipe-delete]{background:#e0464f;}
 .habit-body{flex:1;min-width:0;}.habit-body .habit-name{overflow-wrap:anywhere;line-height:1.35;}
 .habit-card{gap:6px;}.habit-card .habit-check{margin-right:0;}
@@ -902,8 +902,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 @media(prefers-reduced-motion:reduce){.habit-outline rect{transition:none;}}
 
 /* Right swipe: numeric-goal toggle reveal (Telegram mark-read style). */
-/* Тот же прямоугольный стиль, что у edit/delete — во всю высоту, без плавающего кружка. */
-.habit-number-reveal{position:absolute;inset:0 auto 0 0;width:70px;display:grid;place-items:center;pointer-events:none;background:#26251f;color:#c2c5cb;transition:background-color .15s ease,color .15s ease;}
+/* Та же слегка утопленная панель, что у edit/delete, для единообразия. */
+.habit-number-reveal{position:absolute;inset:5px auto 5px 0;width:70px;display:grid;place-items:center;pointer-events:none;background:#26251f;color:#c2c5cb;border-radius:0 10px 10px 0;overflow:hidden;box-shadow:inset -5px 0 8px -5px rgba(0,0,0,.65);transition:background-color .15s ease,color .15s ease;}
 .habit-number-badge{display:grid;place-items:center;}
 .habit-number-badge .icon{width:20px;height:20px;}
 .habit-number-reveal.ready{background:#3a2f13;color:var(--gold);}
@@ -1035,7 +1035,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.6.1';
+  const APP_VERSION = '0.6.2';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1654,7 +1654,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Ряд привычки и кнопка «Добавить привычку» теперь той же высоты, что и плашка даты в календаре — единый ритм по экрану. Кнопка отметки уменьшена до более уместного размера. Нашёл настоящий «телепорт»: число прогресса у числовых привычек (например 0/10 → 2/10) при нажатии менялось мгновенно без счёта — теперь плавно досчитывает, как и кольцо прогресса. У раскрытых кнопок свайпа добавлена лёгкая тень по краю — читается, будто они лежат под карточкой, а не встык.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Кнопки свайпа (редактировать/удалить, числовой режим) теперь чуть утоплены и со скруглённым внутренним краем — читаются как отдельная панель под карточкой, а не встык вровень с ней. Убрал дробные числа при счёте прогресса числовых привычек — теперь считает только целыми, без «1,59/7».</p></section>
     </div></section>`;
   }
 
@@ -2706,7 +2706,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const start=performance.now(),dur=350;
     function frame(now){
       const t=clamp((now-start)/dur,0,1),v=from+(to-from)*easeOutCubic(t);
-      el.textContent=habitNumber(t<1?v:to)+'/'+habitNumber(target)+' '+unit;
+      el.textContent=(t<1?String(Math.round(v)):habitNumber(to))+'/'+habitNumber(target)+' '+unit;
       if(t<1)requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
