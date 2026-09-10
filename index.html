@@ -1021,7 +1021,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.4.4';
+  const APP_VERSION = '0.4.5';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1580,7 +1580,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: нашёл и закрыл реальную возможность увидеть сразу три кнопки свайпа (двойная защита по направлению драга). Правый свайп (числовой режим) переделан в тот же прямоугольный стиль. Свайп-удаление привычки: дальше протянешь — «Удалить» плавно поглощает «Править» и становится ярче, как у Apple. Закрыть открытую карточку свайпом обратно теперь работает надёжнее. Если у привычки нет числа в названии — она трясётся и краснеет вместо всплывающей подсказки.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: свайп-удаление привычки протяжкой теперь реально достижимо — порог считался по демпфированному «резиной» смещению вместо настоящей дистанции пальца и был почти недостижим на экране телефона. Направление свайпа распознаётся увереннее под углом (в т.ч. правой рукой).</p></section>
     </div></section>`;
   }
 
@@ -1863,7 +1863,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;press.axis=Math.abs(dx)>Math.abs(dy)*.8?'x':'y';if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;press.axis=Math.abs(dx)>Math.abs(dy)*.5?'x':'y';if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
       if(press.axis!=='x')return;
       e.preventDefault();suppressUntil=performance.now()+500;
       const raw=Math.min(0,press.from+dx);
@@ -2048,10 +2048,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // и палец «упирался в стену» сразу же, как только жест срабатывал — правый свайп ощущался
       // рывком на фоне левого (где резина далеко за revealWidth). Даём такой же запас хода.
       rightCap=Math.max(rightThreshold*1.8,90);
-      // Резина за revealWidth гасит движение пальца в 4 раза (*.25), поэтому старое +90
-      // визуальных пикселей требовало ~360px физического перетяга — недостижимо на экране
-      // телефона. Порог снижен так, чтобы поглощение "Удалить" реально можно было дотянуть.
-      deleteThreshold=revealWidth+Math.max(35,width*.25);
+      // Порог считается в физической (недемпфированной) дистанции пальца, а не в визуальном
+      // offset — раньше .25-резина означала, что "+90 визуальных px" требовали ~360px реального
+      // перетяга (недостижимо на экране), и поглощение "Удалить" практически никогда не срабатывало.
+      deleteThreshold=revealWidth+60;
     };
     // Резина за пределами revealWidth/rightCap: движение пальца дальше даёт лишь четверть
     // сдвига, а не жёсткий упор в стену — то же ощущение, что у нативных iOS-свайпов. Слева не
@@ -2062,8 +2062,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(raw>rightCap)return rightCap+Math.min((raw-rightCap)*.25,30);
       return raw;
     };
-    const paint=(value,animate)=>{
+    const paint=(value,animate,rawValue)=>{
       offset=value;
+      const pull=rawValue==null?value:rawValue;
       card.style.transition=(animate?'transform .22s cubic-bezier(.2,.8,.2,1),':'')+'border-color .2s ease';
       card.style.transform='translate3d('+offset+'px,0,0)';
       // Явный gate по знаку offset — помимо геометрического перекрытия карточкой. Один и тот же
@@ -2072,8 +2073,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       actions.style.opacity=offset<0?'1':'0';
       numberPanel.style.opacity=offset>0?'1':'0';
       // Дальше revealWidth «Удалить» плавно поглощает «Править» (растёт на всю раскрытую область,
-      // как у Apple), а не просто одна кнопка тянется поверх другой.
-      const merge=clamp((-offset-revealWidth)/Math.max(1,deleteThreshold-revealWidth),0,1);
+      // как у Apple), а не просто одна кнопка тянется поверх другой. Считаем по pull (реальному
+      // перетягу пальца), не по демпфированному offset — иначе резина делает порог недостижимым.
+      const merge=clamp((-pull-revealWidth)/Math.max(1,deleteThreshold-revealWidth),0,1);
       row.classList.toggle('delete-ready',merge>=1);
       if(editBtn&&delBtn){
         // transition только на settle (как у карточки) — иначе на каждый пиксель драга кнопка
@@ -2099,18 +2101,19 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // Direction lock в первые ~10px: горизонтальный жест ведёт драг карточки и блокирует скролл списка,
       // вертикальный — не перехватывается, список скроллится как обычно. Порог смягчён (0.8x, не 1:1) —
       // у быстрого свайпа в сторону почти всегда есть небольшая вертикальная примесь от движения пальца.
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;press.axis=Math.abs(dx)>Math.abs(dy)*.8?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;press.axis=Math.abs(dx)>Math.abs(dy)*.5?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
       if(press.axis!=='x')return;
       e.preventDefault();suppressUntil=performance.now()+500;
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
-      paint(rubberBand(raw),false);
+      press.lastRaw=raw;
+      paint(rubberBand(raw),false,raw);
       const now=performance.now();press.direction=Math.sign(e.clientX-press.samples[press.samples.length-1].x);press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
     },{passive:false});
     row.addEventListener('pointerup',e=>{
       if(!press||press.id!==e.pointerId)return;const g=press;press=null;if(row.habitLiftActive){suppressUntil=performance.now()+500;return;}
       if(g.axis!=='x'){if(open||offset)settle(false);return;}
       const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
-      if(dx<-25&&(offset<=-deleteThreshold||(v<-.8&&g.direction<0&&offset<-width*.2))){busy=true;row.classList.remove('is-dragging');deleteHabitWithUndo(+card.dataset.habitIndex);return;}
+      if(dx<-25&&((g.lastRaw??offset)<=-deleteThreshold||(v<-.8&&g.direction<0&&offset<-width*.2))){busy=true;row.classList.remove('is-dragging');deleteHabitWithUndo(+card.dataset.habitIndex);return;}
       if(!g.wasOpen&&offset>0&&(offset>=rightThreshold||v>.5)){holdFeedback(card);settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
       // Snap: сдвиг дальше половины revealWidth ИЛИ быстрая скорость (даже на маленьком сдвиге) — доводим
       // до полностью открытого; иначе — обратно в закрытое. В обоих случаях анимированно (snap-transition).
