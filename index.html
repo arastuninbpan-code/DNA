@@ -383,6 +383,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .habits-list::-webkit-scrollbar { display:none; }
 .habit-card { margin-bottom:8px; padding:12px; border-radius:12px; background:var(--surface); border:1px solid rgba(255,255,255,.05); display:flex; align-items:center; transition:all .3s ease; animation:habitIn .35s ease backwards; }
 .habit-card.done { border-color:rgba(201,168,76,.3); box-shadow:0 0 10px rgba(201,168,76,.05); }
+.habit-card.drop-target { border-color:rgba(201,168,76,.65); box-shadow:0 0 0 1px rgba(201,168,76,.35), 0 0 16px rgba(201,168,76,.18); }
 @keyframes habitIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
 .habit-check { width:24px; height:24px; margin-right:12px; flex:0 0 auto; border-radius:6px; border:1.5px solid rgba(255,255,255,.15); background:transparent; display:grid; place-items:center; color:var(--gold); padding:0; transition:all .3s ease; }
 .habit-check.done { border-color:var(--gold); background:rgba(201,168,76,.15); }
@@ -582,12 +583,12 @@ select.field { appearance:none; }
 .fin-transaction:first-child {border-top:0;}
 .fin-tx-swipe{position:relative;overflow:hidden;touch-action:pan-y pinch-zoom;}
 .fin-tx-swipe .fin-transaction{position:relative;z-index:1;background:var(--bg);touch-action:pan-y pinch-zoom;transition:border-color .2s;}
-.fin-tx-actions{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 6px;pointer-events:none;background:var(--bg);touch-action:pan-y pinch-zoom;transition:background-color .18s ease;}
+.fin-tx-actions{position:absolute;inset:0;display:flex;align-items:stretch;justify-content:flex-end;gap:0;padding:0;pointer-events:none;background:transparent;touch-action:pan-y pinch-zoom;}
 .fin-tx-swipe.is-open .fin-tx-actions{pointer-events:auto;}
-.fin-tx-actions button{border:0;background:transparent;width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;padding:0;touch-action:pan-y pinch-zoom;}
-.fin-tx-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:6px;border:1px solid #74777e;border-radius:50%;background:#111214;box-shadow:0 0 8px #b4bac41f;width:20px;height:20px;flex-shrink:0;color:#c2c5cb;}
-.fin-tx-actions [data-fin-swipe-delete] .icon{border-color:#c94a50;background:#1b1011;box-shadow:0 0 8px #e6404c20;color:#ff696d;}
-.fin-tx-swipe.delete-ready .fin-tx-actions{background:#331315;}
+.fin-tx-actions button{border:0;background:#26251f;width:52px;height:auto;flex:0 0 52px;display:grid;place-items:center;padding:0;touch-action:pan-y pinch-zoom;color:#c2c5cb;transition:background-color .15s ease;}
+.fin-tx-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;width:20px;height:20px;flex-shrink:0;}
+.fin-tx-actions [data-fin-swipe-delete]{background:#c94a50;color:#fff;}
+.fin-tx-swipe.delete-ready [data-fin-swipe-delete]{background:#e0464f;}
 .fin-tx-icon {display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:12px;background:#222119;color:#c9b878;}
 .fin-tx-icon .icon {width:18px;height:18px;}
 .fin-tx-main {min-width:0;flex:1;}
@@ -871,9 +872,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 @media(prefers-reduced-motion:reduce){.habit-swipe>.habit-card,.habit-swipe-actions{transition:none}}
 
 /* Habits 0.3.17: transform-driven swipe, insertion line, contour undo, completion ring for all habits. */
-.habit-swipe-actions{left:auto;right:0;gap:8px;padding:0 10px;justify-content:flex-end;transition:background-color .18s ease;}
-.habit-swipe.delete-ready .habit-swipe-actions{background:#331315;border-radius:12px;}
-.habit-swipe.delete-ready [data-swipe-delete] .icon{box-shadow:0 0 16px #c94a5060;}
+/* iOS Notification Center reference: rectangular full-height buttons filling the revealed area
+   edge-to-edge (no gaps, no floating circles) — .habit-swipe's own overflow:hidden+border-radius
+   already rounds the outer corners, so the buttons themselves stay plain rectangles. */
+.habit-swipe-actions{left:auto;right:0;gap:0;padding:0;align-items:stretch;justify-content:flex-end;}
+.habit-swipe.delete-ready [data-swipe-delete]{background:#e0464f;}
 .habit-body{flex:1;min-width:0;}.habit-body .habit-name{overflow-wrap:anywhere;line-height:1.35;}
 .habit-card{gap:6px;}.habit-card .habit-check{margin-right:0;}
 .habit-outline{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:2;}
@@ -882,9 +885,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-check .icon,.habit-swipe-actions .icon{display:block;flex:none;margin:0;}
 .habit-card .habit-check,.habit-swipe-actions button{display:grid;place-items:center;padding:0;flex-shrink:0;box-sizing:border-box;}
 .habit-check .icon svg,.habit-swipe-actions .icon svg,.habit-drag-bar .icon svg{display:block;width:100%;height:100%;}
-.habit-swipe-actions button{border:0;background:transparent;box-shadow:none;border-radius:0;width:40px;height:40px;flex:0 0 40px;}
-.habit-swipe-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:6px;border:1px solid #74777e;border-radius:50%;background:#111214;box-shadow:0 0 8px #b4bac41f;flex-shrink:0;}
-.habit-swipe-actions [data-swipe-delete] .icon{border-color:#c94a50;background:#1b1011;box-shadow:0 0 8px #e6404c20;}
+.habit-swipe-actions button{border:0;background:#26251f;box-shadow:none;border-radius:0;width:52px;height:auto;flex:0 0 52px;color:#c2c5cb;transition:background-color .15s ease;}
+.habit-swipe-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;flex-shrink:0;}
+.habit-swipe-actions [data-swipe-delete]{background:#c94a50;color:#fff;}
 @media(prefers-reduced-motion:reduce){.habit-outline rect{transition:none;}}
 
 /* Right swipe: numeric-goal toggle reveal (Telegram mark-read style). */
@@ -1013,7 +1016,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.4.2';
+  const APP_VERSION = '0.4.3';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1572,7 +1575,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: настоящая причина «телепорта» ленты дат — при каждом переключении дня лента сбрасывалась в начало и заново доезжала до центра; теперь она остаётся на месте. Кнопки свайпа больше не могут залипнуть открытыми после прерванного жеста (карточка гарантированно сбрасывается при каждой перерисовке). Правый свайп (числовой режим) больше не упирается в резину сразу в точке срабатывания. Кнопки свайпа немного крупнее.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: кнопки свайпа привычек и операций переделаны под механику Центра уведомлений iOS — прямоугольные, во всю высоту, без зазоров, вместо маленьких кружков. При перетаскивании привычки теперь подсвечивается рамкой та, рядом с которой она встанет — легче передумать и вернуть на место.</p></section>
     </div></section>`;
   }
 
@@ -1839,7 +1842,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // на отпускании. Здесь только «редактировать»/«удалить» — числового правого свайпа нет.
     const card=$('.fin-transaction',row),actions=$('.fin-tx-actions',row);if(!card||!actions)return;
     let press=null,offset=0,open=false,width=0,revealWidth=0,deleteThreshold=0,suppressUntil=0,busy=false;
-    const measure=()=>{width=row.getBoundingClientRect().width;revealWidth=Math.min(2*36+8+20,Math.max(64,width-8));deleteThreshold=revealWidth+Math.max(90,width*.55);};
+    const measure=()=>{width=row.getBoundingClientRect().width;revealWidth=Math.min(2*52,Math.max(64,width-8));deleteThreshold=revealWidth+Math.max(90,width*.55);};
     const rubberBand=raw=>raw<-revealWidth?-(revealWidth+(-revealWidth-raw)*.25):raw;
     const paint=(value,animate)=>{
       offset=value;
@@ -2029,7 +2032,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,rightCap=0,deleteThreshold=0,suppressUntil=0,busy=false;
     const measure=()=>{
       width=row.getBoundingClientRect().width;
-      const neededReveal=buttons.length*40+Math.max(0,buttons.length-1)*8+20;
+      // Кнопки теперь заполняют раскрытую область впритык (без зазоров и padding, как в iOS) —
+      // нужная ширина это просто сумма их ширин, без +gap/+20 как раньше.
+      const neededReveal=buttons.length*52;
       revealWidth=Math.min(neededReveal,Math.max(64,width-8));
       rightThreshold=Math.min(52,width*.38);
       // rightCap — отдельно от rightThreshold: раньше резина начиналась ровно в точке активации,
@@ -2584,7 +2589,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function bindHabitLift(card){
     const row=card.closest('.habit-swipe');let hold=null,timer=0,bar=null,ghost=null,line=null,frame=0;
     const cancelTimer=()=>{clearTimeout(timer);timer=0;};card.cancelLongPress=cancelTimer;
-    const cleanup=()=>{cancelTimer();cancelAnimationFrame(frame);row.habitLiftActive=false;row.classList.remove('is-reordering');row.style.transform='';bar?.remove();bar=null;ghost?.remove();ghost=null;line?.remove();line=null;if(activeHabitLiftCleanup===cleanup)activeHabitLiftCleanup=null;};
+    const cleanup=()=>{cancelTimer();cancelAnimationFrame(frame);row.habitLiftActive=false;row.classList.remove('is-reordering');row.style.transform='';bar?.remove();bar=null;ghost?.remove();ghost=null;line?.remove();line=null;$$('.habit-card.drop-target').forEach(el=>el.classList.remove('drop-target'));if(activeHabitLiftCleanup===cleanup)activeHabitLiftCleanup=null;};
     const index=()=>currentHabits().findIndex(h=>h.name===card.dataset.habitName);
     row.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0||e.target.closest('button')||row.classList.contains('is-open'))return;
@@ -2621,6 +2626,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           line.style.transform='translateY('+edgeY+'px)';line.classList.add('visible');
         }
       }
+      // Подсветка привычки, рядом с которой встанет перетаскиваемая — видно сразу над и под ней
+      // (рамка целиком), а не только тонкую линию на стыке. Это даёт «место посадки», от которого
+      // легче передумать и вернуть на старое место, а не только по тонкой полоске угадывать.
+      $$('.habit-card.drop-target').forEach(el=>el.classList.remove('drop-target'));
+      if(!hold.remove&&hold.to!==hold.from)rows[hold.to]?.querySelector('.habit-card')?.classList.add('drop-target');
     },{passive:false});
     row.addEventListener('pointerup',()=>{cancelTimer();if(!hold)return;const h=hold;hold=null;cancelAnimationFrame(frame);if(!h.active)return;row.habitLiftActive=false;
       const finish=()=>{if(h.remove){const i=index();cleanup();if(i>=0)deleteHabitWithUndo(i);}else if(h.moved){cleanup();moveHabit(h.from,h.to);}else{row.style.transform='';row.classList.remove('is-reordering');ghost?.remove();ghost=null;}};
