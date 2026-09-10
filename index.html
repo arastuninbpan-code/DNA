@@ -2,6 +2,12 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
+  <!-- Приложение живёт на GitHub Pages и часто переразворачивается за один день (несколько
+       версий подряд) — без явного запрета на кеширование браузер/standalone-режим на телефоне
+       может показывать старую закешированную версию страницы даже после успешного деплоя. -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
   <meta name="theme-color" content="#0A0A0A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1024,7 +1030,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.5.5'; // (без функциональных изменений — коммит только чтобы перезапустить зависший деплой)
+  const APP_VERSION = '0.5.6';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1628,7 +1634,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: правка цели числовой привычки (например «3 литра воды» → «4 литра воды») больше не теряется при выключении числового режима — число в названии теперь синхронизируется с отредактированной целью, а не остаётся старым.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Технически: запретил браузеру кешировать страницу (Cache-Control: no-cache), чтобы после каждого обновления телефон гарантированно подгружал свежую версию, а не показывал старую из кеша.</p></section>
     </div></section>`;
   }
 
