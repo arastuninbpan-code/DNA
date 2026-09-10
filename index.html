@@ -885,16 +885,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-check .icon,.habit-swipe-actions .icon{display:block;flex:none;margin:0;}
 .habit-card .habit-check,.habit-swipe-actions button{display:grid;place-items:center;padding:0;flex-shrink:0;box-sizing:border-box;}
 .habit-check .icon svg,.habit-swipe-actions .icon svg,.habit-drag-bar .icon svg{display:block;width:100%;height:100%;}
-.habit-swipe-actions button{border:0;background:#26251f;box-shadow:none;border-radius:0;width:52px;height:auto;flex:0 0 52px;color:#c2c5cb;transition:background-color .15s ease;}
+.habit-swipe-actions button{border:0;background:#26251f;box-shadow:none;border-radius:0;width:52px;height:auto;flex:0 0 52px;color:#c2c5cb;transition:background-color .15s ease;overflow:hidden;}
 .habit-swipe-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;flex-shrink:0;}
 .habit-swipe-actions [data-swipe-delete]{background:#c94a50;color:#fff;}
 @media(prefers-reduced-motion:reduce){.habit-outline rect{transition:none;}}
 
 /* Right swipe: numeric-goal toggle reveal (Telegram mark-read style). */
-.habit-number-reveal{position:absolute;inset:0 auto 0 0;width:72px;display:grid;place-items:center;pointer-events:none;}
-.habit-number-badge{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--gold);background:#171512;border:1px solid #6d5a2d;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease;}
-.habit-number-badge .icon{width:18px;height:18px;}
-.habit-number-reveal.ready .habit-number-badge{background:#3a2f13;border-color:var(--gold);box-shadow:0 0 12px rgba(201,168,76,.35);}
+/* Тот же прямоугольный стиль, что у edit/delete — во всю высоту, без плавающего кружка. */
+.habit-number-reveal{position:absolute;inset:0 auto 0 0;width:70px;display:grid;place-items:center;pointer-events:none;background:#26251f;color:#c2c5cb;transition:background-color .15s ease,color .15s ease;}
+.habit-number-badge{display:grid;place-items:center;}
+.habit-number-badge .icon{width:20px;height:20px;}
+.habit-number-reveal.ready{background:#3a2f13;color:var(--gold);}
+@keyframes habitShakeInvalid{10%,90%{transform:translate3d(-3px,0,0)}20%,80%{transform:translate3d(5px,0,0)}30%,50%,70%{transform:translate3d(-7px,0,0)}40%,60%{transform:translate3d(7px,0,0)}}
+.habit-swipe.shake-invalid{animation:habitShakeInvalid .5s cubic-bezier(.36,.07,.19,.97) both;}
+.habit-swipe.shake-invalid .habit-card{border-color:#c94a50;box-shadow:0 0 10px rgba(201,74,80,.3);}
+@media(prefers-reduced-motion:reduce){.habit-swipe.shake-invalid{animation:none;}}
 
 /* Drag reorder: floating insertion line instead of an outline on the target row. */
 .habit-swipe,.habit-swipe>.habit-card,.habit-swipe-actions,.habit-swipe-actions button{touch-action:pan-y pinch-zoom;}
@@ -1016,7 +1021,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.4.3';
+  const APP_VERSION = '0.4.4';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1575,7 +1580,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: кнопки свайпа привычек и операций переделаны под механику Центра уведомлений iOS — прямоугольные, во всю высоту, без зазоров, вместо маленьких кружков. При перетаскивании привычки теперь подсвечивается рамкой та, рядом с которой она встанет — легче передумать и вернуть на место.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: нашёл и закрыл реальную возможность увидеть сразу три кнопки свайпа (двойная защита по направлению драга). Правый свайп (числовой режим) переделан в тот же прямоугольный стиль. Свайп-удаление привычки: дальше протянешь — «Удалить» плавно поглощает «Править» и становится ярче, как у Apple. Закрыть открытую карточку свайпом обратно теперь работает надёжнее. Если у привычки нет числа в названии — она трясётся и краснеет вместо всплывающей подсказки.</p></section>
     </div></section>`;
   }
 
@@ -1858,7 +1863,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<10)return;press.axis=Math.abs(dx)>Math.abs(dy)*.8?'x':'y';if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;press.axis=Math.abs(dx)>Math.abs(dy)*.8?'x':'y';if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
       if(press.axis!=='x')return;
       e.preventDefault();suppressUntil=performance.now()+500;
       const raw=Math.min(0,press.from+dx);
@@ -1867,10 +1872,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     },{passive:false});
     row.addEventListener('pointerup',e=>{
       if(!press||press.id!==e.pointerId)return;const g=press;press=null;
-      if(g.axis!=='x'){if(offset&&!open)settle(false);return;}
+      if(g.axis!=='x'){if(open||offset)settle(false);return;}
       const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
       if(dx<-25&&offset<=-deleteThreshold){busy=true;row.classList.remove('is-dragging');closeFinTxSwipes();deleteFinTxWithUndo(+row.dataset.finTxIndex);return;}
-      const shouldOpen=offset<0&&(offset<=-revealWidth*.5||v<-.35);
+      const shouldOpen=offset<0&&(offset<=-revealWidth*.4||v<-.5);
       settle(g.wasOpen&&dx>12?false:shouldOpen);
     },{passive:true});
     row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;settle(open);},{passive:true});
@@ -2029,33 +2034,56 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // просто открывает движение карточки сверху, как штору. transition включается только на snap после
     // отпускания пальца, и только на этот один шаг.
     const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button')),numberPanel=$('.habit-number-reveal',row);
+    const editBtn=$('[data-swipe-edit]',actions),delBtn=$('[data-swipe-delete]',actions);
+    const BTN_W=52;
     let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,rightCap=0,deleteThreshold=0,suppressUntil=0,busy=false;
     const measure=()=>{
       width=row.getBoundingClientRect().width;
       // Кнопки теперь заполняют раскрытую область впритык (без зазоров и padding, как в iOS) —
       // нужная ширина это просто сумма их ширин, без +gap/+20 как раньше.
-      const neededReveal=buttons.length*52;
+      const neededReveal=buttons.length*BTN_W;
       revealWidth=Math.min(neededReveal,Math.max(64,width-8));
       rightThreshold=Math.min(52,width*.38);
       // rightCap — отдельно от rightThreshold: раньше резина начиналась ровно в точке активации,
       // и палец «упирался в стену» сразу же, как только жест срабатывал — правый свайп ощущался
       // рывком на фоне левого (где резина далеко за revealWidth). Даём такой же запас хода.
       rightCap=Math.max(rightThreshold*1.8,90);
-      deleteThreshold=revealWidth+Math.max(90,width*.55);
+      // Резина за revealWidth гасит движение пальца в 4 раза (*.25), поэтому старое +90
+      // визуальных пикселей требовало ~360px физического перетяга — недостижимо на экране
+      // телефона. Порог снижен так, чтобы поглощение "Удалить" реально можно было дотянуть.
+      deleteThreshold=revealWidth+Math.max(35,width*.25);
     };
     // Резина за пределами revealWidth/rightCap: движение пальца дальше даёт лишь четверть
-    // сдвига, а не жёсткий упор в стену — то же ощущение, что у нативных iOS-свайпов.
+    // сдвига, а не жёсткий упор в стену — то же ощущение, что у нативных iOS-свайпов. Слева не
+    // ограничиваем потолком — туда нужно дотянуть до deleteThreshold (свайп-до-удаления), справа
+    // такого "дальше" действия нет, поэтому там резина зажата потолком в 30px переброса.
     const rubberBand=raw=>{
       if(raw<-revealWidth)return -(revealWidth+(-revealWidth-raw)*.25);
-      if(raw>rightCap)return rightCap+(raw-rightCap)*.25;
+      if(raw>rightCap)return rightCap+Math.min((raw-rightCap)*.25,30);
       return raw;
     };
     const paint=(value,animate)=>{
       offset=value;
       card.style.transition=(animate?'transform .22s cubic-bezier(.2,.8,.2,1),':'')+'border-color .2s ease';
       card.style.transform='translate3d('+offset+'px,0,0)';
+      // Явный gate по знаку offset — помимо геометрического перекрытия карточкой. Один и тот же
+      // скаляр offset не может одновременно означать "открыто влево" и "открыто вправо", но это
+      // подстраховка на случай рассинхрона (двойная защита, а не только расчёт на перекрытие).
+      actions.style.opacity=offset<0?'1':'0';
+      numberPanel.style.opacity=offset>0?'1':'0';
+      // Дальше revealWidth «Удалить» плавно поглощает «Править» (растёт на всю раскрытую область,
+      // как у Apple), а не просто одна кнопка тянется поверх другой.
       const merge=clamp((-offset-revealWidth)/Math.max(1,deleteThreshold-revealWidth),0,1);
       row.classList.toggle('delete-ready',merge>=1);
+      if(editBtn&&delBtn){
+        // transition только на settle (как у карточки) — иначе на каждый пиксель драга кнопка
+        // "догоняла" бы новое значение через .2s и визуально отставала от пальца.
+        const btnTransition=animate?'flex-basis .2s ease,opacity .2s ease':'';
+        editBtn.style.transition=btnTransition;delBtn.style.transition=btnTransition;
+        const editW=BTN_W*(1-merge);
+        editBtn.style.flexBasis=editW+'px';editBtn.style.opacity=String(1-merge);
+        delBtn.style.flexBasis=(BTN_W+(BTN_W-editW))+'px';
+      }
       numberPanel.classList.toggle('ready',offset>=rightThreshold);
     };
     const settle=(toOpen,animate=true)=>{open=toOpen;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));paint(open?-revealWidth:0,animate);};
@@ -2071,7 +2099,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // Direction lock в первые ~10px: горизонтальный жест ведёт драг карточки и блокирует скролл списка,
       // вертикальный — не перехватывается, список скроллится как обычно. Порог смягчён (0.8x, не 1:1) —
       // у быстрого свайпа в сторону почти всегда есть небольшая вертикальная примесь от движения пальца.
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<10)return;press.axis=Math.abs(dx)>Math.abs(dy)*.8?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;press.axis=Math.abs(dx)>Math.abs(dy)*.8?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
       if(press.axis!=='x')return;
       e.preventDefault();suppressUntil=performance.now()+500;
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
@@ -2080,13 +2108,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     },{passive:false});
     row.addEventListener('pointerup',e=>{
       if(!press||press.id!==e.pointerId)return;const g=press;press=null;if(row.habitLiftActive){suppressUntil=performance.now()+500;return;}
-      if(g.axis!=='x'){if(offset&&!open)settle(false);return;}
+      if(g.axis!=='x'){if(open||offset)settle(false);return;}
       const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
       if(dx<-25&&(offset<=-deleteThreshold||(v<-.8&&g.direction<0&&offset<-width*.2))){busy=true;row.classList.remove('is-dragging');deleteHabitWithUndo(+card.dataset.habitIndex);return;}
-      if(!g.wasOpen&&offset>0&&(offset>=rightThreshold||v>.35)){holdFeedback(card);settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
+      if(!g.wasOpen&&offset>0&&(offset>=rightThreshold||v>.5)){holdFeedback(card);settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
       // Snap: сдвиг дальше половины revealWidth ИЛИ быстрая скорость (даже на маленьком сдвиге) — доводим
       // до полностью открытого; иначе — обратно в закрытое. В обоих случаях анимированно (snap-transition).
-      const shouldOpen=offset<0&&(offset<=-revealWidth*.5||v<-.35);
+      const shouldOpen=offset<0&&(offset<=-revealWidth*.4||v<-.5);
       settle(g.wasOpen&&dx>12?false:shouldOpen);
     },{passive:true});
     row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;if(!row.habitLiftActive)settle(open);},{passive:true});
@@ -2491,8 +2519,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function enableHabitNumbers(index) {
     const h=currentHabits()[index];if(!h)return;if(h.quantity){setHabitQuantity(index,null);return;}
     const q=parseHabitQuantity(h.name);
-    if(!q){showToast('Укажи одну цель в названии: например, «Пить 3 л воды»');return;}
+    if(!q){shakeInvalidHabitSwipe(index);return;}
     setHabitQuantity(index,q);
+  }
+  function shakeInvalidHabitSwipe(index) {
+    const row=$('[data-habit-index="'+index+'"]')?.closest('.habit-swipe');if(!row)return;
+    row.classList.remove('shake-invalid');void row.offsetWidth;row.classList.add('shake-invalid');
+    row.addEventListener('animationend',()=>row.classList.remove('shake-invalid'),{once:true});
   }
   function habitQuantityStep(target){
     if(!Number.isFinite(target)||target<=0)return 1;
