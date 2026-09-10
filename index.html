@@ -391,10 +391,10 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .habit-card.done { border-color:rgba(201,168,76,.3); box-shadow:0 0 10px rgba(201,168,76,.05); }
 .habit-card.drop-target { border-color:rgba(201,168,76,.65); box-shadow:0 0 0 1px rgba(201,168,76,.35), 0 0 16px rgba(201,168,76,.18); }
 @keyframes habitIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
-.habit-check { width:24px; height:24px; margin-right:12px; flex:0 0 auto; border-radius:6px; border:1.5px solid rgba(255,255,255,.15); background:transparent; display:grid; place-items:center; color:var(--gold); padding:0; transition:all .3s ease; }
+.habit-check { width:52px; height:52px; margin-right:12px; flex:0 0 auto; border-radius:12px; border:1.5px solid rgba(255,255,255,.15); background:transparent; display:grid; place-items:center; color:var(--gold); padding:0; transition:all .3s ease; }
 .habit-check.done { border-color:var(--gold); background:rgba(201,168,76,.15); }
 .habit-check.future { border-color:rgba(255,255,255,.1); color:transparent; cursor:default; }
-.habit-check .icon { width:16px; height:16px; }
+.habit-check .icon { width:24px; height:24px; }
 .habit-name { min-width:0; flex:1; color:#fff; font-family:Georgia,'Times New Roman',serif; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:all .3s ease; }
 .habit-card.done .habit-name { color:rgba(255,255,255,.38); text-decoration:line-through; text-decoration-color:rgba(201,168,76,.4); text-decoration-thickness:2px; }
 .habit-card.future .habit-name { color:rgba(255,255,255,.2); }
@@ -1030,7 +1030,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.5.9';
+  const APP_VERSION = '0.6.0';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1649,7 +1649,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Распознавание свайпа стало решительнее: раньше решение «это свайп или скролл списка» принималось слишком осторожно, из-за чего браузер на телефоне иногда успевал забрать жест себе под скролл раньше, чем срабатывал свайп — ощущалось как «через раз» и «далеко тянуть». Теперь решение принимается раньше и увереннее в пользу свайпа.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Кнопка отметки привычки стала такого же размера, как кнопка календаря — легче попасть пальцем. Нашёл и убрал источник подлагивания при свайпе: анимация поглощения кнопки «Удалить» лишний раз пересчитывала раскладку на каждое микродвижение пальца, даже когда визуально ничего не менялось — теперь только когда реально нужно.</p></section>
     </div></section>`;
   }
 
@@ -2120,7 +2120,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button')),numberPanel=$('.habit-number-reveal',row);
     const editBtn=$('[data-swipe-edit]',actions),delBtn=$('[data-swipe-delete]',actions);
     const BTN_W=52;
-    let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,rightCap=0,deleteThreshold=0,suppressUntil=0,busy=false;
+    let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,rightCap=0,deleteThreshold=0,suppressUntil=0,busy=false,lastMerge=-1;
     const measure=()=>{
       width=row.getBoundingClientRect().width;
       // Кнопки теперь заполняют раскрытую область впритык (без зазоров и padding, как в iOS) —
@@ -2168,7 +2168,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const pastOpen=-pull-revealWidth;
       const merge=clamp(pastOpen/Math.max(1,deleteThreshold-revealWidth),0,1);
       row.classList.toggle('delete-ready',open&&merge>=1);
-      if(editBtn&&delBtn){
+      // flexBasis — layout-свойство (в отличие от transform/opacity выше), запись в него на
+      // каждый pointermove форсирует синхронный reflow даже пока merge всё ещё 0 (то есть почти
+      // всю протяжку первого свайпа) — на реальном телефоне это ощущалось как подлагивание и
+      // отъедало времени у preventDefault() в гонке с нативным скроллом. Пишем, только когда
+      // merge реально поменялся с прошлого кадра.
+      if(editBtn&&delBtn&&merge!==lastMerge){
+        lastMerge=merge;
         // transition только на settle (как у карточки) — иначе на каждый пиксель драга кнопка
         // "догоняла" бы новое значение через .2s и визуально отставала от пальца.
         const btnTransition=animate?'flex-basis .2s ease,opacity .2s ease':'';
