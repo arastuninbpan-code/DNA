@@ -391,10 +391,10 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .habit-card.done { border-color:rgba(201,168,76,.3); box-shadow:0 0 10px rgba(201,168,76,.05); }
 .habit-card.drop-target { border-color:rgba(201,168,76,.65); box-shadow:0 0 0 1px rgba(201,168,76,.35), 0 0 16px rgba(201,168,76,.18); }
 @keyframes habitIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
-.habit-check { width:52px; height:52px; margin-right:12px; flex:0 0 auto; border-radius:12px; border:1.5px solid rgba(255,255,255,.15); background:transparent; display:grid; place-items:center; color:var(--gold); padding:0; transition:all .3s ease; }
+.habit-check { width:36px; height:36px; margin-right:12px; flex:0 0 auto; border-radius:9px; border:1.5px solid rgba(255,255,255,.15); background:transparent; display:grid; place-items:center; color:var(--gold); padding:0; transition:all .3s ease; }
 .habit-check.done { border-color:var(--gold); background:rgba(201,168,76,.15); }
 .habit-check.future { border-color:rgba(255,255,255,.1); color:transparent; cursor:default; }
-.habit-check .icon { width:24px; height:24px; }
+.habit-check .icon { width:20px; height:20px; }
 .habit-name { min-width:0; flex:1; color:#fff; font-family:Georgia,'Times New Roman',serif; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:all .3s ease; }
 .habit-card.done .habit-name { color:rgba(255,255,255,.38); text-decoration:line-through; text-decoration-color:rgba(201,168,76,.4); text-decoration-thickness:2px; }
 .habit-card.future .habit-name { color:rgba(255,255,255,.2); }
@@ -404,7 +404,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .habits-empty { height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px 4px 20px 16px; text-align:center; box-sizing:border-box; }
 .habits-empty .icon { width:32px; height:32px; color:rgba(255,255,255,.2); }
 .habits-empty-text { margin-top:12px; color:rgba(255,255,255,.25); font-family:Georgia,'Times New Roman',serif; font-size:13px; line-height:1.5; }
-.add-habit-btn { margin:8px 4px 16px 16px; padding:14px 6px; border-radius:14px; border:1px solid rgba(201,168,76,.5); background:linear-gradient(135deg,rgba(201,168,76,.1),rgba(201,168,76,.05)); color:var(--gold); font-family:Georgia,'Times New Roman',serif; font-size:15px; font-weight:600; text-align:center; }
+.add-habit-btn { margin:8px 4px 16px 16px; height:52px; padding:0 6px; border-radius:14px; border:1px solid rgba(201,168,76,.5); background:linear-gradient(135deg,rgba(201,168,76,.1),rgba(201,168,76,.05)); color:var(--gold); font-family:Georgia,'Times New Roman',serif; font-size:15px; font-weight:600; text-align:center; display:flex; align-items:center; justify-content:center; }
 .graph-pane { flex:1; min-width:0; position:relative; overflow:hidden; }
 .graph-scroller { position:absolute; inset:0; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; }
 .graph-scroller::-webkit-scrollbar{display:none}
@@ -828,7 +828,7 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
 .calendar-button {margin-top:0;min-height:48px;padding:10px 8px;}
 .calendar-title {font-size:14px;line-height:1.3;}
 .habits-list-wrap {margin-top:8px;}
-.add-habit-btn {margin-bottom:0;padding:10px 6px;min-height:44px;}
+.add-habit-btn {margin-bottom:0;height:44px;}
 .motivation {max-height:40px;overflow:hidden;}
 .habits-chart {min-height:0;}
 .nav-item {touch-action:manipulation;}
@@ -856,8 +856,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-card:focus-visible {outline:2px solid var(--gold);outline-offset:2px;}
 /* Habit row actions: reveal only, never destructive full-swipe. */
 .habit-swipe {position:relative;overflow:hidden;border-radius:12px;margin-bottom:8px;isolation:isolate;touch-action:pan-y pinch-zoom;}
-.habit-swipe>.habit-card {position:relative;z-index:1;margin:0;min-height:64px;background:var(--surface);touch-action:pan-y pinch-zoom;transition:border-color .2s;}
+.habit-swipe>.habit-card {position:relative;z-index:1;margin:0;min-height:52px;background:var(--surface);touch-action:pan-y pinch-zoom;transition:border-color .2s;}
 .habit-swipe.is-dragging>.habit-card {will-change:transform;}
+/* Тень по краю карточки, пока она сдвинута — создаёт эффект "приподнятости" над раскрытыми
+   кнопками/цифровой панелью, будто они лежат чуть ПОД карточкой, а не встык вровень с ней.
+   Родитель .habit-swipe обрезает всё лишнее overflow:hidden, так что видна только та половина
+   тени, что реально попадает в раскрытую (не закрытую карточкой) область. */
+.habit-swipe.is-dragging>.habit-card,.habit-swipe.is-open>.habit-card {box-shadow:-6px 0 12px -6px rgba(0,0,0,.5),6px 0 12px -6px rgba(0,0,0,.5);}
 .habit-swipe-actions {position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:12px;pointer-events:none;background:var(--bg);touch-action:pan-y pinch-zoom;}
 .habit-swipe.is-open .habit-swipe-actions {pointer-events:auto;}
 .habit-swipe-actions button {width:44px;height:44px;flex:0 0 44px;min-width:0;display:grid;place-items:center;border:1px solid #74777e;border-radius:50%;background:#111214;color:#c2c5cb;padding:0;box-shadow:0 0 8px rgba(180,186,196,.12),inset 0 0 5px rgba(180,186,196,.04);touch-action:pan-y pinch-zoom;}
@@ -1030,7 +1035,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.6.0';
+  const APP_VERSION = '0.6.1';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1649,7 +1654,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Кнопка отметки привычки стала такого же размера, как кнопка календаря — легче попасть пальцем. Нашёл и убрал источник подлагивания при свайпе: анимация поглощения кнопки «Удалить» лишний раз пересчитывала раскладку на каждое микродвижение пальца, даже когда визуально ничего не менялось — теперь только когда реально нужно.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Ряд привычки и кнопка «Добавить привычку» теперь той же высоты, что и плашка даты в календаре — единый ритм по экрану. Кнопка отметки уменьшена до более уместного размера. Нашёл настоящий «телепорт»: число прогресса у числовых привычек (например 0/10 → 2/10) при нажатии менялось мгновенно без счёта — теперь плавно досчитывает, как и кольцо прогресса. У раскрытых кнопок свайпа добавлена лёгкая тень по краю — читается, будто они лежат под карточкой, а не встык.</p></section>
     </div></section>`;
   }
 
@@ -2023,8 +2028,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function renderHabits() {
     state.habits.today=dateOnly();
     const streak=currentStreak(), best=bestStreak(), sel=state.habits.selectedDate, today=state.habits.today, habits=currentHabits(), prog=progressForDate(sel);
+    // Числа стрика рисуются с ПРЕЖНЕГО показанного значения (не сразу с целевого) — иначе при
+    // переключении дня они телепортируются мгновенно, а не считают вверх/вниз. animateCounts()
+    // ниже досчитывает от того, что реально сейчас в разметке, до data-count-to.
+    const streakFrom=state.habits.streakShown??streak, bestFrom=state.habits.bestShown??best;
+    state.habits.streakShown=streak;state.habits.bestShown=best;
     return `<section class="screen habits-screen">
-      <div class="streak-section"><div class="streak-badge pressable ${streak>0?'active':''}" data-action="streak-tip"><span class="streak-emoji">🔥</span><span class="streak-value" data-count-to="${streak}">${streak}</span><span class="streak-label">дней</span></div><span class="streak-divider"></span><div class="streak-badge pressable ${best>0?'active':''}" data-action="record-tip"><span class="streak-emoji">🏆</span><span class="streak-value" data-count-to="${best}">${best}</span><span class="streak-label">рекорд</span></div></div>
+      <div class="streak-section"><div class="streak-badge pressable ${streak>0?'active':''}" data-action="streak-tip"><span class="streak-emoji">🔥</span><span class="streak-value" data-count-to="${streak}">${streakFrom}</span><span class="streak-label">дней</span></div><span class="streak-divider"></span><div class="streak-badge pressable ${best>0?'active':''}" data-action="record-tip"><span class="streak-emoji">🏆</span><span class="streak-value" data-count-to="${best}">${bestFrom}</span><span class="streak-label">рекорд</span></div></div>
       <div class="discipline-wrap" role="button" tabindex="0" aria-label="Вернуться к текущему дню" title="Двойное нажатие — вернуться к текущему дню">${renderDisciplineCircle(sel,today,habits,prog)}</div>
       <div class="motivation" id="motivation-text">${esc(motivationText())}</div>
       <div class="habits-workspace"><div class="habits-left"><label class="calendar-button pressable">${icon('calendar-month')}<span class="calendar-title">${esc(sel.toLocaleDateString('ru-RU',{day:'numeric',month:'long',...(sel.getFullYear()!==today.getFullYear()?{year:'numeric'}:{})}))}</span>${appDateField('habit-date',isoDate(sel),true)}</label><div class="habits-list-wrap">${renderHabitsList()}<span class="list-fade-top"></span><span class="list-fade-bottom"></span></div><div class="add-habit-btn pressable" data-action="add-habit">+ Добавить привычку</div></div>${renderGraphPane()}</div>
@@ -2251,10 +2261,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     }
     existing.forEach((el,i)=>{const done=list[i].done===true;el.classList.toggle('done',done);const check=$('.habit-check',el);check.classList.toggle('done',done);check.setAttribute('aria-pressed',String(done));check.innerHTML=done?icon('check'):'';
       const h=list[i],title=$('.habit-name',el),outline=$('.habit-outline rect',el);
-      if(title)title.innerHTML=habitTitle(h);
+      if(title){
+        // Прежнее значение читаем ДО перезаписи innerHTML — иначе при тапе на числовую привычку
+        // (0/10 -> 2/10) текст мгновенно телепортировался бы на новое число вместо того, чтобы
+        // плавно досчитать, как это уже давно работает у кольца прогресса и круга дисциплины.
+        const prevValueEl=h.quantity?$('.habit-inline-value',title):null;
+        const prevValue=prevValueEl?Number(prevValueEl.dataset.value):null;
+        title.innerHTML=habitTitle(h);
+        if(h.quantity&&prevValue!=null&&Number.isFinite(prevValue)&&prevValue!==h.quantity.value&&!reducedMotion()){
+          const valueEl=$('.habit-inline-value',title);
+          if(valueEl)animateHabitInlineValue(valueEl,prevValue,h.quantity.value);
+        }
+      }
       if(outline)outline.style.strokeDashoffset=String(100-habitFraction(h)*100);});
     const ratio=$('.discipline-ratio');if(ratio)ratio.textContent=list.filter(h=>h.done===true).length+' из '+list.length;
     const counts=$$('.streak-value');[currentStreak(),bestStreak()].forEach((v,i)=>{if(counts[i]){counts[i].textContent=v;counts[i].dataset.countTo=v;counts[i].closest('.streak-badge').classList.toggle('active',v>0);}});
+    // Держим streakShown/bestShown в синхроне и тут — иначе следующий полный рендер (переключение
+    // дня) взял бы за "откуда считать" устаревшее значение с момента ПРЕДЫДУЩЕГО рендера, до этого
+    // мгновенного обновления, и число бы дёрнулось: мелькнула бы старая цифра перед анимацией.
+    state.habits.streakShown=currentStreak();state.habits.bestShown=bestStreak();
     const motivation=$('#motivation-text');if(motivation)motivation.textContent=motivationText();
     $$('.date-item').forEach(b=>{const p=progressForDate(parseLocalDate(b.dataset.date));let mark=$('.date-progress',b);if(p>0){if(!mark){mark=document.createElement('span');mark.className='date-progress';mark.innerHTML='<span></span>';b.appendChild(mark);}mark.firstElementChild.style.width=p*100+'%';}else mark?.remove();});
   }
@@ -2669,9 +2694,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function habitTitle(h){
     if(!h.quantity)return esc(h.name||'');
-    const q=h.quantity,parsed=parseHabitQuantity(h.name),numbers='<span class="habit-inline-value">'+habitNumber(q.value)+'/'+habitNumber(q.target)+' '+esc(parsed?.unitText||q.unit)+'</span>';
+    const q=h.quantity,parsed=parseHabitQuantity(h.name),unitText=parsed?.unitText||q.unit||'';
+    // data-value/target/unit — чтобы updateHabitUI() мог прочитать ПРЕЖНЕЕ показанное значение и
+    // плавно досчитать до нового при инкременте тапом, а не просто мгновенно подменить текст.
+    const numbers='<span class="habit-inline-value" data-value="'+q.value+'" data-target="'+q.target+'" data-unit="'+esc(unitText)+'">'+habitNumber(q.value)+'/'+habitNumber(q.target)+' '+esc(unitText)+'</span>';
     if(parsed)return esc(h.name.slice(0,parsed.start))+numbers+esc(h.name.slice(parsed.end));
     return esc(h.name||'')+' '+numbers;
+  }
+  function animateHabitInlineValue(el,from,to){
+    const target=Number(el.dataset.target)||0,unit=el.dataset.unit||'';
+    const start=performance.now(),dur=350;
+    function frame(now){
+      const t=clamp((now-start)/dur,0,1),v=from+(to-from)*easeOutCubic(t);
+      el.textContent=habitNumber(t<1?v:to)+'/'+habitNumber(target)+' '+unit;
+      if(t<1)requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
   }
   let habitOutlineObserver=null;
   function sizeHabitOutline(card){
@@ -3090,7 +3128,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     gr.addColorStop(0,'rgba(10,10,10,.95)'); gr.addColorStop(1,'rgba(10,10,10,0)');
     ctx.fillStyle=gr; ctx.fillRect(0,0,fade,h);
   }
-  function animateCounts(){$$('[data-count-to]').forEach(el=>el.textContent=String(+el.dataset.countTo||0));}
+  let countsAnimFrame=0;
+  function animateCounts(){
+    cancelAnimationFrame(countsAnimFrame);
+    const items=$$('[data-count-to]').map(el=>({el,from:Number(el.textContent)||0,to:Number(el.dataset.countTo)||0})).filter(it=>it.from!==it.to);
+    if(!items.length)return;
+    if(reducedMotion()){items.forEach(it=>{it.el.textContent=String(it.to);});return;}
+    const start=performance.now(),dur=400;
+    function frame(now){
+      const t=clamp((now-start)/dur,0,1),e=easeOutCubic(t);
+      items.forEach(it=>{it.el.textContent=String(Math.round(it.from+(it.to-it.from)*e));});
+      if(t<1)countsAnimFrame=requestAnimationFrame(frame);else countsAnimFrame=0;
+    }
+    countsAnimFrame=requestAnimationFrame(frame);
+  }
 
   function refreshHabitClock(now=new Date()) {
     const today=dateOnly(now);
