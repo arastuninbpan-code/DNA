@@ -1030,7 +1030,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.5.8';
+  const APP_VERSION = '0.5.9';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1649,7 +1649,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Нашёл ещё одну причину расхождения чисел: при возврате в числовой режим приложение доверяло старой «запомненной» цели больше, чем свежеотредактированному названию — теперь наоборот, название (актуальный источник) в приоритете. Порог для удаления вторым свайпом немного снижен — не так далеко тянуть.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Распознавание свайпа стало решительнее: раньше решение «это свайп или скролл списка» принималось слишком осторожно, из-за чего браузер на телефоне иногда успевал забрать жест себе под скролл раньше, чем срабатывал свайп — ощущалось как «через раз» и «далеко тянуть». Теперь решение принимается раньше и увереннее в пользу свайпа.</p></section>
     </div></section>`;
   }
 
@@ -1936,12 +1936,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
-      // Порог сэмпла (10px) и соотношение (.3, т.е. допуск ~73° от горизонтали) увеличены —
-      // раньше решение "свайп или скролл" принималось по самым первым, самым шумным пикселям
-      // жеста, и одна неудачная первая выборка на реальном пальце (не мышь/трекпад) навсегда
-      // запирала жест в "скролл", даже если весь остальной путь явно горизонтальный — ощущалось
-      // как "магнит", не дающий свайпнуть, хотя пользователь чётко тянул в сторону.
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<10)return;press.axis=Math.abs(dx)>Math.abs(dy)*.3?'x':'y';if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
+      // На реальном устройстве (iOS Safari) браузер сам, на уровне ОС, борется с этим кодом за
+      // жест по touch-action:pan-y — если он решит, что жест "вертикальный", раньше, чем наш JS
+      // успеет вызвать preventDefault(), жест достаётся нативному скроллу списка безвозвратно
+      // (см. touch-action ниже). Единственный доступный нам рычаг — решать быстрее и увереннее:
+      // низкий порог сэмпла (6px) и сильный перекос в сторону "это свайп" (.2, допуск ~79° от
+      // горизонтали) — ошибочно принять скролл за свайп не страшно (пользователь просто скроллит
+      // повторно), а вот ошибочно отдать свайп скроллу означает, что жест не сработает вообще.
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<6)return;press.axis=Math.abs(dx)>Math.abs(dy)*.2?'x':'y';if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
       if(press.axis!=='x')return;
       e.preventDefault();suppressUntil=performance.now()+500;
       const raw=Math.min(0,press.from+dx);
@@ -2191,13 +2193,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId||row.habitLiftActive)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
-      // Direction lock: горизонтальный жест ведёт драг карточки и блокирует скролл списка,
-      // вертикальный — не перехватывается, список скроллится как обычно. Порог сэмпла (10px) и
-      // соотношение (.3, допуск ~73° от горизонтали) — решение "свайп или скролл" раньше
-      // принималось по самым первым, самым шумным пикселям реального пальца, и одна неудачная
-      // первая выборка навсегда запирала жест в "скролл", даже если весь остальной путь явно
-      // горизонтальный — ощущалось как "магнит", не дающий свайпнуть.
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<10)return;press.axis=Math.abs(dx)>Math.abs(dy)*.3?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
+      // На реальном устройстве (iOS Safari) браузер сам, на уровне ОС, борется с этим кодом за
+      // жест по touch-action:pan-y — если он решит, что жест "вертикальный", раньше, чем наш JS
+      // успеет вызвать preventDefault(), жест достаётся нативному скроллу списка безвозвратно.
+      // Единственный доступный нам рычаг — решать быстрее и увереннее: низкий порог сэмпла (6px)
+      // и сильный перекос в сторону "это свайп" (.2, допуск ~79° от горизонтали) — ошибочно
+      // принять скролл за свайп не страшно (пользователь просто скроллит повторно), а вот
+      // ошибочно отдать свайп скроллу означает, что жест не сработает вообще.
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<6)return;press.axis=Math.abs(dx)>Math.abs(dy)*.2?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
       if(press.axis!=='x')return;
       e.preventDefault();suppressUntil=performance.now()+500;
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
