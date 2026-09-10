@@ -197,6 +197,34 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .voice-dialog::backdrop { background: rgba(0,0,0,.78); }
 .voice-dialog h2 { margin: 0; color: var(--gold); font-size: 1.375rem; font-weight: 400; }
 .voice-dialog button { margin-top: 24px; min-height: 48px; width: 100%; border: 1px solid var(--gold); border-radius: 12px; background: rgba(201,168,76,.1); color: var(--gold2); font-size: 1rem; }
+
+/* Скрытая игра: 5 быстрых тапов по плашке версии в Настройки → О приложении. */
+.overlay.game-overlay { padding: 0; align-items: stretch; background: #050504; }
+.game-screen { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px)); font-family: Georgia,'Times New Roman',serif; }
+.game-hud { width: 100%; max-width: 420px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.game-hud-scores { display: flex; gap: 18px; color: #c1bfb9; font-size: .95rem; }
+.game-hud-scores b { color: var(--gold); font-variant-numeric: tabular-nums; }
+.game-close { flex: 0 0 auto; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(201,168,76,.25); border-radius: 50%; background: var(--surface); color: var(--gold); }
+.game-close .icon { width: 20px; height: 20px; }
+.game-canvas-wrap { position: relative; margin-top: 18px; border: 1px solid rgba(201,168,76,.4); border-radius: 16px; background: #0a0a0a; box-shadow: 0 0 40px rgba(201,168,76,.06); overflow: hidden; }
+.game-canvas-wrap canvas { display: block; touch-action: none; }
+.game-over-msg { position: absolute; inset: 0; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(5,5,4,.86); text-align: center; padding: 20px; }
+.game-over-msg:not([hidden]) { display: flex; }
+.game-over-msg h3 { margin: 0; color: var(--gold); font-size: 1.375rem; font-weight: 400; }
+.game-over-msg p { margin: 0; color: #c1bfb9; font-size: .95rem; }
+.game-restart { border: 0; border-radius: 12px; background: linear-gradient(135deg,var(--gold2),#c9a94e); color: #000; padding: 12px 22px; font-family: Georgia,'Times New Roman',serif; font-size: 15px; font-weight: 600; }
+.game-dpad { margin-top: 20px; display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 6px; }
+.game-dpad button { grid-column: var(--gc); grid-row: var(--gr); display: grid; place-items: center; border: 1px solid #74777e; border-radius: 14px; background: #111214; color: #c2c5cb; padding: 0; }
+.game-dpad button:active { filter: brightness(1.3); }
+.game-dpad button .icon { width: 22px; height: 22px; }
+.game-dpad-up { --gc: 2; --gr: 1; }
+.game-dpad-left { --gc: 1; --gr: 2; }
+.game-dpad-right { --gc: 3; --gr: 2; }
+.game-dpad-down { --gc: 2; --gr: 3; transform: none; }
+.game-dpad-up .icon { transform: rotate(-90deg); }
+.game-dpad-down .icon { transform: rotate(90deg); }
+.game-hint { margin-top: 14px; color: #857c5f; font-size: .8125rem; text-align: center; }
+@media(max-height:700px){.game-dpad{margin-top:12px;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px);}.game-hint{margin-top:8px;}}
 @media (prefers-reduced-motion: reduce) {
   .home-screen .pressable, .home-settings .pressable { transition: none; }
   .home-screen .pressable:active, .home-settings .pressable:active { transform: none; }
@@ -1035,7 +1063,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.6.2';
+  const APP_VERSION = '0.6.3';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1654,7 +1682,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Кнопки свайпа (редактировать/удалить, числовой режим) теперь чуть утоплены и со скруглённым внутренним краем — читаются как отдельная панель под карточкой, а не встык вровень с ней. Убрал дробные числа при счёте прогресса числовых привычек — теперь считает только целыми, без «1,59/7».</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Маленький секрет: 5 быстрых тапов по номеру версии выше открывают скрытую игру 🐍</p></section>
     </div></section>`;
   }
 
@@ -1669,6 +1697,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const dialog=$('#voice-info');
       if(dialog && !dialog.open) dialog.showModal();
     });
+    $('[data-version-tile]')?.addEventListener('click',handleVersionTileTap);
+  }
+  // Скрытая игра: 5 тапов по плашке версии за 1.6с открывают Змейку.
+  let versionTapTimes=[];
+  function handleVersionTileTap(){
+    const now=performance.now();
+    versionTapTimes=versionTapTimes.filter(t=>now-t<1600);
+    versionTapTimes.push(now);
+    if(versionTapTimes.length>=5){versionTapTimes=[];openSnakeGame();}
   }
 
   // -------- Finance rendering --------
@@ -2394,9 +2431,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
 
   // -------- Finance actions / overlays --------
-  function overlay(html, {sheet=false, closeOnBackdrop=true}={}) {
+  function overlay(html, {sheet=false, closeOnBackdrop=true, cls=''}={}) {
     const root=$('#overlay-root');
-    root.innerHTML=`<div class="overlay ${sheet?'sheet-overlay':''}" id="active-overlay">${html}</div>`;
+    root.innerHTML=`<div class="overlay ${sheet?'sheet-overlay':''} ${cls}" id="active-overlay">${html}</div>`;
     const ov=$('#active-overlay');
     if(closeOnBackdrop) ov.addEventListener('pointerdown',e=>{if(e.target===ov)closeOverlay();});
     document.removeEventListener('keydown',escClose);
@@ -2921,6 +2958,115 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function showDeleteHabitDialog(index){const h=currentHabits()[index];if(!h)return;const ov=overlay(`<div class="modal"><div class="modal-title">Удалить привычку?</div><div class="modal-content" style="color:rgba(255,255,255,.54);font-family:Georgia,'Times New Roman',serif">${esc(h.name||'')}</div><div class="modal-actions"><button class="text-btn" data-close>Отмена</button><button class="danger-action" id="habit-delete">Удалить</button></div></div>`);$('[data-close]',ov).onclick=closeOverlay;$('#habit-delete',ov).onclick=()=>{deleteHabit(index);closeOverlay();};}
   function showTooltip(emoji,title,text){const ov=overlay(`<div class="tooltip-card"><div class="tooltip-icon">${emoji}</div><div class="tooltip-title">${title}</div><div class="tooltip-text">${text}</div><button class="tooltip-ok">Понятно</button></div>`);$('.tooltip-ok',ov).onclick=closeOverlay;}
+
+  // -------- Скрытая игра: Змейка (5 тапов по версии в Настройках) --------
+  let snakeBest=num(loadJSON('dna_snake_best_v1',0));
+  function openSnakeGame(){
+    const GRID=15;
+    const cell=clamp(Math.floor(Math.min(window.innerWidth-64,window.innerHeight-320)/GRID),14,24);
+    const size=cell*GRID;
+    const ov=overlay(`<div class="game-screen">
+      <div class="game-hud">
+        <div class="game-hud-scores"><span>Счёт: <b data-game-score>0</b></span><span>Рекорд: <b data-game-best>${snakeBest}</b></span></div>
+        <button class="game-close" data-game-close aria-label="Закрыть игру">${icon('close')}</button>
+      </div>
+      <div class="game-canvas-wrap" style="width:${size}px;height:${size}px">
+        <canvas data-game-canvas width="${size}" height="${size}"></canvas>
+        <div class="game-over-msg" data-game-over hidden><h3>Игра окончена</h3><p data-game-over-text></p><button class="game-restart" data-game-restart>Заново</button></div>
+      </div>
+      <div class="game-dpad">
+        <button class="game-dpad-up" data-game-dir="up" aria-label="Вверх">${icon('chev-left')}</button>
+        <button class="game-dpad-left" data-game-dir="left" aria-label="Влево">${icon('chev-left')}</button>
+        <button class="game-dpad-right" data-game-dir="right" aria-label="Вправо">${icon('chev-right')}</button>
+        <button class="game-dpad-down" data-game-dir="down" aria-label="Вниз">${icon('chev-left')}</button>
+      </div>
+      <p class="game-hint">Свайп по полю или стрелки — управление</p>
+    </div>`,{closeOnBackdrop:false,cls:'game-overlay'});
+    const canvas=$('[data-game-canvas]',ov),ctx=canvas.getContext('2d');
+    const scoreEl=$('[data-game-score]',ov),bestEl=$('[data-game-best]',ov);
+    const overMsg=$('[data-game-over]',ov),overText=$('[data-game-over-text]',ov);
+    const state={snake:[],dir:{x:1,y:0},nextDir:{x:1,y:0},food:{x:0,y:0},score:0,alive:true,speed:140,loopId:0};
+    function placeFood(){
+      let p;
+      do{p={x:Math.floor(Math.random()*GRID),y:Math.floor(Math.random()*GRID)};}
+      while(state.snake.some(s=>s.x===p.x&&s.y===p.y));
+      state.food=p;
+    }
+    function reset(){
+      state.snake=[{x:7,y:7},{x:6,y:7},{x:5,y:7}];
+      state.dir={x:1,y:0};state.nextDir={x:1,y:0};state.score=0;state.alive=true;state.speed=140;
+      scoreEl.textContent='0';overMsg.hidden=true;
+      placeFood();
+      clearInterval(state.loopId);state.loopId=setInterval(tick,state.speed);
+      draw();
+    }
+    function setDir(nx,ny){
+      if(!state.alive)return;
+      if(nx===-state.dir.x&&ny===-state.dir.y)return;
+      state.nextDir={x:nx,y:ny};
+    }
+    function gameOver(){
+      state.alive=false;clearInterval(state.loopId);
+      if(state.score>snakeBest){snakeBest=state.score;saveJSON('dna_snake_best_v1',snakeBest);bestEl.textContent=String(snakeBest);}
+      overText.textContent='Счёт: '+state.score;
+      overMsg.hidden=false;
+    }
+    function tick(){
+      if(!document.body.contains(canvas)){clearInterval(state.loopId);document.removeEventListener('keydown',onKey);return;}
+      if(!state.alive)return;
+      state.dir=state.nextDir;
+      const head={x:state.snake[0].x+state.dir.x,y:state.snake[0].y+state.dir.y};
+      if(head.x<0||head.x>=GRID||head.y<0||head.y>=GRID||state.snake.some(s=>s.x===head.x&&s.y===head.y)){gameOver();return;}
+      state.snake.unshift(head);
+      if(head.x===state.food.x&&head.y===state.food.y){
+        state.score++;scoreEl.textContent=String(state.score);
+        placeFood();
+        if(state.score%5===0&&state.speed>70){state.speed-=8;clearInterval(state.loopId);state.loopId=setInterval(tick,state.speed);}
+      } else {
+        state.snake.pop();
+      }
+      draw();
+    }
+    function draw(){
+      ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,size,size);
+      ctx.strokeStyle='rgba(201,168,76,.05)';ctx.lineWidth=1;
+      for(let i=1;i<GRID;i++){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,size);ctx.moveTo(0,i*cell);ctx.lineTo(size,i*cell);ctx.stroke();}
+      state.snake.forEach((s,i)=>{
+        ctx.fillStyle=i===0?'#f0d27a':'#c9a84c';
+        const pad=1.5,r=4;
+        roundRect(ctx,s.x*cell+pad,s.y*cell+pad,cell-pad*2,cell-pad*2,r);ctx.fill();
+      });
+      ctx.fillStyle='#fff3d0';ctx.shadowColor='rgba(255,243,208,.8)';ctx.shadowBlur=8;
+      ctx.beginPath();ctx.arc(state.food.x*cell+cell/2,state.food.y*cell+cell/2,cell*0.32,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+    }
+    function onKey(e){
+      if(!document.body.contains(canvas)){document.removeEventListener('keydown',onKey);return;}
+      const map={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]};
+      if(map[e.key]){e.preventDefault();setDir(map[e.key][0],map[e.key][1]);}
+      else if((e.key===' '||e.key==='Enter')&&!state.alive){e.preventDefault();reset();}
+    }
+    document.addEventListener('keydown',onKey);
+    let tsx=0,tsy=0;
+    canvas.addEventListener('touchstart',e=>{const t=e.changedTouches[0];tsx=t.clientX;tsy=t.clientY;},{passive:true});
+    canvas.addEventListener('touchend',e=>{
+      const t=e.changedTouches[0],dx=t.clientX-tsx,dy=t.clientY-tsy;
+      if(Math.max(Math.abs(dx),Math.abs(dy))<16)return;
+      if(Math.abs(dx)>Math.abs(dy))setDir(dx>0?1:-1,0);else setDir(0,dy>0?1:-1);
+    },{passive:true});
+    $$('[data-game-dir]',ov).forEach(btn=>{
+      const dirs={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+      btn.addEventListener('click',()=>{const d=dirs[btn.dataset.gameDir];setDir(d[0],d[1]);});
+    });
+    $('[data-game-close]',ov).addEventListener('click',()=>{clearInterval(state.loopId);document.removeEventListener('keydown',onKey);closeOverlay();});
+    $('[data-game-restart]',ov).addEventListener('click',reset);
+    reset();
+  }
+  function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
 
   // -------- Calendar --------
   const calMonthNames=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
