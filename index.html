@@ -1030,7 +1030,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.5.7';
+  const APP_VERSION = '0.5.8';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1649,7 +1649,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Нашёл настоящую причину «пропадающей» правки цели: она синхронизировалась только при редактировании через отдельное поле «Цель», а не при правке числа прямо в названии привычки (самый естественный способ) — теперь работает в обе стороны. Добавил автопроверку версии при запуске — если телефон всё ещё показывает старую закешированную страницу, приложение само её обнаружит и перезагрузится на актуальную. Свайп стал ещё чуть терпимее к неточному направлению пальца.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Нашёл ещё одну причину расхождения чисел: при возврате в числовой режим приложение доверяло старой «запомненной» цели больше, чем свежеотредактированному названию — теперь наоборот, название (актуальный источник) в приоритете. Порог для удаления вторым свайпом немного снижен — не так далеко тянуть.</p></section>
     </div></section>`;
   }
 
@@ -2132,7 +2132,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       rightCap=Math.max(rightThreshold*1.8,90);
       // Порог для второго свайпа считается в физической (недемпфированной) дистанции пальца
       // сверх уже открытой позиции, а не в визуальном offset — иначе резина делает его недостижимым.
-      deleteThreshold=revealWidth+60;
+      // Снижен с 60 до 40 — 60 ощущалось как слишком долгая протяжка для действия, которое и так
+      // требует отдельного (второго) свайпа ради защиты от случайного удаления.
+      deleteThreshold=revealWidth+40;
     };
     // Первый свайп (из закрытого состояния) только раскрывает обе кнопки — дальше revealWidth
     // упругая "стенка" с небольшим запасом (как у правого свайпа), тянуть больше некуда, удалять
@@ -2213,7 +2215,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // открыта и палец тянет ещё дальше влево (или в любой момент просто нажать «Удалить»).
       if(g.wasOpen){
         const pastOpen=-(g.lastRaw??offset)-revealWidth;
-        if(dx<-15&&(pastOpen>=deleteThreshold-revealWidth||(v<-.8&&g.direction<0&&pastOpen>=24))){
+        if(dx<-15&&(pastOpen>=deleteThreshold-revealWidth||(v<-.8&&g.direction<0&&pastOpen>=16))){
           busy=true;row.classList.remove('is-dragging');deleteHabitWithUndo(+card.dataset.habitIndex);return;
         }
       }
@@ -2630,11 +2632,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function enableHabitNumbers(index) {
     const h=currentHabits()[index];if(!h)return;if(h.quantity){setHabitQuantity(index,null);return;}
-    // Возврат в числовой режим подхватывает последнюю отредактированную цель/единицу (lastQuantity),
-    // а не парсит их заново из названия — правка цели через форму редактирования название не
-    // трогает, так что повторный парсинг названия откатывал бы к изначальным, а не актуальным числам.
+    // Текст названия сейчас — источник истины по цели: форма редактирования держит число в
+    // названии и отдельное поле "Цель" синхронизированными в обе стороны при каждой правке (даже
+    // пока числовой режим выключен и видно только название). Поэтому возврат в числовой режим
+    // сначала парсит АКТУАЛЬНОЕ название; lastQuantity — это только запасной вариант на случай,
+    // если из названия число вообще пропало (например, его переписали без единиц измерения).
+    const parsed=parseHabitQuantity(h.name);
     const remembered=h.lastQuantity&&h.lastQuantity.target>0?{target:h.lastQuantity.target,step:habitQuantityStep(h.lastQuantity.target),unit:h.lastQuantity.unit||'',value:0}:null;
-    const q=remembered||parseHabitQuantity(h.name);
+    const q=parsed||remembered;
     if(!q){shakeInvalidHabitSwipe(index);return;}
     setHabitQuantity(index,q);
   }
