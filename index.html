@@ -1030,7 +1030,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.5.6';
+  const APP_VERSION = '0.5.7';
+  // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
+  // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
+  // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
+  // тем, что реально лежит на сервере (fetch в обход кеша), и если они разошлись — один раз
+  // перезагружаем страницу, чтобы гарантированно подтянуть актуальный код.
+  (function checkForFreshVersion(){
+    try{
+      if(sessionStorage.getItem('dna_update_checked'))return;
+      sessionStorage.setItem('dna_update_checked','1');
+      fetch(location.href,{cache:'no-store'}).then(r=>r.text()).then(text=>{
+        const m=text.match(/APP_VERSION\s*=\s*'([^']+)'/);
+        if(m&&m[1]&&m[1]!==APP_VERSION)location.reload();
+      }).catch(()=>{});
+    }catch(_){}
+  })();
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1634,7 +1649,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Технически: запретил браузеру кешировать страницу (Cache-Control: no-cache), чтобы после каждого обновления телефон гарантированно подгружал свежую версию, а не показывал старую из кеша.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">Нашёл настоящую причину «пропадающей» правки цели: она синхронизировалась только при редактировании через отдельное поле «Цель», а не при правке числа прямо в названии привычки (самый естественный способ) — теперь работает в обе стороны. Добавил автопроверку версии при запуске — если телефон всё ещё показывает старую закешированную страницу, приложение само её обнаружит и перезагрузится на актуальную. Свайп стал ещё чуть терпимее к неточному направлению пальца.</p></section>
     </div></section>`;
   }
 
@@ -1921,7 +1936,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;press.axis=Math.abs(dx)>Math.abs(dy)*.5?'x':'y';if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
+      // Порог сэмпла (10px) и соотношение (.3, т.е. допуск ~73° от горизонтали) увеличены —
+      // раньше решение "свайп или скролл" принималось по самым первым, самым шумным пикселям
+      // жеста, и одна неудачная первая выборка на реальном пальце (не мышь/трекпад) навсегда
+      // запирала жест в "скролл", даже если весь остальной путь явно горизонтальный — ощущалось
+      // как "магнит", не дающий свайпнуть, хотя пользователь чётко тянул в сторону.
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<10)return;press.axis=Math.abs(dx)>Math.abs(dy)*.3?'x':'y';if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
       if(press.axis!=='x')return;
       e.preventDefault();suppressUntil=performance.now()+500;
       const raw=Math.min(0,press.from+dx);
@@ -2169,10 +2189,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId||row.habitLiftActive)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
-      // Direction lock в первые ~10px: горизонтальный жест ведёт драг карточки и блокирует скролл списка,
-      // вертикальный — не перехватывается, список скроллится как обычно. Порог смягчён (0.8x, не 1:1) —
-      // у быстрого свайпа в сторону почти всегда есть небольшая вертикальная примесь от движения пальца.
-      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;press.axis=Math.abs(dx)>Math.abs(dy)*.5?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
+      // Direction lock: горизонтальный жест ведёт драг карточки и блокирует скролл списка,
+      // вертикальный — не перехватывается, список скроллится как обычно. Порог сэмпла (10px) и
+      // соотношение (.3, допуск ~73° от горизонтали) — решение "свайп или скролл" раньше
+      // принималось по самым первым, самым шумным пикселям реального пальца, и одна неудачная
+      // первая выборка навсегда запирала жест в "скролл", даже если весь остальной путь явно
+      // горизонтальный — ощущалось как "магнит", не дающий свайпнуть.
+      if(!press.axis){if(Math.max(Math.abs(dx),Math.abs(dy))<10)return;press.axis=Math.abs(dx)>Math.abs(dy)*.3?'x':'y';card.cancelLongPress?.();if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}}
       if(press.axis!=='x')return;
       e.preventDefault();suppressUntil=performance.now()+500;
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
@@ -2818,13 +2841,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(targetInput){
         target=Number(targetInput.value);
         if(!(target>0)){$('#habit-edit-error',ov).textContent='Цель должна быть больше нуля.';return;}
-        // Поле названия не трогали руками, а число в нём — то же, что было целью: синхронизируем
-        // его с новой целью. Иначе число в названии (например "3 литра") осталось бы старым, а
-        // после отключения числового режима (когда показывается сырой текст названия, а не live
-        // value/target) это выглядело бы так, будто отредактированная цель "откатилась" обратно.
-        if(nameValue===h.name){
-          const parsed=parseHabitQuantity(nameValue);
-          if(parsed&&parsed.target===h.quantity.target&&target!==h.quantity.target){
+        // Цель числовой привычки редактируется в двух местах сразу: прямо в тексте названия
+        // (например "3 литра" -> "4 литра", самый естественный способ) и отдельным числовым
+        // полем "Цель". Какое бы из двух ни отредактировали, синхронизируем оба — иначе одно
+        // из мест остаётся со старым числом и выглядит так, будто правка "откатилась".
+        const nameChanged=nameValue!==h.name,parsed=parseHabitQuantity(nameValue);
+        if(parsed){
+          if(nameChanged&&parsed.target!==h.quantity.target){
+            // Число прямо в названии поменяли руками — это и есть новая цель.
+            target=parsed.target;
+          }else if(parsed.target!==target){
+            // Цель поменяли отдельным полем (или число в названии просто разошлось с ней) —
+            // подставляем актуальное число в текст названия.
             nameValue=nameValue.slice(0,parsed.start)+String(target)+nameValue.slice(parsed.numEnd);
           }
         }
