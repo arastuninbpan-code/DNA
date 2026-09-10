@@ -1024,7 +1024,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.5.3';
+  const APP_VERSION = '0.5.4';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1628,7 +1628,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: если отредактировать цель числовой привычки, потом выключить числовой режим и включить его снова — теперь возвращается актуальная отредактированная цель, а не изначальное число из названия привычки, как раньше.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: вернул анимацию поглощения кнопки «Править» кнопкой «Удалить» при протяжке свайпа влево — она пропадала на предыдущем шаге вместе с удалением одним движением, хотя сама анимация никак этому не мешает. Небольшой, но уверенный свайп теперь надёжно раскрывает кнопки, а не «отскакивает» обратно — прежний порог требовал утянуть почти половину ширины панели.</p></section>
     </div></section>`;
   }
 
@@ -1928,7 +1928,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(g.axis!=='x'){if(open||offset)settle(false);return;}
       const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
       if(dx<-25&&offset<=-deleteThreshold){busy=true;row.classList.remove('is-dragging');closeFinTxSwipes();deleteFinTxWithUndo(row.dataset.finTxIndex);return;}
-      const shouldOpen=offset<0&&(offset<=-revealWidth*.4||v<-.5);
+      // Небольшой, но намеренный сдвиг (прошедший axis-lock) значит "хочу открыть", а не
+      // "передумал" — низкий порог вместо половины revealWidth, от которой панель то и дело
+      // "отскакивала" обратно при некрупном осознанном свайпе.
+      const shouldOpen=offset<0&&(offset<=-14||v<-.25);
       settle(g.wasOpen&&dx>12?false:shouldOpen);
     },{passive:true});
     row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;settle(open);},{passive:true});
@@ -2087,6 +2090,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // просто открывает движение карточки сверху, как штору. transition включается только на snap после
     // отпускания пальца, и только на этот один шаг.
     const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button')),numberPanel=$('.habit-number-reveal',row);
+    const editBtn=$('[data-swipe-edit]',actions),delBtn=$('[data-swipe-delete]',actions);
     const BTN_W=52;
     let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,rightCap=0,deleteThreshold=0,suppressUntil=0,busy=false;
     const measure=()=>{
@@ -2126,11 +2130,23 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // подстраховка на случай рассинхрона (двойная защита, а не только расчёт на перекрытие).
       actions.style.opacity=offset<0?'1':'0';
       numberPanel.style.opacity=offset>0?'1':'0';
-      // "Готово к удалению" — только на втором свайпе (строка уже открыта), когда палец потянул
-      // заметно дальше открытой позиции. Обе кнопки (Править/Удалить) остаются на месте, без
-      // поглощения одной другой — места достаточно держать их открытыми одновременно.
+      // Поглощение «Удалить»/«Править» — визуальная обратная связь на протяжку дальше revealWidth,
+      // работает на любом свайпе (и первом, и втором), просто как индикатор "тянешь дальше".
+      // Само удаление срабатывает только на ВТОРОМ свайпе (см. pointerup) — если отпустить на
+      // первом не долетев до реального удаления, settle() зовёт paint() без rawValue (pull=offset=
+      // -revealWidth), merge=0, и кнопки плавно "расходятся" обратно к обычным 52/52.
       const pastOpen=-pull-revealWidth;
-      row.classList.toggle('delete-ready',open&&pastOpen>=deleteThreshold-revealWidth);
+      const merge=clamp(pastOpen/Math.max(1,deleteThreshold-revealWidth),0,1);
+      row.classList.toggle('delete-ready',open&&merge>=1);
+      if(editBtn&&delBtn){
+        // transition только на settle (как у карточки) — иначе на каждый пиксель драга кнопка
+        // "догоняла" бы новое значение через .2s и визуально отставала от пальца.
+        const btnTransition=animate?'flex-basis .2s ease,opacity .2s ease':'';
+        editBtn.style.transition=btnTransition;delBtn.style.transition=btnTransition;
+        const editW=BTN_W*(1-merge);
+        editBtn.style.flexBasis=editW+'px';editBtn.style.opacity=String(1-merge);
+        delBtn.style.flexBasis=(BTN_W+(BTN_W-editW))+'px';
+      }
       numberPanel.classList.toggle('ready',offset>=rightThreshold);
     };
     const settle=(toOpen,animate=true)=>{open=toOpen;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));paint(open?-revealWidth:0,animate);};
@@ -2172,10 +2188,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           busy=true;row.classList.remove('is-dragging');deleteHabitWithUndo(+card.dataset.habitIndex);return;
         }
       }
-      if(!g.wasOpen&&offset>0&&(offset>=rightThreshold||v>.5)){holdFeedback(card);settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
-      // Snap: сдвиг дальше половины revealWidth ИЛИ быстрая скорость (даже на маленьком сдвиге) — доводим
-      // до полностью открытого; иначе — обратно в закрытое. В обоих случаях анимированно (snap-transition).
-      const shouldOpen=offset<0&&(offset<=-revealWidth*.4||v<-.5);
+      if(!g.wasOpen&&offset>0&&(offset>=rightThreshold*.4||v>.3)){holdFeedback(card);settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
+      // Snap: небольшой, но намеренный сдвиг (прошедший axis-lock) — не "передумал", а "хочу
+      // открыть". Порог низкий (не половина revealWidth, как раньше — от него панель то и дело
+      // "отскакивала" обратно при некрупном, но осознанном свайпе): если палец вообще что-то
+      // потянул влево, доводим до полностью открытого; назад в закрытое — только совсем крошечный
+      // сдвиг без скорости, который скорее шум/дрожание, чем жест.
+      const shouldOpen=offset<0&&(offset<=-14||v<-.25);
       settle(g.wasOpen&&dx>12?false:shouldOpen);
     },{passive:true});
     row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;if(!row.habitLiftActive)settle(open);},{passive:true});
