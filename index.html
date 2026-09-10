@@ -200,31 +200,20 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 
 /* Скрытая игра: 5 быстрых тапов по плашке версии в Настройки → О приложении. */
 .overlay.game-overlay { padding: 0; align-items: stretch; background: #050504; }
-.game-screen { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px)); font-family: Georgia,'Times New Roman',serif; }
-.game-hud { width: 100%; max-width: 420px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.game-screen { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(10px, env(safe-area-inset-bottom, 0px)); font-family: Georgia,'Times New Roman',serif; }
+.game-hud { width: 100%; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .game-hud-scores { display: flex; gap: 18px; color: #c1bfb9; font-size: .95rem; }
 .game-hud-scores b { color: var(--gold); font-variant-numeric: tabular-nums; }
 .game-close { flex: 0 0 auto; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(201,168,76,.25); border-radius: 50%; background: var(--surface); color: var(--gold); }
 .game-close .icon { width: 20px; height: 20px; }
-.game-canvas-wrap { position: relative; margin-top: 18px; border: 1px solid rgba(201,168,76,.4); border-radius: 16px; background: #0a0a0a; box-shadow: 0 0 40px rgba(201,168,76,.06); overflow: hidden; }
+.game-canvas-wrap { position: relative; flex: 1 1 auto; width: 100%; margin-top: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(201,168,76,.4); border-radius: 16px; background: #0a0a0a; box-shadow: 0 0 40px rgba(201,168,76,.06); overflow: hidden; }
 .game-canvas-wrap canvas { display: block; touch-action: none; }
 .game-over-msg { position: absolute; inset: 0; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(5,5,4,.86); text-align: center; padding: 20px; }
 .game-over-msg:not([hidden]) { display: flex; }
 .game-over-msg h3 { margin: 0; color: var(--gold); font-size: 1.375rem; font-weight: 400; }
 .game-over-msg p { margin: 0; color: #c1bfb9; font-size: .95rem; }
 .game-restart { border: 0; border-radius: 12px; background: linear-gradient(135deg,var(--gold2),#c9a94e); color: #000; padding: 12px 22px; font-family: Georgia,'Times New Roman',serif; font-size: 15px; font-weight: 600; }
-.game-dpad { margin-top: 20px; display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 6px; }
-.game-dpad button { grid-column: var(--gc); grid-row: var(--gr); display: grid; place-items: center; border: 1px solid #74777e; border-radius: 14px; background: #111214; color: #c2c5cb; padding: 0; }
-.game-dpad button:active { filter: brightness(1.3); }
-.game-dpad button .icon { width: 22px; height: 22px; }
-.game-dpad-up { --gc: 2; --gr: 1; }
-.game-dpad-left { --gc: 1; --gr: 2; }
-.game-dpad-right { --gc: 3; --gr: 2; }
-.game-dpad-down { --gc: 2; --gr: 3; transform: none; }
-.game-dpad-up .icon { transform: rotate(-90deg); }
-.game-dpad-down .icon { transform: rotate(90deg); }
-.game-hint { margin-top: 14px; color: #857c5f; font-size: .8125rem; text-align: center; }
-@media(max-height:700px){.game-dpad{margin-top:12px;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px);}.game-hint{margin-top:8px;}}
+.game-hint { flex: 0 0 auto; margin-top: 10px; color: #857c5f; font-size: .8125rem; text-align: center; }
 @media (prefers-reduced-motion: reduce) {
   .home-screen .pressable, .home-settings .pressable { transition: none; }
   .home-screen .pressable:active, .home-settings .pressable:active { transform: none; }
@@ -1063,7 +1052,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.6.3';
+  const APP_VERSION = '0.6.4';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1682,7 +1671,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Маленький секрет: 5 быстрых тапов по номеру версии выше открывают скрытую игру 🐍</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Маленький секрет: 5 быстрых тапов по номеру версии выше открывают скрытую игру 🐍 — теперь на весь экран, без пульта, поле бесконечное (уходишь за край — появляешься с другого), управление свайпами.</p></section>
     </div></section>`;
   }
 
@@ -2962,38 +2951,36 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // -------- Скрытая игра: Змейка (5 тапов по версии в Настройках) --------
   let snakeBest=num(loadJSON('dna_snake_best_v1',0));
   function openSnakeGame(){
-    const GRID=15;
-    const cell=clamp(Math.floor(Math.min(window.innerWidth-64,window.innerHeight-320)/GRID),14,24);
-    const size=cell*GRID;
     const ov=overlay(`<div class="game-screen">
       <div class="game-hud">
         <div class="game-hud-scores"><span>Счёт: <b data-game-score>0</b></span><span>Рекорд: <b data-game-best>${snakeBest}</b></span></div>
         <button class="game-close" data-game-close aria-label="Закрыть игру">${icon('close')}</button>
       </div>
-      <div class="game-canvas-wrap" style="width:${size}px;height:${size}px">
-        <canvas data-game-canvas width="${size}" height="${size}"></canvas>
+      <div class="game-canvas-wrap" data-game-wrap>
+        <canvas data-game-canvas></canvas>
         <div class="game-over-msg" data-game-over hidden><h3>Игра окончена</h3><p data-game-over-text></p><button class="game-restart" data-game-restart>Заново</button></div>
       </div>
-      <div class="game-dpad">
-        <button class="game-dpad-up" data-game-dir="up" aria-label="Вверх">${icon('chev-left')}</button>
-        <button class="game-dpad-left" data-game-dir="left" aria-label="Влево">${icon('chev-left')}</button>
-        <button class="game-dpad-right" data-game-dir="right" aria-label="Вправо">${icon('chev-right')}</button>
-        <button class="game-dpad-down" data-game-dir="down" aria-label="Вниз">${icon('chev-left')}</button>
-      </div>
-      <p class="game-hint">Свайп по полю или стрелки — управление</p>
+      <p class="game-hint">Свайп по полю — вверх, вниз, влево, вправо</p>
     </div>`,{closeOnBackdrop:false,cls:'game-overlay'});
-    const canvas=$('[data-game-canvas]',ov),ctx=canvas.getContext('2d');
+    const wrap=$('[data-game-wrap]',ov),canvas=$('[data-game-canvas]',ov),ctx=canvas.getContext('2d');
     const scoreEl=$('[data-game-score]',ov),bestEl=$('[data-game-best]',ov);
     const overMsg=$('[data-game-over]',ov),overText=$('[data-game-over-text]',ov);
+    // Бесконечное поле: змейка и еда живут на торе — уходя за левый/верхний край,
+    // появляешься с правого/нижнего (модульная арифметика по COLS/ROWS).
+    const cell=clamp(Math.round(Math.min(window.innerWidth,window.innerHeight)/20),14,26);
+    const COLS=Math.max(12,Math.floor(wrap.clientWidth/cell)),ROWS=Math.max(12,Math.floor(wrap.clientHeight/cell));
+    const W=COLS*cell,H=ROWS*cell;
+    canvas.width=W;canvas.height=H;
     const state={snake:[],dir:{x:1,y:0},nextDir:{x:1,y:0},food:{x:0,y:0},score:0,alive:true,speed:140,loopId:0};
     function placeFood(){
       let p;
-      do{p={x:Math.floor(Math.random()*GRID),y:Math.floor(Math.random()*GRID)};}
+      do{p={x:Math.floor(Math.random()*COLS),y:Math.floor(Math.random()*ROWS)};}
       while(state.snake.some(s=>s.x===p.x&&s.y===p.y));
       state.food=p;
     }
     function reset(){
-      state.snake=[{x:7,y:7},{x:6,y:7},{x:5,y:7}];
+      const cx=Math.floor(COLS/2),cy=Math.floor(ROWS/2);
+      state.snake=[{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
       state.dir={x:1,y:0};state.nextDir={x:1,y:0};state.score=0;state.alive=true;state.speed=140;
       scoreEl.textContent='0';overMsg.hidden=true;
       placeFood();
@@ -3015,8 +3002,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(!document.body.contains(canvas)){clearInterval(state.loopId);document.removeEventListener('keydown',onKey);return;}
       if(!state.alive)return;
       state.dir=state.nextDir;
-      const head={x:state.snake[0].x+state.dir.x,y:state.snake[0].y+state.dir.y};
-      if(head.x<0||head.x>=GRID||head.y<0||head.y>=GRID||state.snake.some(s=>s.x===head.x&&s.y===head.y)){gameOver();return;}
+      const head={x:(state.snake[0].x+state.dir.x+COLS)%COLS,y:(state.snake[0].y+state.dir.y+ROWS)%ROWS};
+      if(state.snake.some(s=>s.x===head.x&&s.y===head.y)){gameOver();return;}
       state.snake.unshift(head);
       if(head.x===state.food.x&&head.y===state.food.y){
         state.score++;scoreEl.textContent=String(state.score);
@@ -3028,9 +3015,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       draw();
     }
     function draw(){
-      ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,size,size);
+      ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,W,H);
       ctx.strokeStyle='rgba(201,168,76,.05)';ctx.lineWidth=1;
-      for(let i=1;i<GRID;i++){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,size);ctx.moveTo(0,i*cell);ctx.lineTo(size,i*cell);ctx.stroke();}
+      for(let i=1;i<COLS;i++){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,H);ctx.stroke();}
+      for(let i=1;i<ROWS;i++){ctx.beginPath();ctx.moveTo(0,i*cell);ctx.lineTo(W,i*cell);ctx.stroke();}
       state.snake.forEach((s,i)=>{
         ctx.fillStyle=i===0?'#f0d27a':'#c9a84c';
         const pad=1.5,r=4;
@@ -3047,17 +3035,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       else if((e.key===' '||e.key==='Enter')&&!state.alive){e.preventDefault();reset();}
     }
     document.addEventListener('keydown',onKey);
-    let tsx=0,tsy=0;
-    canvas.addEventListener('touchstart',e=>{const t=e.changedTouches[0];tsx=t.clientX;tsy=t.clientY;},{passive:true});
-    canvas.addEventListener('touchend',e=>{
+    let tsx=0,tsy=0,tracking=false;
+    canvas.addEventListener('touchstart',e=>{const t=e.changedTouches[0];tsx=t.clientX;tsy=t.clientY;tracking=true;},{passive:true});
+    canvas.addEventListener('touchmove',e=>{
+      if(!tracking)return;
       const t=e.changedTouches[0],dx=t.clientX-tsx,dy=t.clientY-tsy;
-      if(Math.max(Math.abs(dx),Math.abs(dy))<16)return;
+      if(Math.max(Math.abs(dx),Math.abs(dy))<24)return;
       if(Math.abs(dx)>Math.abs(dy))setDir(dx>0?1:-1,0);else setDir(0,dy>0?1:-1);
+      tsx=t.clientX;tsy=t.clientY;
     },{passive:true});
-    $$('[data-game-dir]',ov).forEach(btn=>{
-      const dirs={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
-      btn.addEventListener('click',()=>{const d=dirs[btn.dataset.gameDir];setDir(d[0],d[1]);});
-    });
+    canvas.addEventListener('touchend',()=>{tracking=false;},{passive:true});
     $('[data-game-close]',ov).addEventListener('click',()=>{clearInterval(state.loopId);document.removeEventListener('keydown',onKey);closeOverlay();});
     $('[data-game-restart]',ov).addEventListener('click',reset);
     reset();
