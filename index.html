@@ -1024,7 +1024,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.5.0';
+  const APP_VERSION = '0.5.1';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1628,7 +1628,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: Финансы и Планер переведены на новую схему данных — транзакции, цели, активы, разделы планера и события теперь хранятся по стабильному id вместо позиции в массиве, поэтому редактирование и удаление больше не может «зацепить» не ту запись. Разделы планера стали полноценными объектами с собственным цветом — можно выбрать цвет при создании раздела через палитру, а не только получать цвет автоматически по названию.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: свайп у привычки больше не удаляет одним движением — первый свайп раскрывает «Править»/«Удалить» и на этом останавливается, удалить одним протягиванием можно только вторым свайпом (когда панель уже открыта). Починена реальная блокирующая ошибка — при обычном тапе по уже открытым кнопкам «Править»/«Удалить» они не срабатывали (нажатие само закрывало панель раньше, чем успевал сработать клик); то же самое починено и в свайпах Истории операций. При перетаскивании привычки для смены порядка подсвечиваются обе соседние привычки вокруг места посадки, а не только одна сторона.</p></section>
     </div></section>`;
   }
 
@@ -1907,7 +1907,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const settle=(toOpen,animate=true)=>{open=toOpen;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));paint(open?-revealWidth:0,animate);};
     row.closeSwipe=()=>{if(!busy&&!press&&(open||offset)){measure();settle(false);}};
     measure();actions.inert=true;actions.setAttribute('aria-hidden','true');row.classList.remove('is-open','is-dragging','delete-ready');paint(0,false);
-    row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0)return;measure();closeFinTxSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,samples:[{x:e.clientX,t:performance.now()}],axis:null};},{passive:true});
+    // Тап прямо по уже открытой кнопке не должен стартовать новый press — иначе pointerup того же
+    // тапа (ось ещё не 'x') сразу закрывал бы панель ДО того, как срабатывал click на кнопке.
+    row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0||e.target.closest('.fin-tx-actions'))return;measure();closeFinTxSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,samples:[{x:e.clientX,t:performance.now()}],axis:null};},{passive:true});
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
@@ -2082,7 +2084,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // просто открывает движение карточки сверху, как штору. transition включается только на snap после
     // отпускания пальца, и только на этот один шаг.
     const row=card.closest('.habit-swipe'),actions=$('.habit-swipe-actions',row),buttons=Array.from(actions.querySelectorAll('button')),numberPanel=$('.habit-number-reveal',row);
-    const editBtn=$('[data-swipe-edit]',actions),delBtn=$('[data-swipe-delete]',actions);
     const BTN_W=52;
     let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,rightCap=0,deleteThreshold=0,suppressUntil=0,busy=false;
     const measure=()=>{
@@ -2096,17 +2097,19 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // и палец «упирался в стену» сразу же, как только жест срабатывал — правый свайп ощущался
       // рывком на фоне левого (где резина далеко за revealWidth). Даём такой же запас хода.
       rightCap=Math.max(rightThreshold*1.8,90);
-      // Порог считается в физической (недемпфированной) дистанции пальца, а не в визуальном
-      // offset — раньше .25-резина означала, что "+90 визуальных px" требовали ~360px реального
-      // перетяга (недостижимо на экране), и поглощение "Удалить" практически никогда не срабатывало.
+      // Порог для второго свайпа считается в физической (недемпфированной) дистанции пальца
+      // сверх уже открытой позиции, а не в визуальном offset — иначе резина делает его недостижимым.
       deleteThreshold=revealWidth+60;
     };
-    // Резина за пределами revealWidth/rightCap: движение пальца дальше даёт лишь четверть
-    // сдвига, а не жёсткий упор в стену — то же ощущение, что у нативных iOS-свайпов. Слева не
-    // ограничиваем потолком — туда нужно дотянуть до deleteThreshold (свайп-до-удаления), справа
-    // такого "дальше" действия нет, поэтому там резина зажата потолком в 30px переброса.
-    const rubberBand=raw=>{
-      if(raw<-revealWidth)return -(revealWidth+(-revealWidth-raw)*.25);
+    // Первый свайп (из закрытого состояния) только раскрывает обе кнопки — дальше revealWidth
+    // упругая "стенка" с небольшим запасом (как у правого свайпа), тянуть больше некуда, удалять
+    // одним движением нельзя. Второй свайп (когда уже открыто) резину не ограничивает потолком —
+    // туда нужно дотянуть до deleteThreshold, чтобы удалить одним движением, как «свайп ещё раз».
+    const rubberBand=(raw,wasOpen)=>{
+      if(raw<-revealWidth){
+        const over=-revealWidth-raw;
+        return wasOpen?-(revealWidth+over*.25):-(revealWidth+Math.min(over*.25,24));
+      }
       if(raw>rightCap)return rightCap+Math.min((raw-rightCap)*.25,30);
       return raw;
     };
@@ -2120,20 +2123,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // подстраховка на случай рассинхрона (двойная защита, а не только расчёт на перекрытие).
       actions.style.opacity=offset<0?'1':'0';
       numberPanel.style.opacity=offset>0?'1':'0';
-      // Дальше revealWidth «Удалить» плавно поглощает «Править» (растёт на всю раскрытую область,
-      // как у Apple), а не просто одна кнопка тянется поверх другой. Считаем по pull (реальному
-      // перетягу пальца), не по демпфированному offset — иначе резина делает порог недостижимым.
-      const merge=clamp((-pull-revealWidth)/Math.max(1,deleteThreshold-revealWidth),0,1);
-      row.classList.toggle('delete-ready',merge>=1);
-      if(editBtn&&delBtn){
-        // transition только на settle (как у карточки) — иначе на каждый пиксель драга кнопка
-        // "догоняла" бы новое значение через .2s и визуально отставала от пальца.
-        const btnTransition=animate?'flex-basis .2s ease,opacity .2s ease':'';
-        editBtn.style.transition=btnTransition;delBtn.style.transition=btnTransition;
-        const editW=BTN_W*(1-merge);
-        editBtn.style.flexBasis=editW+'px';editBtn.style.opacity=String(1-merge);
-        delBtn.style.flexBasis=(BTN_W+(BTN_W-editW))+'px';
-      }
+      // "Готово к удалению" — только на втором свайпе (строка уже открыта), когда палец потянул
+      // заметно дальше открытой позиции. Обе кнопки (Править/Удалить) остаются на месте, без
+      // поглощения одной другой — места достаточно держать их открытыми одновременно.
+      const pastOpen=-pull-revealWidth;
+      row.classList.toggle('delete-ready',open&&pastOpen>=deleteThreshold-revealWidth);
       numberPanel.classList.toggle('ready',offset>=rightThreshold);
     };
     const settle=(toOpen,animate=true)=>{open=toOpen;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));paint(open?-revealWidth:0,animate);};
@@ -2142,7 +2136,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // рендера (например, оборванный жест) могли бы оставить карточку сдвинутой и обе панели кнопок
     // видимыми одновременно — карточка выглядит "пустой", а под ней видны сразу edit/delete и цифры.
     measure();actions.inert=true;actions.setAttribute('aria-hidden','true');row.classList.remove('is-open','is-dragging','delete-ready');paint(0,false);
-    row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0)return;measure();closeHabitSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}]};},{passive:true});
+    // Тап прямо по уже открытой кнопке не должен стартовать новый press: если разрешить это,
+    // pointerup того же тапа (ось ещё не 'x', это же не драг) сразу закрывал бы панель кнопок
+    // (settle(false), pointer-events:none) ДО того, как успевал сработать click на самой кнопке —
+    // кнопка выглядела открытой, но нажатие на неё ничего не делало.
+    row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0||e.target.closest('.habit-swipe-actions'))return;measure();closeHabitSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}]};},{passive:true});
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId||row.habitLiftActive)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
@@ -2154,14 +2152,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       e.preventDefault();suppressUntil=performance.now()+500;
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
       press.lastRaw=raw;
-      paint(rubberBand(raw),false,raw);
+      paint(rubberBand(raw,press.wasOpen),false,raw);
       const now=performance.now();press.direction=Math.sign(e.clientX-press.samples[press.samples.length-1].x);press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
     },{passive:false});
     row.addEventListener('pointerup',e=>{
       if(!press||press.id!==e.pointerId)return;const g=press;press=null;if(row.habitLiftActive){suppressUntil=performance.now()+500;return;}
       if(g.axis!=='x'){if(open||offset)settle(false);return;}
       const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
-      if(dx<-25&&((g.lastRaw??offset)<=-deleteThreshold||(v<-.8&&g.direction<0&&offset<-width*.2))){busy=true;row.classList.remove('is-dragging');deleteHabitWithUndo(+card.dataset.habitIndex);return;}
+      // Удаление одним непрерывным свайпом убрано: первый свайп (из закрытого состояния) только
+      // раскрывает обе кнопки. Удалить одним движением можно ВТОРЫМ свайпом — когда строка уже
+      // открыта и палец тянет ещё дальше влево (или в любой момент просто нажать «Удалить»).
+      if(g.wasOpen){
+        const pastOpen=-(g.lastRaw??offset)-revealWidth;
+        if(dx<-15&&(pastOpen>=deleteThreshold-revealWidth||(v<-.8&&g.direction<0&&pastOpen>=24))){
+          busy=true;row.classList.remove('is-dragging');deleteHabitWithUndo(+card.dataset.habitIndex);return;
+        }
+      }
       if(!g.wasOpen&&offset>0&&(offset>=rightThreshold||v>.5)){holdFeedback(card);settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
       // Snap: сдвиг дальше половины revealWidth ИЛИ быстрая скорость (даже на маленьком сдвиге) — доводим
       // до полностью открытого; иначе — обратно в закрытое. В обоих случаях анимированно (snap-transition).
@@ -2710,11 +2716,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           line.style.transform='translateY('+edgeY+'px)';line.classList.add('visible');
         }
       }
-      // Подсветка привычки, рядом с которой встанет перетаскиваемая — видно сразу над и под ней
-      // (рамка целиком), а не только тонкую линию на стыке. Это даёт «место посадки», от которого
-      // легче передумать и вернуть на старое место, а не только по тонкой полоске угадывать.
+      // Подсвечиваем ОБЕ привычки по краям стыка, куда встанет перетаскиваемая — и ту, что выше
+      // места посадки, и ту, что ниже — а не только одну сторону. Это даёт понятное «место
+      // посадки», от которого легче передумать и вернуть на старое место.
       $$('.habit-card.drop-target').forEach(el=>el.classList.remove('drop-target'));
-      if(!hold.remove&&hold.to!==hold.from)rows[hold.to]?.querySelector('.habit-card')?.classList.add('drop-target');
+      if(!hold.remove&&hold.to!==hold.from){
+        const gapAbove=hold.to>hold.from?hold.to:hold.to-1,gapBelow=gapAbove+1;
+        [gapAbove,gapBelow].forEach(i=>{if(i<0||i>=rows.length||i===hold.from)return;rows[i]?.querySelector('.habit-card')?.classList.add('drop-target');});
+      }
     },{passive:false});
     row.addEventListener('pointerup',()=>{cancelTimer();if(!hold)return;const h=hold;hold=null;cancelAnimationFrame(frame);if(!h.active)return;row.habitLiftActive=false;
       const finish=()=>{if(h.remove){const i=index();cleanup();if(i>=0)deleteHabitWithUndo(i);}else if(h.moved){cleanup();moveHabit(h.from,h.to);}else{row.style.transform='';row.classList.remove('is-reordering');ghost?.remove();ghost=null;}};
