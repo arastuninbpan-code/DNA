@@ -1024,7 +1024,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.5.1';
+  const APP_VERSION = '0.5.2';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1628,7 +1628,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: свайп у привычки больше не удаляет одним движением — первый свайп раскрывает «Править»/«Удалить» и на этом останавливается, удалить одним протягиванием можно только вторым свайпом (когда панель уже открыта). Починена реальная блокирующая ошибка — при обычном тапе по уже открытым кнопкам «Править»/«Удалить» они не срабатывали (нажатие само закрывало панель раньше, чем успевал сработать клик); то же самое починено и в свайпах Истории операций. При перетаскивании привычки для смены порядка подсвечиваются обе соседние привычки вокруг места посадки, а не только одна сторона.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: закрыть открытые кнопки «Править»/«Удалить» свайпом вправо теперь можно и потянув за сами кнопки, а не только за карточку привычки. Починена реальная ошибка при перетаскивании привычки: поднести её обратно ровно на своё исходное место и отпустить без изменений на самом деле не получалось — она молча вставала к ближайшему соседу; теперь возврат на своё место работает и подсвечивается (обе соседние привычки), как и любое другое место посадки.</p></section>
     </div></section>`;
   }
 
@@ -1907,9 +1907,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const settle=(toOpen,animate=true)=>{open=toOpen;row.classList.toggle('is-open',open);row.classList.remove('is-dragging');actions.inert=!open;actions.setAttribute('aria-hidden',String(!open));paint(open?-revealWidth:0,animate);};
     row.closeSwipe=()=>{if(!busy&&!press&&(open||offset)){measure();settle(false);}};
     measure();actions.inert=true;actions.setAttribute('aria-hidden','true');row.classList.remove('is-open','is-dragging','delete-ready');paint(0,false);
-    // Тап прямо по уже открытой кнопке не должен стартовать новый press — иначе pointerup того же
-    // тапа (ось ещё не 'x') сразу закрывал бы панель ДО того, как срабатывал click на кнопке.
-    row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0||e.target.closest('.fin-tx-actions'))return;measure();closeFinTxSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,samples:[{x:e.clientX,t:performance.now()}],axis:null};},{passive:true});
+    // Press стартует и с самих кнопок тоже — иначе потянуть вправо ЗА кнопку (а не за карточку),
+    // чтобы закрыть панель, было бы нечем отследить. Разруливается на pointerup: чистый тап без
+    // движения (axis остаётся null) не трогает состояние свайпа вообще — клик по кнопке сработает
+    // сам; закрывает панель только по-настоящему распознанный не-горизонтальный жест (axis==='y').
+    row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0)return;measure();closeFinTxSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,samples:[{x:e.clientX,t:performance.now()}],axis:null};},{passive:true});
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
@@ -1922,6 +1924,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     },{passive:false});
     row.addEventListener('pointerup',e=>{
       if(!press||press.id!==e.pointerId)return;const g=press;press=null;
+      if(g.axis==null)return;
       if(g.axis!=='x'){if(open||offset)settle(false);return;}
       const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
       if(dx<-25&&offset<=-deleteThreshold){busy=true;row.classList.remove('is-dragging');closeFinTxSwipes();deleteFinTxWithUndo(row.dataset.finTxIndex);return;}
@@ -2136,11 +2139,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // рендера (например, оборванный жест) могли бы оставить карточку сдвинутой и обе панели кнопок
     // видимыми одновременно — карточка выглядит "пустой", а под ней видны сразу edit/delete и цифры.
     measure();actions.inert=true;actions.setAttribute('aria-hidden','true');row.classList.remove('is-open','is-dragging','delete-ready');paint(0,false);
-    // Тап прямо по уже открытой кнопке не должен стартовать новый press: если разрешить это,
-    // pointerup того же тапа (ось ещё не 'x', это же не драг) сразу закрывал бы панель кнопок
-    // (settle(false), pointer-events:none) ДО того, как успевал сработать click на самой кнопке —
-    // кнопка выглядела открытой, но нажатие на неё ничего не делало.
-    row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0||e.target.closest('.habit-swipe-actions'))return;measure();closeHabitSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}]};},{passive:true});
+    // Press стартует и с самих кнопок тоже — иначе потянуть вправо ЗА кнопку (а не за карточку),
+    // чтобы закрыть панель, было бы нечем отследить. Разруливается на pointerup: чистый тап без
+    // движения (axis остаётся null) не трогает состояние свайпа вообще — клик по кнопке сработает
+    // сам; закрывает панель только по-настоящему распознанный не-горизонтальный жест (axis==='y').
+    row.addEventListener('pointerdown',e=>{if(busy||e.isPrimary===false||e.button!==0)return;measure();closeHabitSwipes(row);press={id:e.pointerId,x:e.clientX,y:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}]};},{passive:true});
     row.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId||row.habitLiftActive)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
@@ -2157,6 +2160,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     },{passive:false});
     row.addEventListener('pointerup',e=>{
       if(!press||press.id!==e.pointerId)return;const g=press;press=null;if(row.habitLiftActive){suppressUntil=performance.now()+500;return;}
+      if(g.axis==null)return;
       if(g.axis!=='x'){if(open||offset)settle(false);return;}
       const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
       // Удаление одним непрерывным свайпом убрано: первый свайп (из закрытого состояния) только
@@ -2705,8 +2709,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(!hold||hold.id!==e.pointerId)return;
       if(!hold.active){if(Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>7)cancelTimer();return;}
       e.preventDefault();hold.lastY=e.clientY;hold.lastX=e.clientX;hold.moved=Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>12;
+      // Собственное место перетаскиваемой привычки тоже участвует в выборе ближайшей — она
+      // никуда не делась из потока (только притемнена), продолжает занимать свой исходный rect.
+      // Раньше её явно исключали из сравнения, из-за чего "best" не мог вернуться на hold.from:
+      // даже поднеся палец обратно точно к своему месту, привычка молча вставала к ближайшему
+      // соседу вместо того, чтобы остаться на месте.
       const rows=$$('.habit-swipe');let best=hold.from,dist=Infinity;
-      rows.forEach((other,i)=>{if(other===row)return;const b=other.getBoundingClientRect(),d=Math.abs(e.clientY-(b.top+b.height/2));if(d<dist){dist=d;best=i;}});
+      rows.forEach((other,i)=>{const b=other.getBoundingClientRect(),d=Math.abs(e.clientY-(b.top+b.height/2));if(d<dist){dist=d;best=i;}});
       hold.to=hold.moved?best:hold.from;
       if(line){
         if(hold.remove||hold.to===hold.from)line.classList.remove('visible');
@@ -2718,10 +2727,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       }
       // Подсвечиваем ОБЕ привычки по краям стыка, куда встанет перетаскиваемая — и ту, что выше
       // места посадки, и ту, что ниже — а не только одну сторону. Это даёт понятное «место
-      // посадки», от которого легче передумать и вернуть на старое место.
+      // посадки», от которого легче передумать и вернуть на старое место. То же самое и когда
+      // палец завис над СВОИМ же исходным местом (hold.to===hold.from, вернуть без изменений) —
+      // раньше в этом случае подсветка вообще пропадала, будто такого места посадки не существует.
       $$('.habit-card.drop-target').forEach(el=>el.classList.remove('drop-target'));
-      if(!hold.remove&&hold.to!==hold.from){
-        const gapAbove=hold.to>hold.from?hold.to:hold.to-1,gapBelow=gapAbove+1;
+      if(!hold.remove){
+        const gapAbove=hold.to===hold.from?hold.from-1:(hold.to>hold.from?hold.to:hold.to-1),gapBelow=hold.to===hold.from?hold.from+1:gapAbove+1;
         [gapAbove,gapBelow].forEach(i=>{if(i<0||i>=rows.length||i===hold.from)return;rows[i]?.querySelector('.habit-card')?.classList.add('drop-target');});
       }
     },{passive:false});
