@@ -1024,7 +1024,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.5.2';
+  const APP_VERSION = '0.5.3';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1628,7 +1628,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: закрыть открытые кнопки «Править»/«Удалить» свайпом вправо теперь можно и потянув за сами кнопки, а не только за карточку привычки. Починена реальная ошибка при перетаскивании привычки: поднести её обратно ровно на своё исходное место и отпустить без изменений на самом деле не получалось — она молча вставала к ближайшему соседу; теперь возврат на своё место работает и подсвечивается (обе соседние привычки), как и любое другое место посадки.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: если отредактировать цель числовой привычки, потом выключить числовой режим и включить его снова — теперь возвращается актуальная отредактированная цель, а не изначальное число из названия привычки, как раньше.</p></section>
     </div></section>`;
   }
 
@@ -2574,12 +2574,19 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function setHabitQuantity(index,q) {
     const h=currentHabits()[index];if(!h)return false;const key=habitDateKey(state.habits.selectedDate),next={...state.habits.data};
-    for(const k of Object.keys(next)){if(k>=key&&Array.isArray(next[k]))next[k]=next[k].map(item=>item.name===h.name?{...item,quantity:q?{...q,value:item.done?q.target:Math.min(item.quantity?.value||0,q.target)}:undefined,done:q?(item.done||((item.quantity?.value||0)>=q.target)):item.done}:item);}
+    // lastQuantity запоминает последнюю цель/единицу и переживает отключение числового режима —
+    // при выключении сам quantity стирается (undefined), но lastQuantity сохраняем как есть, чтобы
+    // повторное включение подхватило именно её, а не парсило заново из названия.
+    for(const k of Object.keys(next)){if(k>=key&&Array.isArray(next[k]))next[k]=next[k].map(item=>item.name===h.name?{...item,quantity:q?{...q,value:item.done?q.target:Math.min(item.quantity?.value||0,q.target)}:undefined,lastQuantity:q?{target:q.target,unit:q.unit}:item.lastQuantity,done:q?(item.done||((item.quantity?.value||0)>=q.target)):item.done}:item);}
     const prev=progressForDate(state.habits.selectedDate);if(!commitHabitData(next))return false;prepareHabitAnimation(prev,progressForDate(state.habits.selectedDate));return true;
   }
   function enableHabitNumbers(index) {
     const h=currentHabits()[index];if(!h)return;if(h.quantity){setHabitQuantity(index,null);return;}
-    const q=parseHabitQuantity(h.name);
+    // Возврат в числовой режим подхватывает последнюю отредактированную цель/единицу (lastQuantity),
+    // а не парсит их заново из названия — правка цели через форму редактирования название не
+    // трогает, так что повторный парсинг названия откатывал бы к изначальным, а не актуальным числам.
+    const remembered=h.lastQuantity&&h.lastQuantity.target>0?{target:h.lastQuantity.target,step:habitQuantityStep(h.lastQuantity.target),unit:h.lastQuantity.unit||'',value:0}:null;
+    const q=remembered||parseHabitQuantity(h.name);
     if(!q){shakeInvalidHabitSwipe(index);return;}
     setHabitQuantity(index,q);
   }
