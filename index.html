@@ -1009,6 +1009,35 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event.done .pl-event-title{text-decoration:line-through;color:rgba(255,255,255,.4);}
 .pl-event-time{font-size:.6875rem;color:rgba(255,255,255,.4);}
 .pl-empty{text-align:center;color:rgba(255,255,255,.35);padding:24px 12px;font-size:.875rem;}
+/* Зум пальцами: день -> неделя -> месяц (и обратно). */
+.pl-week-head{display:flex;padding:6px 20px 4px;flex-shrink:0;gap:1px;}
+.pl-week-gutter{flex:0 0 28px;}
+.pl-week-daycol-head{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;border:0;background:transparent;border-radius:10px;color:rgba(255,255,255,.6);}
+.pl-week-dow{font-size:.625rem;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.35);}
+.pl-week-num{font-family:Georgia,'Times New Roman',serif;font-size:.9375rem;color:#fff;}
+.pl-week-daycol-head.is-today{background:rgba(201,168,76,.14);}
+.pl-week-daycol-head.is-today .pl-week-num{color:var(--gold);font-weight:700;}
+.pl-week-scroll{padding:4px 20px 100px;}
+.pl-week-grid{display:flex;gap:1px;position:relative;}
+.pl-week-gutter-col{flex:0 0 28px;}
+.pl-week-hour-label{height:32px;font-size:.625rem;color:rgba(255,255,255,.3);}
+.pl-week-daycol{flex:1;min-width:0;position:relative;border-left:1px solid rgba(255,255,255,.06);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 31px,rgba(255,255,255,.06) 31px,rgba(255,255,255,.06) 32px);}
+.pl-week-daycol.is-today{background-color:rgba(201,168,76,.05);}
+.pl-week-event{position:absolute;left:2px;right:2px;min-height:5px;border-radius:3px;background:var(--pl-color,var(--gold));opacity:.85;border:0;padding:0;}
+.pl-week-event.done{opacity:.35;}
+.pl-week-now{position:absolute;left:0;right:0;height:0;border-top:1.5px solid #e0464f;pointer-events:none;}
+.pl-month-head{display:flex;padding:6px 20px 2px;flex-shrink:0;}
+.pl-month-head span{flex:1;text-align:center;font-size:.6875rem;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.35);}
+.pl-month-scroll{padding:0 14px 100px;}
+.pl-month-grid{display:grid;grid-template-columns:repeat(7,1fr);}
+.pl-month-cell{aspect-ratio:.85;min-height:56px;margin:2px;padding:6px 2px 4px;border-radius:12px;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:4px;color:#fff;}
+.pl-month-cell.other{color:rgba(255,255,255,.22);}
+.pl-month-cell.is-today{background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.5);}
+.pl-month-num{font-family:Georgia,'Times New Roman',serif;font-size:.9375rem;}
+.pl-month-cell.is-today .pl-month-num{color:var(--gold);font-weight:700;}
+.pl-month-dots{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;max-width:100%;}
+.pl-month-dot{width:5px;height:5px;border-radius:50%;background:var(--pl-color,var(--gold));flex:0 0 auto;}
+.pl-month-more{font-size:.5625rem;color:rgba(255,255,255,.4);}
 .pl-add-fab{position:fixed;right:20px;bottom:calc(var(--nav-h) + var(--safe-bottom) + 16px);width:52px;height:52px;border-radius:50%;background:var(--gold);color:#1a1508;border:0;display:grid;place-items:center;box-shadow:0 8px 24px rgba(201,168,76,.35);padding:0;z-index:5;}
 .pl-add-fab .icon{width:24px;height:24px;}
 .pl-form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
@@ -1058,7 +1087,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.7.0';
+  const APP_VERSION = '0.7.1';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1163,6 +1192,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       sections: loadJSON('planner_sections', []),
       activeSection: null,
       viewDate: dateOnly(),
+      zoom: 'day',
+      calDisplay: dateOnly(),
     }
   };
   // Бэкофилленные id (withIds выше) существуют только в памяти, пока что-то их не пересохранит —
@@ -1482,8 +1513,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // Экран рисует окно из PL_WINDOW_RADIUS*2+1 дней подряд (пузырь вокруг viewDate);
   // при подскролле к краю окна оно пересобирается вокруг текущего видимого дня —
   // так и получается "бесконечный" скролл сквозь полночь без реальной виртуализации.
-  const PL_START_HOUR=0,PL_END_HOUR=24,PL_HOUR_PX=56,PL_WINDOW_RADIUS=6;
-  let plannerScrolledOnce=false,plannerExtending=false,pendingPlannerScroll=null;
+  const PL_START_HOUR=0,PL_END_HOUR=24,PL_HOUR_PX=56,PL_WINDOW_RADIUS=6,PL_WEEK_HOUR_PX=32;
+  const PL_WEEKDAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  let plannerExtending=false,pendingPlannerScroll=null,plannerLastZoom=null;
   function plannerId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
   function savePlannerEvents(){saveJSON('planner_events',state.planner.events);}
   function savePlannerSections(){saveJSON('planner_sections',state.planner.sections);}
@@ -1501,10 +1533,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function dayLabelFor(d){return d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});}
   function nowMinutes(){const n=new Date();return n.getHours()*60+n.getMinutes();}
   function renderPlanner() {
-    const inboxCount=plannerInboxEvents().length;
-    const center=state.planner.viewDate;
-    const days=[];
-    for(let i=-PL_WINDOW_RADIUS;i<=PL_WINDOW_RADIUS;i++)days.push(addDays(center,i));
+    const inboxCount=plannerInboxEvents().length,zoom=state.planner.zoom;
     return `<section class="screen pl-screen" aria-label="Планер">
       <header class="pl-header"><h1>Планер</h1><button class="pl-inbox-btn" data-pl-inbox aria-label="Инбокс">${icon('inbox')}${inboxCount?`<span class="pl-inbox-badge">${inboxCount>99?'99+':inboxCount}</span>`:''}</button></header>
       <div class="pl-sections">
@@ -1512,14 +1541,74 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         ${state.planner.sections.map(s=>`<button class="pl-chip ${state.planner.activeSection===s.id?'active':''}" data-pl-section="${esc(s.id)}" style="--pl-color:${s.color}">${esc(s.name)}</button>`).join('')}
         <button class="pl-chip pl-chip-add" data-pl-add-section aria-label="Новый раздел">${icon('plus')}</button>
       </div>
-      <div class="pl-daynav">
+      ${zoom==='week'?renderPlannerWeekView():zoom==='month'?renderPlannerMonthView():renderPlannerDayView()}
+      ${zoom!=='month'?`<button class="pl-add-fab" data-pl-add aria-label="Новая задача">${icon('plus')}</button>`:''}
+    </section>`;
+  }
+  function renderPlannerDayView(){
+    const center=state.planner.viewDate;
+    const days=[];
+    for(let i=-PL_WINDOW_RADIUS;i<=PL_WINDOW_RADIUS;i++)days.push(addDays(center,i));
+    return `<div class="pl-daynav">
         <button data-pl-day="-1" aria-label="Предыдущий день">${icon('chev-left')}</button>
         <button class="pl-day-label" data-pl-today type="button">${esc(dayLabelFor(center))}</button>
         <button data-pl-day="1" aria-label="Следующий день">${icon('chev-right')}</button>
       </div>
-      <div class="pl-scroll" data-pl-scroll>${days.map(renderPlannerDayBlock).join('')}</div>
-      <button class="pl-add-fab" data-pl-add aria-label="Новая задача">${icon('plus')}</button>
-    </section>`;
+      <div class="pl-scroll" data-pl-scroll data-pl-pinch>${days.map(renderPlannerDayBlock).join('')}</div>`;
+  }
+  function startOfWeek(d){return addDays(d,-((d.getDay()+6)%7));}
+  function renderPlannerWeekView(){
+    const start=startOfWeek(state.planner.viewDate),end=addDays(start,6);
+    const days=Array.from({length:7},(_,i)=>addDays(start,i));
+    const todayIso=isoDate(dateOnly());
+    const sameMonth=start.getMonth()===end.getMonth();
+    const weekLabel=sameMonth
+      ?`${start.getDate()}–${end.getDate()} ${calMonthNames[start.getMonth()].toLowerCase()}`
+      :`${start.getDate()} ${calMonthNames[start.getMonth()].slice(0,3).toLowerCase()} – ${end.getDate()} ${calMonthNames[end.getMonth()].slice(0,3).toLowerCase()}`;
+    return `<div class="pl-daynav">
+        <button data-pl-week="-1" aria-label="Предыдущая неделя">${icon('chev-left')}</button>
+        <button class="pl-day-label" data-pl-today type="button">${esc(weekLabel)}</button>
+        <button data-pl-week="1" aria-label="Следующая неделя">${icon('chev-right')}</button>
+      </div>
+      <div class="pl-week-head"><span class="pl-week-gutter"></span>${days.map(d=>{
+        const iso=isoDate(d);
+        return `<button class="pl-week-daycol-head ${iso===todayIso?'is-today':''}" data-pl-week-day="${iso}"><span class="pl-week-dow">${PL_WEEKDAYS[(d.getDay()+6)%7]}</span><span class="pl-week-num">${d.getDate()}</span></button>`;
+      }).join('')}</div>
+      <div class="pl-scroll pl-week-scroll" data-pl-scroll data-pl-pinch>${renderPlannerWeekGrid(days,todayIso)}</div>`;
+  }
+  function renderPlannerWeekGrid(days,todayIso){
+    const gutter=Array.from({length:24},(_,h)=>`<div class="pl-week-hour-label">${String(h).padStart(2,'0')}</div>`).join('');
+    const cols=days.map(d=>{
+      const iso=isoDate(d),isToday=iso===todayIso;
+      const events=plannerEventsFor(iso).filter(e=>e.time).map(e=>{
+        const mins=clamp(plannerMinutesFromTime(e.time),0,1440),dur=clamp(e.duration||60,20,1440-mins);
+        const top=mins/60*PL_WEEK_HOUR_PX,height=Math.max(5,dur/60*PL_WEEK_HOUR_PX-1);
+        return `<button class="pl-week-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;--pl-color:${plannerSectionColor(e.sectionId)}" aria-label="${esc(e.time+' '+e.title)}"></button>`;
+      }).join('');
+      const nowLine=isToday?`<div class="pl-week-now" style="top:${nowMinutes()/60*PL_WEEK_HOUR_PX}px"></div>`:'';
+      return `<div class="pl-week-daycol ${isToday?'is-today':''}" style="height:${24*PL_WEEK_HOUR_PX}px">${events}${nowLine}</div>`;
+    }).join('');
+    return `<div class="pl-week-grid"><div class="pl-week-gutter-col">${gutter}</div>${cols}</div>`;
+  }
+  function renderPlannerMonthView(){
+    const display=state.planner.calDisplay,todayIso=isoDate(dateOnly());
+    const days=calendarDays({display});
+    return `<div class="pl-daynav">
+        <button data-pl-month="-1" aria-label="Предыдущий месяц">${icon('chev-left')}</button>
+        <button class="pl-day-label" data-pl-today type="button">${calMonthNames[display.getMonth()]} ${display.getFullYear()}</button>
+        <button data-pl-month="1" aria-label="Следующий месяц">${icon('chev-right')}</button>
+      </div>
+      <div class="pl-month-head">${PL_WEEKDAYS.map(x=>`<span>${x}</span>`).join('')}</div>
+      <div class="pl-scroll pl-month-scroll" data-pl-scroll data-pl-pinch><div class="pl-month-grid">${days.map(d=>renderPlannerMonthCell(d,display,todayIso)).join('')}</div></div>`;
+  }
+  function renderPlannerMonthCell(d,display,todayIso){
+    const iso=isoDate(d),dayEvents=plannerEventsFor(iso);
+    const dots=dayEvents.slice(0,4).map(e=>`<span class="pl-month-dot" style="--pl-color:${plannerSectionColor(e.sectionId)}"></span>`).join('');
+    const extra=dayEvents.length>4?`<span class="pl-month-more">+${dayEvents.length-4}</span>`:'';
+    return `<button class="pl-month-cell ${d.getMonth()!==display.getMonth()?'other':''} ${iso===todayIso?'is-today':''}" data-pl-month-day="${iso}">
+      <span class="pl-month-num">${d.getDate()}</span>
+      ${dayEvents.length?`<span class="pl-month-dots">${dots}${extra}</span>`:''}
+    </button>`;
   }
   function renderPlannerDayBlock(d){
     const dateIso=isoDate(d);
@@ -1560,11 +1649,64 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('[data-pl-add-section]')?.addEventListener('click',plannerAddSectionPrompt);
     $('[data-pl-inbox]')?.addEventListener('click',showPlannerInbox);
     $$('[data-pl-day]').forEach(b=>b.onclick=()=>plannerJumpTo(addDays(state.planner.viewDate,+b.dataset.plDay)));
-    $('[data-pl-today]')?.addEventListener('click',()=>plannerJumpTo(dateOnly()));
+    $$('[data-pl-week]').forEach(b=>b.onclick=()=>{state.planner.viewDate=addDays(state.planner.viewDate,7*(+b.dataset.plWeek));renderScreen();});
+    $$('[data-pl-month]').forEach(b=>b.onclick=()=>{const d=state.planner.calDisplay;state.planner.calDisplay=new Date(d.getFullYear(),d.getMonth()+(+b.dataset.plMonth),1);renderScreen();});
+    $$('[data-pl-week-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plWeekDay)));
+    $$('[data-pl-month-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plMonthDay)));
+    $('[data-pl-today]')?.addEventListener('click',()=>{
+      const zoom=state.planner.zoom;
+      if(zoom==='day')plannerJumpTo(dateOnly());
+      else if(zoom==='week'){state.planner.viewDate=dateOnly();renderScreen();}
+      else {state.planner.calDisplay=dateOnly();renderScreen();}
+    });
     $('[data-pl-add]')?.addEventListener('click',()=>showPlannerEditSheet(null));
     $$('[data-pl-toggle]').forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);});
     $$('[data-pl-open]').forEach(b=>b.onclick=()=>showPlannerDetail(b.dataset.plOpen));
     bindPlannerScroll();
+    bindPlannerPinch();
+  }
+  function plannerEnterDayView(date){
+    state.planner.viewDate=date;
+    state.planner.zoom='day';
+    plannerLastZoom=null;
+    renderScreen();
+  }
+  // Зум пальцами: сводим два касания -> отдаляемся (день->неделя->месяц),
+  // разводим -> приближаемся обратно. Порог ratio, а не абсолютная дистанция,
+  // чтобы не зависеть от размера экрана.
+  function plannerZoomOut(){
+    const z=state.planner.zoom;
+    if(z==='day'){state.planner.zoom='week';}
+    else if(z==='week'){state.planner.calDisplay=new Date(state.planner.viewDate.getFullYear(),state.planner.viewDate.getMonth(),1);state.planner.zoom='month';}
+    else return;
+    plannerLastZoom=null;renderScreen();
+  }
+  function plannerZoomIn(){
+    const z=state.planner.zoom;
+    if(z==='month'){
+      const disp=state.planner.calDisplay,vd=state.planner.viewDate;
+      if(vd.getFullYear()!==disp.getFullYear()||vd.getMonth()!==disp.getMonth())state.planner.viewDate=new Date(disp.getFullYear(),disp.getMonth(),1);
+      state.planner.zoom='week';
+    }
+    else if(z==='week'){state.planner.zoom='day';}
+    else return;
+    plannerLastZoom=null;renderScreen();
+  }
+  function touchDist(touches){const dx=touches[0].clientX-touches[1].clientX,dy=touches[0].clientY-touches[1].clientY;return Math.hypot(dx,dy);}
+  function bindPlannerPinch(){
+    const el=$('[data-pl-pinch]');
+    if(!el)return;
+    let startDist=0,live=false;
+    el.addEventListener('touchstart',e=>{
+      if(e.touches.length===2){startDist=touchDist(e.touches);live=true;}
+    },{passive:true});
+    el.addEventListener('touchmove',e=>{
+      if(!live||e.touches.length!==2||startDist<10)return;
+      const ratio=touchDist(e.touches)/startDist;
+      if(ratio<0.7){live=false;plannerZoomOut();}
+      else if(ratio>1.4){live=false;plannerZoomIn();}
+    },{passive:true});
+    el.addEventListener('touchend',e=>{if(e.touches.length<2)live=false;},{passive:true});
   }
   // Сумма offsetHeight всех .pl-day-block перед искомой датой — не зависит от offsetParent,
   // просто "сколько пикселей пролистать, чтобы этот день оказался вверху".
@@ -1594,26 +1736,34 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function bindPlannerScroll(){
     const sc=$('[data-pl-scroll]');
     if(!sc)return;
-    if(!plannerScrolledOnce){plannerScrolledOnce=true;pendingPlannerScroll={type:'now'};}
-    if(pendingPlannerScroll){
-      const req=pendingPlannerScroll;pendingPlannerScroll=null;
-      let top=null;
-      if(req.type==='now'){
-        top=plannerBlockTop(sc,isoDate(state.planner.viewDate));
-        if(top!=null)top+=Math.max(0,nowMinutes()-120)/60*PL_HOUR_PX;
-      } else if(req.type==='anchor'){
-        top=plannerBlockTop(sc,req.iso);
-        if(top!=null)top+=req.offset;
-      } else if(req.type==='date'){
-        top=plannerBlockTop(sc,req.iso);
+    const zoom=state.planner.zoom,freshEntry=plannerLastZoom!==zoom;
+    plannerLastZoom=zoom;
+    if(zoom==='day'){
+      if(freshEntry&&!pendingPlannerScroll)pendingPlannerScroll={type:'now'};
+      if(pendingPlannerScroll){
+        const req=pendingPlannerScroll;pendingPlannerScroll=null;
+        let top=null;
+        if(req.type==='now'){
+          top=plannerBlockTop(sc,isoDate(state.planner.viewDate));
+          if(top!=null)top+=Math.max(0,nowMinutes()-120)/60*PL_HOUR_PX;
+        } else if(req.type==='anchor'){
+          top=plannerBlockTop(sc,req.iso);
+          if(top!=null)top+=req.offset;
+        } else if(req.type==='date'){
+          top=plannerBlockTop(sc,req.iso);
+        }
+        if(top!=null)viewScroll.set(currentViewKey(),Math.max(0,top));
       }
-      if(top!=null)viewScroll.set(currentViewKey(),Math.max(0,top));
+      let ticking=false;
+      sc.addEventListener('scroll',()=>{
+        if(ticking)return;ticking=true;
+        requestAnimationFrame(()=>{ticking=false;plannerHandleScroll(sc);});
+      },{passive:true});
+    } else if(zoom==='week'&&freshEntry){
+      const todayCol=$('.pl-week-daycol.is-today',sc);
+      const top=todayCol?Math.max(0,nowMinutes()/60*PL_WEEK_HOUR_PX-120):8*PL_WEEK_HOUR_PX;
+      viewScroll.set(currentViewKey(),top);
     }
-    let ticking=false;
-    sc.addEventListener('scroll',()=>{
-      if(ticking)return;ticking=true;
-      requestAnimationFrame(()=>{ticking=false;plannerHandleScroll(sc);});
-    },{passive:true});
   }
   function plannerActiveBlock(sc){
     const scTop=sc.getBoundingClientRect().top;
@@ -1768,7 +1918,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: расписание теперь круглосуточное (0–24), а не 9–20, с той же высотой часа. Лента дней непрерывная — прокручиваешь мимо полуночи, и день меняется сам. Открывается сразу на сегодня и текущем времени, с красной линией «сейчас». Дальше — зум неделя/месяц.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: зум пальцами — сведи два пальца на расписании, чтобы увидеть неделю, ещё раз — весь месяц календарём. Разведи пальцы, чтобы вернуться обратно. Тап по дню в неделе/месяце сразу открывает его расписание.</p></section>
     </div></section>`;
   }
 
