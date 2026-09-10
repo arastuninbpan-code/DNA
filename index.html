@@ -944,6 +944,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-chip.active{border-color:var(--gold);background:rgba(201,168,76,.14);color:var(--gold2);}
 .pl-chip-add{width:32px;padding:0;display:grid;place-items:center;color:var(--gold);}
 .pl-chip-add .icon{width:16px;height:16px;}
+.pl-color-picker{display:flex;gap:10px;flex-wrap:wrap;padding:12px 0 4px;}
+.pl-color-swatch{width:30px;height:30px;border-radius:50%;background:var(--sw);border:2px solid transparent;padding:0;}
+.pl-color-swatch.active{border-color:#fff;}
 .pl-daynav{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;flex-shrink:0;}
 .pl-daynav button{width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid rgba(255,255,255,.1);color:#c1bfb9;display:grid;place-items:center;padding:0;}
 .pl-daynav button .icon{width:16px;height:16px;}
@@ -1021,7 +1024,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.4.5';
+  const APP_VERSION = '0.5.0';
   let homePanel = 'main';
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -1050,6 +1053,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     try { const raw = localStorage.getItem(key); return raw == null ? fallback : JSON.parse(raw); } catch (_) { return fallback; }
   }
   function saveJSON(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} }
+  function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+  // Миграция: старые записи (транзакции/цели/активы) хранились по индексу массива, не по id —
+  // после удаления/сортировки индексы «плывут» и легко зацепить не ту запись. Добиваем id всем,
+  // у кого его ещё нет (уже сохранённые локально данные), новые записи создаются сразу с id.
+  function withIds(arr){return Array.isArray(arr)?arr.map(x=>x&&!x.id?{...x,id:uid()}:x):[];}
+  const PL_COLORS=['#c9a84c','#7fb8e0','#e08fa0','#8fd19e','#d6a8e8','#e0b17f'];
+  function plannerHashColor(name){
+    let h=0;for(let i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))>>>0;
+    return PL_COLORS[h%PL_COLORS.length];
+  }
 
   const categories = [
     'Продукты','Транспорт','Рестораны','Здоровье','Развлечения','Образование','Одежда','Дом','Подарки','Переводы','Пополнение','Инвестиции','Связь','Другое'
@@ -1065,9 +1078,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     nav: 2,
     finance: {
       tab: 0,
-      transactions: Array.isArray(loadJSON('transactions', [])) ? loadJSON('transactions', []) : [],
-      goals: Array.isArray(loadJSON('goals', [])) ? loadJSON('goals', []) : [],
-      assets: Array.isArray(loadJSON('assets', [])) ? loadJSON('assets', []) : [],
+      transactions: withIds(loadJSON('transactions', [])),
+      goals: withIds(loadJSON('goals', [])),
+      // Активы с Тинькофф уже опознаются по figi — используем его же как id, чтобы не задваивать identity.
+      assets: (Array.isArray(loadJSON('assets', [])) ? loadJSON('assets', []) : []).map(a=>a&&!a.id?{...a,id:a.figi||uid()}:a),
       token: localStorage.getItem('tinkoff_token'),
       balanceExpanded: false,
       expandedMetric: null,
@@ -1096,12 +1110,41 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       perfectPulse: false,
     },
     planner: {
-      events: Array.isArray(loadJSON('planner_events', [])) ? loadJSON('planner_events', []) : [],
-      sections: Array.isArray(loadJSON('planner_sections', null)) ? loadJSON('planner_sections', null) : ['Работа','Учёба'],
+      events: withIds(loadJSON('planner_events', [])),
+      sections: loadJSON('planner_sections', []),
       activeSection: null,
       viewDate: dateOnly(),
     }
   };
+  // Бэкофилленные id (withIds выше) существуют только в памяти, пока что-то их не пересохранит —
+  // без этого при каждой свежей загрузке старым (ещё без id) записям присваивались бы новые id.
+  saveJSON('transactions', state.finance.transactions);
+  saveJSON('goals', state.finance.goals);
+  saveJSON('assets', state.finance.assets);
+  // Миграция разделов планера: раньше state.planner.sections был string[] с именами,
+  // события хранили e.section (имя). Теперь разделы — объекты {id,name,color}, а события
+  // ссылаются на e.sectionId. Старые имена резолвим в id по совпадению названия.
+  if (!Array.isArray(state.planner.sections)) state.planner.sections = [];
+  if (state.planner.sections.length && typeof state.planner.sections[0] === 'string') {
+    state.planner.sections = state.planner.sections.map(name => ({ id: uid(), name, color: plannerHashColor(name) }));
+  } else {
+    state.planner.sections = state.planner.sections.map(s => s && !s.id ? { ...s, id: uid() } : s);
+  }
+  if (!state.planner.sections.length) {
+    state.planner.sections = [
+      { id: uid(), name: 'Работа', color: PL_COLORS[0] },
+      { id: uid(), name: 'Учёба', color: PL_COLORS[1] },
+    ];
+  }
+  state.planner.events.forEach(e => {
+    if (e.sectionId === undefined) {
+      const match = e.section ? state.planner.sections.find(s => s.name === e.section) : null;
+      e.sectionId = match ? match.id : null;
+    }
+    delete e.section;
+  });
+  saveJSON('planner_sections', state.planner.sections);
+  saveJSON('planner_events', state.planner.events);
 
   // -------- Inline SVG icon set (keeps the package self-contained) --------
   function icon(name, cls='') {
@@ -1386,17 +1429,17 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
 
   // -------- Planner --------
-  const PL_START_HOUR=9,PL_END_HOUR=20,PL_HOUR_PX=56,PL_COLORS=['#c9a84c','#7fb8e0','#e08fa0','#8fd19e','#d6a8e8','#e0b17f'];
+  const PL_START_HOUR=9,PL_END_HOUR=20,PL_HOUR_PX=56;
   function plannerId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
   function savePlannerEvents(){saveJSON('planner_events',state.planner.events);}
   function savePlannerSections(){saveJSON('planner_sections',state.planner.sections);}
-  function plannerSectionColor(name){
-    if(!name)return 'var(--gold)';
-    let h=0;for(let i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))>>>0;
-    return PL_COLORS[h%PL_COLORS.length];
+  function plannerSectionById(id){return id?state.planner.sections.find(s=>s.id===id):null;}
+  function plannerSectionColor(sectionId){
+    const s=plannerSectionById(sectionId);
+    return s?s.color:'var(--gold)';
   }
-  function plannerEventsFor(dateIso){return state.planner.events.filter(e=>e.date===dateIso&&(!state.planner.activeSection||e.section===state.planner.activeSection));}
-  function plannerInboxEvents(){return state.planner.events.filter(e=>e.date==null&&(!state.planner.activeSection||e.section===state.planner.activeSection));}
+  function plannerEventsFor(dateIso){return state.planner.events.filter(e=>e.date===dateIso&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection));}
+  function plannerInboxEvents(){return state.planner.events.filter(e=>e.date==null&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection));}
   function plannerMinutesFromTime(t){const p=t.split(':').map(Number);return p[0]*60+p[1];}
   function formatPlannerDate(iso){return parseLocalDate(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});}
   function formatPlannerDateTime(iso){const d=new Date(iso);return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+', '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
@@ -1412,7 +1455,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="pl-header"><h1>Планер</h1><button class="pl-inbox-btn" data-pl-inbox aria-label="Инбокс">${icon('inbox')}${inboxCount?`<span class="pl-inbox-badge">${inboxCount>99?'99+':inboxCount}</span>`:''}</button></header>
       <div class="pl-sections">
         <button class="pl-chip ${state.planner.activeSection?'':'active'}" data-pl-section="">Все</button>
-        ${state.planner.sections.map(s=>`<button class="pl-chip ${state.planner.activeSection===s?'active':''}" data-pl-section="${esc(s)}" style="--pl-color:${plannerSectionColor(s)}">${esc(s)}</button>`).join('')}
+        ${state.planner.sections.map(s=>`<button class="pl-chip ${state.planner.activeSection===s.id?'active':''}" data-pl-section="${esc(s.id)}" style="--pl-color:${s.color}">${esc(s.name)}</button>`).join('')}
         <button class="pl-chip pl-chip-add" data-pl-add-section aria-label="Новый раздел">${icon('plus')}</button>
       </div>
       <div class="pl-daynav">
@@ -1429,9 +1472,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     </section>`;
   }
   function plannerTaskCard(e){
-    return `<button class="pl-task ${e.done?'done':''}" data-pl-open="${e.id}" style="--pl-color:${plannerSectionColor(e.section)}">
+    const sec=plannerSectionById(e.sectionId);
+    return `<button class="pl-task ${e.done?'done':''}" data-pl-open="${e.id}" style="--pl-color:${plannerSectionColor(e.sectionId)}">
       <span class="pl-task-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
-      <span class="pl-task-body"><span class="pl-task-title">${esc(e.title)}</span>${e.section?`<span class="pl-task-meta">${esc(e.section)}</span>`:''}</span>
+      <span class="pl-task-body"><span class="pl-task-title">${esc(e.title)}</span>${sec?`<span class="pl-task-meta">${esc(sec.name)}</span>`:''}</span>
     </button>`;
   }
   function renderPlannerTimeline(timed){
@@ -1442,7 +1486,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const mins=clamp(plannerMinutesFromTime(e.time)-PL_START_HOUR*60,0,totalMinutes);
       const dur=clamp(e.duration||60,20,Math.max(20,totalMinutes-mins));
       const top=mins/60*PL_HOUR_PX,height=Math.max(30,dur/60*PL_HOUR_PX-2);
-      return `<button class="pl-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;--pl-color:${plannerSectionColor(e.section)}">
+      return `<button class="pl-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;--pl-color:${plannerSectionColor(e.sectionId)}">
         <span class="pl-event-time">${esc(e.time)}</span><span class="pl-event-title">${esc(e.title)}</span>
       </button>`;
     }).join('');
@@ -1460,11 +1504,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function plannerToggleDone(id){const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;ev.done=!ev.done;savePlannerEvents();renderScreen();}
   function plannerDelete(id){state.planner.events=state.planner.events.filter(x=>x.id!==id);savePlannerEvents();renderScreen();}
   function plannerAddSectionPrompt(){
-    const ov=overlay(`<div class="modal"><div class="modal-title">Новый раздел</div><div class="modal-content">${formField('pl-section-name','Название раздела')}</div><div class="modal-actions"><button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-section-save">Сохранить</button></div></div>`);
+    let color=PL_COLORS[state.planner.sections.length%PL_COLORS.length];
+    const ov=overlay(`<div class="modal"><div class="modal-title">Новый раздел</div><div class="modal-content">${formField('pl-section-name','Название раздела')}
+      <div class="pl-color-picker">${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${c===color?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}</div>
+    </div><div class="modal-actions"><button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-section-save">Сохранить</button></div></div>`);
     $('[data-close]',ov).onclick=closeOverlay;
+    $$('[data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color;$$('[data-color]',ov).forEach(x=>x.classList.toggle('active',x.dataset.color===color));});
     $('#pl-section-save',ov).onclick=()=>{
       const name=$('#pl-section-name',ov).value.trim();
-      if(name&&!state.planner.sections.includes(name)){state.planner.sections.push(name);savePlannerSections();}
+      if(name&&!state.planner.sections.some(s=>s.name===name)){state.planner.sections.push({id:uid(),name,color});savePlannerSections();}
       closeOverlay();renderScreen();
     };
   }
@@ -1487,13 +1535,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-toggle-row" id="pl-time-toggle-row" ${hasDate?'':'style="display:none"'}><label>Время</label><button class="pl-switch ${hasTime?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${hasTime}"></button></div>
       <div class="pl-form-row" id="pl-time-row" ${hasTime?'':'style="display:none"'}><input class="field" id="pl-time-value" type="time" value="${esc(timeVal)}"></div>
       <div class="pl-form-row"><label>Раздел</label><div class="pl-section-picker" id="pl-section-picker">
-        <button type="button" class="pl-chip ${!existing?.section?'active':''}" data-section="">Без раздела</button>
-        ${state.planner.sections.map(s=>`<button type="button" class="pl-chip ${existing?.section===s?'active':''}" data-section="${esc(s)}">${esc(s)}</button>`).join('')}
+        <button type="button" class="pl-chip ${!existing?.sectionId?'active':''}" data-section="">Без раздела</button>
+        ${state.planner.sections.map(s=>`<button type="button" class="pl-chip ${existing?.sectionId===s.id?'active':''}" data-section="${esc(s.id)}" style="--pl-color:${s.color}">${esc(s.name)}</button>`).join('')}
       </div></div>
       <div class="modal-actions">${existing?'<button class="text-btn" id="pl-form-delete" style="color:#ff5a5a">Удалить</button>':''}<button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-form-save">Сохранить</button></div>
     </div>`,{sheet:true});
-    let section=existing?.section||null;
-    $$('[data-section]',ov).forEach(b=>b.onclick=()=>{section=b.dataset.section||null;$$('[data-section]',ov).forEach(x=>x.classList.toggle('active',x.dataset.section===section));});
+    let sectionId=existing?.sectionId||null;
+    $$('[data-section]',ov).forEach(b=>b.onclick=()=>{sectionId=b.dataset.section||null;$$('[data-section]',ov).forEach(x=>x.classList.toggle('active',x.dataset.section===sectionId));});
     $('#pl-date-toggle',ov).onclick=()=>{
       const on=!$('#pl-date-toggle',ov).classList.contains('on');
       $('#pl-date-toggle',ov).classList.toggle('on',on);$('#pl-date-toggle',ov).setAttribute('aria-pressed',String(on));
@@ -1512,8 +1560,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const dateOn=$('#pl-date-toggle',ov).classList.contains('on');
       const timeOn=dateOn&&$('#pl-time-toggle',ov).classList.contains('on');
       const date=dateOn?$('#pl-date-value',ov).value:null,time=timeOn?$('#pl-time-value',ov).value:null;
-      if(existing){existing.title=title;existing.date=date;existing.time=time;existing.section=section;}
-      else state.planner.events.push({id:plannerId(),title,date,time,section,subtasks:[],comments:[],done:false});
+      if(existing){existing.title=title;existing.date=date;existing.time=time;existing.sectionId=sectionId;}
+      else state.planner.events.push({id:plannerId(),title,date,time,sectionId,subtasks:[],comments:[],done:false});
       savePlannerEvents();closeOverlay();renderScreen();
     };
   }
@@ -1527,7 +1575,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function showPlannerDetail(id){
     const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;
-    const meta=[ev.section,ev.date?formatPlannerDate(ev.date):null,ev.time].filter(Boolean).join(' · ')||'Инбокс';
+    const meta=[plannerSectionById(ev.sectionId)?.name,ev.date?formatPlannerDate(ev.date):null,ev.time].filter(Boolean).join(' · ')||'Инбокс';
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="pl-detail">
       <div class="pl-detail-head"><h2 class="pl-detail-title">${esc(ev.title)}</h2><button class="text-btn" data-pl-edit aria-label="Редактировать">${icon('edit')}</button></div>
       <div class="pl-detail-meta">${esc(meta)}</div>
@@ -1580,7 +1628,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: свайп-удаление привычки протяжкой теперь реально достижимо — порог считался по демпфированному «резиной» смещению вместо настоящей дистанции пальца и был почти недостижим на экране телефона. Направление свайпа распознаётся увереннее под углом (в т.ч. правой рукой).</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd>${APP_VERSION}</dd></dl><p class="settings-note">В этом обновлении: Финансы и Планер переведены на новую схему данных — транзакции, цели, активы, разделы планера и события теперь хранятся по стабильному id вместо позиции в массиве, поэтому редактирование и удаление больше не может «зацепить» не ту запись. Разделы планера стали полноценными объектами с собственным цветом — можно выбрать цвет при создании раздела через палитру, а не только получать цвет автоматически по названию.</p></section>
     </div></section>`;
   }
 
@@ -1681,12 +1729,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function renderFinTransactions(tx, swipeable=false) {
     if(!tx.length)return '<div class="fin-empty">Здесь появятся твои операции.<br><span>Добавь расход или пополнение кнопками выше.</span></div>';
     return `<div class="fin-transactions">${tx.map(t=>{
-      const i=state.finance.transactions.indexOf(t),income=t.type==='income';
-      const card=`<button class="fin-transaction" data-fin-tx="${i}"><span class="fin-tx-icon ${income?'fin-income':''}">${icon(income?'trend-up':categoryIcon[t.category]||'receipt')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}</small></span><span class="fin-tx-money ${income?'fin-income':''}">${income?'+':'−'}${finMoney(finAmount(t))}</span></button>`;
+      const income=t.type==='income';
+      const card=`<button class="fin-transaction" data-fin-tx="${t.id}"><span class="fin-tx-icon ${income?'fin-income':''}">${icon(income?'trend-up':categoryIcon[t.category]||'receipt')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}</small></span><span class="fin-tx-money ${income?'fin-income':''}">${income?'+':'−'}${finMoney(finAmount(t))}</span></button>`;
       if(!swipeable)return card;
       // Свайп влево — тот же паттерн, что у привычек: карточка следует за пальцем, кнопки лежат
       // неподвижно под ней; удаление — через 5-секундный undo-тост, а не мгновенно.
-      return `<div class="fin-tx-swipe" data-fin-tx-index="${i}"><div class="fin-tx-actions"><button data-fin-swipe-edit="${i}" aria-label="Редактировать операцию">${icon('edit')}</button><button data-fin-swipe-delete="${i}" aria-label="Удалить операцию">${icon('trash')}</button></div>${card}</div>`;
+      return `<div class="fin-tx-swipe" data-fin-tx-index="${esc(t.id)}"><div class="fin-tx-actions"><button data-fin-swipe-edit="${esc(t.id)}" aria-label="Редактировать операцию">${icon('edit')}</button><button data-fin-swipe-delete="${esc(t.id)}" aria-label="Удалить операцию">${icon('trash')}</button></div>${card}</div>`;
     }).join('')}</div>`;
   }
   function renderFinanceHistory() {
@@ -1724,11 +1772,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function renderFinanceGoals() {
     if(!state.finance.goals.length)return '<div class="fin-empty">На что хочешь накопить?<br><span>Добавь цель — например, новый ноутбук.</span></div>';
-    return `<div class="fin-goals">${state.finance.goals.map((g,i)=>{const current=Math.max(0,num(g.current)),target=Math.max(0,num(g.target)),p=target?clamp(current/target,0,1):0,left=Math.max(0,target-current);return `<button class="fin-goal" data-fin-goal="${i}"><span class="fin-goal-title"><strong>${esc(g.name||'Цель')}</strong><span>${Math.round(p*100)}%</span></span><span class="fin-progress"><i style="width:${p*100}%"></i></span><span class="fin-goal-detail">${finMoney(current)} из ${finMoney(target)}</span><span class="fin-muted">${left?`Осталось ${finMoney(left)}`:'Цель достигнута'}${g.deadline?` · до ${finDate(g.deadline)}`:''}</span></button>`;}).join('')}<p class="fin-muted">Накопления отмечаются вручную и не вычитаются из баланса повторно.</p></div>`;
+    return `<div class="fin-goals">${state.finance.goals.map((g)=>{const current=Math.max(0,num(g.current)),target=Math.max(0,num(g.target)),p=target?clamp(current/target,0,1):0,left=Math.max(0,target-current);return `<button class="fin-goal" data-fin-goal="${esc(g.id)}"><span class="fin-goal-title"><strong>${esc(g.name||'Цель')}</strong><span>${Math.round(p*100)}%</span></span><span class="fin-progress"><i style="width:${p*100}%"></i></span><span class="fin-goal-detail">${finMoney(current)} из ${finMoney(target)}</span><span class="fin-muted">${left?`Осталось ${finMoney(left)}`:'Цель достигнута'}${g.deadline?` · до ${finDate(g.deadline)}`:''}</span></button>`;}).join('')}<p class="fin-muted">Накопления отмечаются вручную и не вычитаются из баланса повторно.</p></div>`;
   }
   function renderInvestments() {
     const assets=state.finance.assets,total=assets.reduce((s,a)=>s+Math.max(0,num(a.currentValue)),0);
-    return `<div class="fin-portfolio-total">${finMoney(total)}<span>Последняя сохранённая стоимость</span></div>${assets.length?`<div class="fin-allocation" aria-hidden="true">${assets.map((a,i)=>`<i style="width:${total?Math.max(0,num(a.currentValue))/total*100:0}%;background:${FIN_COLORS[i%FIN_COLORS.length]}"></i>`).join('')}</div><div class="fin-legend">${assets.map((a,i)=>`<button data-fin-asset="${i}"><span class="fin-swatch" style="background:${FIN_COLORS[i%FIN_COLORS.length]}"></span><span>${esc(a.name||'Актив')}<small>${finMoney(a.currentValue)}</small></span><b>${total?(Math.max(0,num(a.currentValue))/total*100).toFixed(1):0}%</b></button>`).join('')}</div>`:'<div class="fin-empty">Добавь активы вручную, чтобы видеть состав портфеля.</div>'}<p class="fin-muted">График доходности появится, когда будет история стоимости и пополнений. Текущая сумма не показывает заработок.</p><button class="fin-text" data-fin-broker>${icon('link')} Т‑Инвестиции · подключение в разработке</button>`;
+    return `<div class="fin-portfolio-total">${finMoney(total)}<span>Последняя сохранённая стоимость</span></div>${assets.length?`<div class="fin-allocation" aria-hidden="true">${assets.map((a,i)=>`<i style="width:${total?Math.max(0,num(a.currentValue))/total*100:0}%;background:${FIN_COLORS[i%FIN_COLORS.length]}"></i>`).join('')}</div><div class="fin-legend">${assets.map((a,i)=>`<button data-fin-asset="${esc(a.id)}"><span class="fin-swatch" style="background:${FIN_COLORS[i%FIN_COLORS.length]}"></span><span>${esc(a.name||'Актив')}<small>${finMoney(a.currentValue)}</small></span><b>${total?(Math.max(0,num(a.currentValue))/total*100).toFixed(1):0}%</b></button>`).join('')}</div>`:'<div class="fin-empty">Добавь активы вручную, чтобы видеть состав портфеля.</div>'}<p class="fin-muted">График доходности появится, когда будет история стоимости и пополнений. Текущая сумма не показывает заработок.</p><button class="fin-text" data-fin-broker>${icon('link')} Т‑Инвестиции · подключение в разработке</button>`;
   }
   function finModal(title,body,setup) {
     const root=$('#fin-dialog-root');if(!root)return;
@@ -1759,8 +1807,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let note=(s.slice(0,matches[0].index)+s.slice(matches[0].index+token.length)).replace(/(?:руб(?:лей|ля|ль)?\.?|₽)/gi,'').replace(/\bRUB\b/gi,'').replace(/(?:я\s+)?(?:потратил[аи]?|оплатил[аи]?|купил[аи]?|получил[аи]?|пополнил[аи]?|поступило|расход|доход)\s*/gi,'').replace(/\s+/g,' ').trim();
     return {amount,note,type:expense||match[1].startsWith('-')?'expense':income||match[1].startsWith('+')?'income':null};
   }
-  function finTransactionForm(initial='expense',index=null) {
-    const existing=index===null?null:state.finance.transactions[index];if(index!==null&&!existing)return;
+  function finTransactionForm(initial='expense',id=null) {
+    const existing=id===null?null:state.finance.transactions.find(t=>t.id===id);if(id!==null&&!existing)return;
     let type=existing?.type||initial;
     finModal(existing?'Операция':'Новая операция',`<form id="fin-tx-form"><div class="fin-switch">${['expense','income'].map(t=>`<button type="button" data-tx-type="${t}" aria-pressed="${type===t}">${t==='expense'?'− Расход':'+ Пополнение'}</button>`).join('')}</div><label class="fin-label" for="fin-amount">Сумма или короткая запись</label><input class="fin-field" id="fin-amount" required autocomplete="off" placeholder="60 тысяч на Турцию" value="${existing?finAmount(existing):''}"><div class="fin-preview" id="fin-tx-preview" aria-live="polite"></div><label class="fin-label" for="fin-note">Примечание</label><input class="fin-field" id="fin-note" maxlength="500" value="${esc(existing?.note||'')}" placeholder="Например, поездка в Турцию"><label class="fin-label" for="fin-tx-category">Категория</label><select class="fin-field" id="fin-tx-category">${[...new Set([...categories,existing?.category].filter(Boolean))].map(c=>`<option ${c===(existing?.category||(type==='income'?'Пополнение':'Другое'))?'selected':''}>${esc(c)}</option>`).join('')}</select><label class="fin-label" for="fin-tx-date">Дата</label>${appDateField('fin-tx-date',existing?.date?.slice(0,10)||isoDate(new Date()),true)}<p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary" type="submit">${existing?'Сохранить':'Добавить операцию'}</button>${existing?'<button class="fin-danger" type="button" id="fin-tx-delete">Удалить операцию</button>':''}</form>`,(d,close)=>{
       let noteEdited=false;const amount=$('#fin-amount',d),note=$('#fin-note',d),category=$('#fin-tx-category',d);
@@ -1769,31 +1817,31 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       amount.addEventListener('input',preview);note.addEventListener('input',()=>{noteEdited=true;preview();});
       $$('[data-tx-type]',d).forEach(b=>b.onclick=()=>{setType(b.dataset.txType);const p=parseFinInput(amount.value);if(!p.error)$('#fin-tx-preview',d).textContent=`${type==='income'?'Пополнение':'Расход'}: ${finMoney(p.amount)}`;});
       $('#fin-tx-form',d).onsubmit=e=>{e.preventDefault();const p=parseFinInput(amount.value),date=$('#fin-tx-date',d).value;if(p.error){finError(d,p.error);return;}if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||isoDate(parseLocalDate(date))!==date){finError(d,'Проверь дату операции.');return;}
-        const tx={...(existing||{}),amount:type==='income'?p.amount:-p.amount,type,category:category.value,note:note.value.trim(),date};const old=state.finance.transactions;
-        state.finance.transactions=old.slice();if(index===null)state.finance.transactions.push(tx);else state.finance.transactions[index]=tx;
+        const tx={...(existing||{id:uid()}),amount:type==='income'?p.amount:-p.amount,type,category:category.value,note:note.value.trim(),date};const old=state.finance.transactions;
+        state.finance.transactions=id===null?[...old,tx]:old.map(t=>t.id===id?tx:t);
         if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();showToast('Операция сохранена',true);
       };
-      $('#fin-tx-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить эту операцию?'))return;const old=state.finance.transactions;state.finance.transactions=old.filter((_,i)=>i!==index);if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();});
+      $('#fin-tx-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить эту операцию?'))return;const old=state.finance.transactions;state.finance.transactions=old.filter(t=>t.id!==id);if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();});
       preview();amount.focus({preventScroll:true});
     });
   }
   function finOpeningForm() {
     finModal('Начальный остаток',`<p class="fin-muted">Сумма, которая была у тебя до первой внесённой операции. Это не доход и не стоимость инвестиций.</p><form id="fin-opening-form"><label class="fin-label" for="fin-opening">Начальный остаток, ₽</label><input class="fin-field" type="number" step="0.01" min="-1000000000000" max="1000000000000" required id="fin-opening" value="${openingBalance}"><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Сохранить</button></form>`,d=>{$('#fin-opening-form',d).onsubmit=e=>{e.preventDefault();const value=Number($('#fin-opening',d).value);if(!Number.isFinite(value))return;try{localStorage.setItem('dna_finance_opening_v1',JSON.stringify(value));}catch(_){finError(d,'Не удалось сохранить остаток.');return;}openingBalance=value;d.close();finRefresh();};});
   }
-  function finGoalForm(index=null) {
-    const old=index===null?null:state.finance.goals[index];
+  function finGoalForm(id=null) {
+    const old=id===null?null:state.finance.goals.find(g=>g.id===id);
     finModal(old?'Цель':'Новая цель',`<form id="fin-goal-form"><label class="fin-label" for="fin-goal-name">Название</label><input class="fin-field" id="fin-goal-name" required maxlength="120" value="${esc(old?.name||'')}" placeholder="Ноутбук"><label class="fin-label" for="fin-goal-target">Нужно накопить, ₽</label><input class="fin-field" id="fin-goal-target" type="number" step="0.01" min="0.01" max="1000000000000" required value="${old?num(old.target):''}"><label class="fin-label" for="fin-goal-current">Уже отложено, ₽</label><input class="fin-field" id="fin-goal-current" type="number" step="0.01" min="0" max="1000000000000" required value="${num(old?.current)}"><label class="fin-label" for="fin-goal-deadline">Срок — необязательно</label>${appDateField('fin-goal-deadline',old?.deadline||'')}<p id="fin-goal-plan" class="fin-preview" aria-live="polite"></p><p class="fin-muted">Изменение накоплений не создаёт расход или пополнение.</p><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Сохранить цель</button>${old?'<button class="fin-danger" type="button" id="fin-goal-delete">Удалить цель</button>':''}</form>`,d=>{
       const plan=()=>{const target=num($('#fin-goal-target',d).value),current=num($('#fin-goal-current',d).value),deadline=$('#fin-goal-deadline',d).value;const days=deadline?Math.ceil((parseLocalDate(deadline)-dateOnly())/86400000):0;$('#fin-goal-plan',d).textContent=days>0?`Ориентир на месяц: ${finMoney(Math.max(0,target-current)/Math.max(1,days/30))}`:deadline?'Срок наступил: при необходимости выбери новую дату.':'';};
       $$('input',d).forEach(x=>x.addEventListener('input',plan));plan();
-      $('#fin-goal-form',d).onsubmit=e=>{e.preventDefault();const name=$('#fin-goal-name',d).value.trim(),target=Number($('#fin-goal-target',d).value),current=Number($('#fin-goal-current',d).value);if(!name||!Number.isFinite(target)||target<=0||!Number.isFinite(current)||current<0){finError(d,'Проверь название и суммы.');return;}const list=state.finance.goals,g={...(old||{}),name,target,current,deadline:$('#fin-goal-deadline',d).value};state.finance.goals=list.slice();if(index===null)state.finance.goals.push(g);else state.finance.goals[index]=g;if(!finSaveData(d,'goals')){state.finance.goals=list;return;}d.close();finRefresh();};
-      $('#fin-goal-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить цель? Операции останутся без изменений.'))return;const list=state.finance.goals;state.finance.goals=list.filter((_,i)=>i!==index);if(!finSaveData(d,'goals')){state.finance.goals=list;return;}d.close();finRefresh();});
+      $('#fin-goal-form',d).onsubmit=e=>{e.preventDefault();const name=$('#fin-goal-name',d).value.trim(),target=Number($('#fin-goal-target',d).value),current=Number($('#fin-goal-current',d).value);if(!name||!Number.isFinite(target)||target<=0||!Number.isFinite(current)||current<0){finError(d,'Проверь название и суммы.');return;}const list=state.finance.goals,g={...(old||{id:uid()}),name,target,current,deadline:$('#fin-goal-deadline',d).value};state.finance.goals=id===null?[...list,g]:list.map(x=>x.id===id?g:x);if(!finSaveData(d,'goals')){state.finance.goals=list;return;}d.close();finRefresh();};
+      $('#fin-goal-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить цель? Операции останутся без изменений.'))return;const list=state.finance.goals;state.finance.goals=list.filter(g=>g.id!==id);if(!finSaveData(d,'goals')){state.finance.goals=list;return;}d.close();finRefresh();});
     });
   }
-  function finAssetForm(index=null) {
-    const old=index===null?null:state.finance.assets[index];
+  function finAssetForm(id=null) {
+    const old=id===null?null:state.finance.assets.find(a=>a.id===id);
     finModal(old?'Актив':'Новый актив',`<form id="fin-asset-form"><label class="fin-label" for="fin-asset-name">Название</label><input class="fin-field" id="fin-asset-name" required maxlength="120" value="${esc(old?.name||'')}"><label class="fin-label" for="fin-asset-value">Текущая стоимость, ₽</label><input class="fin-field" id="fin-asset-value" type="number" step="0.01" min="0" max="1000000000000" required value="${old?num(old.currentValue):''}"><p class="fin-muted">Стоимость указывается вручную. Это не прибыль и не доход на баланс.</p><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Сохранить актив</button>${old?'<button class="fin-danger" type="button" id="fin-asset-delete">Удалить актив</button>':''}</form>`,d=>{
-      $('#fin-asset-form',d).onsubmit=e=>{e.preventDefault();const name=$('#fin-asset-name',d).value.trim(),currentValue=Number($('#fin-asset-value',d).value);if(!name||!Number.isFinite(currentValue)||currentValue<0){finError(d,'Проверь название и стоимость.');return;}const list=state.finance.assets,a={...(old||{}),name,currentValue,source:'manual'};state.finance.assets=list.slice();if(index===null)state.finance.assets.push(a);else state.finance.assets[index]=a;if(!finSaveData(d,'assets')){state.finance.assets=list;return;}d.close();finRefresh();};
-      $('#fin-asset-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить актив?'))return;const list=state.finance.assets;state.finance.assets=list.filter((_,i)=>i!==index);if(!finSaveData(d,'assets')){state.finance.assets=list;return;}d.close();finRefresh();});
+      $('#fin-asset-form',d).onsubmit=e=>{e.preventDefault();const name=$('#fin-asset-name',d).value.trim(),currentValue=Number($('#fin-asset-value',d).value);if(!name||!Number.isFinite(currentValue)||currentValue<0){finError(d,'Проверь название и стоимость.');return;}const list=state.finance.assets,a={...(old||{id:uid()}),name,currentValue,source:old?.source||'manual'};state.finance.assets=id===null?[...list,a]:list.map(x=>x.id===id?a:x);if(!finSaveData(d,'assets')){state.finance.assets=list;return;}d.close();finRefresh();};
+      $('#fin-asset-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить актив?'))return;const list=state.finance.assets;state.finance.assets=list.filter(a=>a.id!==id);if(!finSaveData(d,'assets')){state.finance.assets=list;return;}d.close();finRefresh();});
     });
   }
   function finCustomize() {
@@ -1822,11 +1870,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('[data-fin-opening]')?.addEventListener('click',finOpeningForm);
     $('[data-fin-customize]')?.addEventListener('click',finCustomize);
     $$('[data-fin-period]').forEach(b=>b.onclick=()=>{financeView.period=b.dataset.finPeriod;finRefresh(`[data-fin-period="${financeView.period}"]`);});
-    const bindTx=()=>$$('[data-fin-tx]').forEach(b=>b.onclick=()=>finTransactionForm('expense',+b.dataset.finTx));bindTx();
+    const bindTx=()=>$$('[data-fin-tx]').forEach(b=>b.onclick=()=>finTransactionForm('expense',b.dataset.finTx));bindTx();
     const bindTxSwipe=()=>{
       $$('.fin-tx-swipe').forEach(bindFinTxSwipe);
-      $$('[data-fin-swipe-edit]').forEach(b=>b.onclick=()=>{closeFinTxSwipes();finTransactionForm('expense',+b.dataset.finSwipeEdit);});
-      $$('[data-fin-swipe-delete]').forEach(b=>b.onclick=()=>{closeFinTxSwipes();deleteFinTxWithUndo(+b.dataset.finSwipeDelete);});
+      $$('[data-fin-swipe-edit]').forEach(b=>b.onclick=()=>{closeFinTxSwipes();finTransactionForm('expense',b.dataset.finSwipeEdit);});
+      $$('[data-fin-swipe-delete]').forEach(b=>b.onclick=()=>{closeFinTxSwipes();deleteFinTxWithUndo(b.dataset.finSwipeDelete);});
     };
     bindTxSwipe();
     const updateHistory=()=>{storeCurrentScroll();financeView.search=$('#fin-search').value;financeView.type=$('#fin-type').value;financeView.category=$('#fin-category').value||null;$('#fin-history-results').innerHTML=renderFinHistoryResults();bindTx();bindTxSwipe();};
@@ -1835,8 +1883,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('#fin-search')?.addEventListener('input',updateHistory);$('#fin-type')?.addEventListener('change',updateHistory);$('#fin-category')?.addEventListener('change',updateHistory);
     $$('[data-fin-sector]').forEach(b=>{const open=()=>{const g=finGroups()[+b.dataset.finSector];if(g)finGo('history',g[0]);};b.onclick=open;if(b.tagName.toLowerCase()==='circle')b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};});
     $$('[data-fin-point]').forEach(b=>b.onclick=()=>{const p=finBuckets()[+b.dataset.finPoint];if(p){$$('[data-fin-point]').forEach(x=>x.classList.toggle('selected',x===b));$('#fin-point-value').textContent=`${p.label} · Пополнения ${finMoney(p.income)} · Расходы ${finMoney(p.expense)}`;}});
-    $('[data-fin-goal-new]')?.addEventListener('click',()=>finGoalForm());$$('[data-fin-goal]').forEach(b=>b.onclick=()=>finGoalForm(+b.dataset.finGoal));
-    $('[data-fin-asset-new]')?.addEventListener('click',()=>finAssetForm());$$('[data-fin-asset]').forEach(b=>b.onclick=()=>finAssetForm(+b.dataset.finAsset));
+    $('[data-fin-goal-new]')?.addEventListener('click',()=>finGoalForm());$$('[data-fin-goal]').forEach(b=>b.onclick=()=>finGoalForm(b.dataset.finGoal));
+    $('[data-fin-asset-new]')?.addEventListener('click',()=>finAssetForm());$$('[data-fin-asset]').forEach(b=>b.onclick=()=>finAssetForm(b.dataset.finAsset));
     $('[data-fin-broker]')?.addEventListener('click',()=>finModal('Т‑Инвестиции',`${renderDnaLoader('Скоро',true)}<p>Безопасное подключение брокера ещё в разработке.</p><p class="fin-muted">Сохранённые активы доступны. Сейчас приложение не отправляет токен брокеру и не обновляет котировки автоматически. Не вводи секретный токен в публичные файлы проекта.</p>`));
     $('[data-fin-import]')?.addEventListener('click',finImportInfo);
   }
@@ -1874,7 +1922,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(!press||press.id!==e.pointerId)return;const g=press;press=null;
       if(g.axis!=='x'){if(open||offset)settle(false);return;}
       const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0,dx=e.clientX-g.x;suppressUntil=now+500;
-      if(dx<-25&&offset<=-deleteThreshold){busy=true;row.classList.remove('is-dragging');closeFinTxSwipes();deleteFinTxWithUndo(+row.dataset.finTxIndex);return;}
+      if(dx<-25&&offset<=-deleteThreshold){busy=true;row.classList.remove('is-dragging');closeFinTxSwipes();deleteFinTxWithUndo(row.dataset.finTxIndex);return;}
       const shouldOpen=offset<0&&(offset<=-revealWidth*.4||v<-.5);
       settle(g.wasOpen&&dx>12?false:shouldOpen);
     },{passive:true});
@@ -1882,11 +1930,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     row.addEventListener('click',e=>{if(e.target.closest('.fin-tx-actions'))return;if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();return;}if(open){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
   }
   let pendingFinTxUndo=null;
-  function deleteFinTxWithUndo(index) {
+  function deleteFinTxWithUndo(id) {
     pendingFinTxUndo?.finish(false,true);
-    const tx=state.finance.transactions[index];if(!tx)return;
-    const removedIndex=index,removedTx=tx;
-    state.finance.transactions=state.finance.transactions.filter((_,i)=>i!==index);
+    const removedIndex=state.finance.transactions.findIndex(t=>t.id===id);if(removedIndex<0)return;
+    const removedTx=state.finance.transactions[removedIndex];
+    state.finance.transactions=state.finance.transactions.filter(t=>t.id!==id);
     saveFinance();finRefresh();
     const root=$('#toast-root'),notice=document.createElement('div');notice.className='habit-undo';notice.setAttribute('role','status');
     const undo=document.createElement('button');undo.type='button';undo.className='habit-undo-circle';undo.setAttribute('aria-label','Операция удалена. Нажми, чтобы отменить.');
@@ -1901,7 +1949,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(ending)return;ending=true;clearTimeout(timer);
       document.removeEventListener('pointerdown',interrupt,true);document.removeEventListener('wheel',interrupt,true);document.removeEventListener('touchmove',interrupt,true);document.removeEventListener('keydown',interrupt,true);window.removeEventListener('pagehide',interrupt);
       if(pendingFinTxUndo?.notice===notice)pendingFinTxUndo=null;
-      if(restore&&!state.finance.transactions.includes(removedTx)){const arr=state.finance.transactions.slice();arr.splice(Math.min(removedIndex,arr.length),0,removedTx);state.finance.transactions=arr;saveFinance();finRefresh();}
+      if(restore&&!state.finance.transactions.some(t=>t.id===removedTx.id)){const arr=state.finance.transactions.slice();arr.splice(Math.min(removedIndex,arr.length),0,removedTx);state.finance.transactions=arr;saveFinance();finRefresh();}
       notice.getAnimations?.().forEach(a=>a.cancel());outlineRect.getAnimations?.().forEach(a=>a.cancel());
       if(immediate||reducedMotion()||!notice.animate)notice.remove();else{const out=notice.animate([{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(12px)'}],{duration:200,easing:'ease-out'});out.onfinish=()=>notice.remove();}
     };
