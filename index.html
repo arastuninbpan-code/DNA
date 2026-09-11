@@ -998,15 +998,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-task-actions button{width:40px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
 .pl-task-actions button .icon{width:15px;height:15px;}
 .pl-task-actions [data-pl-task-delete]{background:#c94a50;color:#fff;}
-.pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--surface);border:1px solid rgba(255,255,255,.05);border-left:3px solid var(--pl-color,var(--gold));touch-action:pan-y;}
+.pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:0;touch-action:pan-y;}
 .pl-task.done{opacity:.5;}
-.pl-task-check{width:22px;height:22px;flex:0 0 auto;border-radius:6px;border:1.5px solid rgba(255,255,255,.2);display:grid;place-items:center;color:var(--gold);background:transparent;padding:0;}
-.pl-task-check.done{border-color:var(--gold);background:rgba(201,168,76,.15);}
+.pl-task-check{width:22px;height:22px;flex:0 0 auto;border-radius:6px;border:1.5px solid rgba(20,16,10,.35);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
+.pl-task-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
 .pl-task-check .icon{width:13px;height:13px;}
 .pl-task-body{flex:1;min-width:0;}
-.pl-task-title{font-family:Georgia,'Times New Roman',serif;font-size:.9375rem;color:#fff;overflow-wrap:anywhere;}
-.pl-task.done .pl-task-title{text-decoration:line-through;color:rgba(255,255,255,.4);}
-.pl-task-meta{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:2px;}
+.pl-task-title{font-family:Georgia,'Times New Roman',serif;font-size:.9375rem;color:#171410;font-weight:600;overflow-wrap:anywhere;}
+.pl-task.done .pl-task-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
+.pl-task-meta{font-size:.75rem;color:rgba(20,16,10,.6);margin-top:2px;}
 .pl-timeline{position:relative;border-top:1px solid rgba(255,255,255,.06);}
 .pl-hour-row{position:relative;height:56px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;}
 .pl-hour-label{flex:0 0 44px;font-size:.6875rem;color:rgba(255,255,255,.32);padding-top:2px;font-variant-numeric:tabular-nums;}
@@ -1016,6 +1016,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-now-line::before{content:'';position:absolute;left:48px;top:-4px;width:8px;height:8px;border-radius:50%;background:#e0464f;}
 .pl-event-wrap{position:absolute;left:0;right:4px;overflow:hidden;border-radius:10px;isolation:isolate;pointer-events:auto;}
 .pl-event-ghost{box-shadow:0 10px 28px rgba(0,0,0,.5);}
+.pl-event-wrap.swap-target .pl-event{box-shadow:0 0 0 2px #fff;}
+.pl-event-wrap.pl-event-covered .pl-event-title{opacity:0;}
 .pl-event-ghost .pl-event{box-shadow:0 0 0 1.5px var(--gold);}
 .pl-drag-bar{position:fixed;z-index:600;left:50%;bottom:calc(var(--nav-h) + var(--safe-bottom) + 20px);transform:translateX(-50%);display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:0 6px 25px #0009;}
 .pl-drag-bar button{display:grid;place-items:center;box-sizing:border-box;padding:0;width:52px;height:52px;border:1px solid #ad444a;border-radius:50%;color:#ff696d;background:#221416;transition:background-color .15s ease,box-shadow .15s ease;}
@@ -1026,10 +1028,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-actions button{width:36px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
 .pl-event-actions button .icon{width:14px;height:14px;}
 .pl-event-actions [data-pl-event-delete]{background:#c94a50;color:#fff;}
-.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--surface);border:1px solid rgba(255,255,255,.08);border-left:3px solid var(--pl-color,var(--gold));overflow:hidden;text-align:left;touch-action:none;}
+.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:0;overflow:hidden;text-align:left;touch-action:none;}
 .pl-event.done{opacity:.5;}
-.pl-event-title{font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#fff;overflow-wrap:anywhere;line-height:1.25;}
-.pl-event.done .pl-event-title{text-decoration:line-through;color:rgba(255,255,255,.4);}
+.pl-event-title{font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#171410;font-weight:600;overflow-wrap:anywhere;line-height:1.25;}
+.pl-event.done .pl-event-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
 .pl-event-drag-badge{position:absolute;right:4px;top:-2px;transform:translateY(-100%);background:#1a1a1a;border:1px solid var(--gold);color:var(--gold);font-size:.625rem;font-variant-numeric:tabular-nums;padding:2px 6px;border-radius:6px;white-space:nowrap;pointer-events:none;z-index:20;}
 .pl-empty{text-align:center;color:rgba(255,255,255,.35);padding:24px 12px;font-size:.875rem;}
 /* Зум пальцами: день -> неделя -> месяц (и обратно). */
@@ -1115,7 +1117,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.8.2';
+  const APP_VERSION = '0.8.3';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1541,7 +1543,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // Экран рисует окно из PL_WINDOW_RADIUS*2+1 дней подряд (пузырь вокруг viewDate);
   // при подскролле к краю окна оно пересобирается вокруг текущего видимого дня —
   // так и получается "бесконечный" скролл сквозь полночь без реальной виртуализации.
-  const PL_START_HOUR=0,PL_END_HOUR=24,PL_HOUR_PX=56,PL_WINDOW_RADIUS=6,PL_WEEK_HOUR_PX=32;
+  const PL_START_HOUR=0,PL_END_HOUR=24,PL_HOUR_PX=56,PL_WINDOW_RADIUS=6,PL_WEEK_HOUR_PX=32,PL_OVERLAP_STEP=34;
   const PL_WEEKDAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   let plannerExtending=false,pendingPlannerScroll=null,plannerLastZoom=null;
   function plannerId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
@@ -1554,23 +1556,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function plannerEventColor(e){return e.color||plannerSectionColor(e.sectionId);}
   function plannerMinutesToTime(m){m=clamp(Math.round(m),0,1439);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
-  // Разводит пересекающиеся по времени события по колонкам (как в большинстве календарей) —
-  // чтобы одно не перекрывало другое полностью, а оба были видны side-by-side. items — объекты
-  // с {startMin,endMin,...}, мутируются на месте (.col, .totalCols); возвращает отсортированный
-  // массив. Пересекающиеся события образуют "кластер" и делят ширину на totalCols колонок;
-  // непересекающиеся кластеры считаются независимо.
+  // Разводит пересекающиеся по времени события, чтобы одно не перекрывало другое полностью,
+  // а оба были видны. items — объекты с {startMin,endMin,...}, мутируются на месте
+  // (.col — индекс в кластере слева направо, .totalCols — размер кластера). Кластеры
+  // определяются чисто по пересечению времени, а ПОРЯДОК слева направо внутри кластера —
+  // по laneOrder (ручная перестановка драгом, см. bindPlannerEventDrag), с откатом на
+  // startMin, если laneOrder не выставлен ни разу.
   function plannerLayoutColumns(items){
     const sorted=items.slice().sort((a,b)=>a.startMin-b.startMin||a.endMin-b.endMin);
-    let clusterEnd=-Infinity,columnEnds=[],cluster=[];
-    const flush=()=>{if(!cluster.length)return;const n=columnEnds.length;cluster.forEach(it=>it.totalCols=n);cluster=[];columnEnds=[];};
+    const clusters=[];
+    let cur=[],curEnd=-Infinity;
     sorted.forEach(it=>{
-      if(it.startMin>=clusterEnd){flush();clusterEnd=-Infinity;}
-      let col=columnEnds.findIndex(end=>end<=it.startMin);
-      if(col===-1){col=columnEnds.length;columnEnds.push(0);}
-      columnEnds[col]=it.endMin;it.col=col;cluster.push(it);
-      clusterEnd=Math.max(clusterEnd,it.endMin);
+      if(it.startMin>=curEnd){if(cur.length)clusters.push(cur);cur=[];curEnd=-Infinity;}
+      cur.push(it);curEnd=Math.max(curEnd,it.endMin);
     });
-    flush();
+    if(cur.length)clusters.push(cur);
+    clusters.forEach(cluster=>{
+      const ordered=cluster.slice().sort((a,b)=>((a.e?a.e.laneOrder:a.laneOrder)??a.startMin)-((b.e?b.e.laneOrder:b.laneOrder)??b.startMin)||a.startMin-b.startMin);
+      ordered.forEach((it,i)=>{it.col=i;it.totalCols=ordered.length;});
+    });
     return sorted;
   }
   function plannerEventsFor(dateIso){return state.planner.events.filter(e=>e.date===dateIso&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection));}
@@ -1696,10 +1700,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       return {e,startMin:mins,endMin:mins+dur};
     });
     plannerLayoutColumns(items);
+    // Пересекающиеся события не делим строго поровну (при двух — было бы вдвое уже, читать
+    // название тяжело) — веером внахлёст: каждая следующая карточка съезжает всего на
+    // PL_OVERLAP_STEP правее и лежит НАД предыдущими (z-index растёт), почти во всю ширину.
+    // У самой первой в кластере остаётся видимый "хвостик" слева шириной с шаг — по нему и
+    // тянут, чтобы вернуть её наверх (см. bindPlannerEventDrag, горизontальный драг).
     const events=items.map(({e,startMin,endMin,col,totalCols})=>{
       const top=startMin/60*PL_HOUR_PX,height=Math.max(30,(endMin-startMin)/60*PL_HOUR_PX-2);
-      const leftPct=col/totalCols*100,widthPct=100/totalCols;
-      return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
+      const step=PL_OVERLAP_STEP;
+      const left=col===0?'2px':`calc(${col*step}px + 2px)`;
+      const width=totalCols<=1?'calc(100% - 4px)':`calc(100% - ${(totalCols-1)*step+4}px)`;
+      // У карточек, накрытых сверху соседями (не самая последняя в кластере), название прячем —
+      // иначе текст обрубается ровно по границе перекрытия и выглядит как рендер-баг, а не
+      // намеренный "хвостик". Сам хвостик остаётся кликабельным/перетаскиваемым — по нему
+      // возвращают карточку наверх (см. bindPlannerEventDrag).
+      const covered=col<totalCols-1;
+      return `<div class="pl-event-wrap ${covered?'pl-event-covered':''}" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:${left};width:${width};z-index:${col+1}">
         <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
         <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)}">
           <span class="pl-event-title">${esc(e.title)}</span>
@@ -1809,7 +1825,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // чтобы не терять layout/pointer capture под ним).
   function bindPlannerEventDrag(wrap){
     const id=wrap.dataset.plEventId,card=$('.pl-event',wrap);
-    let timer=null,startX=0,startY=0,pointerId=null,dragEv=null,dragStartTop=0,dragSnapped=0,ghost=null,bar=null,remove=false;
+    let timer=null,startX=0,startY=0,pointerId=null,dragEv=null,dragStartTop=0,dragSnapped=0,ghost=null,bar=null,remove=false,dragAxis=null,swapTarget=null;
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
     wrap.cancelLongPress=cancel;
     card.addEventListener('pointerdown',e=>{
@@ -1818,7 +1834,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       timer=setTimeout(()=>{
         timer=null;
         dragEv=state.planner.events.find(x=>x.id===id);if(!dragEv)return;
-        dragStartTop=wrap.offsetTop;dragSnapped=dragStartTop;remove=false;
+        dragStartTop=wrap.offsetTop;dragSnapped=dragStartTop;remove=false;dragAxis=null;swapTarget=null;
         wrap.plEventDragging=true;
         holdFeedback(card);
         const bounds=wrap.getBoundingClientRect();
@@ -1842,17 +1858,33 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         return;
       }
       e.preventDefault();
+      const dx=e.clientX-startX,dy=e.clientY-startY;
+      const totalCols=+wrap.dataset.plTotalCols||1;
+      // Ось решается один раз в начале жеста (как у свайпа) — дальше либо переносим время
+      // (вертикаль), либо меняем местами с соседом по кластеру (горизонталь, только если
+      // событие реально с кем-то делит время — totalCols>1).
+      if(dragAxis===null&&Math.hypot(dx,dy)>10)dragAxis=(totalCols>1&&Math.abs(dx)>Math.abs(dy)*1.3)?'x':'y';
+      if(dragAxis==='x'){
+        if(bar)bar.style.opacity='.25';
+        if(ghost){ghost.style.opacity='';ghost.style.transform='translate3d('+dx+'px,0,0)';}
+        plannerHideDragBadge(ghost);
+        const col=+wrap.dataset.plCol||0,targetCol=dx>0?col+1:col-1;
+        const neighbor=targetCol>=0&&targetCol<totalCols?$('.pl-event-wrap[data-pl-col="'+targetCol+'"]',wrap.parentElement):null;
+        swapTarget=(Math.abs(dx)>28&&neighbor)?neighbor.dataset.plEventId:null;
+        $$('.pl-event-wrap',wrap.parentElement).forEach(w=>w.classList.toggle('swap-target',w.dataset.plEventId===swapTarget));
+        return;
+      }
+      if(bar)bar.style.opacity='';
       const trashBtn=$('[data-pl-drag-delete]',bar),home=trashBtn.getBoundingClientRect();
       const dxHome=e.clientX-(home.left+home.width/2),dyHome=e.clientY-(home.top+home.height/2);
       const dist=Math.hypot(dxHome,dyHome),proximity=clamp(1-dist/220,0,1);
       remove=dist<86;trashBtn.classList.toggle('ready',remove);
       trashBtn.style.transform='scale('+(1+proximity*.4)+')';
       if(remove){
-        if(ghost)ghost.style.transform='translate3d(0,'+(e.clientY-startY)+'px,0) scale(.7)';
+        if(ghost)ghost.style.transform='translate3d(0,'+dy+'px,0) scale(.7)';
         if(ghost)ghost.style.opacity='.5';
         plannerHideDragBadge(ghost);
       } else {
-        const dy=e.clientY-startY;
         const rawMin=(dragStartTop+dy)/PL_HOUR_PX*60;
         dragSnapped=clamp(Math.round(rawMin/5)*5,0,24*60-(dragEv.duration||60));
         if(ghost){ghost.style.opacity='';ghost.style.transform='translate3d(0,'+(dragSnapped/60*PL_HOUR_PX-dragStartTop)+'px,0)';}
@@ -1867,10 +1899,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         wrap.style.opacity='';
         ghost?.remove();ghost=null;
         bar?.remove();bar=null;
-        if(remove){plannerDelete(id);}
+        $$('.pl-event-wrap.swap-target').forEach(w=>w.classList.remove('swap-target'));
+        if(dragAxis==='x'){
+          if(swapTarget&&dragEv){
+            const other=state.planner.events.find(x=>x.id===swapTarget);
+            if(other){
+              const aKey=dragEv.laneOrder??plannerMinutesFromTime(dragEv.time),bKey=other.laneOrder??plannerMinutesFromTime(other.time);
+              dragEv.laneOrder=bKey;other.laneOrder=aKey===bKey?aKey+.01:aKey;
+              savePlannerEvents();renderScreen();
+            }
+          }
+        } else if(remove){plannerDelete(id);}
         else if(dragEv){dragEv.time=plannerMinutesToTime(dragSnapped);savePlannerEvents();renderScreen();}
       }
-      pointerId=null;
+      dragAxis=null;swapTarget=null;pointerId=null;
     };
     card.addEventListener('pointerup',finish,{passive:true});
     card.addEventListener('pointercancel',finish,{passive:true});
@@ -2155,7 +2197,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: форма новой задачи короче — дата (день, на котором стоишь) и раздел (открытый фильтр) больше не спрашиваются, только название, время и цвет. Событие без времени сразу видно в списке дня, а не только в инбоксе. Пересекающиеся по времени события теперь встают рядом, а не друг на друге.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: цвет события теперь заливает всю карточку, а не тонкую полоску слева. Пересекающиеся события больше не делятся строго пополам — веером внахлёст, верхняя карточка читается почти во всю ширину. Их порядок слева направо можно менять вручную: зажать карточку и потянуть в сторону.</p></section>
     </div></section>`;
   }
 
