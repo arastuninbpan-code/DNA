@@ -1083,9 +1083,49 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-subtask-text{flex:1;font-size:.875rem;color:#fff;}
 .pl-subtask-row.done .pl-subtask-text{text-decoration:line-through;color:rgba(255,255,255,.35);}
 .pl-subtask-add{display:flex;gap:8px;margin-top:6px;}
-.pl-comment-item{padding:10px 0;border-top:1px solid rgba(255,255,255,.06);}
-.pl-comment-date{font-size:.6875rem;color:rgba(255,255,255,.35);margin-bottom:4px;}
-.pl-comment-text{font-size:.875rem;color:#eee;white-space:pre-wrap;overflow-wrap:anywhere;}
+.pl-attach-box{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.pl-attach-btn{width:40px;height:40px;border-radius:10px;border:1px solid rgba(201,168,76,.35);background:var(--surface);color:var(--gold);display:grid;place-items:center;padding:0;flex:0 0 auto;}
+.pl-attach-btn .icon{width:18px;height:18px;}
+.pl-attach-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.pl-attach-chip{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:12px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);font-size:.75rem;border:0;}
+.pl-attach-chip .icon{width:13px;height:13px;}
+.pl-attach-menu{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.pl-attach-menu button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px;border-radius:12px;background:var(--surface);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-size:.6875rem;flex:1;min-width:64px;}
+.pl-attach-menu button .icon{width:18px;height:18px;color:var(--gold);}
+.pl-attach-editor{margin-top:12px;padding:12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);}
+.pl-attach-editor-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.pl-attach-editor-head span{font-size:.8125rem;color:rgba(255,255,255,.7);font-weight:600;}
+.pl-checklist-row,.pl-poll-option-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.pl-checklist-row input,.pl-poll-option-row input{flex:1;}
+.pl-attach-remove{width:26px;height:26px;border-radius:50%;background:transparent;color:rgba(255,255,255,.4);display:grid;place-items:center;padding:0;flex:0 0 auto;}
+.pl-attach-remove .icon{width:13px;height:13px;}
+.pl-attach-add-row{display:flex;gap:8px;margin-top:4px;}
+.pl-image-thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.pl-image-thumb{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;}
+.pl-image-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.pl-image-thumb button{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;padding:0;display:grid;place-items:center;border:0;}
+.pl-image-thumb button .icon{width:10px;height:10px;}
+.pl-location-map{width:100%;height:140px;border-radius:10px;border:0;margin-top:8px;}
+.pl-detail-attach-images{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.pl-detail-attach-images img{width:72px;height:72px;object-fit:cover;border-radius:10px;}
+.pl-poll-view{margin-bottom:10px;}
+.pl-poll-question{font-size:.875rem;color:#fff;font-weight:600;margin-bottom:8px;}
+.pl-poll-option{position:relative;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.06);margin-bottom:6px;overflow:hidden;border:0;width:100%;text-align:left;}
+.pl-poll-option-fill{position:absolute;inset:0;background:rgba(201,168,76,.22);width:var(--pct,0%);transition:width .3s ease;}
+.pl-poll-option-label{position:relative;display:flex;justify-content:space-between;font-size:.8125rem;color:#fff;}
+.pl-comment-item{display:flex;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.06);}
+.pl-comment-avatar{width:28px;height:28px;border-radius:50%;background:var(--gold);color:#1a1508;font-size:.75rem;font-weight:700;display:grid;place-items:center;flex:0 0 auto;}
+.pl-comment-body{flex:1;min-width:0;}
+.pl-comment-name{font-size:.8125rem;font-weight:700;color:#fff;margin-right:6px;}
+.pl-comment-date{font-size:.6875rem;color:rgba(255,255,255,.35);margin-top:4px;}
+.pl-comment-text{font-size:.875rem;color:#eee;white-space:pre-wrap;overflow-wrap:anywhere;display:inline;}
+.pl-comment-list.messenger{display:flex;flex-direction:column;gap:10px;}
+.pl-comment-list.messenger .pl-comment-item{border-top:0;padding:0;display:flex;flex-direction:column;max-width:78%;gap:0;}
+.pl-comment-list.messenger .pl-comment-item.mine{align-self:flex-end;align-items:flex-end;}
+.pl-comment-list.messenger .pl-comment-item.theirs{align-self:flex-start;align-items:flex-start;}
+.pl-comment-list.messenger .pl-comment-bubble{padding:8px 12px;border-radius:16px;font-size:.875rem;color:#171410;background:var(--gold);white-space:pre-wrap;overflow-wrap:anywhere;}
+.pl-comment-list.messenger .pl-comment-item.theirs .pl-comment-bubble{background:rgba(255,255,255,.1);color:#fff;}
+.pl-comment-list.messenger .pl-comment-date{margin-top:2px;}
 @media(prefers-reduced-motion:reduce){.pl-switch::after{transition:none;}}
 </style>
 </head>
@@ -1113,7 +1153,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.8.5';
+  const APP_VERSION = '0.8.6';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1216,6 +1256,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     planner: {
       events: withIds(loadJSON('planner_events', [])),
       sections: loadJSON('planner_sections', []),
+      pollVotes: loadJSON('planner_poll_votes', {}),
       activeSection: null,
       viewDate: dateOnly(),
       zoom: 'day',
@@ -1306,6 +1347,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       'more': '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
       'inbox': '<path d="M4 4h16l2 9v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-6l2-9Z"/><path d="M2 13h6a2 2 0 0 0 4 0h6"/>',
       'message': '<path d="M4 5h16v11H8l-4 4V5Z"/>',
+      'paperclip': '<path d="M8 12.5V7a4 4 0 0 1 8 0v9a2.5 2.5 0 0 1-5 0V8.5"/>',
+      'poll': '<path d="M6 20V10M12 20V4m6 16v-7"/>',
+      'pin': '<path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/>',
     }[name] || '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>';
     return `<span class="icon ${cls}"><svg ${common}>${p}</svg></span>`;
   }
@@ -1548,6 +1592,63 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function plannerId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
   function savePlannerEvents(){saveJSON('planner_events',state.planner.events);}
   function savePlannerSections(){saveJSON('planner_sections',state.planner.sections);}
+  function savePlannerPollVotes(){saveJSON('planner_poll_votes',state.planner.pollVotes);}
+  // Локальный анонимный id устройства — пока нет реальной авторизации (см. задачу про
+  // публичные разделы), используется как "это я" для мессенджер-вида комментариев и учёта
+  // голосования в опросах.
+  function plannerUserId(){
+    let id;try{id=localStorage.getItem('dna_user_id');}catch(_){}
+    if(!id){id=uid();try{localStorage.setItem('dna_user_id',id);}catch(_){}}
+    return id;
+  }
+  function plannerDownscaleImage(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>{
+        const img=new Image();
+        img.onload=()=>{
+          const maxW=800,scale=Math.min(1,maxW/img.width);
+          const canvas=document.createElement('canvas');
+          canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));
+          canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+          resolve(canvas.toDataURL('image/jpeg',0.72));
+        };
+        img.onerror=reject;img.src=reader.result;
+      };
+      reader.onerror=reject;reader.readAsDataURL(file);
+    });
+  }
+  // Встроенная карта без API-ключа — публичный embed OpenStreetMap по bbox вокруг точки.
+  function plannerLocationMapEmbed(loc){
+    if(loc.lat==null||loc.lng==null)return '';
+    const d=0.01,bbox=[loc.lng-d,loc.lat-d,loc.lng+d,loc.lat+d].join('%2C');
+    return `<iframe class="pl-location-map" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&marker=${loc.lat}%2C${loc.lng}" loading="lazy" title="Карта"></iframe>`;
+  }
+  function plannerImagesView(ev){
+    if(!ev.images||!ev.images.length)return '';
+    return `<div class="pl-detail-attach-images">${ev.images.map(src=>`<img src="${esc(src)}" alt="Фото">`).join('')}</div>`;
+  }
+  function plannerLocationView(ev){
+    if(!ev.location)return '';
+    return `<div class="pl-detail-meta">${icon('pin')} ${esc(ev.location.label||'Место')}</div>${plannerLocationMapEmbed(ev.location)}`;
+  }
+  function plannerPollView(ev){
+    if(!ev.poll)return '';
+    const total=ev.poll.options.reduce((s,o)=>s+(o.votes||0),0)||1;
+    const myVote=state.planner.pollVotes[ev.id];
+    return `<div class="pl-poll-view" id="pl-poll-container"><div class="pl-poll-question">${esc(ev.poll.question||'Голосование')}</div>
+      ${ev.poll.options.map(o=>{const pct=Math.round((o.votes||0)/total*100);return `<button type="button" class="pl-poll-option" data-vote="${o.id}" style="--pct:${pct}%"><span class="pl-poll-option-fill"></span><span class="pl-poll-option-label"><span>${esc(o.text||'Вариант')}${myVote===o.id?' ✓':''}</span><span>${pct}%</span></span></button>`;}).join('')}
+    </div>`;
+  }
+  function plannerVote(ev,optionId){
+    if(!ev.poll)return;
+    const prev=state.planner.pollVotes[ev.id];
+    if(prev===optionId)return;
+    if(prev){const old=ev.poll.options.find(o=>o.id===prev);if(old)old.votes=Math.max(0,(old.votes||0)-1);}
+    const opt=ev.poll.options.find(o=>o.id===optionId);if(opt)opt.votes=(opt.votes||0)+1;
+    state.planner.pollVotes[ev.id]=optionId;
+    savePlannerEvents();savePlannerPollVotes();
+  }
   function plannerSectionById(id){return id?state.planner.sections.find(s=>s.id===id):null;}
   function plannerSectionColor(sectionId){
     const s=plannerSectionById(sectionId);
@@ -2208,9 +2309,102 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <button type="button" class="pl-color-swatch pl-color-auto ${!evColor?'active':''}" data-color="" aria-label="Цвет раздела"></button>
         ${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${evColor===c?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}
       </div></div>
+      <div class="pl-form-row"><label>Вложения</label>
+        <div class="pl-attach-box"><button type="button" class="pl-attach-btn" id="pl-attach-toggle" aria-label="Добавить вложение">${icon('paperclip')}</button><div class="pl-attach-chips" id="pl-attach-chips"></div></div>
+        <div class="pl-attach-menu" id="pl-attach-menu" hidden>
+          <button type="button" data-attach-add="checklist">${icon('check')}<span>Чеклист</span></button>
+          <button type="button" data-attach-add="poll">${icon('poll')}<span>Опрос</span></button>
+          <button type="button" data-attach-add="image">${icon('image')}<span>Фото</span></button>
+          <button type="button" data-attach-add="location">${icon('pin')}<span>Локация</span></button>
+        </div>
+        <div id="pl-attach-editors"></div>
+      </div>
       <div class="modal-actions">${existing?'<button class="text-btn" id="pl-form-delete" style="color:#ff5a5a">Удалить</button>':''}<button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-form-save">Сохранить</button></div>
     </div>`,{sheet:true});
     let sectionId=existing?.sectionId||null,color=evColor;
+    // Вложения: чеклист (переиспользует subtasks), опрос, фото (сжимаются в data URL, максимум
+    // 4 штуки — не раздувать localStorage), локация (lat/lng + встроенный OSM-превью без ключа).
+    let checklist=(existing?.subtasks||[]).map(s=>({...s}));
+    let poll=existing?.poll?{question:existing.poll.question,options:existing.poll.options.map(o=>({...o}))}:null;
+    let images=(existing?.images||[]).slice();
+    let location=existing?.location?{...existing.location}:null;
+    const attachBox=$('#pl-attach-editors',ov);
+    const renderAttachChips=()=>{
+      const chips=[];
+      if(checklist.length)chips.push(`<button type="button" class="pl-attach-chip" data-attach-edit="checklist">${icon('check')}<span>${checklist.length} пункт.</span></button>`);
+      if(poll)chips.push(`<button type="button" class="pl-attach-chip" data-attach-edit="poll">${icon('poll')}<span>Опрос</span></button>`);
+      if(images.length)chips.push(`<button type="button" class="pl-attach-chip" data-attach-edit="image">${icon('image')}<span>${images.length} фото</span></button>`);
+      if(location)chips.push(`<button type="button" class="pl-attach-chip" data-attach-edit="location">${icon('pin')}<span>Место</span></button>`);
+      $('#pl-attach-chips',ov).innerHTML=chips.join('');
+      $$('#pl-attach-chips [data-attach-edit]',ov).forEach(b=>b.onclick=()=>renderEditor(b.dataset.attachEdit));
+    };
+    const renderEditor=type=>{
+      if(type==='checklist'){
+        attachBox.innerHTML=`<div class="pl-attach-editor"><div class="pl-attach-editor-head"><span>Чеклист</span><button type="button" class="pl-attach-remove" data-attach-close aria-label="Свернуть">${icon('close')}</button></div>
+          <div id="pl-checklist-rows">${checklist.map(s=>`<div class="pl-checklist-row" data-id="${s.id}"><input class="field" value="${esc(s.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
+          <div class="pl-attach-add-row"><input class="field" id="pl-checklist-new" placeholder="Новый пункт"><button type="button" class="gold-action" id="pl-checklist-add" style="flex:0 0 auto">+</button></div>
+        </div>`;
+        const syncRows=()=>{checklist=$$('.pl-checklist-row',attachBox).map(r=>({id:r.dataset.id,text:$('input',r).value,done:(checklist.find(s=>s.id===r.dataset.id)||{}).done||false}));};
+        $$('.pl-checklist-row input',attachBox).forEach(inp=>inp.addEventListener('input',syncRows));
+        $$('.pl-checklist-row [data-remove]',attachBox).forEach(btn=>btn.onclick=()=>{btn.closest('.pl-checklist-row').remove();syncRows();renderAttachChips();});
+        $('#pl-checklist-add',attachBox).onclick=()=>{
+          const inp=$('#pl-checklist-new',attachBox),text=inp.value.trim();if(!text)return;
+          checklist.push({id:plannerId(),text,done:false});renderEditor('checklist');renderAttachChips();
+        };
+        $('[data-attach-close]',attachBox).onclick=()=>{attachBox.innerHTML='';};
+      } else if(type==='poll'){
+        if(!poll)poll={question:'',options:[{id:plannerId(),text:'',votes:0},{id:plannerId(),text:'',votes:0}]};
+        attachBox.innerHTML=`<div class="pl-attach-editor"><div class="pl-attach-editor-head"><span>Опрос</span><button type="button" class="pl-attach-remove" data-attach-close aria-label="Свернуть">${icon('close')}</button></div>
+          <input class="field" id="pl-poll-question" placeholder="Вопрос" value="${esc(poll.question)}" style="margin-bottom:8px">
+          <div id="pl-poll-options">${poll.options.map(o=>`<div class="pl-poll-option-row" data-id="${o.id}"><input class="field" placeholder="Вариант" value="${esc(o.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
+          <div class="pl-attach-add-row"><button type="button" class="text-btn" id="pl-poll-add-option">+ вариант</button><button type="button" class="text-btn" id="pl-poll-remove-all" style="color:#ff5a5a;margin-left:auto">Убрать опрос</button></div>
+        </div>`;
+        const syncPoll=()=>{
+          poll.question=$('#pl-poll-question',attachBox).value;
+          poll.options=$$('.pl-poll-option-row',attachBox).map(r=>({id:r.dataset.id,text:$('input',r).value,votes:(poll.options.find(o=>o.id===r.dataset.id)||{}).votes||0}));
+        };
+        $('#pl-poll-question',attachBox).addEventListener('input',syncPoll);
+        $$('.pl-poll-option-row input',attachBox).forEach(inp=>inp.addEventListener('input',syncPoll));
+        $$('.pl-poll-option-row [data-remove]',attachBox).forEach(btn=>btn.onclick=()=>{if(poll.options.length<=2)return;btn.closest('.pl-poll-option-row').remove();syncPoll();});
+        $('#pl-poll-add-option',attachBox).onclick=()=>{poll.options.push({id:plannerId(),text:'',votes:0});renderEditor('poll');};
+        $('#pl-poll-remove-all',attachBox).onclick=()=>{poll=null;attachBox.innerHTML='';renderAttachChips();};
+        $('[data-attach-close]',attachBox).onclick=()=>{syncPoll();attachBox.innerHTML='';renderAttachChips();};
+      } else if(type==='image'){
+        attachBox.innerHTML=`<div class="pl-attach-editor"><div class="pl-attach-editor-head"><span>Фото</span><button type="button" class="pl-attach-remove" data-attach-close aria-label="Свернуть">${icon('close')}</button></div>
+          <div class="pl-image-thumbs" id="pl-image-thumbs">${images.map((src,i)=>`<div class="pl-image-thumb"><img src="${src}"><button type="button" data-remove-image="${i}">${icon('close')}</button></div>`).join('')}</div>
+          ${images.length<4?'<input type="file" accept="image/*" id="pl-image-input">':'<p class="settings-note">Максимум 4 фото</p>'}
+        </div>`;
+        $$('[data-remove-image]',attachBox).forEach(btn=>btn.onclick=()=>{images.splice(+btn.dataset.removeImage,1);renderEditor('image');renderAttachChips();});
+        $('#pl-image-input',attachBox)?.addEventListener('change',async e=>{
+          const file=e.target.files[0];if(!file)return;
+          const dataUrl=await plannerDownscaleImage(file);
+          images.push(dataUrl);renderEditor('image');renderAttachChips();
+        });
+        $('[data-attach-close]',attachBox).onclick=()=>{attachBox.innerHTML='';};
+      } else if(type==='location'){
+        attachBox.innerHTML=`<div class="pl-attach-editor"><div class="pl-attach-editor-head"><span>Локация</span><button type="button" class="pl-attach-remove" data-attach-close aria-label="Свернуть">${icon('close')}</button></div>
+          <input class="field" id="pl-location-label" placeholder="Название места" value="${esc(location?.label||'')}" style="margin-bottom:8px">
+          <button type="button" class="text-btn" id="pl-location-geo">${icon('pin')} Определить моё местоположение</button>
+          <div id="pl-location-map-box">${location?plannerLocationMapEmbed(location):''}</div>
+        </div>`;
+        $('#pl-location-label',attachBox).addEventListener('input',()=>{if(!location)location={lat:null,lng:null,label:''};location.label=$('#pl-location-label',attachBox).value;});
+        $('#pl-location-geo',attachBox).onclick=()=>{
+          if(!navigator.geolocation){alert('Геолокация недоступна в этом браузере.');return;}
+          navigator.geolocation.getCurrentPosition(pos=>{
+            location={lat:pos.coords.latitude,lng:pos.coords.longitude,label:$('#pl-location-label',attachBox).value||location?.label||''};
+            $('#pl-location-map-box',attachBox).innerHTML=plannerLocationMapEmbed(location);
+            renderAttachChips();
+          },()=>{alert('Не удалось определить местоположение.');});
+        };
+        $('[data-attach-close]',attachBox).onclick=()=>{
+          if(location&&!location.label&&location.lat==null)location=null;
+          attachBox.innerHTML='';renderAttachChips();
+        };
+      }
+    };
+    renderAttachChips();
+    $('#pl-attach-toggle',ov).onclick=()=>{$('#pl-attach-menu',ov).hidden=!$('#pl-attach-menu',ov).hidden;};
+    $$('#pl-attach-menu [data-attach-add]',ov).forEach(b=>b.onclick=()=>{$('#pl-attach-menu',ov).hidden=true;renderEditor(b.dataset.attachAdd);});
     $$('[data-section]',ov).forEach(b=>b.onclick=()=>{sectionId=b.dataset.section||null;$$('[data-section]',ov).forEach(x=>x.classList.toggle('active',x.dataset.section===sectionId));});
     $$('#pl-event-color-picker [data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color||null;$$('#pl-event-color-picker [data-color]',ov).forEach(x=>x.classList.toggle('active',(x.dataset.color||null)===color));});
     $('#pl-time-toggle',ov).onclick=()=>{
@@ -2243,8 +2437,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(endMin<startMin)endMin+=24*60; // окончание раньше начала — переходит на следующий день
         duration=clamp(endMin-startMin||60,5,24*60);
       }
-      if(existing){existing.title=title;existing.date=date;existing.time=time;existing.duration=duration;existing.sectionId=sectionId;existing.color=color;}
-      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,subtasks:[],comments:[],done:false});
+      if(existing){existing.title=title;existing.date=date;existing.time=time;existing.duration=duration;existing.sectionId=sectionId;existing.color=color;existing.subtasks=checklist;existing.poll=poll;existing.images=images;existing.location=location;}
+      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,subtasks:checklist,comments:[],done:false,poll,images,location});
       savePlannerEvents();closeOverlay();renderScreen();
     };
   }
@@ -2252,9 +2446,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(!ev.subtasks.length)return '<div class="pl-empty" style="padding:8px 0">Пока пусто</div>';
     return ev.subtasks.map(s=>`<div class="pl-subtask-row ${s.done?'done':''}"><span class="pl-task-check ${s.done?'done':''}" data-sub-toggle="${s.id}">${s.done?icon('check'):''}</span><span class="pl-subtask-text">${esc(s.text)}</span><button class="text-btn" data-sub-remove="${s.id}" aria-label="Удалить пункт">${icon('close')}</button></div>`).join('');
   }
+  // В обычном разделе комментарии — плоский список в стиле Instagram (аватар + имя + текст
+  // в строку). В публичном разделе (два реальных человека, см. задачу про Firebase-синк)
+  // вид меняется на мессенджер: свои сообщения справа, чужие слева, различаем по authorId
+  // (плановые комментарии без authorId — старые локальные, считаем своими).
   function plannerCommentList(ev){
     if(!ev.comments.length)return '';
-    return ev.comments.slice().reverse().map(c=>`<div class="pl-comment-item"><div class="pl-comment-date">${formatPlannerDateTime(c.date)}</div><div class="pl-comment-text">${esc(c.text)}</div></div>`).join('');
+    const messenger=!!plannerSectionById(ev.sectionId)?.public;
+    const my=plannerUserId();
+    if(messenger){
+      return `<div class="pl-comment-list messenger">${ev.comments.map(c=>{
+        const mine=(c.authorId||my)===my;
+        return `<div class="pl-comment-item ${mine?'mine':'theirs'}"><div class="pl-comment-bubble">${esc(c.text)}</div><div class="pl-comment-date">${formatPlannerDateTime(c.date)}</div></div>`;
+      }).join('')}</div>`;
+    }
+    return ev.comments.slice().reverse().map(c=>`<div class="pl-comment-item"><div class="pl-comment-avatar">Я</div><div class="pl-comment-body"><span class="pl-comment-name">Я</span><span class="pl-comment-text">${esc(c.text)}</span><div class="pl-comment-date">${formatPlannerDateTime(c.date)}</div></div></div>`).join('');
   }
   function showPlannerDetail(id){
     const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;
@@ -2262,6 +2468,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="pl-detail">
       <div class="pl-detail-head"><h2 class="pl-detail-title">${esc(ev.title)}</h2><button class="text-btn" data-pl-edit aria-label="Редактировать">${icon('edit')}</button></div>
       <div class="pl-detail-meta">${esc(meta)}</div>
+      ${plannerImagesView(ev)}
+      ${plannerLocationView(ev)}
+      ${plannerPollView(ev)}
       <h3>Подзадачи</h3>
       <div id="pl-subtask-list">${plannerSubtaskList(ev)}</div>
       <div class="pl-subtask-add">${formField('pl-subtask-new','Добавить пункт')}<button class="gold-action" id="pl-subtask-add-btn" style="flex:0 0 auto">+</button></div>
@@ -2276,13 +2485,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       $$('[data-sub-remove]',ov).forEach(b=>b.onclick=()=>{ev.subtasks=ev.subtasks.filter(x=>x.id!==b.dataset.subRemove);savePlannerEvents();refreshSub();});
     };
     bindSubtasks();
+    const bindVotes=()=>{$$('[data-vote]',ov).forEach(b=>b.onclick=()=>{plannerVote(ev,b.dataset.vote);const box=$('#pl-poll-container',ov);if(box)box.outerHTML=plannerPollView(ev);bindVotes();});};
+    bindVotes();
     $('#pl-subtask-add-btn',ov).onclick=()=>{
       const input=$('#pl-subtask-new',ov),text=input.value.trim();if(!text)return;
       ev.subtasks.push({id:plannerId(),text,done:false});input.value='';savePlannerEvents();refreshSub();
     };
     $('#pl-comment-new',ov).addEventListener('blur',()=>{
       const text=$('#pl-comment-new',ov).value.trim();if(!text)return;
-      ev.comments.push({id:plannerId(),text,date:new Date().toISOString()});$('#pl-comment-new',ov).value='';savePlannerEvents();
+      ev.comments.push({id:plannerId(),text,date:new Date().toISOString(),authorId:plannerUserId()});$('#pl-comment-new',ov).value='';savePlannerEvents();
       $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
     });
     $('[data-close]',ov).onclick=closeOverlay;
@@ -2311,7 +2522,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: текущее время теперь подсвечивает час и живую точку на ленте (без перезахода в приложение), а не красную линию. Плашка даты и стрелки убраны — дни/недели/месяцы листаются свайпом. Пересекающиеся события снова делят экран поровну (порядок можно менять драгом). Инбокс убран — задачи без даты показываются в списке сегодняшнего дня. У событий появился чекбокс «выполнено», который больше не удаляет карточку — удалить можно только через корзину или свайп влево. Разделы можно перетаскивать для смены порядка и редактировать долгим тапом (название, цвет обводки, тумблер «публичный»); цвет раздела теперь обводит все его события, не заменяя их собственную заливку.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: текущее время теперь подсвечивает час и живую точку на ленте (без перезахода в приложение), а не красную линию. Плашка даты и стрелки убраны — дни/недели/месяцы листаются свайпом. Пересекающиеся события снова делят экран поровну (порядок можно менять драгом). Инбокс убран — задачи без даты показываются в списке сегодняшнего дня. У событий появился чекбокс «выполнено», который больше не удаляет карточку — удалить можно только через корзину или свайп влево. Разделы можно перетаскивать для смены порядка и редактировать долгим тапом (название, цвет обводки, тумблер «публичный»); цвет раздела теперь обводит все его события, не заменяя их собственную заливку. В форме события — скрепка с вложениями: чеклист, опрос, фото, локация с картой. Комментарии оформлены как в Instagram, а в публичных разделах — как в мессенджере (свои сообщения справа).</p></section>
     </div></section>`;
   }
 
