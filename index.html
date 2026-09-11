@@ -1115,7 +1115,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.8.1';
+  const APP_VERSION = '0.8.2';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1554,6 +1554,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function plannerEventColor(e){return e.color||plannerSectionColor(e.sectionId);}
   function plannerMinutesToTime(m){m=clamp(Math.round(m),0,1439);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
+  // Разводит пересекающиеся по времени события по колонкам (как в большинстве календарей) —
+  // чтобы одно не перекрывало другое полностью, а оба были видны side-by-side. items — объекты
+  // с {startMin,endMin,...}, мутируются на месте (.col, .totalCols); возвращает отсортированный
+  // массив. Пересекающиеся события образуют "кластер" и делят ширину на totalCols колонок;
+  // непересекающиеся кластеры считаются независимо.
+  function plannerLayoutColumns(items){
+    const sorted=items.slice().sort((a,b)=>a.startMin-b.startMin||a.endMin-b.endMin);
+    let clusterEnd=-Infinity,columnEnds=[],cluster=[];
+    const flush=()=>{if(!cluster.length)return;const n=columnEnds.length;cluster.forEach(it=>it.totalCols=n);cluster=[];columnEnds=[];};
+    sorted.forEach(it=>{
+      if(it.startMin>=clusterEnd){flush();clusterEnd=-Infinity;}
+      let col=columnEnds.findIndex(end=>end<=it.startMin);
+      if(col===-1){col=columnEnds.length;columnEnds.push(0);}
+      columnEnds[col]=it.endMin;it.col=col;cluster.push(it);
+      clusterEnd=Math.max(clusterEnd,it.endMin);
+    });
+    flush();
+    return sorted;
+  }
   function plannerEventsFor(dateIso){return state.planner.events.filter(e=>e.date===dateIso&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection));}
   function plannerInboxEvents(){return state.planner.events.filter(e=>e.date==null&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection));}
   function plannerMinutesFromTime(t){const p=t.split(':').map(Number);return p[0]*60+p[1];}
@@ -1610,10 +1629,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const gutter=Array.from({length:24},(_,h)=>`<div class="pl-week-hour-label">${String(h).padStart(2,'0')}</div>`).join('');
     const cols=days.map(d=>{
       const iso=isoDate(d),isToday=iso===todayIso;
-      const events=plannerEventsFor(iso).filter(e=>e.time).map(e=>{
+      const items=plannerEventsFor(iso).filter(e=>e.time).map(e=>{
         const mins=clamp(plannerMinutesFromTime(e.time),0,1440),dur=clamp(e.duration||60,20,1440-mins);
-        const top=mins/60*PL_WEEK_HOUR_PX,height=Math.max(5,dur/60*PL_WEEK_HOUR_PX-1);
-        return `<button class="pl-week-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;--pl-color:${plannerEventColor(e)}" aria-label="${esc(e.time+' '+e.title)}"></button>`;
+        return {e,startMin:mins,endMin:mins+dur};
+      });
+      plannerLayoutColumns(items);
+      const events=items.map(({e,startMin,endMin,col,totalCols})=>{
+        const top=startMin/60*PL_WEEK_HOUR_PX,height=Math.max(5,(endMin-startMin)/60*PL_WEEK_HOUR_PX-1);
+        const leftPct=col/totalCols*100,widthPct=100/totalCols;
+        return `<button class="pl-week-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 1px);width:calc(${widthPct}% - 2px);--pl-color:${plannerEventColor(e)}" aria-label="${esc(e.time+' '+e.title)}"></button>`;
       }).join('');
       const nowLine=isToday?`<div class="pl-week-now" style="top:${nowMinutes()/60*PL_WEEK_HOUR_PX}px"></div>`:'';
       return `<div class="pl-week-daycol ${isToday?'is-today':''}" style="height:${24*PL_WEEK_HOUR_PX}px">${events}${nowLine}</div>`;
@@ -1666,11 +1690,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const rows=[];
     for(let h=PL_START_HOUR;h<PL_END_HOUR;h++)rows.push(`<div class="pl-hour-row"><span class="pl-hour-label">${String(h).padStart(2,'0')}:00</span><span class="pl-hour-slot"></span></div>`);
     const totalMinutes=(PL_END_HOUR-PL_START_HOUR)*60;
-    const events=timed.map(e=>{
+    const items=timed.map(e=>{
       const mins=clamp(plannerMinutesFromTime(e.time),0,totalMinutes);
       const dur=clamp(e.duration||60,20,Math.max(20,totalMinutes-mins));
-      const top=mins/60*PL_HOUR_PX,height=Math.max(30,dur/60*PL_HOUR_PX-2);
-      return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" style="top:${top}px;height:${height}px">
+      return {e,startMin:mins,endMin:mins+dur};
+    });
+    plannerLayoutColumns(items);
+    const events=items.map(({e,startMin,endMin,col,totalCols})=>{
+      const top=startMin/60*PL_HOUR_PX,height=Math.max(30,(endMin-startMin)/60*PL_HOUR_PX-2);
+      const leftPct=col/totalCols*100,widthPct=100/totalCols;
+      return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
         <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
         <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)}">
           <span class="pl-event-title">${esc(e.title)}</span>
@@ -2004,23 +2033,27 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function showPlannerEditSheet(id){
     const existing=id?state.planner.events.find(x=>x.id===id):null;
+    // Новое событие: дата и раздел не спрашиваем — дата это день, на котором открыли
+    // форму (state.planner.viewDate), раздел — активный фильтр. Только название, время,
+    // цвет. При редактировании существующего — дату/раздел по-прежнему можно поменять.
     const hasDate=!!existing?.date,hasTime=!!existing?.time;
     const dateVal=existing?.date||isoDate(state.planner.viewDate),timeVal=existing?.time||'09:00';
     const endVal=plannerMinutesToTime(plannerMinutesFromTime(timeVal)+(existing?.duration||60));
     const evColor=existing?.color||null;
+    const timeOnDefault=existing?hasTime:false;
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${existing?'Редактировать задачу':'Новая задача'}</div>
       <div class="pl-form-row"><label>Название</label>${formField('pl-title','Что нужно сделать','text',existing?.title||'')}</div>
-      <div class="pl-toggle-row"><label>Дата</label><button class="pl-switch ${hasDate?'on':''}" id="pl-date-toggle" type="button" aria-pressed="${hasDate}"></button></div>
-      <div class="pl-form-row" id="pl-date-row" ${hasDate?'':'style="display:none"'}><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>
-      <div class="pl-toggle-row" id="pl-time-toggle-row" ${hasDate?'':'style="display:none"'}><label>Время</label><button class="pl-switch ${hasTime?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${hasTime}"></button></div>
-      <div class="pl-form-row pl-time-range-row" id="pl-time-row" ${hasTime?'':'style="display:none"'}>
+      ${existing?`<div class="pl-toggle-row"><label>Дата</label><button class="pl-switch ${hasDate?'on':''}" id="pl-date-toggle" type="button" aria-pressed="${hasDate}"></button></div>
+      <div class="pl-form-row" id="pl-date-row" ${hasDate?'':'style="display:none"'}><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>`:''}
+      <div class="pl-toggle-row" id="pl-time-toggle-row" ${(!existing||hasDate)?'':'style="display:none"'}><label>Время</label><button class="pl-switch ${timeOnDefault?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${timeOnDefault}"></button></div>
+      <div class="pl-form-row pl-time-range-row" id="pl-time-row" ${timeOnDefault?'':'style="display:none"'}>
         <div class="pl-time-field"><label>Начало</label><input class="field" id="pl-time-value" type="time" value="${esc(timeVal)}"></div>
         <div class="pl-time-field"><label>Окончание</label><input class="field" id="pl-time-end-value" type="time" value="${esc(endVal)}"></div>
       </div>
-      <div class="pl-form-row"><label>Раздел</label><div class="pl-section-picker" id="pl-section-picker">
+      ${existing?`<div class="pl-form-row"><label>Раздел</label><div class="pl-section-picker" id="pl-section-picker">
         <button type="button" class="pl-chip ${!existing?.sectionId?'active':''}" data-section="">Без раздела</button>
         ${state.planner.sections.map(s=>`<button type="button" class="pl-chip ${existing?.sectionId===s.id?'active':''}" data-section="${esc(s.id)}" style="--pl-color:${s.color}">${esc(s.name)}</button>`).join('')}
-      </div></div>
+      </div></div>`:''}
       <div class="pl-form-row"><label>Цвет</label><div class="pl-color-picker" id="pl-event-color-picker">
         <button type="button" class="pl-color-swatch pl-color-auto ${!evColor?'active':''}" data-color="" aria-label="Цвет раздела"></button>
         ${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${evColor===c?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}
@@ -2030,12 +2063,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let sectionId=existing?.sectionId||null,color=evColor;
     $$('[data-section]',ov).forEach(b=>b.onclick=()=>{sectionId=b.dataset.section||null;$$('[data-section]',ov).forEach(x=>x.classList.toggle('active',x.dataset.section===sectionId));});
     $$('#pl-event-color-picker [data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color||null;$$('#pl-event-color-picker [data-color]',ov).forEach(x=>x.classList.toggle('active',(x.dataset.color||null)===color));});
-    $('#pl-date-toggle',ov).onclick=()=>{
+    $('#pl-date-toggle',ov)?.addEventListener('click',()=>{
       const on=!$('#pl-date-toggle',ov).classList.contains('on');
       $('#pl-date-toggle',ov).classList.toggle('on',on);$('#pl-date-toggle',ov).setAttribute('aria-pressed',String(on));
       $('#pl-date-row',ov).style.display=on?'':'none';$('#pl-time-toggle-row',ov).style.display=on?'':'none';
       if(!on){$('#pl-time-toggle',ov).classList.remove('on');$('#pl-time-row',ov).style.display='none';}
-    };
+    });
     $('#pl-time-toggle',ov).onclick=()=>{
       const on=!$('#pl-time-toggle',ov).classList.contains('on');
       $('#pl-time-toggle',ov).classList.toggle('on',on);$('#pl-time-toggle',ov).setAttribute('aria-pressed',String(on));
@@ -2045,16 +2078,17 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('#pl-form-delete',ov)?.addEventListener('click',()=>{plannerDelete(existing.id);closeOverlay();});
     $('#pl-form-save',ov).onclick=()=>{
       const title=$('#pl-title',ov).value.trim();if(!title)return;
-      const dateOn=$('#pl-date-toggle',ov).classList.contains('on');
+      const dateOn=existing?$('#pl-date-toggle',ov).classList.contains('on'):true;
       const timeOn=dateOn&&$('#pl-time-toggle',ov).classList.contains('on');
-      const date=dateOn?$('#pl-date-value',ov).value:null,time=timeOn?$('#pl-time-value',ov).value:null;
+      const date=dateOn?(existing?$('#pl-date-value',ov).value:isoDate(state.planner.viewDate)):null;
+      const time=timeOn?$('#pl-time-value',ov).value:null;
       let duration=60;
       if(timeOn){
         const startMin=plannerMinutesFromTime(time),endMin=plannerMinutesFromTime($('#pl-time-end-value',ov).value||'10:00');
         duration=clamp(endMin-startMin,5,24*60-startMin);
       }
       if(existing){existing.title=title;existing.date=date;existing.time=time;existing.duration=duration;existing.sectionId=sectionId;existing.color=color;}
-      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId,color,subtasks:[],comments:[],done:false});
+      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,subtasks:[],comments:[],done:false});
       savePlannerEvents();closeOverlay();renderScreen();
     };
   }
@@ -2121,7 +2155,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: долгое нажатие на событии в дне теперь можно донести до мусорки внизу экрана — она разгорается при приближении, как у привычек — и удалить перетаскиванием, а не только переносом времени. Нашёл и исправил настоящую причину «овала» у плашки даты: правило для круглых стрелок пред/след перебивало скругление плашки.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: форма новой задачи короче — дата (день, на котором стоишь) и раздел (открытый фильтр) больше не спрашиваются, только название, время и цвет. Событие без времени сразу видно в списке дня, а не только в инбоксе. Пересекающиеся по времени события теперь встают рядом, а не друг на друге.</p></section>
     </div></section>`;
   }
 
