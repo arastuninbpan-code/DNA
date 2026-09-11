@@ -965,8 +965,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-header h1{margin:0;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:1.5rem;color:#fff;}
 .pl-sections{display:flex;gap:8px;overflow-x:auto;padding:14px 20px 4px;scrollbar-width:none;flex-shrink:0;}
 .pl-sections::-webkit-scrollbar{display:none;}
-.pl-chip{flex:0 0 auto;padding:7px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:var(--surface);color:rgba(255,255,255,.6);font-size:.8125rem;font-family:Georgia,'Times New Roman',serif;white-space:nowrap;}
+.pl-chip{flex:0 0 auto;padding:7px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:var(--surface);color:rgba(255,255,255,.6);font-size:.8125rem;font-family:Georgia,'Times New Roman',serif;white-space:nowrap;touch-action:none;}
 .pl-chip.active{border-color:var(--gold);background:rgba(201,168,76,.14);color:var(--gold2);}
+.pl-chip-ghost{box-shadow:0 8px 22px rgba(0,0,0,.5);}
 .pl-chip-add{width:32px;padding:0;display:grid;place-items:center;color:var(--gold);}
 .pl-chip-add .icon{width:16px;height:16px;}
 .pl-color-picker{display:flex;gap:10px;flex-wrap:wrap;padding:12px 0 4px;}
@@ -990,7 +991,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-task-actions button{width:40px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
 .pl-task-actions button .icon{width:15px;height:15px;}
 .pl-task-actions [data-pl-task-delete]{background:#c94a50;color:#fff;}
-.pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:0;touch-action:pan-y;}
+.pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);touch-action:pan-y;}
 .pl-task.done{opacity:.5;}
 .pl-task-check{width:22px;height:22px;flex:0 0 auto;border-radius:6px;border:1.5px solid rgba(20,16,10,.35);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-task-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
@@ -1020,7 +1021,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-actions button{width:36px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
 .pl-event-actions button .icon{width:14px;height:14px;}
 .pl-event-actions [data-pl-event-delete]{background:#c94a50;color:#fff;}
-.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:0;overflow:hidden;text-align:left;touch-action:none;display:flex;align-items:flex-start;gap:6px;}
+.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;align-items:flex-start;gap:6px;}
 .pl-event.done{opacity:.5;}
 .pl-event-check{width:15px;height:15px;flex:0 0 auto;margin-top:2px;border-radius:5px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-event-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
@@ -1043,7 +1044,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-week-hour-label{height:32px;font-size:.625rem;color:rgba(255,255,255,.3);}
 .pl-week-daycol{flex:1;min-width:0;position:relative;border-left:1px solid rgba(255,255,255,.06);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 31px,rgba(255,255,255,.06) 31px,rgba(255,255,255,.06) 32px);}
 .pl-week-daycol.is-today{background-color:rgba(201,168,76,.05);}
-.pl-week-event{position:absolute;left:2px;right:2px;min-height:5px;border-radius:3px;background:var(--pl-color,var(--gold));opacity:.85;border:0;padding:0;}
+.pl-week-event{position:absolute;left:2px;right:2px;min-height:5px;border-radius:3px;background:var(--pl-color,var(--gold));opacity:.85;border:1.5px solid var(--pl-outline,transparent);box-sizing:border-box;padding:0;}
 .pl-week-event.done{opacity:.35;}
 .pl-week-now{position:absolute;left:-4px;top:0;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.22);pointer-events:none;z-index:5;}
 .pl-month-head{display:flex;padding:6px 20px 2px;flex-shrink:0;}
@@ -1112,7 +1113,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.8.4';
+  const APP_VERSION = '0.8.5';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1553,6 +1554,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return s?s.color:'var(--gold)';
   }
   function plannerEventColor(e){return e.color||plannerSectionColor(e.sectionId);}
+  // Обводка карточки — цвет раздела (не путать с заливкой, которая либо своя у события,
+  // либо тоже цвет раздела по умолчанию): так видно принадлежность к разделу, даже если
+  // у события выбран свой собственный цвет заливки, отличный от цвета раздела.
+  function plannerOutlineStyle(e){const s=plannerSectionById(e.sectionId);return s?`--pl-outline:${s.color};`:'';}
   function plannerMinutesToTime(m){m=clamp(Math.round(m),0,1439);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
   // Разводит пересекающиеся по времени события, чтобы одно не перекрывало другое полностью,
   // а оба были видны. items — объекты с {startMin,endMin,...}, мутируются на месте
@@ -1634,7 +1639,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const events=items.map(({e,startMin,endMin,col,totalCols})=>{
         const top=startMin/60*PL_WEEK_HOUR_PX,height=Math.max(5,(endMin-startMin)/60*PL_WEEK_HOUR_PX-1);
         const leftPct=col/totalCols*100,widthPct=100/totalCols;
-        return `<button class="pl-week-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 1px);width:calc(${widthPct}% - 2px);--pl-color:${plannerEventColor(e)}" aria-label="${esc(e.time+' '+e.title)}"></button>`;
+        return `<button class="pl-week-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 1px);width:calc(${widthPct}% - 2px);--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}" aria-label="${esc(e.time+' '+e.title)}"></button>`;
       }).join('');
       const nowLine=isToday?`<div class="pl-week-now" data-pl-week-now-dot style="top:${nowMinutes()/60*PL_WEEK_HOUR_PX}px"></div>`:'';
       return `<div class="pl-week-daycol ${isToday?'is-today':''}" style="height:${24*PL_WEEK_HOUR_PX}px">${events}${nowLine}</div>`;
@@ -1675,7 +1680,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const sec=plannerSectionById(e.sectionId);
     return `<div class="pl-task-wrap" data-pl-task-id="${e.id}">
       <div class="pl-task-actions"><button type="button" data-pl-task-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-task-delete aria-label="Удалить">${icon('trash')}</button></div>
-      <button type="button" class="pl-task ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)}">
+      <button type="button" class="pl-task ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
         <span class="pl-task-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
         <span class="pl-task-body"><span class="pl-task-title">${esc(e.title)}</span>${sec?`<span class="pl-task-meta">${esc(sec.name)}</span>`:''}</span>
       </button>
@@ -1700,7 +1705,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const leftPct=col/totalCols*100,widthPct=100/totalCols;
       return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
         <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
-        <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)}">
+        <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
           <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
           <span class="pl-event-title">${esc(e.title)}</span>
         </button>
@@ -1710,7 +1715,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `<div class="pl-timeline">${rows.join('')}<div class="pl-timeline-events">${events}${nowDot}</div></div>`;
   }
   function bindPlannerEvents(){
-    $$('[data-pl-section]').forEach(b=>b.onclick=()=>{state.planner.activeSection=b.dataset.plSection||null;renderScreen();});
+    $$('[data-pl-section]').forEach(b=>{b.onclick=()=>{state.planner.activeSection=b.dataset.plSection||null;renderScreen();};bindPlannerSectionDrag(b);});
     $('[data-pl-add-section]')?.addEventListener('click',plannerAddSectionPrompt);
     $$('[data-pl-week-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plWeekDay)));
     $$('[data-pl-month-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plMonthDay)));
@@ -2080,6 +2085,102 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       closeOverlay();renderScreen();
     };
   }
+  // Долгий тап по чипу раздела (без последующего движения) открывает редактирование —
+  // обычный короткий тап по-прежнему фильтрует (см. bindPlannerEvents). Цвет раздела теперь
+  // используется как ОБВОДКА всех его событий (plannerOutlineStyle), а не только как заливка
+  // по умолчанию для тех, у кого нет своего цвета.
+  function plannerEditSectionPrompt(id){
+    const sec=state.planner.sections.find(s=>s.id===id);if(!sec)return;
+    let color=sec.color,isPublic=!!sec.public;
+    const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">Раздел</div>
+      <div class="pl-form-row"><label>Название</label>${formField('pl-section-edit-name','Название раздела','text',sec.name)}</div>
+      <div class="pl-form-row"><label>Цвет обводки</label><div class="pl-color-picker" id="pl-section-edit-color">${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${c===color?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}</div></div>
+      <div class="pl-toggle-row"><label>Публичный раздел</label><button class="pl-switch ${isPublic?'on':''}" id="pl-section-public" type="button" aria-pressed="${isPublic}"></button></div>
+      <p class="settings-note" id="pl-section-public-hint" ${isPublic?'':'style="display:none"'}>Ссылкой на раздел можно поделиться — у получателя появится только он, а изменения обоих будут видны друг другу в реальном времени.</p>
+      <div class="modal-actions"><button class="text-btn" id="pl-section-delete" style="color:#ff5a5a">Удалить раздел</button><button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-section-edit-save">Сохранить</button></div>
+    </div>`,{sheet:true});
+    $$('#pl-section-edit-color [data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color;$$('#pl-section-edit-color [data-color]',ov).forEach(x=>x.classList.toggle('active',x.dataset.color===color));});
+    $('#pl-section-public',ov).onclick=()=>{
+      isPublic=!isPublic;
+      $('#pl-section-public',ov).classList.toggle('on',isPublic);$('#pl-section-public',ov).setAttribute('aria-pressed',String(isPublic));
+      $('#pl-section-public-hint',ov).style.display=isPublic?'':'none';
+    };
+    $('[data-close]',ov).onclick=closeOverlay;
+    $('#pl-section-delete',ov).onclick=()=>{
+      if(!confirm('Удалить раздел «'+sec.name+'»? События останутся без раздела.'))return;
+      state.planner.events.forEach(e=>{if(e.sectionId===id)e.sectionId=null;});
+      state.planner.sections=state.planner.sections.filter(s=>s.id!==id);
+      if(state.planner.activeSection===id)state.planner.activeSection=null;
+      savePlannerSections();savePlannerEvents();closeOverlay();renderScreen();
+    };
+    $('#pl-section-edit-save',ov).onclick=()=>{
+      const name=$('#pl-section-edit-name',ov).value.trim();if(!name)return;
+      sec.name=name;sec.color=color;sec.public=isPublic;
+      savePlannerSections();closeOverlay();renderScreen();
+    };
+  }
+  // Перетаскивание чипа раздела для смены порядка: долгий тап без движения — редактирование
+  // (plannerEditSectionPrompt), долгий тап + горизонтальный драг — перестановка местами с
+  // соседним чипом. Короткий тап без задержки по-прежнему фильтрует (не трогаем этот onclick).
+  function bindPlannerSectionDrag(chip){
+    const id=chip.dataset.plSection;
+    if(!id)return;
+    const row=chip.parentElement;
+    let timer=null,pointerId=null,startX=0,startY=0,lastX=0,active=false,dragging=false,ghost=null,fromIndex=-1,toIndex=-1;
+    const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
+    chip.cancelLongPress=cancel;
+    chip.addEventListener('pointerdown',e=>{
+      if(e.isPrimary===false||e.button!==0)return;
+      cancel();pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;lastX=startX;active=false;dragging=false;
+      timer=setTimeout(()=>{timer=null;active=true;holdFeedback(chip);},480);
+    },{passive:true});
+    chip.addEventListener('pointermove',e=>{
+      if(e.pointerId!==pointerId)return;
+      const dx=e.clientX-startX,dy=e.clientY-startY;
+      if(!active){
+        // Ряд разделов живёт с touch-action:none (иначе тот же гонка с нативным пан-скроллом
+        // рвёт долгое нажатие, что и у события — см. bindPlannerEventDrag), поэтому обычный
+        // горизонтальный скролл ленты разделов приходится прокручивать вручную сюда же.
+        if(Math.hypot(dx,dy)>8){cancel();row.scrollLeft-=e.clientX-lastX;}
+        lastX=e.clientX;
+        return;
+      }
+      if(!dragging){
+        if(Math.abs(dx)<6)return;
+        dragging=true;chip.setPointerCapture?.(pointerId);
+        fromIndex=state.planner.sections.findIndex(s=>s.id===id);toIndex=fromIndex;
+        const box=chip.getBoundingClientRect();
+        ghost=chip.cloneNode(true);ghost.classList.add('pl-chip-ghost');
+        ghost.style.cssText='position:fixed;left:'+box.left+'px;top:'+box.top+'px;width:'+box.width+'px;height:'+box.height+'px;margin:0;z-index:600;pointer-events:none;';
+        document.body.appendChild(ghost);chip.style.opacity='0';
+      }
+      e.preventDefault();
+      ghost.style.transform='translate3d('+dx+'px,0,0)';
+      $$('.pl-chip[data-pl-section]',row).forEach(c=>{
+        if(c===chip||!c.dataset.plSection)return;
+        const r=c.getBoundingClientRect();
+        if(e.clientX>r.left&&e.clientX<r.right)toIndex=state.planner.sections.findIndex(s=>s.id===c.dataset.plSection);
+      });
+    },{passive:false});
+    const finish=e=>{
+      if(e.pointerId!==pointerId)return;
+      cancel();
+      if(dragging){
+        ghost?.remove();ghost=null;chip.style.opacity='';
+        if(fromIndex>-1&&toIndex>-1&&fromIndex!==toIndex){
+          const arr=state.planner.sections,[item]=arr.splice(fromIndex,1);arr.splice(toIndex,0,item);
+          savePlannerSections();
+        }
+        renderScreen();
+      } else if(active){
+        plannerEditSectionPrompt(id);
+      }
+      active=false;dragging=false;pointerId=null;
+    };
+    chip.addEventListener('pointerup',finish,{passive:true});
+    chip.addEventListener('pointercancel',finish,{passive:true});
+    chip.addEventListener('contextmenu',e=>e.preventDefault());
+  }
   function showPlannerEditSheet(id){
     const existing=id?state.planner.events.find(x=>x.id===id):null;
     // Новое событие: дата и раздел не спрашиваем — дата это день, на котором открыли
@@ -2210,7 +2311,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: текущее время теперь подсвечивает час и живую точку на ленте (без перезахода в приложение), а не красную линию. Плашка даты и стрелки убраны — дни/недели/месяцы листаются свайпом. Пересекающиеся события снова делят экран поровну (порядок можно менять драгом). Инбокс убран — задачи без даты показываются в списке сегодняшнего дня. У событий появился чекбокс «выполнено», который больше не удаляет карточку — удалить можно только через корзину или свайп влево.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: текущее время теперь подсвечивает час и живую точку на ленте (без перезахода в приложение), а не красную линию. Плашка даты и стрелки убраны — дни/недели/месяцы листаются свайпом. Пересекающиеся события снова делят экран поровну (порядок можно менять драгом). Инбокс убран — задачи без даты показываются в списке сегодняшнего дня. У событий появился чекбокс «выполнено», который больше не удаляет карточку — удалить можно только через корзину или свайп влево. Разделы можно перетаскивать для смены порядка и редактировать долгим тапом (название, цвет обводки, тумблер «публичный»); цвет раздела теперь обводит все его события, не заменяя их собственную заливку.</p></section>
     </div></section>`;
   }
 
