@@ -1161,7 +1161,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.8.7';
+  const APP_VERSION = '0.9.0';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1598,8 +1598,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   const PL_WEEKDAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   let plannerExtending=false,pendingPlannerScroll=null,pendingPlannerWeekScroll=null,pendingPlannerMonthScroll=null,plannerLastZoom=null;
   function plannerId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
-  function savePlannerEvents(){saveJSON('planner_events',state.planner.events);}
-  function savePlannerSections(){saveJSON('planner_sections',state.planner.sections);}
+  // Публичные разделы (Firebase): любое локальное сохранение событий/разделов заодно
+  // толкает актуальный снимок в облако для всех разделов с shareId — не нужно расставлять
+  // синк вручную по десяткам мест (toggle done, драг, подзадачи, комментарии, опрос...).
+  // saveJSON внутри plannerApplyRemoteSection используется НАПРЯМУЮ, в обход этих обёрток —
+  // иначе применение чужого снапшота тут же отправило бы его обратно и зациклилось.
+  function savePlannerEvents(){saveJSON('planner_events',state.planner.events);plannerSyncAllPublicSections();}
+  function savePlannerSections(){saveJSON('planner_sections',state.planner.sections);plannerSyncAllPublicSections();}
   function savePlannerPollVotes(){saveJSON('planner_poll_votes',state.planner.pollVotes);}
   // Локальный анонимный id устройства — пока нет реальной авторизации (см. задачу про
   // публичные разделы), используется как "это я" для мессенджер-вида комментариев и учёта
@@ -1608,6 +1613,85 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let id;try{id=localStorage.getItem('dna_user_id');}catch(_){}
     if(!id){id=uid();try{localStorage.setItem('dna_user_id',id);}catch(_){}}
     return id;
+  }
+  // ---- Публичные разделы: живой синк через Firebase (window.DNAFirebase, см. модульный
+  // скрипт в конце файла) ----
+  // Модель: у раздела, которым поделились, есть shareId. Документ publicSections/{shareId}
+  // хранит {section:{id,name,color}, events:[...]} — то, что видно и синкается между
+  // устройствами. Локально это заведомо "последняя запись побеждает": каждое сохранение
+  // толкает ПОЛНЫЙ список событий раздела в облако (plannerSyncAllPublicSections), а любой
+  // входящий снапшот (свой же или от собеседника) ПОЛНОСТЬЮ заменяет локальные события этого
+  // раздела (plannerApplyRemoteSection). Для раздела на двух человек с нечастыми правками
+  // это проще и надёжнее самодельного merge/CRDT.
+  const plannerSubs={};
+  let plannerSyncTimer=null;
+  function plannerSyncAllPublicSections(){
+    if(!window.DNAFirebase)return;
+    clearTimeout(plannerSyncTimer);
+    plannerSyncTimer=setTimeout(()=>{
+      state.planner.sections.filter(s=>s.shareId).forEach(s=>{
+        const events=state.planner.events.filter(e=>e.sectionId===s.id);
+        window.DNAFirebase.updatePublicSection(s.shareId,{section:{id:s.id,name:s.name,color:s.color},events}).catch(()=>{});
+      });
+    },400);
+  }
+  function plannerApplyRemoteSection(localSectionId,remoteData){
+    if(!remoteData)return;
+    const remoteEvents=(remoteData.events||[]).map(e=>({...e,sectionId:localSectionId}));
+    const otherEvents=state.planner.events.filter(e=>e.sectionId!==localSectionId);
+    state.planner.events=[...otherEvents,...remoteEvents];
+    saveJSON('planner_events',state.planner.events);
+    if(state.nav===1)renderScreen();
+  }
+  function plannerEnsureSubscriptions(){
+    if(!window.DNAFirebase)return;
+    const activeIds=new Set(state.planner.sections.filter(s=>s.shareId).map(s=>s.shareId));
+    Object.keys(plannerSubs).forEach(shareId=>{if(!activeIds.has(shareId)){plannerSubs[shareId]();delete plannerSubs[shareId];}});
+    state.planner.sections.filter(s=>s.shareId).forEach(s=>{
+      if(plannerSubs[s.shareId])return;
+      plannerSubs[s.shareId]=window.DNAFirebase.subscribeToPublicSection(s.shareId,data=>plannerApplyRemoteSection(s.id,data));
+    });
+  }
+  function plannerShareLink(shareId){return location.origin+location.pathname+'?share='+shareId;}
+  function showPlannerShareLink(sec){
+    const link=plannerShareLink(sec.shareId);
+    const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">Раздел опубликован</div>
+      <p class="settings-note">Отправь эту ссылку — у того, кто откроет её в приложении D.N.A., появится раздел «${esc(sec.name)}», и вы будете видеть изменения друг друга в реальном времени. Привычки и остальные данные не передаются — только этот раздел.</p>
+      <div class="pl-form-row"><input class="field" id="pl-share-link" readonly value="${esc(link)}"></div>
+      <div class="modal-actions"><button class="gold-action" id="pl-share-copy">Скопировать ссылку</button><button class="text-btn" data-close>Готово</button></div>
+    </div>`,{sheet:true});
+    $('#pl-share-copy',ov).onclick=async()=>{
+      try{await navigator.clipboard.writeText(link);showToast('Ссылка скопирована',true);}
+      catch(_){$('#pl-share-link',ov).select();}
+    };
+    $('[data-close]',ov).onclick=closeOverlay;
+  }
+  // При загрузке по ссылке-приглашению (?share=XXXXXXXX) — раз, при первом открытии —
+  // создаём у себя локальную копию раздела (новый id, чтобы не конфликтовать с чужими) и
+  // сразу подписываемся на дальнейшую синхронизацию. Повторно по той же ссылке ничего не
+  // задублируется (шарId уже среди своих разделов).
+  function plannerHandleShareParam(){
+    const params=new URLSearchParams(location.search),shareId=params.get('share');
+    if(!shareId)return;
+    history.replaceState(null,'',location.pathname);
+    if(state.planner.sections.some(s=>s.shareId===shareId))return;
+    if(!window.DNAFirebase)return;
+    window.DNAFirebase.loadPublicSectionOnce(shareId).then(data=>{
+      if(!data)return;
+      const newId=uid();
+      const sec={id:newId,name:data.section?.name||'Общий раздел',color:data.section?.color||PL_COLORS[0],public:true,shareId};
+      state.planner.sections.push(sec);
+      const usedIds=new Set(state.planner.events.map(e=>e.id));
+      const events=(data.events||[]).map(e=>{
+        const id=e.id&&!usedIds.has(e.id)?e.id:plannerId();usedIds.add(id);
+        return {...e,id,sectionId:newId};
+      });
+      state.planner.events=[...state.planner.events,...events];
+      savePlannerSections();saveJSON('planner_events',state.planner.events);
+      plannerEnsureSubscriptions();
+      if(state.nav===1)renderScreen();
+      showToast('Раздел «'+sec.name+'» добавлен',true);
+    }).catch(()=>{});
   }
   function plannerDownscaleImage(file){
     return new Promise((resolve,reject)=>{
@@ -2378,7 +2462,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-form-row"><label>Название</label>${formField('pl-section-edit-name','Название раздела','text',sec.name)}</div>
       <div class="pl-form-row"><label>Цвет обводки</label><div class="pl-color-picker" id="pl-section-edit-color">${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${c===color?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}</div></div>
       <div class="pl-toggle-row"><label>Публичный раздел</label><button class="pl-switch ${isPublic?'on':''}" id="pl-section-public" type="button" aria-pressed="${isPublic}"></button></div>
-      <p class="settings-note" id="pl-section-public-hint" ${isPublic?'':'style="display:none"'}>Ссылкой на раздел можно поделиться — у получателя появится только он, а изменения обоих будут видны друг другу в реальном времени.</p>
+      <p class="settings-note" id="pl-section-public-hint" ${isPublic?'':'style="display:none"'}>Ссылкой на раздел можно поделиться — у получателя появится только он, а изменения обоих будут видны друг другу в реальном времени.${sec.shareId?' <button type="button" class="text-btn" id="pl-section-show-link" style="padding:0">Показать ссылку</button>':''}</p>
       <div class="modal-actions"><button class="text-btn" id="pl-section-delete" style="color:#ff5a5a">Удалить раздел</button><button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-section-edit-save">Сохранить</button></div>
     </div>`,{sheet:true});
     $$('#pl-section-edit-color [data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color;$$('#pl-section-edit-color [data-color]',ov).forEach(x=>x.classList.toggle('active',x.dataset.color===color));});
@@ -2387,18 +2471,28 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       $('#pl-section-public',ov).classList.toggle('on',isPublic);$('#pl-section-public',ov).setAttribute('aria-pressed',String(isPublic));
       $('#pl-section-public-hint',ov).style.display=isPublic?'':'none';
     };
+    $('#pl-section-show-link',ov)?.addEventListener('click',()=>showPlannerShareLink(sec));
     $('[data-close]',ov).onclick=closeOverlay;
     $('#pl-section-delete',ov).onclick=()=>{
       if(!confirm('Удалить раздел «'+sec.name+'»? События останутся без раздела.'))return;
       state.planner.events.forEach(e=>{if(e.sectionId===id)e.sectionId=null;});
       state.planner.sections=state.planner.sections.filter(s=>s.id!==id);
       if(state.planner.activeSection===id)state.planner.activeSection=null;
-      savePlannerSections();savePlannerEvents();closeOverlay();renderScreen();
+      savePlannerSections();savePlannerEvents();plannerEnsureSubscriptions();closeOverlay();renderScreen();
     };
-    $('#pl-section-edit-save',ov).onclick=()=>{
+    $('#pl-section-edit-save',ov).onclick=async()=>{
       const name=$('#pl-section-edit-name',ov).value.trim();if(!name)return;
+      const turningOn=isPublic&&!sec.public;
+      if(turningOn&&!sec.shareId){
+        if(!window.DNAFirebase){showToast('Синк ещё загружается, попробуй через секунду',false);return;}
+        const saveBtn=$('#pl-section-edit-save',ov);saveBtn.disabled=true;saveBtn.textContent='Публикуем…';
+        try{
+          sec.shareId=await window.DNAFirebase.enablePublicSection(name,{section:{id:sec.id,name,color},events:state.planner.events.filter(e=>e.sectionId===sec.id)});
+        }catch(_){showToast('Не удалось опубликовать раздел',false);saveBtn.disabled=false;saveBtn.textContent='Сохранить';return;}
+      }
       sec.name=name;sec.color=color;sec.public=isPublic;
-      savePlannerSections();closeOverlay();renderScreen();
+      savePlannerSections();plannerEnsureSubscriptions();closeOverlay();renderScreen();
+      if(turningOn&&sec.shareId)showPlannerShareLink(sec);
     };
   }
   // Перетаскивание чипа раздела для смены порядка: долгий тап без движения — редактирование
@@ -2703,7 +2797,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: текущее время теперь подсвечивает час и живую точку на ленте (без перезахода в приложение), а не красную линию. Плашка даты и стрелки убраны — дни/недели/месяцы листаются свайпом. Пересекающиеся события снова делят экран поровну (порядок можно менять драгом). Инбокс убран — задачи без даты показываются в списке сегодняшнего дня. У событий появился чекбокс «выполнено», который больше не удаляет карточку — удалить можно только через корзину или свайп влево. Разделы можно перетаскивать для смены порядка и редактировать долгим тапом (название, цвет обводки, тумблер «публичный»); цвет раздела теперь обводит все его события, не заменяя их собственную заливку. В форме события — скрепка с вложениями: чеклист, опрос, фото, локация с картой. Комментарии оформлены как в Instagram, а в публичных разделах — как в мессенджере (свои сообщения справа). Недельный и месячный режимы стали непрерывной лентой — скролл вверх/вниз открывает соседние недели/месяцы, свайп влево/вправо быстро прыгает на ±1. В ячейке дня в месячном режиме — не просто точки цветов, а миниатюрная полоска-раскладка дня по времени.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: текущее время теперь подсвечивает час и живую точку на ленте (без перезахода в приложение), а не красную линию. Плашка даты и стрелки убраны — дни/недели/месяцы листаются свайпом. Пересекающиеся события снова делят экран поровну (порядок можно менять драгом). Инбокс убран — задачи без даты показываются в списке сегодняшнего дня. У событий появился чекбокс «выполнено», который больше не удаляет карточку — удалить можно только через корзину или свайп влево. Разделы можно перетаскивать для смены порядка и редактировать долгим тапом (название, цвет обводки, тумблер «публичный»); цвет раздела теперь обводит все его события, не заменяя их собственную заливку. В форме события — скрепка с вложениями: чеклист, опрос, фото, локация с картой. Комментарии оформлены как в Instagram, а в публичных разделах — как в мессенджере (свои сообщения справа). Недельный и месячный режимы стали непрерывной лентой — скролл вверх/вниз открывает соседние недели/месяцы, свайп влево/вправо быстро прыгает на ±1. В ячейке дня в месячном режиме — не просто точки цветов, а миниатюрная полоска-раскладка дня по времени. Тумблер «публичный» у раздела теперь настоящий: генерирует ссылку-приглашение, по которой раздел (и только он — без привычек и остального) появляется у собеседника, и дальше все правки обоих синхронизируются в реальном времени.</p></section>
     </div></section>`;
   }
 
@@ -4359,6 +4453,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   state.habits.circleDisplay=progressForDate(state.habits.selectedDate);
   // Broker requests are paused until a secure, verified integration is available.
 
+  // Публичные разделы: модульный Firebase-скрипт (см. конец файла) грузится и выполняется
+  // независимо (type="module" всегда отложен) — window.DNAFirebase может быть ещё не готов
+  // в этот момент, тогда ждём его событие готовности.
+  (function initPlannerSync(){
+    const run=()=>{plannerEnsureSubscriptions();plannerHandleShareParam();};
+    if(window.DNAFirebase)run();else window.addEventListener('dna-firebase-ready',run,{once:true});
+  })();
+
   document.addEventListener('visibilitychange',()=>{
     document.documentElement.toggleAttribute('data-paused',document.hidden);
     if(document.hidden)return;
@@ -4383,6 +4485,58 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   setTimeout(finishSplash,reducedMotion()?0:850);
 })();
 
+  </script>
+  <!-- Firebase: синк публичных разделов планера. Отдельный модульный скрипт (Firebase v9+
+       требует ES-модули), основное приложение выше — классический скрипт без type="module",
+       поэтому мост между ними — window.DNAFirebase + событие 'dna-firebase-ready'. -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import {
+      getFirestore, doc, setDoc, getDoc, onSnapshot
+    } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCbkbr3vRfhoTkdF3Lo8VbNuL3OdVnmTt8",
+      authDomain: "dnaa-a8ca3.firebaseapp.com",
+      projectId: "dnaa-a8ca3",
+      storageBucket: "dnaa-a8ca3.firebasestorage.app",
+      messagingSenderId: "618117399835",
+      appId: "1:618117399835:web:3d4088cb97e6a5c7357fbe",
+      measurementId: "G-7PFKD19D86"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function generateShareId(length = 8) {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let id = "";
+      for (let i = 0; i < length; i++) id += chars[Math.floor(Math.random() * chars.length)];
+      return id;
+    }
+
+    async function enablePublicSection(sectionName, data) {
+      const shareId = generateShareId();
+      await setDoc(doc(db, "publicSections", shareId), { section: sectionName, data, updatedAt: Date.now() });
+      return shareId;
+    }
+
+    async function updatePublicSection(shareId, data) {
+      await setDoc(doc(db, "publicSections", shareId), { data, updatedAt: Date.now() }, { merge: true });
+    }
+
+    function subscribeToPublicSection(shareId, onUpdate) {
+      const ref = doc(db, "publicSections", shareId);
+      return onSnapshot(ref, (snap) => { if (snap.exists()) onUpdate(snap.data().data); });
+    }
+
+    async function loadPublicSectionOnce(shareId) {
+      const snap = await getDoc(doc(db, "publicSections", shareId));
+      return snap.exists() ? snap.data().data : null;
+    }
+
+    window.DNAFirebase = { enablePublicSection, updatePublicSection, subscribeToPublicSection, loadPublicSectionOnce };
+    window.dispatchEvent(new Event('dna-firebase-ready'));
   </script>
 </body>
 </html>
