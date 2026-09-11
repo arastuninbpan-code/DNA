@@ -978,8 +978,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-daynav{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;flex-shrink:0;}
 .pl-daynav button{width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid rgba(255,255,255,.1);color:#c1bfb9;display:grid;place-items:center;padding:0;}
 .pl-daynav button .icon{width:16px;height:16px;}
-.pl-day-label{flex:1;min-width:0;font-family:Georgia,'Times New Roman',serif;font-size:1rem;color:#fff;text-align:center;text-transform:capitalize;border:1px solid rgba(255,255,255,.1);background:var(--surface);padding:9px 16px;border-radius:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.pl-day-label:active{background:rgba(255,255,255,.08);}
+/* .pl-day-label выше специфичностью .pl-daynav button (которое красит круглые
+   стрелки пред/след), иначе те border-radius:50%/width:32px перебивают наши —
+   именно из-за этого плашка даты рендерилась как таблетка/овал, а не прямоугольник. */
+.pl-daynav .pl-day-label{flex:1;min-width:0;width:auto;height:auto;font-family:Georgia,'Times New Roman',serif;font-size:1rem;color:#fff;text-align:center;text-transform:capitalize;border:1px solid rgba(201,168,76,.3);background:var(--surface);padding:9px 16px;border-radius:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pl-daynav .pl-day-label:active{background:rgba(255,255,255,.08);}
 .pl-scroll{flex:1;min-height:0;overflow-y:auto;padding:0 20px 100px;scrollbar-width:none;}
 .pl-scroll::-webkit-scrollbar{display:none;}
 .pl-day-block{position:relative;}
@@ -1014,6 +1017,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-wrap{position:absolute;left:0;right:4px;overflow:hidden;border-radius:10px;isolation:isolate;pointer-events:auto;}
 .pl-event-ghost{box-shadow:0 10px 28px rgba(0,0,0,.5);}
 .pl-event-ghost .pl-event{box-shadow:0 0 0 1.5px var(--gold);}
+.pl-drag-bar{position:fixed;z-index:600;left:50%;bottom:calc(var(--nav-h) + var(--safe-bottom) + 20px);transform:translateX(-50%);display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:0 6px 25px #0009;}
+.pl-drag-bar button{display:grid;place-items:center;box-sizing:border-box;padding:0;width:52px;height:52px;border:1px solid #ad444a;border-radius:50%;color:#ff696d;background:#221416;transition:background-color .15s ease,box-shadow .15s ease;}
+.pl-drag-bar button.ready{background:#922f36;box-shadow:0 0 18px #dc465b55;}
+.pl-drag-bar .icon{display:block;width:20px;height:20px;margin:0;}
 .pl-event-actions{position:absolute;inset:0;display:flex;justify-content:flex-end;pointer-events:none;}
 .pl-event-wrap.is-open .pl-event-actions{pointer-events:auto;}
 .pl-event-actions button{width:36px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
@@ -1108,7 +1115,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.8.0';
+  const APP_VERSION = '0.8.1';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1773,7 +1780,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // чтобы не терять layout/pointer capture под ним).
   function bindPlannerEventDrag(wrap){
     const id=wrap.dataset.plEventId,card=$('.pl-event',wrap);
-    let timer=null,startX=0,startY=0,pointerId=null,dragEv=null,dragStartTop=0,dragSnapped=0,ghost=null;
+    let timer=null,startX=0,startY=0,pointerId=null,dragEv=null,dragStartTop=0,dragSnapped=0,ghost=null,bar=null,remove=false;
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
     wrap.cancelLongPress=cancel;
     card.addEventListener('pointerdown',e=>{
@@ -1782,7 +1789,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       timer=setTimeout(()=>{
         timer=null;
         dragEv=state.planner.events.find(x=>x.id===id);if(!dragEv)return;
-        dragStartTop=wrap.offsetTop;dragSnapped=dragStartTop;
+        dragStartTop=wrap.offsetTop;dragSnapped=dragStartTop;remove=false;
         wrap.plEventDragging=true;
         holdFeedback(card);
         const bounds=wrap.getBoundingClientRect();
@@ -1791,6 +1798,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         ghost.style.cssText='position:fixed;left:'+bounds.left+'px;top:'+bounds.top+'px;width:'+bounds.width+'px;height:'+bounds.height+'px;margin:0;z-index:600;pointer-events:none;box-sizing:border-box;overflow:visible;';
         document.body.appendChild(ghost);
         wrap.style.opacity='0';
+        // Мусорка снизу — как у перетаскивания привычек: подносишь событие близко, она "загорается",
+        // отпускаешь рядом — удаляет вместо переноса времени.
+        bar=document.createElement('div');bar.className='pl-drag-bar';
+        bar.innerHTML='<button type="button" data-pl-drag-delete aria-label="Удалить">'+icon('trash')+'</button>';
+        document.body.appendChild(bar);
         card.setPointerCapture?.(pointerId);
       },550);
     },{passive:true});
@@ -1801,11 +1813,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         return;
       }
       e.preventDefault();
-      const dy=e.clientY-startY;
-      const rawMin=(dragStartTop+dy)/PL_HOUR_PX*60;
-      dragSnapped=clamp(Math.round(rawMin/5)*5,0,24*60-(dragEv.duration||60));
-      if(ghost)ghost.style.transform='translate3d(0,'+(dragSnapped/60*PL_HOUR_PX-dragStartTop)+'px,0)';
-      plannerShowDragBadge(ghost,dragSnapped,dragEv.duration||60);
+      const trashBtn=$('[data-pl-drag-delete]',bar),home=trashBtn.getBoundingClientRect();
+      const dxHome=e.clientX-(home.left+home.width/2),dyHome=e.clientY-(home.top+home.height/2);
+      const dist=Math.hypot(dxHome,dyHome),proximity=clamp(1-dist/220,0,1);
+      remove=dist<86;trashBtn.classList.toggle('ready',remove);
+      trashBtn.style.transform='scale('+(1+proximity*.4)+')';
+      if(remove){
+        if(ghost)ghost.style.transform='translate3d(0,'+(e.clientY-startY)+'px,0) scale(.7)';
+        if(ghost)ghost.style.opacity='.5';
+        plannerHideDragBadge(ghost);
+      } else {
+        const dy=e.clientY-startY;
+        const rawMin=(dragStartTop+dy)/PL_HOUR_PX*60;
+        dragSnapped=clamp(Math.round(rawMin/5)*5,0,24*60-(dragEv.duration||60));
+        if(ghost){ghost.style.opacity='';ghost.style.transform='translate3d(0,'+(dragSnapped/60*PL_HOUR_PX-dragStartTop)+'px,0)';}
+        plannerShowDragBadge(ghost,dragSnapped,dragEv.duration||60);
+      }
     },{passive:false});
     const finish=e=>{
       if(e.pointerId!==pointerId)return;
@@ -1814,8 +1837,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         wrap.plEventDragging=false;
         wrap.style.opacity='';
         ghost?.remove();ghost=null;
-        if(dragEv){dragEv.time=plannerMinutesToTime(dragSnapped);savePlannerEvents();}
-        renderScreen();
+        bar?.remove();bar=null;
+        if(remove){plannerDelete(id);}
+        else if(dragEv){dragEv.time=plannerMinutesToTime(dragSnapped);savePlannerEvents();renderScreen();}
       }
       pointerId=null;
     };
@@ -1828,6 +1852,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(!badge){badge=document.createElement('div');badge.className='pl-event-drag-badge';wrap.appendChild(badge);}
     badge.textContent=plannerMinutesToTime(startMin)+'–'+plannerMinutesToTime(Math.min(1439,startMin+dur));
   }
+  function plannerHideDragBadge(wrap){$('.pl-event-drag-badge',wrap)?.remove();}
   function plannerEnterDayView(date){
     state.planner.viewDate=date;
     state.planner.zoom='day';
@@ -2096,7 +2121,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: у события теперь есть время окончания и свой цвет, на карточке только название (без времени). Свайп по событию/задаче открывает Править/Удалить — как у привычек. Долгое нажатие на событии в дне — тащи его по времени, начало пересчитывается вживую. Плашка с датой в шапке — аккуратный скруглённый прямоугольник, а не овал.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: долгое нажатие на событии в дне теперь можно донести до мусорки внизу экрана — она разгорается при приближении, как у привычек — и удалить перетаскиванием, а не только переносом времени. Нашёл и исправил настоящую причину «овала» у плашки даты: правило для круглых стрелок пред/след перебивало скругление плашки.</p></section>
     </div></section>`;
   }
 
