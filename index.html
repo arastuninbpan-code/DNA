@@ -965,7 +965,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-header h1{margin:0;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:1.5rem;color:#fff;}
 .pl-sections{display:flex;gap:8px;overflow-x:auto;padding:14px 20px 4px;scrollbar-width:none;flex-shrink:0;}
 .pl-sections::-webkit-scrollbar{display:none;}
-.pl-chip{flex:0 0 auto;padding:7px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:var(--surface);color:rgba(255,255,255,.6);font-size:.8125rem;font-family:Georgia,'Times New Roman',serif;white-space:nowrap;touch-action:none;}
+.pl-chip{flex:0 0 auto;padding:7px 14px;border-radius:14px;border:1.5px solid var(--pl-color,rgba(255,255,255,.12));background:var(--surface);color:rgba(255,255,255,.6);font-size:.8125rem;font-family:Georgia,'Times New Roman',serif;white-space:nowrap;touch-action:none;}
 .pl-chip.active{border-color:var(--gold);background:rgba(201,168,76,.14);color:var(--gold2);}
 .pl-chip-ghost{box-shadow:0 8px 22px rgba(0,0,0,.5);}
 .pl-chip-add{width:32px;padding:0;display:grid;place-items:center;color:var(--gold);}
@@ -985,13 +985,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-notime-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;}
 /* Свайп задач/событий: обёртка обрезает, внутренняя карточка едет transform'ом,
    панель Править/Удалить лежит неподвижно под ней (тот же принцип, что у привычек). */
-.pl-task-wrap{position:relative;overflow:hidden;border-radius:14px;isolation:isolate;touch-action:pan-y;}
+.pl-task-wrap{position:relative;overflow:hidden;border-radius:14px;isolation:isolate;touch-action:none;}
 .pl-task-actions{position:absolute;inset:0;display:flex;justify-content:flex-end;pointer-events:none;}
 .pl-task-wrap.is-open .pl-task-actions{pointer-events:auto;}
 .pl-task-actions button{width:40px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
 .pl-task-actions button .icon{width:15px;height:15px;}
 .pl-task-actions [data-pl-task-delete]{background:#c94a50;color:#fff;}
-.pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);touch-action:pan-y;}
+.pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);touch-action:none;}
 .pl-task.done{opacity:.5;}
 .pl-task-check{width:22px;height:22px;flex:0 0 auto;border-radius:6px;border:1.5px solid rgba(20,16,10,.35);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-task-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
@@ -1001,13 +1001,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-task.done .pl-task-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
 .pl-task-meta{font-size:.75rem;color:rgba(20,16,10,.6);margin-top:2px;}
 .pl-timeline{position:relative;border-top:1px solid rgba(255,255,255,.06);}
+.pl-timeline.drop-ready{background:rgba(201,168,76,.06);}
 .pl-hour-row{position:relative;height:56px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;transition:background-color .3s ease;}
 .pl-hour-row.is-now{background:rgba(201,168,76,.1);}
 .pl-hour-row.is-now .pl-hour-label{color:var(--gold);font-weight:700;}
 .pl-hour-label{flex:0 0 44px;font-size:.6875rem;color:rgba(255,255,255,.32);padding-top:2px;font-variant-numeric:tabular-nums;}
 .pl-hour-slot{flex:1;position:relative;}
 .pl-timeline-events{position:absolute;left:52px;right:0;top:0;bottom:0;pointer-events:none;}
-.pl-now-dot{position:absolute;left:-6px;top:0;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(201,168,76,.22);pointer-events:none;}
 .pl-event-wrap{position:absolute;left:0;right:4px;overflow:hidden;border-radius:10px;isolation:isolate;pointer-events:auto;}
 .pl-event-ghost{box-shadow:0 10px 28px rgba(0,0,0,.5);}
 .pl-event-wrap.swap-target .pl-event{box-shadow:0 0 0 2px #fff;}
@@ -1028,7 +1028,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-check .icon{width:10px;height:10px;}
 .pl-event-title{flex:1;min-width:0;font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#171410;font-weight:600;overflow-wrap:anywhere;line-height:1.25;}
 .pl-event.done .pl-event-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
-.pl-event-drag-badge{position:absolute;right:4px;top:-2px;transform:translateY(-100%);background:#1a1a1a;border:1px solid var(--gold);color:var(--gold);font-size:.625rem;font-variant-numeric:tabular-nums;padding:2px 6px;border-radius:6px;white-space:nowrap;pointer-events:none;z-index:20;}
 .pl-empty{text-align:center;color:rgba(255,255,255,.35);padding:24px 12px;font-size:.875rem;}
 /* Зум пальцами: день -> неделя -> месяц (и обратно). */
 .pl-week-block{position:relative;}
@@ -1049,7 +1048,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-week-daycol.is-today{background-color:rgba(201,168,76,.05);}
 .pl-week-event{position:absolute;left:2px;right:2px;min-height:5px;border-radius:3px;background:var(--pl-color,var(--gold));opacity:.85;border:1.5px solid var(--pl-outline,transparent);box-sizing:border-box;padding:0;}
 .pl-week-event.done{opacity:.35;}
-.pl-week-now{position:absolute;left:-4px;top:0;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.22);pointer-events:none;z-index:5;}
 .pl-month-head{display:flex;padding:6px 20px 2px;flex-shrink:0;}
 .pl-month-head span{flex:1;text-align:center;font-size:.6875rem;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.35);}
 .pl-month-scroll{padding:0 14px 100px;}
@@ -1161,7 +1159,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.0';
+  const APP_VERSION = '0.9.1';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1625,18 +1623,34 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // это проще и надёжнее самодельного merge/CRDT.
   const plannerSubs={};
   let plannerSyncTimer=null;
+  // Защита от гонки/эха: каждая запись в облако несёт свой updatedAt (генерируем сами, а не
+  // доверяем серверному времени, чтобы сравнивать однозначно). plannerLastAppliedAt хранит
+  // последний ПРИМЕНЁННЫЙ (или только что отправленный) штамp по каждому shareId — снапшот
+  // старше уже применённого молча игнорируется. Раньше без этой защиты опоздавший снапшот
+  // (например, эхо от предыдущей правки, доехавшее после более новой) мог целиком заменить
+  // локальные события раздела на устаревший список — выглядело как "удаление нескольких
+  // событий разом" при быстрых последовательных правках.
+  const plannerLastAppliedAt={};
   function plannerSyncAllPublicSections(){
     if(!window.DNAFirebase)return;
     clearTimeout(plannerSyncTimer);
     plannerSyncTimer=setTimeout(()=>{
+      const ts=Date.now();
       state.planner.sections.filter(s=>s.shareId).forEach(s=>{
         const events=state.planner.events.filter(e=>e.sectionId===s.id);
-        window.DNAFirebase.updatePublicSection(s.shareId,{section:{id:s.id,name:s.name,color:s.color},events}).catch(()=>{});
+        plannerLastAppliedAt[s.shareId]=ts;
+        window.DNAFirebase.updatePublicSection(s.shareId,{section:{id:s.id,name:s.name,color:s.color},events},ts)
+          .catch(err=>console.error('[DNA] синк раздела не удался:',s.shareId,err));
       });
     },400);
   }
-  function plannerApplyRemoteSection(localSectionId,remoteData){
+  function plannerApplyRemoteSection(localSectionId,remoteData,updatedAt,shareId){
     if(!remoteData)return;
+    if(shareId){
+      const last=plannerLastAppliedAt[shareId]||0;
+      if(updatedAt&&updatedAt<last)return;
+      plannerLastAppliedAt[shareId]=updatedAt||last;
+    }
     const remoteEvents=(remoteData.events||[]).map(e=>({...e,sectionId:localSectionId}));
     const otherEvents=state.planner.events.filter(e=>e.sectionId!==localSectionId);
     state.planner.events=[...otherEvents,...remoteEvents];
@@ -1649,7 +1663,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     Object.keys(plannerSubs).forEach(shareId=>{if(!activeIds.has(shareId)){plannerSubs[shareId]();delete plannerSubs[shareId];}});
     state.planner.sections.filter(s=>s.shareId).forEach(s=>{
       if(plannerSubs[s.shareId])return;
-      plannerSubs[s.shareId]=window.DNAFirebase.subscribeToPublicSection(s.shareId,data=>plannerApplyRemoteSection(s.id,data));
+      plannerSubs[s.shareId]=window.DNAFirebase.subscribeToPublicSection(s.shareId,(data,updatedAt)=>plannerApplyRemoteSection(s.id,data,updatedAt,s.shareId));
     });
   }
   function plannerShareLink(shareId){return location.origin+location.pathname+'?share='+shareId;}
@@ -1849,8 +1863,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         const leftPct=col/totalCols*100,widthPct=100/totalCols;
         return `<button class="pl-week-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 1px);width:calc(${widthPct}% - 2px);--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}" aria-label="${esc(e.time+' '+e.title)}"></button>`;
       }).join('');
-      const nowLine=isToday?`<div class="pl-week-now" data-pl-week-now-dot style="top:${nowMinutes()/60*PL_WEEK_HOUR_PX}px"></div>`:'';
-      return `<div class="pl-week-daycol ${isToday?'is-today':''}" style="height:${24*PL_WEEK_HOUR_PX}px">${events}${nowLine}</div>`;
+      return `<div class="pl-week-daycol ${isToday?'is-today':''}" style="height:${24*PL_WEEK_HOUR_PX}px">${events}</div>`;
     }).join('');
     return `<div class="pl-week-grid"><div class="pl-week-gutter-col">${gutter}</div>${cols}</div>`;
   }
@@ -1943,8 +1956,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         </button>
       </div>`;
     }).join('');
-    const nowDot=isToday?`<div class="pl-now-dot" data-pl-now-dot style="top:${nowMinutes()/60*PL_HOUR_PX}px"></div>`:'';
-    return `<div class="pl-timeline">${rows.join('')}<div class="pl-timeline-events">${events}${nowDot}</div></div>`;
+    return `<div class="pl-timeline">${rows.join('')}<div class="pl-timeline-events">${events}</div></div>`;
   }
   function bindPlannerEvents(){
     $$('[data-pl-section]').forEach(b=>{b.onclick=()=>{state.planner.activeSection=b.dataset.plSection||null;renderScreen();};bindPlannerSectionDrag(b);});
@@ -1960,7 +1972,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('[data-pl-add]')?.addEventListener('click',()=>showPlannerEditSheet(null));
     $$('[data-pl-toggle]').forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);});
     $$('[data-pl-open]').forEach(b=>b.onclick=()=>showPlannerDetail(b.dataset.plOpen));
-    $$('.pl-task-wrap').forEach(bindPlannerTaskSwipe);
+    $$('.pl-task-wrap').forEach(w=>{bindPlannerTaskSwipe(w);bindPlannerTaskDrag(w);});
     $$('.pl-event-wrap').forEach(w=>{bindPlannerEventSwipe(w);bindPlannerEventDrag(w);});
     bindPlannerScroll();
     bindPlannerPinch();
@@ -2010,12 +2022,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     wrap.closeSwipe=()=>{if(open)settle(false);};
     paint(0,false);
     card.addEventListener('pointerdown',e=>{
-      if(e.isPrimary===false||e.button!==0||wrap.plEventDragging)return;
+      if(e.isPrimary===false||e.button!==0||wrap.plEventDragging||wrap.plTaskDragging)return;
       closePlannerSwipes(wrap);
       press={id:e.pointerId,x:e.clientX,y:e.clientY,lastY:e.clientY,from:offset,wasOpen:open,axis:null};
     },{passive:true});
     card.addEventListener('pointermove',e=>{
-      if(!press||press.id!==e.pointerId||wrap.plEventDragging)return;
+      if(!press||press.id!==e.pointerId||wrap.plEventDragging||wrap.plTaskDragging)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
       if(!press.axis){
         if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;
@@ -2042,10 +2054,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     card.addEventListener('pointerup',e=>{
       if(!press||press.id!==e.pointerId){press=null;return;}
       const g=press;press=null;
-      if(wrap.plEventDragging)return;
+      if(wrap.plEventDragging||wrap.plTaskDragging)return;
       if(g.axis==='x'){suppressUntil=performance.now()+400;settle(offset<-actionsWidth*.4);}
     },{passive:true});
-    card.addEventListener('pointercancel',()=>{if(!wrap.plEventDragging&&press)settle(open);press=null;});
+    card.addEventListener('pointercancel',()=>{if(!wrap.plEventDragging&&!wrap.plTaskDragging&&press)settle(open);press=null;});
     card.addEventListener('click',e=>{
       if(performance.now()<suppressUntil){e.preventDefault();e.stopPropagation();return;}
       if(open){e.preventDefault();e.stopPropagation();settle(false);return;}
@@ -2055,9 +2067,91 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function bindPlannerTaskSwipe(wrap){
     const id=wrap.dataset.plTaskId,card=$('.pl-task',wrap),actions=$('.pl-task-actions',wrap);
-    bindSwipeReveal(wrap,card,actions,80,()=>showPlannerDetail(id));
+    bindSwipeReveal(wrap,card,actions,80,()=>showPlannerDetail(id),true);
     $('[data-pl-task-edit]',actions).onclick=()=>{wrap.closeSwipe();showPlannerEditSheet(id);};
     $('[data-pl-task-delete]',actions).onclick=()=>{plannerDelete(id);};
+  }
+  // Долгое нажатие на задаче без времени переводит её в тот же режим перетаскивания, что и
+  // у событий (см. bindPlannerEventDrag): утащить в мусорку — удалить, утащить вниз на ленту
+  // часов — задача получает время (и дату того дня, чей таймлайн оказался под пальцем) и
+  // переезжает туда, как обычное событие.
+  function bindPlannerTaskDrag(wrap){
+    const id=wrap.dataset.plTaskId,card=$('.pl-task',wrap);
+    let timer=null,startX=0,startY=0,pointerId=null,dragTask=null,ghost=null,bar=null,remove=false,dropTimeline=null;
+    const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
+    wrap.cancelLongPress=cancel;
+    card.addEventListener('pointerdown',e=>{
+      if(e.isPrimary===false||e.button!==0||wrap.classList.contains('is-open'))return;
+      cancel();startX=e.clientX;startY=e.clientY;pointerId=e.pointerId;
+      timer=setTimeout(()=>{
+        timer=null;
+        dragTask=state.planner.events.find(x=>x.id===id);if(!dragTask)return;
+        remove=false;dropTimeline=null;
+        wrap.plTaskDragging=true;
+        holdFeedback(card);
+        const bounds=wrap.getBoundingClientRect();
+        ghost=wrap.cloneNode(true);ghost.classList.add('pl-event-ghost');
+        ghost.style.cssText='position:fixed;left:'+bounds.left+'px;top:'+bounds.top+'px;width:'+bounds.width+'px;height:'+bounds.height+'px;margin:0;z-index:600;pointer-events:none;box-sizing:border-box;';
+        document.body.appendChild(ghost);
+        wrap.style.opacity='0';
+        bar=document.createElement('div');bar.className='pl-drag-bar';
+        bar.innerHTML='<button type="button" data-pl-drag-delete aria-label="Удалить">'+icon('trash')+'</button>';
+        document.body.appendChild(bar);
+        card.setPointerCapture?.(pointerId);
+      },550);
+    },{passive:true});
+    card.addEventListener('pointermove',e=>{
+      if(e.pointerId!==pointerId)return;
+      if(!wrap.plTaskDragging){
+        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8)cancel();
+        return;
+      }
+      e.preventDefault();
+      const dx=e.clientX-startX,dy=e.clientY-startY;
+      ghost.style.transform='translate3d('+dx+'px,'+dy+'px,0)';
+      const trashBtn=$('[data-pl-drag-delete]',bar),home=trashBtn.getBoundingClientRect();
+      const dxHome=e.clientX-(home.left+home.width/2),dyHome=e.clientY-(home.top+home.height/2);
+      const dist=Math.hypot(dxHome,dyHome),proximity=clamp(1-dist/220,0,1);
+      remove=dist<86;trashBtn.classList.toggle('ready',remove);
+      trashBtn.style.transform='scale('+(1+proximity*.4)+')';
+      $('.pl-timeline.drop-ready')?.classList.remove('drop-ready');
+      dropTimeline=null;
+      if(remove){
+        ghost.style.opacity='.5';
+      } else {
+        ghost.style.opacity='';
+        ghost.style.pointerEvents='none';
+        const under=document.elementFromPoint(e.clientX,e.clientY);
+        const timeline=under?.closest('.pl-timeline');
+        if(timeline){dropTimeline=timeline;timeline.classList.add('drop-ready');}
+      }
+    },{passive:false});
+    const finish=e=>{
+      if(e.pointerId!==pointerId)return;
+      cancel();
+      if(wrap.plTaskDragging){
+        wrap.plTaskDragging=false;
+        wrap.style.opacity='';
+        ghost?.remove();ghost=null;
+        bar?.remove();bar=null;
+        $('.pl-timeline.drop-ready')?.classList.remove('drop-ready');
+        if(remove){plannerDelete(id);}
+        else if(dropTimeline&&dragTask){
+          const rect=dropTimeline.getBoundingClientRect();
+          const rawMin=(e.clientY-rect.top)/PL_HOUR_PX*60;
+          const snapped=clamp(Math.round(rawMin/5)*5,0,24*60-(dragTask.duration||60));
+          const dayBlock=dropTimeline.closest('.pl-day-block');
+          if(dayBlock)dragTask.date=dayBlock.dataset.plDate;
+          dragTask.time=plannerMinutesToTime(snapped);
+          dragTask.duration=dragTask.duration||60;
+          savePlannerEvents();renderScreen();
+        }
+      }
+      dropTimeline=null;pointerId=null;
+    };
+    card.addEventListener('pointerup',finish,{passive:true});
+    card.addEventListener('pointercancel',finish,{passive:true});
+    card.addEventListener('contextmenu',e=>e.preventDefault());
   }
   function bindPlannerEventSwipe(wrap){
     const id=wrap.dataset.plEventId,card=$('.pl-event',wrap),actions=$('.pl-event-actions',wrap);
@@ -2119,7 +2213,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(dragAxis==='x'){
         if(bar)bar.style.opacity='.25';
         if(ghost){ghost.style.opacity='';ghost.style.transform='translate3d('+dx+'px,0,0)';}
-        plannerHideDragBadge(ghost);
         const col=+wrap.dataset.plCol||0,targetCol=dx>0?col+1:col-1;
         const neighbor=targetCol>=0&&targetCol<totalCols?$('.pl-event-wrap[data-pl-col="'+targetCol+'"]',wrap.parentElement):null;
         swapTarget=(Math.abs(dx)>28&&neighbor)?neighbor.dataset.plEventId:null;
@@ -2135,12 +2228,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(remove){
         if(ghost)ghost.style.transform='translate3d(0,'+dy+'px,0) scale(.7)';
         if(ghost)ghost.style.opacity='.5';
-        plannerHideDragBadge(ghost);
       } else {
         const rawMin=(dragStartTop+dy)/PL_HOUR_PX*60;
         dragSnapped=clamp(Math.round(rawMin/5)*5,0,24*60-(dragEv.duration||60));
         if(ghost){ghost.style.opacity='';ghost.style.transform='translate3d(0,'+(dragSnapped/60*PL_HOUR_PX-dragStartTop)+'px,0)';}
-        plannerShowDragBadge(ghost,dragSnapped,dragEv.duration||60);
       }
     },{passive:false});
     const finish=e=>{
@@ -2170,12 +2261,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     card.addEventListener('pointercancel',finish,{passive:true});
     card.addEventListener('contextmenu',e=>e.preventDefault());
   }
-  function plannerShowDragBadge(wrap,startMin,dur){
-    let badge=$('.pl-event-drag-badge',wrap);
-    if(!badge){badge=document.createElement('div');badge.className='pl-event-drag-badge';wrap.appendChild(badge);}
-    badge.textContent=plannerMinutesToTime(startMin)+'–'+plannerMinutesToTime(Math.min(1439,startMin+dur));
-  }
-  function plannerHideDragBadge(wrap){$('.pl-event-drag-badge',wrap)?.remove();}
   function plannerEnterDayView(date){
     state.planner.viewDate=date;
     state.planner.zoom='day';
@@ -2488,7 +2573,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         const saveBtn=$('#pl-section-edit-save',ov);saveBtn.disabled=true;saveBtn.textContent='Публикуем…';
         try{
           sec.shareId=await window.DNAFirebase.enablePublicSection(name,{section:{id:sec.id,name,color},events:state.planner.events.filter(e=>e.sectionId===sec.id)});
-        }catch(_){showToast('Не удалось опубликовать раздел',false);saveBtn.disabled=false;saveBtn.textContent='Сохранить';return;}
+        }catch(err){
+          console.error('[DNA] публикация раздела не удалась:',err);
+          const code=err?.code||'';
+          const hint=code.includes('permission-denied')?' (нет доступа — проверь, что правила Firestore опубликованы в консоли)':code?' ('+code+')':'';
+          showToast('Не удалось опубликовать раздел'+hint,false);
+          saveBtn.disabled=false;saveBtn.textContent='Сохранить';return;
+        }
       }
       sec.name=name;sec.color=color;sec.public=isPublic;
       savePlannerSections();plannerEnsureSubscriptions();closeOverlay();renderScreen();
@@ -2797,7 +2888,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: текущее время теперь подсвечивает час и живую точку на ленте (без перезахода в приложение), а не красную линию. Плашка даты и стрелки убраны — дни/недели/месяцы листаются свайпом. Пересекающиеся события снова делят экран поровну (порядок можно менять драгом). Инбокс убран — задачи без даты показываются в списке сегодняшнего дня. У событий появился чекбокс «выполнено», который больше не удаляет карточку — удалить можно только через корзину или свайп влево. Разделы можно перетаскивать для смены порядка и редактировать долгим тапом (название, цвет обводки, тумблер «публичный»); цвет раздела теперь обводит все его события, не заменяя их собственную заливку. В форме события — скрепка с вложениями: чеклист, опрос, фото, локация с картой. Комментарии оформлены как в Instagram, а в публичных разделах — как в мессенджере (свои сообщения справа). Недельный и месячный режимы стали непрерывной лентой — скролл вверх/вниз открывает соседние недели/месяцы, свайп влево/вправо быстро прыгает на ±1. В ячейке дня в месячном режиме — не просто точки цветов, а миниатюрная полоска-раскладка дня по времени. Тумблер «публичный» у раздела теперь настоящий: генерирует ссылку-приглашение, по которой раздел (и только он — без привычек и остального) появляется у собеседника, и дальше все правки обоих синхронизируются в реальном времени.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: текущее время теперь только подсвечивает час на ленте (точку и бейдж времени над карточкой при переносе убрали — чище). Чипы разделов красятся цветом самого раздела. Задачу без времени теперь можно перетащить прямо на ленту часов — станет обычным событием — или в корзину, точно как события. Синк публичных разделов стал устойчивее к гонкам при быстрых правках подряд, а при сбое публикации показывает причину.</p></section>
     </div></section>`;
   }
 
@@ -4426,9 +4517,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const todayIso=isoDate(dateOnly());
     if(plannerLastKnownToday&&plannerLastKnownToday!==todayIso){plannerLastKnownToday=todayIso;renderScreen();return;}
     plannerLastKnownToday=todayIso;
-    const mins=nowMinutes(),curHour=new Date().getHours();
-    const dot=$('[data-pl-now-dot]');if(dot)dot.style.top=(mins/60*PL_HOUR_PX)+'px';
-    const weekDot=$('[data-pl-week-now-dot]');if(weekDot)weekDot.style.top=(mins/60*PL_WEEK_HOUR_PX)+'px';
+    const curHour=new Date().getHours();
     $$('.pl-hour-row[data-pl-hour]').forEach(r=>r.classList.toggle('is-now',+r.dataset.plHour===curHour));
   }
 
@@ -4521,13 +4610,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       return shareId;
     }
 
-    async function updatePublicSection(shareId, data) {
-      await setDoc(doc(db, "publicSections", shareId), { data, updatedAt: Date.now() }, { merge: true });
+    async function updatePublicSection(shareId, data, updatedAt) {
+      await setDoc(doc(db, "publicSections", shareId), { data, updatedAt: updatedAt ?? Date.now() }, { merge: true });
     }
 
     function subscribeToPublicSection(shareId, onUpdate) {
       const ref = doc(db, "publicSections", shareId);
-      return onSnapshot(ref, (snap) => { if (snap.exists()) onUpdate(snap.data().data); });
+      return onSnapshot(ref, (snap) => { if (snap.exists()) onUpdate(snap.data().data, snap.data().updatedAt); },
+        (err) => console.error('[DNA] ошибка подписки на публичный раздел:', shareId, err));
     }
 
     async function loadPublicSectionOnce(shareId) {
