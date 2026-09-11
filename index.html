@@ -963,9 +963,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-screen{display:flex;flex-direction:column;height:100%;overflow:hidden;padding-top:max(16px,env(safe-area-inset-top,0px));background:var(--bg);}
 .pl-header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
 .pl-header h1{margin:0;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:1.5rem;color:#fff;}
-.pl-inbox-btn{position:relative;width:40px;height:40px;border-radius:50%;border:1px solid rgba(201,168,76,.35);background:var(--surface);color:var(--gold);display:grid;place-items:center;padding:0;}
-.pl-inbox-btn .icon{width:20px;height:20px;}
-.pl-inbox-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--gold);color:#1a1508;font-size:10px;font-weight:700;display:grid;place-items:center;line-height:1;}
 .pl-sections{display:flex;gap:8px;overflow-x:auto;padding:14px 20px 4px;scrollbar-width:none;flex-shrink:0;}
 .pl-sections::-webkit-scrollbar{display:none;}
 .pl-chip{flex:0 0 auto;padding:7px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:var(--surface);color:rgba(255,255,255,.6);font-size:.8125rem;font-family:Georgia,'Times New Roman',serif;white-space:nowrap;}
@@ -975,14 +972,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-color-picker{display:flex;gap:10px;flex-wrap:wrap;padding:12px 0 4px;}
 .pl-color-swatch{width:30px;height:30px;border-radius:50%;background:var(--sw);border:2px solid transparent;padding:0;}
 .pl-color-swatch.active{border-color:#fff;}
-.pl-daynav{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;flex-shrink:0;}
-.pl-daynav button{width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid rgba(255,255,255,.1);color:#c1bfb9;display:grid;place-items:center;padding:0;}
-.pl-daynav button .icon{width:16px;height:16px;}
-/* .pl-day-label выше специфичностью .pl-daynav button (которое красит круглые
-   стрелки пред/след), иначе те border-radius:50%/width:32px перебивают наши —
-   именно из-за этого плашка даты рендерилась как таблетка/овал, а не прямоугольник. */
-.pl-daynav .pl-day-label{flex:1;min-width:0;width:auto;height:auto;font-family:Georgia,'Times New Roman',serif;font-size:1rem;color:#fff;text-align:center;text-transform:capitalize;border:1px solid rgba(201,168,76,.3);background:var(--surface);padding:9px 16px;border-radius:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.pl-daynav .pl-day-label:active{background:rgba(255,255,255,.08);}
+.pl-daynav{display:flex;align-items:center;justify-content:center;padding:8px 20px 4px;flex-shrink:0;}
+.pl-daynav .pl-day-label{width:auto;height:auto;font-family:Georgia,'Times New Roman',serif;font-size:1rem;color:#fff;text-align:center;text-transform:capitalize;border:0;background:transparent;padding:4px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pl-daynav .pl-day-label:active{opacity:.6;}
 .pl-scroll{flex:1;min-height:0;overflow-y:auto;padding:0 20px 100px;scrollbar-width:none;}
 .pl-scroll::-webkit-scrollbar{display:none;}
 .pl-day-block{position:relative;}
@@ -1008,16 +1000,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-task.done .pl-task-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
 .pl-task-meta{font-size:.75rem;color:rgba(20,16,10,.6);margin-top:2px;}
 .pl-timeline{position:relative;border-top:1px solid rgba(255,255,255,.06);}
-.pl-hour-row{position:relative;height:56px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;}
+.pl-hour-row{position:relative;height:56px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;transition:background-color .3s ease;}
+.pl-hour-row.is-now{background:rgba(201,168,76,.1);}
+.pl-hour-row.is-now .pl-hour-label{color:var(--gold);font-weight:700;}
 .pl-hour-label{flex:0 0 44px;font-size:.6875rem;color:rgba(255,255,255,.32);padding-top:2px;font-variant-numeric:tabular-nums;}
 .pl-hour-slot{flex:1;position:relative;}
 .pl-timeline-events{position:absolute;left:52px;right:0;top:0;bottom:0;pointer-events:none;}
-.pl-now-line{position:absolute;left:-52px;right:0;height:0;border-top:1.5px solid #e0464f;pointer-events:none;}
-.pl-now-line::before{content:'';position:absolute;left:48px;top:-4px;width:8px;height:8px;border-radius:50%;background:#e0464f;}
+.pl-now-dot{position:absolute;left:-6px;top:0;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(201,168,76,.22);pointer-events:none;}
 .pl-event-wrap{position:absolute;left:0;right:4px;overflow:hidden;border-radius:10px;isolation:isolate;pointer-events:auto;}
 .pl-event-ghost{box-shadow:0 10px 28px rgba(0,0,0,.5);}
 .pl-event-wrap.swap-target .pl-event{box-shadow:0 0 0 2px #fff;}
-.pl-event-wrap.pl-event-covered .pl-event-title{opacity:0;}
 .pl-event-ghost .pl-event{box-shadow:0 0 0 1.5px var(--gold);}
 .pl-drag-bar{position:fixed;z-index:600;left:50%;bottom:calc(var(--nav-h) + var(--safe-bottom) + 20px);transform:translateX(-50%);display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:0 6px 25px #0009;}
 .pl-drag-bar button{display:grid;place-items:center;box-sizing:border-box;padding:0;width:52px;height:52px;border:1px solid #ad444a;border-radius:50%;color:#ff696d;background:#221416;transition:background-color .15s ease,box-shadow .15s ease;}
@@ -1028,9 +1020,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-actions button{width:36px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
 .pl-event-actions button .icon{width:14px;height:14px;}
 .pl-event-actions [data-pl-event-delete]{background:#c94a50;color:#fff;}
-.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:0;overflow:hidden;text-align:left;touch-action:none;}
+.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:0;overflow:hidden;text-align:left;touch-action:none;display:flex;align-items:flex-start;gap:6px;}
 .pl-event.done{opacity:.5;}
-.pl-event-title{font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#171410;font-weight:600;overflow-wrap:anywhere;line-height:1.25;}
+.pl-event-check{width:15px;height:15px;flex:0 0 auto;margin-top:2px;border-radius:5px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
+.pl-event-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
+.pl-event-check .icon{width:10px;height:10px;}
+.pl-event-title{flex:1;min-width:0;font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#171410;font-weight:600;overflow-wrap:anywhere;line-height:1.25;}
 .pl-event.done .pl-event-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
 .pl-event-drag-badge{position:absolute;right:4px;top:-2px;transform:translateY(-100%);background:#1a1a1a;border:1px solid var(--gold);color:var(--gold);font-size:.625rem;font-variant-numeric:tabular-nums;padding:2px 6px;border-radius:6px;white-space:nowrap;pointer-events:none;z-index:20;}
 .pl-empty{text-align:center;color:rgba(255,255,255,.35);padding:24px 12px;font-size:.875rem;}
@@ -1050,7 +1045,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-week-daycol.is-today{background-color:rgba(201,168,76,.05);}
 .pl-week-event{position:absolute;left:2px;right:2px;min-height:5px;border-radius:3px;background:var(--pl-color,var(--gold));opacity:.85;border:0;padding:0;}
 .pl-week-event.done{opacity:.35;}
-.pl-week-now{position:absolute;left:0;right:0;height:0;border-top:1.5px solid #e0464f;pointer-events:none;}
+.pl-week-now{position:absolute;left:-4px;top:0;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.22);pointer-events:none;z-index:5;}
 .pl-month-head{display:flex;padding:6px 20px 2px;flex-shrink:0;}
 .pl-month-head span{flex:1;text-align:center;font-size:.6875rem;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.35);}
 .pl-month-scroll{padding:0 14px 100px;}
@@ -1117,7 +1112,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.8.3';
+  const APP_VERSION = '0.8.4';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1252,6 +1247,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       e.sectionId = match ? match.id : null;
     }
     delete e.section;
+    // Инбокс (задачи без даты) убран — всё, что раньше в нём лежало, переносим на сегодня,
+    // чтобы записи остались видны в обычном списке дня, а не потерялись без доступа к экрану.
+    if (!e.date) e.date = isoDate(dateOnly());
   });
   saveJSON('planner_sections', state.planner.sections);
   saveJSON('planner_events', state.planner.events);
@@ -1578,7 +1576,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return sorted;
   }
   function plannerEventsFor(dateIso){return state.planner.events.filter(e=>e.date===dateIso&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection));}
-  function plannerInboxEvents(){return state.planner.events.filter(e=>e.date==null&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection));}
   function plannerMinutesFromTime(t){const p=t.split(':').map(Number);return p[0]*60+p[1];}
   function formatPlannerDate(iso){return parseLocalDate(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});}
   function formatPlannerDateTime(iso){const d=new Date(iso);return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+', '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
@@ -1586,9 +1583,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function dayLabelFor(d){return d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});}
   function nowMinutes(){const n=new Date();return n.getHours()*60+n.getMinutes();}
   function renderPlanner() {
-    const inboxCount=plannerInboxEvents().length,zoom=state.planner.zoom;
+    const zoom=state.planner.zoom;
     return `<section class="screen pl-screen" aria-label="Планер">
-      <header class="pl-header"><h1>Планер</h1><button class="pl-inbox-btn" data-pl-inbox aria-label="Инбокс">${icon('inbox')}${inboxCount?`<span class="pl-inbox-badge">${inboxCount>99?'99+':inboxCount}</span>`:''}</button></header>
+      <header class="pl-header"><h1>Планер</h1></header>
       <div class="pl-sections">
         <button class="pl-chip ${state.planner.activeSection?'':'active'}" data-pl-section="">Все</button>
         ${state.planner.sections.map(s=>`<button class="pl-chip ${state.planner.activeSection===s.id?'active':''}" data-pl-section="${esc(s.id)}" style="--pl-color:${s.color}">${esc(s.name)}</button>`).join('')}
@@ -1603,11 +1600,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const days=[];
     for(let i=-PL_WINDOW_RADIUS;i<=PL_WINDOW_RADIUS;i++)days.push(addDays(center,i));
     return `<div class="pl-daynav">
-        <button data-pl-day="-1" aria-label="Предыдущий день">${icon('chev-left')}</button>
         <button class="pl-day-label" data-pl-today type="button">${esc(dayLabelFor(center))}</button>
-        <button data-pl-day="1" aria-label="Следующий день">${icon('chev-right')}</button>
       </div>
-      <div class="pl-scroll" data-pl-scroll data-pl-pinch>${days.map(renderPlannerDayBlock).join('')}</div>`;
+      <div class="pl-scroll" data-pl-scroll data-pl-pinch data-pl-swipe>${days.map(renderPlannerDayBlock).join('')}</div>`;
   }
   function startOfWeek(d){return addDays(d,-((d.getDay()+6)%7));}
   function renderPlannerWeekView(){
@@ -1619,15 +1614,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ?`${start.getDate()}–${end.getDate()} ${calMonthNames[start.getMonth()].toLowerCase()}`
       :`${start.getDate()} ${calMonthNames[start.getMonth()].slice(0,3).toLowerCase()} – ${end.getDate()} ${calMonthNames[end.getMonth()].slice(0,3).toLowerCase()}`;
     return `<div class="pl-daynav">
-        <button data-pl-week="-1" aria-label="Предыдущая неделя">${icon('chev-left')}</button>
         <button class="pl-day-label" data-pl-today type="button">${esc(weekLabel)}</button>
-        <button data-pl-week="1" aria-label="Следующая неделя">${icon('chev-right')}</button>
       </div>
       <div class="pl-week-head"><span class="pl-week-gutter"></span>${days.map(d=>{
         const iso=isoDate(d);
         return `<button class="pl-week-daycol-head ${iso===todayIso?'is-today':''}" data-pl-week-day="${iso}"><span class="pl-week-dow">${PL_WEEKDAYS[(d.getDay()+6)%7]}</span><span class="pl-week-num">${d.getDate()}</span></button>`;
       }).join('')}</div>
-      <div class="pl-scroll pl-week-scroll" data-pl-scroll data-pl-pinch>${renderPlannerWeekGrid(days,todayIso)}</div>`;
+      <div class="pl-scroll pl-week-scroll" data-pl-scroll data-pl-pinch data-pl-swipe>${renderPlannerWeekGrid(days,todayIso)}</div>`;
   }
   function renderPlannerWeekGrid(days,todayIso){
     const gutter=Array.from({length:24},(_,h)=>`<div class="pl-week-hour-label">${String(h).padStart(2,'0')}</div>`).join('');
@@ -1643,7 +1636,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         const leftPct=col/totalCols*100,widthPct=100/totalCols;
         return `<button class="pl-week-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 1px);width:calc(${widthPct}% - 2px);--pl-color:${plannerEventColor(e)}" aria-label="${esc(e.time+' '+e.title)}"></button>`;
       }).join('');
-      const nowLine=isToday?`<div class="pl-week-now" style="top:${nowMinutes()/60*PL_WEEK_HOUR_PX}px"></div>`:'';
+      const nowLine=isToday?`<div class="pl-week-now" data-pl-week-now-dot style="top:${nowMinutes()/60*PL_WEEK_HOUR_PX}px"></div>`:'';
       return `<div class="pl-week-daycol ${isToday?'is-today':''}" style="height:${24*PL_WEEK_HOUR_PX}px">${events}${nowLine}</div>`;
     }).join('');
     return `<div class="pl-week-grid"><div class="pl-week-gutter-col">${gutter}</div>${cols}</div>`;
@@ -1652,12 +1645,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const display=state.planner.calDisplay,todayIso=isoDate(dateOnly());
     const days=calendarDays({display});
     return `<div class="pl-daynav">
-        <button data-pl-month="-1" aria-label="Предыдущий месяц">${icon('chev-left')}</button>
         <button class="pl-day-label" data-pl-today type="button">${calMonthNames[display.getMonth()]} ${display.getFullYear()}</button>
-        <button data-pl-month="1" aria-label="Следующий месяц">${icon('chev-right')}</button>
       </div>
       <div class="pl-month-head">${PL_WEEKDAYS.map(x=>`<span>${x}</span>`).join('')}</div>
-      <div class="pl-scroll pl-month-scroll" data-pl-scroll data-pl-pinch><div class="pl-month-grid">${days.map(d=>renderPlannerMonthCell(d,display,todayIso)).join('')}</div></div>`;
+      <div class="pl-scroll pl-month-scroll" data-pl-scroll data-pl-pinch data-pl-swipe><div class="pl-month-grid">${days.map(d=>renderPlannerMonthCell(d,display,todayIso)).join('')}</div></div>`;
   }
   function renderPlannerMonthCell(d,display,todayIso){
     const iso=isoDate(d),dayEvents=plannerEventsFor(iso);
@@ -1691,8 +1682,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     </div>`;
   }
   function renderPlannerTimeline(timed,isToday){
+    const curHour=isToday?new Date().getHours():-1;
     const rows=[];
-    for(let h=PL_START_HOUR;h<PL_END_HOUR;h++)rows.push(`<div class="pl-hour-row"><span class="pl-hour-label">${String(h).padStart(2,'0')}:00</span><span class="pl-hour-slot"></span></div>`);
+    for(let h=PL_START_HOUR;h<PL_END_HOUR;h++)rows.push(`<div class="pl-hour-row ${h===curHour?'is-now':''}" data-pl-hour="${h}"><span class="pl-hour-label">${String(h).padStart(2,'0')}:00</span><span class="pl-hour-slot"></span></div>`);
     const totalMinutes=(PL_END_HOUR-PL_START_HOUR)*60;
     const items=timed.map(e=>{
       const mins=clamp(plannerMinutesFromTime(e.time),0,totalMinutes);
@@ -1700,38 +1692,26 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       return {e,startMin:mins,endMin:mins+dur};
     });
     plannerLayoutColumns(items);
-    // Пересекающиеся события не делим строго поровну (при двух — было бы вдвое уже, читать
-    // название тяжело) — веером внахлёст: каждая следующая карточка съезжает всего на
-    // PL_OVERLAP_STEP правее и лежит НАД предыдущими (z-index растёт), почти во всю ширину.
-    // У самой первой в кластере остаётся видимый "хвостик" слева шириной с шаг — по нему и
-    // тянут, чтобы вернуть её наверх (см. bindPlannerEventDrag, горизontальный драг).
+    // Пересекающиеся по времени события делят ширину поровну между колонками (col/totalCols) —
+    // порядок слева направо можно поменять вручную: долгий тап + горизонтальный драг карточки
+    // меняет её laneOrder местами с соседней (см. bindPlannerEventDrag).
     const events=items.map(({e,startMin,endMin,col,totalCols})=>{
       const top=startMin/60*PL_HOUR_PX,height=Math.max(30,(endMin-startMin)/60*PL_HOUR_PX-2);
-      const step=PL_OVERLAP_STEP;
-      const left=col===0?'2px':`calc(${col*step}px + 2px)`;
-      const width=totalCols<=1?'calc(100% - 4px)':`calc(100% - ${(totalCols-1)*step+4}px)`;
-      // У карточек, накрытых сверху соседями (не самая последняя в кластере), название прячем —
-      // иначе текст обрубается ровно по границе перекрытия и выглядит как рендер-баг, а не
-      // намеренный "хвостик". Сам хвостик остаётся кликабельным/перетаскиваемым — по нему
-      // возвращают карточку наверх (см. bindPlannerEventDrag).
-      const covered=col<totalCols-1;
-      return `<div class="pl-event-wrap ${covered?'pl-event-covered':''}" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:${left};width:${width};z-index:${col+1}">
+      const leftPct=col/totalCols*100,widthPct=100/totalCols;
+      return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
         <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
         <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)}">
+          <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
           <span class="pl-event-title">${esc(e.title)}</span>
         </button>
       </div>`;
     }).join('');
-    const nowLine=isToday?`<div class="pl-now-line" style="top:${nowMinutes()/60*PL_HOUR_PX}px"></div>`:'';
-    return `<div class="pl-timeline">${rows.join('')}<div class="pl-timeline-events">${events}${nowLine}</div></div>`;
+    const nowDot=isToday?`<div class="pl-now-dot" data-pl-now-dot style="top:${nowMinutes()/60*PL_HOUR_PX}px"></div>`:'';
+    return `<div class="pl-timeline">${rows.join('')}<div class="pl-timeline-events">${events}${nowDot}</div></div>`;
   }
   function bindPlannerEvents(){
     $$('[data-pl-section]').forEach(b=>b.onclick=()=>{state.planner.activeSection=b.dataset.plSection||null;renderScreen();});
     $('[data-pl-add-section]')?.addEventListener('click',plannerAddSectionPrompt);
-    $('[data-pl-inbox]')?.addEventListener('click',showPlannerInbox);
-    $$('[data-pl-day]').forEach(b=>b.onclick=()=>plannerJumpTo(addDays(state.planner.viewDate,+b.dataset.plDay)));
-    $$('[data-pl-week]').forEach(b=>b.onclick=()=>{state.planner.viewDate=addDays(state.planner.viewDate,7*(+b.dataset.plWeek));renderScreen();});
-    $$('[data-pl-month]').forEach(b=>b.onclick=()=>{const d=state.planner.calDisplay;state.planner.calDisplay=new Date(d.getFullYear(),d.getMonth()+(+b.dataset.plMonth),1);renderScreen();});
     $$('[data-pl-week-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plWeekDay)));
     $$('[data-pl-month-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plMonthDay)));
     $('[data-pl-today]')?.addEventListener('click',()=>{
@@ -1747,6 +1727,41 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $$('.pl-event-wrap').forEach(w=>{bindPlannerEventSwipe(w);bindPlannerEventDrag(w);});
     bindPlannerScroll();
     bindPlannerPinch();
+    bindPlannerSwipeNav();
+  }
+  // Свайп влево/вправо по пустому месту ленты — навигация на день/неделю/месяц вперёд-назад,
+  // вместо убранных стрелок-"лепестков". Не мешает вертикальному скроллу (слушатели passive,
+  // preventDefault не вызывается) и не перехватывает свайпы, начатые на карточке события/задачи —
+  // у тех своя горизонтальная логика (reveal кнопок, перестановка колонок).
+  function bindPlannerSwipeNav(){
+    const el=$('[data-pl-swipe]');
+    if(!el)return;
+    let sx=0,sy=0,axis=null,tracking=false;
+    el.addEventListener('touchstart',e=>{
+      if(e.touches.length!==1)return;
+      const t=e.touches[0];
+      if(t.target.closest('.pl-event-wrap,.pl-task-wrap'))return;
+      sx=t.clientX;sy=t.clientY;axis=null;tracking=true;
+    },{passive:true});
+    el.addEventListener('touchmove',e=>{
+      if(!tracking||e.touches.length!==1||axis)return;
+      const t=e.touches[0],dx=t.clientX-sx,dy=t.clientY-sy;
+      if(Math.max(Math.abs(dx),Math.abs(dy))<10)return;
+      axis=Math.abs(dx)>Math.abs(dy)*1.4?'x':'y';
+    },{passive:true});
+    el.addEventListener('touchend',e=>{
+      if(!tracking)return;tracking=false;
+      if(axis!=='x')return;
+      const t=e.changedTouches[0],dx=t.clientX-sx;
+      if(Math.abs(dx)<60)return;
+      plannerSwipeStep(dx<0?1:-1);
+    },{passive:true});
+  }
+  function plannerSwipeStep(dir){
+    const zoom=state.planner.zoom;
+    if(zoom==='day')plannerJumpTo(addDays(state.planner.viewDate,dir));
+    else if(zoom==='week'){state.planner.viewDate=addDays(state.planner.viewDate,7*dir);renderScreen();}
+    else {const d=state.planner.calDisplay;state.planner.calDisplay=new Date(d.getFullYear(),d.getMonth()+dir,1);renderScreen();}
   }
   function closePlannerSwipes(except){$$('.pl-task-wrap,.pl-event-wrap').forEach(w=>{if(w!==except)w.closeSwipe?.();});}
   // Общий свайп-реveal (карточка едет transform'ом, панель кнопок лежит под ней неподвижно) —
@@ -2065,29 +2080,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       closeOverlay();renderScreen();
     };
   }
-  function showPlannerInbox(){
-    const items=plannerInboxEvents();
-    const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">Инбокс</div>
-      ${items.length?`<div class="pl-notime-list">${items.map(plannerTaskCard).join('')}</div>`:'<div class="pl-empty">Пусто. Задача без даты будет ждать здесь.</div>'}
-      <div style="height:16px"></div></div>`,{sheet:true});
-    $$('[data-pl-toggle]',ov).forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);closeOverlay();showPlannerInbox();});
-    $$('[data-pl-open]',ov).forEach(b=>b.onclick=()=>{closeOverlay();showPlannerDetail(b.dataset.plOpen);});
-  }
   function showPlannerEditSheet(id){
     const existing=id?state.planner.events.find(x=>x.id===id):null;
     // Новое событие: дата и раздел не спрашиваем — дата это день, на котором открыли
     // форму (state.planner.viewDate), раздел — активный фильтр. Только название, время,
-    // цвет. При редактировании существующего — дату/раздел по-прежнему можно поменять.
-    const hasDate=!!existing?.date,hasTime=!!existing?.time;
+    // цвет. При редактировании существующего — дату/раздел по-прежнему можно поменять
+    // (но дату теперь нельзя снять совсем — инбокса для date:null больше нет).
+    const hasTime=!!existing?.time;
     const dateVal=existing?.date||isoDate(state.planner.viewDate),timeVal=existing?.time||'09:00';
     const endVal=plannerMinutesToTime(plannerMinutesFromTime(timeVal)+(existing?.duration||60));
     const evColor=existing?.color||null;
     const timeOnDefault=existing?hasTime:false;
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${existing?'Редактировать задачу':'Новая задача'}</div>
       <div class="pl-form-row"><label>Название</label>${formField('pl-title','Что нужно сделать','text',existing?.title||'')}</div>
-      ${existing?`<div class="pl-toggle-row"><label>Дата</label><button class="pl-switch ${hasDate?'on':''}" id="pl-date-toggle" type="button" aria-pressed="${hasDate}"></button></div>
-      <div class="pl-form-row" id="pl-date-row" ${hasDate?'':'style="display:none"'}><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>`:''}
-      <div class="pl-toggle-row" id="pl-time-toggle-row" ${(!existing||hasDate)?'':'style="display:none"'}><label>Время</label><button class="pl-switch ${timeOnDefault?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${timeOnDefault}"></button></div>
+      ${existing?`<div class="pl-form-row"><label>Дата</label><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>`:''}
+      <div class="pl-toggle-row" id="pl-time-toggle-row"><label>Время</label><button class="pl-switch ${timeOnDefault?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${timeOnDefault}"></button></div>
       <div class="pl-form-row pl-time-range-row" id="pl-time-row" ${timeOnDefault?'':'style="display:none"'}>
         <div class="pl-time-field"><label>Начало</label><input class="field" id="pl-time-value" type="time" value="${esc(timeVal)}"></div>
         <div class="pl-time-field"><label>Окончание</label><input class="field" id="pl-time-end-value" type="time" value="${esc(endVal)}"></div>
@@ -2105,29 +2112,35 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let sectionId=existing?.sectionId||null,color=evColor;
     $$('[data-section]',ov).forEach(b=>b.onclick=()=>{sectionId=b.dataset.section||null;$$('[data-section]',ov).forEach(x=>x.classList.toggle('active',x.dataset.section===sectionId));});
     $$('#pl-event-color-picker [data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color||null;$$('#pl-event-color-picker [data-color]',ov).forEach(x=>x.classList.toggle('active',(x.dataset.color||null)===color));});
-    $('#pl-date-toggle',ov)?.addEventListener('click',()=>{
-      const on=!$('#pl-date-toggle',ov).classList.contains('on');
-      $('#pl-date-toggle',ov).classList.toggle('on',on);$('#pl-date-toggle',ov).setAttribute('aria-pressed',String(on));
-      $('#pl-date-row',ov).style.display=on?'':'none';$('#pl-time-toggle-row',ov).style.display=on?'':'none';
-      if(!on){$('#pl-time-toggle',ov).classList.remove('on');$('#pl-time-row',ov).style.display='none';}
-    });
     $('#pl-time-toggle',ov).onclick=()=>{
       const on=!$('#pl-time-toggle',ov).classList.contains('on');
       $('#pl-time-toggle',ov).classList.toggle('on',on);$('#pl-time-toggle',ov).setAttribute('aria-pressed',String(on));
       $('#pl-time-row',ov).style.display=on?'':'none';
     };
+    // Пока пользователь не тронул поле "Окончание" руками, оно молча следует за "Началом"
+    // (держит исходную длительность) — иначе при переносе начала конец остаётся старым
+    // значением и на сохранении читается как "конец раньше начала", ошибочно уезжая на
+    // следующий день.
+    let endTouched=false;
+    $('#pl-time-end-value',ov).addEventListener('input',()=>{endTouched=true;});
+    $('#pl-time-value',ov).addEventListener('input',()=>{
+      if(endTouched)return;
+      const startMin=plannerMinutesFromTime($('#pl-time-value',ov).value||'09:00');
+      $('#pl-time-end-value',ov).value=plannerMinutesToTime((startMin+(existing?.duration||60))%1440);
+    });
     $('[data-close]',ov).onclick=closeOverlay;
     $('#pl-form-delete',ov)?.addEventListener('click',()=>{plannerDelete(existing.id);closeOverlay();});
     $('#pl-form-save',ov).onclick=()=>{
       const title=$('#pl-title',ov).value.trim();if(!title)return;
-      const dateOn=existing?$('#pl-date-toggle',ov).classList.contains('on'):true;
-      const timeOn=dateOn&&$('#pl-time-toggle',ov).classList.contains('on');
-      const date=dateOn?(existing?$('#pl-date-value',ov).value:isoDate(state.planner.viewDate)):null;
+      const timeOn=$('#pl-time-toggle',ov).classList.contains('on');
+      const date=existing?($('#pl-date-value',ov).value||dateVal):isoDate(state.planner.viewDate);
       const time=timeOn?$('#pl-time-value',ov).value:null;
       let duration=60;
       if(timeOn){
-        const startMin=plannerMinutesFromTime(time),endMin=plannerMinutesFromTime($('#pl-time-end-value',ov).value||'10:00');
-        duration=clamp(endMin-startMin,5,24*60-startMin);
+        const startMin=plannerMinutesFromTime(time);
+        let endMin=plannerMinutesFromTime($('#pl-time-end-value',ov).value||'10:00');
+        if(endMin<startMin)endMin+=24*60; // окончание раньше начала — переходит на следующий день
+        duration=clamp(endMin-startMin||60,5,24*60);
       }
       if(existing){existing.title=title;existing.date=date;existing.time=time;existing.duration=duration;existing.sectionId=sectionId;existing.color=color;}
       else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,subtasks:[],comments:[],done:false});
@@ -2144,7 +2157,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function showPlannerDetail(id){
     const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;
-    const meta=[plannerSectionById(ev.sectionId)?.name,ev.date?formatPlannerDate(ev.date):null,ev.time].filter(Boolean).join(' · ')||'Инбокс';
+    const meta=[plannerSectionById(ev.sectionId)?.name,ev.date?formatPlannerDate(ev.date):null,ev.time].filter(Boolean).join(' · ');
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="pl-detail">
       <div class="pl-detail-head"><h2 class="pl-detail-title">${esc(ev.title)}</h2><button class="text-btn" data-pl-edit aria-label="Редактировать">${icon('edit')}</button></div>
       <div class="pl-detail-meta">${esc(meta)}</div>
@@ -2197,7 +2210,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: цвет события теперь заливает всю карточку, а не тонкую полоску слева. Пересекающиеся события больше не делятся строго пополам — веером внахлёст, верхняя карточка читается почти во всю ширину. Их порядок слева направо можно менять вручную: зажать карточку и потянуть в сторону.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: текущее время теперь подсвечивает час и живую точку на ленте (без перезахода в приложение), а не красную линию. Плашка даты и стрелки убраны — дни/недели/месяцы листаются свайпом. Пересекающиеся события снова делят экран поровну (порядок можно менять драгом). Инбокс убран — задачи без даты показываются в списке сегодняшнего дня. У событий появился чекбокс «выполнено», который больше не удаляет карточку — удалить можно только через корзину или свайп влево.</p></section>
     </div></section>`;
   }
 
@@ -3816,6 +3829,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(label&&label.textContent!==text){label.textContent=text;if(!reducedMotion())label.animate?.([{opacity:.5},{opacity:1}],{duration:180,easing:'ease-out'});}
   }
 
+  // Подсветка текущего времени в планере живая: раз в 20с двигаем точку-маркер и перекрашиваем
+  // строку текущего часа без полного renderScreen (чтобы не сбивать скролл/открытые шторки).
+  // Полный renderScreen нужен только если время перевалило за полночь — "сегодня" переехало
+  // на другой день-блок.
+  let plannerLastKnownToday=null;
+  function plannerRefreshNow(){
+    if(state.nav!==1)return;
+    const todayIso=isoDate(dateOnly());
+    if(plannerLastKnownToday&&plannerLastKnownToday!==todayIso){plannerLastKnownToday=todayIso;renderScreen();return;}
+    plannerLastKnownToday=todayIso;
+    const mins=nowMinutes(),curHour=new Date().getHours();
+    const dot=$('[data-pl-now-dot]');if(dot)dot.style.top=(mins/60*PL_HOUR_PX)+'px';
+    const weekDot=$('[data-pl-week-now-dot]');if(weekDot)weekDot.style.top=(mins/60*PL_WEEK_HOUR_PX)+'px';
+    $$('.pl-hour-row[data-pl-hour]').forEach(r=>r.classList.toggle('is-now',+r.dataset.plHour===curHour));
+  }
+
   // -------- Startup --------
   let lastNavTap=null;
   function scrollSectionToTop() {
@@ -3842,8 +3871,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(document.hidden)return;
     $$('#toast-root .toast').forEach(t=>{if(Number(t.dataset.expires)<=Date.now())t.remove();});
     refreshHabitClock();
+    plannerRefreshNow();
   });
   setInterval(()=>{if(!document.hidden&&state.nav===3)refreshHabitClock();},30000);
+  setInterval(()=>{if(!document.hidden)plannerRefreshNow();},20000);
 
   window.addEventListener('resize',()=>{if(state.nav===0)drawFinanceCharts();if(state.nav===3)drawHabitsVisuals();});
   window.addEventListener('beforeunload',storeCurrentScroll);
