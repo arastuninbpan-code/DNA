@@ -999,20 +999,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-task-wrap.is-open .pl-task{border-radius:14px 0 0 14px;}
 .pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);touch-action:none;}
 .pl-task.done{filter:brightness(.6) saturate(.7);}
-.pl-task-check{width:22px;height:22px;flex:0 0 auto;border-radius:6px;border:1.5px solid rgba(20,16,10,.35);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
+.pl-task-check{width:36px;height:36px;flex:0 0 auto;border-radius:9px;border:1.5px solid rgba(20,16,10,.35);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-task-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
-.pl-task-check .icon{width:13px;height:13px;}
+.pl-task-check .icon{width:20px;height:20px;}
 .pl-task-body{flex:1;min-width:0;}
 .pl-task-title{font-family:Georgia,'Times New Roman',serif;font-size:.9375rem;color:#171410;font-weight:600;overflow-wrap:anywhere;}
 .pl-task.done .pl-task-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
 .pl-task-meta{font-size:.75rem;color:rgba(20,16,10,.6);margin-top:2px;}
-.pl-timeline{position:relative;border-top:1px solid rgba(255,255,255,.06);}
+.pl-timeline{position:relative;border-top:1px solid rgba(255,255,255,.06);touch-action:none;}
 .pl-timeline.drop-ready{background:rgba(201,168,76,.06);}
 .pl-hour-row{position:relative;height:56px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;transition:background-color .3s ease;}
 .pl-hour-row.is-now{background:rgba(201,168,76,.1);}
 .pl-hour-row.is-now .pl-hour-label{color:var(--gold);font-weight:700;}
 .pl-hour-label{flex:0 0 44px;font-size:.6875rem;color:rgba(255,255,255,.32);padding-top:2px;font-variant-numeric:tabular-nums;}
-.pl-hour-slot{flex:1;position:relative;touch-action:pan-y;}
+.pl-hour-slot{flex:1;position:relative;}
 .pl-timeline-events{position:absolute;left:52px;right:0;top:0;bottom:0;pointer-events:none;}
 /* Прямоугольник выделения диапазона времени (зажал пустое место ленты + потянул) — следует
    за пальцем, а после отпускания в правом нижнем углу остаётся кнопка "+" для создания события. */
@@ -1034,11 +1034,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-actions button .icon{width:14px;height:14px;}
 .pl-event-actions [data-pl-event-delete]{background:#c94a50;color:#fff;}
 .pl-event-wrap.is-open .pl-event{border-radius:10px 0 0 10px;}
-.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;align-items:flex-start;gap:6px;}
+.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;align-items:center;gap:6px;}
 .pl-event.done{filter:brightness(.6) saturate(.7);}
-.pl-event-check{width:15px;height:15px;flex:0 0 auto;margin-top:2px;border-radius:5px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
+.pl-event-check{width:24px;height:24px;flex:0 0 auto;border-radius:7px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-event-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
-.pl-event-check .icon{width:10px;height:10px;}
+.pl-event-check .icon{width:15px;height:15px;}
 .pl-event-title{flex:1;min-width:0;font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#171410;font-weight:600;overflow-wrap:anywhere;line-height:1.25;}
 .pl-event.done .pl-event-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
 .pl-empty{text-align:center;color:rgba(255,255,255,.35);padding:24px 12px;font-size:.875rem;}
@@ -1172,7 +1172,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.3';
+  const APP_VERSION = '0.9.4';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1959,7 +1959,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // порядок слева направо можно поменять вручную: долгий тап + горизонтальный драг карточки
     // меняет её laneOrder местами с соседней (см. bindPlannerEventDrag).
     const events=items.map(({e,startMin,endMin,col,totalCols})=>{
-      const top=startMin/60*PL_HOUR_PX,height=Math.max(30,(endMin-startMin)/60*PL_HOUR_PX-2);
+      const top=startMin/60*PL_HOUR_PX,height=Math.max(38,(endMin-startMin)/60*PL_HOUR_PX-2);
       const leftPct=col/totalCols*100,widthPct=100/totalCols;
       return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
         <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
@@ -2328,11 +2328,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // Зажал пустое место ленты часов + потянул — растёт прямоугольник выбора диапазона
   // времени, дальний край следует за пальцем (ближний остаётся на месте зажатия). Отпустил —
   // прямоугольник остаётся с кнопкой "+" в правом нижнем углу, по нажатию открывает форму
-  // создания события с уже подставленным временем. .pl-hour-slot держит touch-action:pan-y
-  // (а не none, как у карточек) — жест требует полной неподвижности пальца все 550мс
-  // ожидания, поэтому к моменту, когда долгое нажатие срабатывает, браузер ещё не успел
-  // начать нативный скролл и наш preventDefault на первом же реальном движении его подавляет;
-  // обычный свайп-скролл по пустому месту при этом остаётся нативным (с инерцией).
+  // создания события с уже подставленным временем. .pl-timeline держит touch-action:none, как
+  // и карточки событий/задач (в этой же кодовой базе уже проверено, что touch-action:pan-y
+  // ненадёжно уживается с долгим нажатием+драгом — гонка с нативным скроллом иногда съедает
+  // жест), поэтому обычный скролл по пустому месту приходится прокручивать вручную (см.
+  // pointermove ниже), а у самого края видимой ленты во время активного выделения включается
+  // автоскролл — как выделение диапазона ячеек в Google Таблицах/Excel.
   let plannerRangeSelect=null;
   function plannerSnapMinutes(raw){
     const total=(PL_END_HOUR-PL_START_HOUR)*60;
@@ -2360,7 +2361,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const el=document.createElement('div');el.className='pl-range-select';
     const labelEl=document.createElement('span');labelEl.className='pl-range-select-label';
     el.append(labelEl);holder.append(el);
-    plannerRangeSelect={date:dateIso,startMin:anchorMin,endMin:Math.min(anchorMin+60,total),el,labelEl};
+    plannerRangeSelect={date:dateIso,startMin:anchorMin,endMin:Math.min(anchorMin+PL_RANGE_STEP,total),el,labelEl};
     plannerRangeSelectPaint();
   }
   function plannerRangeSelectUpdate(startMin,endMin){
@@ -2387,12 +2388,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function bindPlannerRangeSelect(tl){
     const dateIso=tl.closest('.pl-day-block')?.dataset.plDate;if(!dateIso)return;
-    let timer=null,pointerId=null,press=null,active=false,anchorMin=0;
+    let timer=null,pointerId=null,press=null,active=false,anchorMin=0,rafId=null,scroller=null;
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
+    const stopTick=()=>{if(rafId)cancelAnimationFrame(rafId);rafId=null;};
     tl.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0)return;
       if(e.target.closest('.pl-event-wrap')||e.target.closest('.pl-range-select'))return;
-      cancel();press={x:e.clientX,y:e.clientY};pointerId=e.pointerId;active=false;
+      cancel();scroller=tl.closest('.pl-scroll');
+      press={x:e.clientX,y:e.clientY,lastY:e.clientY};pointerId=e.pointerId;active=false;
       timer=setTimeout(()=>{
         timer=null;active=true;
         try{if(typeof navigator!=='undefined'&&typeof navigator.vibrate==='function')navigator.vibrate(18);}catch(_){}
@@ -2400,27 +2403,46 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         anchorMin=plannerSnapMinutes((press.y-rect.top)/PL_HOUR_PX*60);
         plannerRangeSelectStart(dateIso,anchorMin,tl);
         tl.setPointerCapture?.(pointerId);
+        // Пока палец держится у самого края видимой ленты (а не .pl-timeline — тот почти
+        // всегда выше экрана целиком), лента сама скроллит, как выделение диапазона в
+        // Google Таблицах/Excel — и продолжает, даже если палец замер у края без движения,
+        // поэтому это отдельный rAF-тик, а не просто обработчик pointermove.
+        const tick=()=>{
+          if(!active||!tl.isConnected){stopTick();return;}
+          if(scroller){
+            const r=scroller.getBoundingClientRect();
+            if(press.lastY<r.top+36)scroller.scrollTop-=7;
+            else if(press.lastY>r.bottom-36)scroller.scrollTop+=7;
+          }
+          const rect2=tl.getBoundingClientRect();
+          const curMin=plannerSnapMinutes((press.lastY-rect2.top)/PL_HOUR_PX*60);
+          plannerRangeSelectUpdate(Math.min(anchorMin,curMin),Math.max(anchorMin,curMin));
+          rafId=requestAnimationFrame(tick);
+        };
+        rafId=requestAnimationFrame(tick);
       },550);
     },{passive:true});
     tl.addEventListener('pointermove',e=>{
       if(!press||e.pointerId!==pointerId)return;
       if(!active){
-        if(Math.hypot(e.clientX-press.x,e.clientY-press.y)>8)cancel();
+        // .pl-timeline живёт с touch-action:none (иначе долгое нажатие здесь ловит ту же
+        // гонку с нативным пан-скроллом, что и у карточек событий/задач — см. bindPlannerEventDrag),
+        // поэтому пока держим не отпустили и не дождались удержания, скроллим ленту вручную сюда же.
+        if(Math.hypot(e.clientX-press.x,e.clientY-press.y)>8){cancel();if(scroller)scroller.scrollTop-=e.clientY-press.lastY;}
+        press.lastY=e.clientY;
         return;
       }
       e.preventDefault();
-      const rect=tl.getBoundingClientRect();
-      const curMin=plannerSnapMinutes((e.clientY-rect.top)/PL_HOUR_PX*60);
-      plannerRangeSelectUpdate(Math.min(anchorMin,curMin),Math.max(anchorMin,curMin));
+      press.lastY=e.clientY;
     },{passive:false});
     const release=e=>{
       if(!press||e.pointerId!==pointerId){press=null;return;}
-      cancel();
+      cancel();stopTick();
       if(active)plannerRangeSelectFinish();
       press=null;active=false;
     };
     tl.addEventListener('pointerup',release,{passive:true});
-    tl.addEventListener('pointercancel',()=>{cancel();if(active)plannerRangeSelectRemove();press=null;active=false;});
+    tl.addEventListener('pointercancel',()=>{cancel();stopTick();if(active)plannerRangeSelectRemove();press=null;active=false;});
   }
   // Сумма offsetHeight всех .pl-day-block перед искомой датой — не зависит от offsetParent,
   // просто "сколько пикселей пролистать, чтобы этот день оказался вверху".
@@ -3042,7 +3064,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Удаление события или задачи теперь можно отменить — на 5 секунд появляется кнопка возврата. Зажми пустое место на ленте часов и потяни, чтобы выделить диапазон времени и сразу создать на него событие кнопкой "+". Поправлена обрезка кнопки редактирования при свайпе карточки и лишние сдвиги экрана на iOS при частых тапах.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Удаление события или задачи теперь можно отменить — на 5 секунд появляется кнопка возврата. Зажми пустое место на ленте часов и потяни, чтобы выделить диапазон времени (работает автопрокрутка у края экрана, как в Google Таблицах) и сразу создать на него событие кнопкой "+". Чекбокс выполнения стал заметно крупнее, текст в карточке — по центру между верхом и низом. Поправлена обрезка кнопки редактирования при свайпе карточки и лишние сдвиги экрана на iOS при частых тапах.</p></section>
     </div></section>`;
   }
 
