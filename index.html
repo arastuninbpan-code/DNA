@@ -472,7 +472,8 @@ select.field { appearance:none; }
 .sheet { width:100%; max-height:82dvh; overflow:auto; background:#111; border-radius:28px 28px 0 0; padding:12px 24px calc(32px + var(--safe-bottom)); animation:sheetIn .28s cubic-bezier(.16,.84,.28,1) both; scrollbar-width:none; }
 .sheet::-webkit-scrollbar{display:none}
 @keyframes sheetIn { from{transform:translateY(100%)} to{transform:none} }
-.sheet-handle { width:40px; height:4px; margin:0 auto; border-radius:2px; background:rgba(255,255,255,.15); }
+.sheet-handle { width:100%; height:24px; margin:-8px 0 4px; display:flex; align-items:center; justify-content:center; touch-action:none; }
+.sheet-handle::after { content:''; width:40px; height:4px; border-radius:2px; background:rgba(255,255,255,.15); }
 .sheet-title { margin-top:20px; text-align:center; font-family:Georgia,'Times New Roman',serif; font-size:20px; font-weight:600; }
 .sheet-sub { margin-top:8px; text-align:center; color:rgba(255,255,255,.4); font-family:Georgia,'Times New Roman',serif; font-size:14px; }
 .sheet-option { margin-top:12px; padding:16px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid rgba(201,168,76,.15); display:flex; align-items:center; }
@@ -966,7 +967,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-sections{display:flex;gap:8px;overflow-x:auto;padding:14px 20px 4px;scrollbar-width:none;flex-shrink:0;}
 .pl-sections::-webkit-scrollbar{display:none;}
 .pl-chip{flex:0 0 auto;padding:7px 14px;border-radius:14px;border:1.5px solid var(--pl-color,rgba(255,255,255,.12));background:var(--surface);color:rgba(255,255,255,.6);font-size:.8125rem;font-family:Georgia,'Times New Roman',serif;white-space:nowrap;touch-action:none;}
-.pl-chip.active{border-color:var(--gold);background:rgba(201,168,76,.14);color:var(--gold2);}
+.pl-chip.active{background:rgba(201,168,76,.14);color:var(--gold2);}
+.pl-chip.active[data-pl-section=""]{border-color:var(--gold);}
 .pl-chip-ghost{box-shadow:0 8px 22px rgba(0,0,0,.5);}
 .pl-chip-add{width:32px;padding:0;display:grid;place-items:center;color:var(--gold);}
 .pl-chip-add .icon{width:16px;height:16px;}
@@ -992,7 +994,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-task-actions button .icon{width:15px;height:15px;}
 .pl-task-actions [data-pl-task-delete]{background:#c94a50;color:#fff;}
 .pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);touch-action:none;}
-.pl-task.done{opacity:.5;}
+.pl-task.done{filter:brightness(.6) saturate(.7);}
 .pl-task-check{width:22px;height:22px;flex:0 0 auto;border-radius:6px;border:1.5px solid rgba(20,16,10,.35);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-task-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
 .pl-task-check .icon{width:13px;height:13px;}
@@ -1022,7 +1024,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-actions button .icon{width:14px;height:14px;}
 .pl-event-actions [data-pl-event-delete]{background:#c94a50;color:#fff;}
 .pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;align-items:flex-start;gap:6px;}
-.pl-event.done{opacity:.5;}
+.pl-event.done{filter:brightness(.6) saturate(.7);}
 .pl-event-check{width:15px;height:15px;flex:0 0 auto;margin-top:2px;border-radius:5px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-event-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
 .pl-event-check .icon{width:10px;height:10px;}
@@ -1159,7 +1161,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.1';
+  const APP_VERSION = '0.9.2';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1863,7 +1865,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         const leftPct=col/totalCols*100,widthPct=100/totalCols;
         return `<button class="pl-week-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 1px);width:calc(${widthPct}% - 2px);--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}" aria-label="${esc(e.time+' '+e.title)}"></button>`;
       }).join('');
-      return `<div class="pl-week-daycol ${isToday?'is-today':''}" style="height:${24*PL_WEEK_HOUR_PX}px">${events}</div>`;
+      return `<div class="pl-week-daycol ${isToday?'is-today':''}" data-pl-week-daycol="${iso}" style="height:${24*PL_WEEK_HOUR_PX}px">${events}</div>`;
     }).join('');
     return `<div class="pl-week-grid"><div class="pl-week-gutter-col">${gutter}</div>${cols}</div>`;
   }
@@ -1962,6 +1964,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $$('[data-pl-section]').forEach(b=>{b.onclick=()=>{state.planner.activeSection=b.dataset.plSection||null;renderScreen();};bindPlannerSectionDrag(b);});
     $('[data-pl-add-section]')?.addEventListener('click',plannerAddSectionPrompt);
     $$('[data-pl-week-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plWeekDay)));
+    // Тап по пустому месту колонки дня в недельной сетке тоже открывает день (не только
+    // заголовок) — но не когда попали по самому событию (у него свой обработчик, открывает
+    // деталь события).
+    $$('[data-pl-week-daycol]').forEach(el=>el.addEventListener('click',e=>{
+      if(e.target.closest('[data-pl-open]'))return;
+      plannerEnterDayView(parseLocalDate(el.dataset.plWeekDaycol));
+    }));
     $$('[data-pl-month-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plMonthDay)));
     $('[data-pl-today]')?.addEventListener('click',()=>{
       const zoom=state.planner.zoom;
@@ -2888,7 +2897,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Планер: текущее время теперь только подсвечивает час на ленте (точку и бейдж времени над карточкой при переносе убрали — чище). Чипы разделов красятся цветом самого раздела. Задачу без времени теперь можно перетащить прямо на ленту часов — станет обычным событием — или в корзину, точно как события. Синк публичных разделов стал устойчивее к гонкам при быстрых правках подряд, а при сбое публикации показывает причину.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Подсветка текущего часа больше не появлялась на всех днях сразу — теперь только на сегодняшнем. Тап по пустому месту дня в недельной сетке тоже открывает день. Любую шторку (детали события, редактирование раздела и т.д.) теперь можно закрыть свайпом вниз за полоску сверху. Выполненные задачи и события затемняются без прозрачности — кнопки редактирования и удаления больше не просвечивают под ними. Активный чип раздела сохраняет свою обводку цвета раздела, а не золотую.</p></section>
     </div></section>`;
   }
 
@@ -3642,9 +3651,40 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     root.innerHTML=`<div class="overlay ${sheet?'sheet-overlay':''} ${cls}" id="active-overlay">${html}</div>`;
     const ov=$('#active-overlay');
     if(closeOnBackdrop) ov.addEventListener('pointerdown',e=>{if(e.target===ov)closeOverlay();});
+    if(sheet)bindSheetDismiss(ov);
     document.removeEventListener('keydown',escClose);
     document.addEventListener('keydown',escClose);
     return ov;
+  }
+  // Потянуть шторку вниз за ручку (.sheet-handle) — закрывает её, как в iOS/Android. Тянем
+  // только за ручку, а не за всю шторку — внутри могут быть свои списки/скроллы/жесты
+  // (например, лента комментариев или собственный драг события), и вешать сюда обработчик
+  // на весь .sheet рискует с ними конфликтовать.
+  function bindSheetDismiss(ov){
+    const handle=$('.sheet-handle',ov),sheetEl=handle?.closest('.sheet');
+    if(!handle||!sheetEl)return;
+    let startY=0,pointerId=null,dragging=false;
+    handle.addEventListener('pointerdown',e=>{
+      pointerId=e.pointerId;startY=e.clientY;dragging=true;
+      sheetEl.style.transition='';
+      handle.setPointerCapture?.(pointerId);
+    },{passive:true});
+    handle.addEventListener('pointermove',e=>{
+      if(!dragging||e.pointerId!==pointerId)return;
+      e.preventDefault();
+      const dy=Math.max(0,e.clientY-startY);
+      sheetEl.style.transform='translate3d(0,'+dy+'px,0)';
+    },{passive:false});
+    const finish=e=>{
+      if(!dragging||e.pointerId!==pointerId)return;
+      dragging=false;
+      const dy=Math.max(0,e.clientY-startY);
+      sheetEl.style.transition='transform .2s ease';
+      if(dy>80){sheetEl.style.transform='translate3d(0,100%,0)';setTimeout(()=>{if(sheetEl.isConnected)closeOverlay();},180);}
+      else sheetEl.style.transform='';
+    };
+    handle.addEventListener('pointerup',finish,{passive:true});
+    handle.addEventListener('pointercancel',finish,{passive:true});
   }
   function escClose(e){if(e.key==='Escape')closeOverlay();}
   function closeOverlay(){document.removeEventListener('keydown',escClose);$('#overlay-root').innerHTML='';}
@@ -4518,7 +4558,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(plannerLastKnownToday&&plannerLastKnownToday!==todayIso){plannerLastKnownToday=todayIso;renderScreen();return;}
     plannerLastKnownToday=todayIso;
     const curHour=new Date().getHours();
-    $$('.pl-hour-row[data-pl-hour]').forEach(r=>r.classList.toggle('is-now',+r.dataset.plHour===curHour));
+    // data-pl-hour повторяется в КАЖДОМ дне ленты (у всех своя лента 0-23) — подсвечивать
+    // нужно только строку СЕГОДНЯШНЕГО дня, а не совпадающий час во всех днях подряд.
+    $$('.pl-hour-row.is-now').forEach(r=>r.classList.remove('is-now'));
+    const todayBlock=$(`.pl-day-block[data-pl-date="${todayIso}"]`);
+    todayBlock?.querySelector(`.pl-hour-row[data-pl-hour="${curHour}"]`)?.classList.add('is-now');
   }
 
   // -------- Startup --------
