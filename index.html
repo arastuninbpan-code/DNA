@@ -986,18 +986,26 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-notime-title,.pl-timeline-title{margin:10px 0 8px;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.35);}
 .pl-notime-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;}
 /* Свайп задач/событий: обёртка обрезает, внутренняя карточка едет transform'ом,
-   панель Править/Удалить лежит неподвижно под ней (тот же принцип, что у привычек). */
+   панель Править/Удалить лежит неподвижно под ней (тот же принцип, что у привычек).
+   Кнопка удаления теперь лежит ДО карточки (слева) — свайп вправо её открывает. Панель
+   действий не растянута на всю ширину обёртки (не inset:0) — у неё зафиксирован только
+   левый край (left:0, right:auto), а ширина берётся "по контенту" (сумма ширин кнопок),
+   как у .habit-swipe-actions. Это ключевая часть фикса "дыры": раньше при overshoot
+   второго свайпа карточка могла уехать дальше, чем реально был виден фон панели с
+   кнопками — оставался пустой (прозрачный, фон обёртки) зазор между карточкой и кнопкой.
+   Теперь ширина панели и видимое смещение карточки геометрически завязаны друг на друга
+   (см. bindSwipeReveal — жёсткая стенка ровно на actionsWidth). */
 .pl-task-wrap{position:relative;overflow:hidden;border-radius:14px;isolation:isolate;touch-action:none;}
-.pl-task-actions{position:absolute;inset:0;display:flex;justify-content:flex-end;pointer-events:none;}
+.pl-task-actions{position:absolute;left:0;right:auto;top:0;bottom:0;display:flex;justify-content:flex-start;pointer-events:none;}
 .pl-task-wrap.is-open .pl-task-actions{pointer-events:auto;}
 .pl-task-actions button{width:40px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
 .pl-task-actions button .icon{width:15px;height:15px;}
 .pl-task-actions [data-pl-task-delete]{background:#c94a50;color:#fff;}
 .pl-task-wrap.delete-ready [data-pl-task-delete]{background:#e0464f;}
-/* Когда карточка сдвинута свайпом, её собственный (изначально правый) скруглённый край
-   оказывается ровно на границе с кнопкой "редактировать" панели действий и подрезает её
-   уголок скруглением. На открытой панели у карточки эта сторона больше не нужна скруглённой. */
-.pl-task-wrap.is-open .pl-task{border-radius:14px 0 0 14px;}
+/* Когда карточка сдвинута свайпом вправо, её собственный (изначально левый) скруглённый
+   край оказывается ровно на границе с панелью действий и подрезает её уголок скруглением.
+   На открытой панели у карточки эта сторона больше не нужна скруглённой. */
+.pl-task-wrap.is-open .pl-task{border-radius:0 14px 14px 0;}
 .pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);touch-action:none;}
 .pl-task.done{filter:brightness(.6) saturate(.7);}
 .pl-task-check{width:36px;height:36px;flex:0 0 auto;border-radius:9px;border:1.5px solid rgba(20,16,10,.35);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
@@ -1023,6 +1031,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-range-select-add .icon,.pl-range-select-close .icon{width:16px;height:16px;}
 .pl-range-select-add{right:6px;background:var(--gold);color:#171410;}
 .pl-range-select-close{left:6px;background:#26251f;color:#c2c5cb;}
+/* "Хвост" выделения диапазона, перевалившего за полночь, — живой предпросмотр на ленте
+   СЛЕДУЮЩЕГО дня, пока палец ещё держит жест (см. plannerRangeSelectPaint). Верхний край не
+   скруглён и без верхней границы — визуально продолжение прямоугольника с предыдущего дня,
+   как у carry-in события. Без кнопок и без pointer-events — это только предпросмотр. */
+.pl-range-select-next{border-radius:0 0 10px 10px;border-top:none;padding:6px 12px;pointer-events:none;}
 .pl-event-wrap{position:absolute;left:0;right:4px;overflow:hidden;border-radius:10px;isolation:isolate;pointer-events:auto;}
 /* Событие, перевалившее за полночь: "хвост" на следующий день (carry-in) обрезан сверху,
    исходный сегмент на дне начала (carry-out) обрезан снизу — скруглённый край убираем с той
@@ -1036,13 +1049,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-drag-bar button{display:grid;place-items:center;box-sizing:border-box;padding:0;width:52px;height:52px;border:1px solid #ad444a;border-radius:50%;color:#ff696d;background:#221416;transition:background-color .15s ease,box-shadow .15s ease;}
 .pl-drag-bar button.ready{background:#922f36;box-shadow:0 0 18px #dc465b55;}
 .pl-drag-bar .icon{display:block;width:20px;height:20px;margin:0;}
-.pl-event-actions{position:absolute;inset:0;display:flex;justify-content:flex-end;pointer-events:none;}
+/* Как и .pl-task-actions выше — панель зафиксирована по левому краю (left:0, right:auto),
+   ширина по контенту, кнопка удаления лежит ДО карточки (см. bindSwipeReveal). */
+.pl-event-actions{position:absolute;left:0;right:auto;top:0;bottom:0;display:flex;justify-content:flex-start;pointer-events:none;}
 .pl-event-wrap.is-open .pl-event-actions{pointer-events:auto;}
 .pl-event-actions button{width:36px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
 .pl-event-actions button .icon{width:14px;height:14px;}
 .pl-event-actions [data-pl-event-delete]{background:#c94a50;color:#fff;}
 .pl-event-wrap.delete-ready [data-pl-event-delete]{background:#e0464f;}
-.pl-event-wrap.is-open .pl-event{border-radius:10px 0 0 10px;}
+.pl-event-wrap.is-open .pl-event{border-radius:0 10px 10px 0;}
 .pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;align-items:center;gap:6px;}
 .pl-event.done{filter:brightness(.6) saturate(.7);}
 .pl-event-check{width:24px;height:24px;flex:0 0 auto;border-radius:7px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
@@ -1181,7 +1196,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.9';
+  const APP_VERSION = '0.9.10';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2063,33 +2078,30 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function closePlannerSwipes(except){$$('.pl-task-wrap,.pl-event-wrap').forEach(w=>{if(w!==except)w.closeSwipe?.();});}
   // Общий свайп-реveal (карточка едет transform'ом, панель кнопок лежит под ней неподвижно) —
   // используется и для задач без времени, и (вместе с bindPlannerEventDrag) для событий на ленте.
-  // Первый свайп (из закрытого состояния) только раскрывает обе кнопки, жёстко капается на
-  // actionsWidth (без люфта — см. комментарий на clamp ниже). Второй свайп (когда уже открыто)
-  // тянется дальше с демпфированием, и если дотянуть до deleteThreshold (или отпустить с
-  // хорошей скоростью пальца) — кнопка удаления "поглощает" редактирование (flex-basis
-  // анимация) и удаление срабатывает сразу, одним движением — как в bindHabitSwipe.
+  // Кнопка удаления лежит ДО карточки (слева) — свайп ВПРАВО раскрывает панель. Первый свайп
+  // (из закрытого состояния) только раскрывает обе кнопки. Второй свайп (когда уже открыто) даёт
+  // визуальную обратную связь "поглощения" (flex-basis анимация редактировать→удалить) и, если
+  // дотянуть до deleteThreshold (или отпустить с хорошей скоростью пальца) — удаление срабатывает
+  // сразу, одним движением — как в bindHabitSwipe.
+  // Смещение карточки НИКОГДА не превышает actionsWidth ни на первом, ни на втором свайпе —
+  // никакого overshoot/rubber-band за эту точку. Раньше второй свайп демпфированно тянулся
+  // дальше actionsWidth (иллюзия "резины"), и на реальном устройстве видимое смещение карточки
+  // и реальная ширина панели кнопок расходились — в зазоре между ними просвечивал фон обёртки,
+  // воспринимаемый как "дыра". Порог/скорость срабатывания удаления вторым свайпом считаются по
+  // НЕДЕМПФИРОВАННОЙ дистанции пальца (press.lastRaw), так что тянуть "ещё дальше" для решительного
+  // жеста по-прежнему можно и это по-прежнему ощущается как второй свайп — просто карточка при
+  // этом визуально стоит у стенки, а не создаёт пустоту за её пределами.
   function bindSwipeReveal(wrap,card,actions,actionsWidth,onTap,manualScrollY){
     const buttons=Array.from(actions.querySelectorAll('button'));
     const editBtn=buttons[0],delBtn=buttons[buttons.length-1],btnW=actionsWidth/buttons.length,deleteThreshold=40;
     let offset=0,open=false,press=null,suppressUntil=0,scroller=null,forwarder=null,lastMerge=-1;
-    // Ход второго свайпа демпфирован и упирается точно в deleteThreshold — дальше пальцем
-    // можно тянуть сколько угодно, но карточка визуально дальше не едет. Раньше хода не было
-    // предела (демпфирование, но без потолка), и на реальном устройстве при долгом свайпе
-    // иногда возникал огромный визуальный разрыв перед кнопкой — похоже на баг рендеринга
-    // WebKit (overflow:hidden+border-radius+transform) при большом смещении; жёсткий потолок
-    // убирает саму возможность экстремального смещения независимо от точной причины.
-    const rubberBand=raw=>{
-      if(raw>=-actionsWidth)return raw;
-      const over=Math.min(-actionsWidth-raw,deleteThreshold*2.5);
-      return -(actionsWidth+over*.4);
-    };
     const paint=(v,animate,rawValue)=>{
       offset=v;
       card.style.transition=animate?'transform .2s ease':'';
       card.style.transform='translate3d('+offset+'px,0,0)';
       if(buttons.length<2||!editBtn||!delBtn)return;
       const pull=rawValue==null?v:rawValue;
-      const merge=clamp((-pull-actionsWidth)/deleteThreshold,0,1);
+      const merge=clamp((pull-actionsWidth)/deleteThreshold,0,1);
       wrap.classList.toggle('delete-ready',open&&merge>=1);
       if(merge!==lastMerge){
         lastMerge=merge;
@@ -2100,7 +2112,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         delBtn.style.flexBasis=(btnW+(btnW-editW))+'px';
       }
     };
-    const settle=(toOpen,animate=true)=>{open=toOpen;wrap.classList.toggle('is-open',open);paint(open?-actionsWidth:0,animate);};
+    const settle=(toOpen,animate=true)=>{open=toOpen;wrap.classList.toggle('is-open',open);paint(open?actionsWidth:0,animate);};
     wrap.closeSwipe=()=>{if(open)settle(false);};
     paint(0,false);
     card.addEventListener('pointerdown',e=>{
@@ -2119,7 +2131,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(press.axis==='x')card.setPointerCapture?.(e.pointerId);
       }
       if(press.axis!=='x'){
-        // .pl-event живёт с touch-action:none (иначе долгое нажатие+вертикальный драг для
+        // .pl-event живёt с touch-action:none (иначе долгое нажатие+вертикальный драг для
         // переноса времени обрывается гонкой с нативным пан-скроллом — см. bindPlannerEventDrag),
         // поэтому обычный вертикальный скролл списка приходится прокручивать вручную сюда же.
         if(manualScrollY){
@@ -2131,16 +2143,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         return;
       }
       e.preventDefault();
-      let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
+      let raw=press.from+dx;if(press.wasOpen)raw=Math.max(0,raw);
       press.lastRaw=raw;
       if(press.wasOpen){
-        paint(rubberBand(raw),false,raw);
+        // Жёсткая стенка ровно на actionsWidth (см. комментарий над функцией) — merge
+        // по-прежнему считается от недемпфированного raw, поэтому "дотянуть до удаления"
+        // вторым свайпом всё ещё работает, просто без визуального overshoot карточки.
+        paint(Math.min(raw,actionsWidth),false,raw);
       } else {
-        // Без люфта за пределы -actionsWidth на ПЕРВОМ свайпе: пробовали разрешать оттянуть на
-        // 24px дальше точки покоя ради лёгкого rubber-band'а, но если отпускание пальца на
-        // реальном устройстве почему-то не долетает до settle() (потеря touch-последовательности),
-        // карточка может залипнуть в этой overscroll-зоне — видимая пустота перед кнопкой.
-        paint(clamp(raw,-actionsWidth,20),false);
+        paint(clamp(raw,-20,actionsWidth),false);
       }
       const now=performance.now();
       press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
@@ -2153,10 +2164,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         suppressUntil=performance.now()+400;
         if(g.wasOpen&&delBtn){
           const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0;
-          const pastOpen=-(g.lastRaw??offset)-actionsWidth;
-          if(pastOpen>=deleteThreshold||(v<-.8&&pastOpen>=16)){delBtn.click();return;}
+          const pastOpen=(g.lastRaw??offset)-actionsWidth;
+          if(pastOpen>=deleteThreshold||(v>.8&&pastOpen>=16)){delBtn.click();return;}
         }
-        settle(offset<-actionsWidth*.4);
+        settle(offset>actionsWidth*.4);
       }
       else if(forwarder){forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());forwarder=null;}
     },{passive:true});
@@ -2443,18 +2454,28 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // от нативного скролла — на ощупь это и была жалоба "в дневном режиме скролл рывками, не как
   // в недельном". Догоняем это сами: копим скорость на последних кадрах ручной прокрутки, на
   // отпускании запускаем догон с экспоненциальным затуханием, как у нативного fling.
+  function plannerStopMomentum(scroller){scroller?.plMomentumStop?.();}
   function plannerMomentumScroll(scroller,v){
     if(!scroller||!scroller.isConnected)return;
+    // Раньше повторное касание ленты во время инерции никак её не останавливало — сама
+    // анимация не имела внешнего "рычага" отмены, поэтому продолжала докручивать поверх
+    // нового жеста пользователя ("остановил пальцем, а инерция продолжается"). Храним
+    // функцию отмены прямо на DOM-узле скроллера — plannerStopMomentum() зовётся из
+    // любого нового pointerdown на этой ленте (см. bindPlannerScroll) и глушит именно ЭТУ
+    // анимацию, если она ещё бежит.
+    plannerStopMomentum(scroller);
     let vel=clamp(v,-2.6,2.6);
     if(Math.abs(vel)<0.04)return;
-    let last=performance.now();
+    let last=performance.now(),stopped=false;
     const friction=0.0028;
+    scroller.plMomentumStop=()=>{stopped=true;if(scroller.plMomentumStop)scroller.plMomentumStop=null;};
     const step=now=>{
-      if(!scroller.isConnected)return;
+      if(stopped||!scroller.isConnected)return;
       const dt=Math.min(now-last,32);last=now;
       scroller.scrollTop+=vel*dt;
       vel*=Math.max(0,1-friction*dt);
       if(Math.abs(vel)>0.02)requestAnimationFrame(step);
+      else scroller.plMomentumStop=null;
     };
     requestAnimationFrame(step);
   }
@@ -2491,21 +2512,40 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function plannerRangeSelectRemove(){
     plannerRangeSelect?.el?.remove();
+    plannerRangeSelect?.elNext?.remove();
     document.removeEventListener('click',plannerRangeSelectOutside,true);
     plannerRangeSelect=null;
   }
   function plannerRangeSelectPaint(){
     if(!plannerRangeSelect)return;
-    const {startMin,endMin,el,labelEl}=plannerRangeSelect;
+    const {startMin,endMin,el,labelEl,date}=plannerRangeSelect;
     const total=(PL_END_HOUR-PL_START_HOUR)*60;
     el.style.top=(startMin/60*PL_HOUR_PX)+'px';
-    // Сам прямоугольник визуально не растёт ниже границы дня (иначе вылезал бы поверх
-    // заголовка следующего блока) — но endMin может честно уйти за полночь (см.
-    // bindPlannerRangeSelect), тогда в метке это отражаем "23:xx–01:xx ⋯", как у уже
-    // существующих переходящих через полночь событий (см. renderPlannerDayBlock).
     el.style.height=Math.max(34,(Math.min(endMin,total)-startMin)/60*PL_HOUR_PX)+'px';
     const endLabel=endMin>total?plannerMinutesToTime(endMin-total)+' ⋯':plannerMinutesToTime(endMin);
     labelEl.textContent=plannerMinutesToTime(startMin)+'–'+endLabel;
+    // Пока палец тянет диапазон за полночь, живой прямоугольник должен реально появиться на
+    // ленте СЛЕДУЮЩЕГО дня (а не просто отражаться текстом в метке) — иначе выглядит так, будто
+    // выделение "обрывается" на границе дня. Ищем таймлайн следующего дня прямо в DOM (он почти
+    // всегда уже отрисован — окно непрерывного скролла держит соседние дни в памяти) и рисуем
+    // там второй, некликабельный сегмент-хвост от начала дня (00:00) до остатка endMin.
+    if(endMin>total){
+      const nextIso=isoDate(addDays(parseLocalDate(date),1));
+      const holder=document.querySelector('.pl-day-block[data-pl-date="'+nextIso+'"] .pl-timeline-events');
+      if(holder){
+        if(!plannerRangeSelect.elNext||!plannerRangeSelect.elNext.isConnected){
+          plannerRangeSelect.elNext?.remove();
+          const elNext=document.createElement('div');elNext.className='pl-range-select pl-range-select-next';
+          holder.append(elNext);plannerRangeSelect.elNext=elNext;
+        }
+        plannerRangeSelect.elNext.style.top='0px';
+        plannerRangeSelect.elNext.style.height=Math.max(18,(endMin-total)/60*PL_HOUR_PX)+'px';
+      } else {
+        plannerRangeSelect.elNext?.remove();plannerRangeSelect.elNext=null;
+      }
+    } else if(plannerRangeSelect.elNext){
+      plannerRangeSelect.elNext.remove();plannerRangeSelect.elNext=null;
+    }
   }
   function plannerRangeSelectStart(dateIso,anchorMin,tl){
     plannerRangeSelectRemove();
@@ -2514,7 +2554,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const el=document.createElement('div');el.className='pl-range-select';
     const labelEl=document.createElement('span');labelEl.className='pl-range-select-label';
     el.append(labelEl);holder.append(el);
-    plannerRangeSelect={date:dateIso,startMin:anchorMin,endMin:Math.min(anchorMin+PL_RANGE_STEP,total),el,labelEl};
+    plannerRangeSelect={date:dateIso,startMin:anchorMin,endMin:Math.min(anchorMin+PL_RANGE_STEP,total),el,labelEl,elNext:null};
     plannerRangeSelectPaint();
     plannerRangeSelectBindScroll(el,tl);
   }
@@ -2676,6 +2716,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function bindPlannerScroll(){
     const sc=$('[data-pl-scroll]');
     if(!sc)return;
+    // Любое новое касание внутри ленты сразу же гасит инерцию, которая на ней могла ещё
+    // докручивать (см. plannerMomentumScroll) — независимо от того, какой именно жест
+    // сработает дальше (свайп карточки, драг, выделение диапазона или просто новый скролл).
+    sc.addEventListener('pointerdown',()=>plannerStopMomentum(sc),{passive:true});
     const zoom=state.planner.zoom,freshEntry=plannerLastZoom!==zoom;
     plannerLastZoom=zoom;
     if(zoom==='day'){
@@ -2901,7 +2945,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const interrupt=e=>{if(e?.target&&notice.contains?.(e.target))return;finish(false,true);};
     pendingPlannerUndo={notice,finish,render:()=>finish(false,true)};
     undo.onclick=()=>finish(true,true);
-    document.addEventListener('pointerdown',interrupt,true);document.addEventListener('wheel',interrupt,{capture:true,passive:true});document.addEventListener('touchmove',interrupt,{capture:true,passive:true});document.addEventListener('keydown',interrupt,true);window.addEventListener('pagehide',interrupt);
+    // Регистрация слушателей отложена на один тик (как у plannerRangeSelectFinish) — удаление
+    // тут почти всегда приходит из delBtn.click(), вызванного прямо из pointerup самого свайпа
+    // карточки (см. bindSwipeReveal), а renderScreen() внутри этой же цепочки синхронно сносит
+    // исходную карточку/обёртку из DOM ПРЯМО во время обработки этого события. На реальном
+    // устройстве это может породить хвостовые события того же жеста (напр. синтетический click
+    // или потерю pointer capture); если слушатели повесить сразу же, такой хвост мог мгновенно
+    // сработать как "тронули куда-то ещё" и тут же убить тост, так что пользователь не успевал
+    // увидеть саму кнопку "отменить".
+    setTimeout(()=>{
+      if(ending)return;
+      document.addEventListener('pointerdown',interrupt,true);document.addEventListener('wheel',interrupt,{capture:true,passive:true});document.addEventListener('touchmove',interrupt,{capture:true,passive:true});document.addEventListener('keydown',interrupt,true);window.addEventListener('pagehide',interrupt);
+    },0);
     outlineRect.animate?.([{strokeDashoffset:100},{strokeDashoffset:0}],{duration:5000,easing:'linear',fill:'forwards'});
     if(!reducedMotion())notice.animate?.([{opacity:0,transform:'translateY(16px)'},{opacity:1,transform:'translateY(0)'}],{duration:220,easing:'ease-out'});
     timer=setTimeout(()=>finish(false),5000);
@@ -3273,7 +3328,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Выделение диапазона на ленте часов (зажать + потянуть) теперь можно протянуть через полночь — получится событие, переходящее на следующий день, одним жестом. Второй свайп у карточки события/задачи теперь жёстко ограничен, чтобы не возникало пустоты. Ускорена прокрутка дневной ленты.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Инерция прокрутки дневной ленты теперь останавливается сразу при новом касании. Кнопка удаления у события/задачи перенесена перед карточкой (свайп вправо) — пустота при свайпе больше не должна возникать. Выделение диапазона, протянутое через полночь, теперь видно прямоугольником и на следующем дне. Тост отмены удаления при свайпе больше не исчезает мгновенно.</p></section>
     </div></section>`;
   }
 
