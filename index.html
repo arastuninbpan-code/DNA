@@ -1023,6 +1023,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-range-select-add{right:6px;background:var(--gold);color:#171410;}
 .pl-range-select-close{left:6px;background:#26251f;color:#c2c5cb;}
 .pl-event-wrap{position:absolute;left:0;right:4px;overflow:hidden;border-radius:10px;isolation:isolate;pointer-events:auto;}
+/* Событие, перевалившее за полночь: "хвост" на следующий день (carry-in) обрезан сверху,
+   исходный сегмент на дне начала (carry-out) обрезан снизу — скруглённый край убираем с той
+   стороны, где карточка визуально продолжается (плюс троеточие в заголовке, см. JS). */
+.pl-event-wrap.carry-in .pl-event{border-radius:0 0 10px 10px;}
+.pl-event-wrap.carry-out .pl-event{border-radius:10px 10px 0 0;}
 .pl-event-ghost{box-shadow:0 10px 28px rgba(0,0,0,.5);}
 .pl-event-wrap.swap-target .pl-event{box-shadow:0 0 0 2px #fff;}
 .pl-event-ghost .pl-event{box-shadow:0 0 0 1.5px var(--gold);}
@@ -1174,7 +1179,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.6';
+  const APP_VERSION = '0.9.7';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1930,10 +1935,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const timed=dayEvents.filter(e=>e.time).sort((a,b)=>a.time.localeCompare(b.time));
     const untimed=dayEvents.filter(e=>!e.time);
     const isToday=dateIso===isoDate(dateOnly());
+    // Событие с концом раньше начала переносится на следующий календарный день (см. форму
+    // создания) — но раньше это учитывалось только в длительности, а на самой ленте хвост
+    // после полуночи просто обрезался и на следующем дне не появлялся вовсе. Подтягиваем сюда
+    // "довесок" вчерашних событий, которые перевалили за полночь, и рисуем его с 00:00.
+    const prevIso=isoDate(addDays(d,-1));
+    const carryOver=plannerEventsFor(prevIso).filter(e=>{
+      if(!e.time)return false;
+      const endMin=plannerMinutesFromTime(e.time)+(e.duration||60);
+      return endMin>24*60;
+    }).map(e=>({e,endMin:plannerMinutesFromTime(e.time)+(e.duration||60)-24*60}));
     return `<div class="pl-day-block" data-pl-date="${dateIso}">
       <div class="pl-day-divider ${isToday?'is-today':''}">${esc(dayLabelFor(d))}${isToday?' · сегодня':''}</div>
       ${untimed.length?`<div class="pl-notime-list">${untimed.map(plannerTaskCard).join('')}</div>`:''}
-      ${renderPlannerTimeline(timed,isToday)}
+      ${renderPlannerTimeline(timed,isToday,carryOver)}
     </div>`;
   }
   function plannerTaskCard(e){
@@ -1946,28 +1961,36 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </button>
     </div>`;
   }
-  function renderPlannerTimeline(timed,isToday){
+  function renderPlannerTimeline(timed,isToday,carryOver){
     const curHour=isToday?new Date().getHours():-1;
     const rows=[];
     for(let h=PL_START_HOUR;h<PL_END_HOUR;h++)rows.push(`<div class="pl-hour-row ${h===curHour?'is-now':''}" data-pl-hour="${h}"><span class="pl-hour-label">${String(h).padStart(2,'0')}:00</span><span class="pl-hour-slot"></span></div>`);
     const totalMinutes=(PL_END_HOUR-PL_START_HOUR)*60;
     const items=timed.map(e=>{
       const mins=clamp(plannerMinutesFromTime(e.time),0,totalMinutes);
+      const fullEnd=mins+(e.duration||60);
       const dur=clamp(e.duration||60,20,Math.max(20,totalMinutes-mins));
-      return {e,startMin:mins,endMin:mins+dur};
+      return {e,startMin:mins,endMin:mins+dur,continues:fullEnd>totalMinutes};
+    });
+    // Хвост вчерашнего события, перевалившего за полночь (см. renderPlannerDayBlock) —
+    // рисуем с 00:00 этого дня той же карточкой (тот же id, поэтому редактирование/удаление
+    // с любого из двух сегментов правит одно и то же событие).
+    (carryOver||[]).forEach(({e,endMin})=>{
+      items.push({e,startMin:0,endMin:clamp(endMin,20,totalMinutes),carry:true});
     });
     plannerLayoutColumns(items);
     // Пересекающиеся по времени события делят ширину поровну между колонками (col/totalCols) —
     // порядок слева направо можно поменять вручную: долгий тап + горизонтальный драг карточки
     // меняет её laneOrder местами с соседней (см. bindPlannerEventDrag).
-    const events=items.map(({e,startMin,endMin,col,totalCols})=>{
+    const events=items.map(({e,startMin,endMin,col,totalCols,carry,continues})=>{
       const top=startMin/60*PL_HOUR_PX,height=Math.max(38,(endMin-startMin)/60*PL_HOUR_PX-2);
       const leftPct=col/totalCols*100,widthPct=100/totalCols;
-      return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
+      const edgeCls=carry?' carry-in':continues?' carry-out':'';
+      return `<div class="pl-event-wrap${edgeCls}" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
         <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
         <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
           <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
-          <span class="pl-event-title">${esc(e.title)}</span>
+          <span class="pl-event-title">${carry?'⋯ ':''}${esc(e.title)}${continues?' ⋯':''}</span>
         </button>
       </div>`;
     }).join('');
@@ -2039,7 +2062,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // Общий свайп-реveal (карточка едет transform'ом, панель кнопок лежит под ней неподвижно) —
   // используется и для задач без времени, и (вместе с bindPlannerEventDrag) для событий на ленте.
   function bindSwipeReveal(wrap,card,actions,actionsWidth,onTap,manualScrollY){
-    let offset=0,open=false,press=null,suppressUntil=0,scroller=null;
+    let offset=0,open=false,press=null,suppressUntil=0,scroller=null,forwarder=null;
     const paint=(v,animate)=>{offset=v;card.style.transition=animate?'transform .2s ease':'';card.style.transform='translate3d('+offset+'px,0,0)';};
     const settle=(toOpen,animate=true)=>{open=toOpen;wrap.classList.toggle('is-open',open);paint(open?-actionsWidth:0,animate);};
     wrap.closeSwipe=()=>{if(open)settle(false);};
@@ -2047,6 +2070,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     card.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0||wrap.plEventDragging||wrap.plTaskDragging)return;
       closePlannerSwipes(wrap);
+      forwarder?.stop();forwarder=null;
       press={id:e.pointerId,x:e.clientX,y:e.clientY,lastY:e.clientY,from:offset,wasOpen:open,axis:null};
     },{passive:true});
     card.addEventListener('pointermove',e=>{
@@ -2064,14 +2088,19 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         // поэтому обычный вертикальный скролл списка приходится прокручивать вручную сюда же.
         if(manualScrollY){
           if(!scroller)scroller=wrap.closest('.pl-scroll');
-          if(scroller){e.preventDefault();scroller.scrollTop-=e.clientY-press.lastY;}
+          if(!forwarder)forwarder=plannerScrollForwardStart(scroller);
+          e.preventDefault();forwarder.move(e.clientY-press.lastY,performance.now());
         }
         press.lastY=e.clientY;
         return;
       }
       e.preventDefault();
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
-      raw=clamp(raw,-actionsWidth-24,20);
+      // Без люфта за пределы -actionsWidth: пробовали разрешать оттянуть на 24px дальше точки
+      // покоя ради лёгкого рубber-band'а, но если отпускание пальца на реальном устройстве
+      // почему-то не долетает до settle() (потеря touch-последовательности), карточка может залипнуть в
+      // этой overscroll-зоне — и получается видимая пустота между карточкой и кнопкой.
+      raw=clamp(raw,-actionsWidth,20);
       paint(raw,false);
     },{passive:false});
     card.addEventListener('pointerup',e=>{
@@ -2079,8 +2108,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const g=press;press=null;
       if(wrap.plEventDragging||wrap.plTaskDragging)return;
       if(g.axis==='x'){suppressUntil=performance.now()+400;settle(offset<-actionsWidth*.4);}
+      else if(forwarder){forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());forwarder=null;}
     },{passive:true});
-    card.addEventListener('pointercancel',()=>{if(!wrap.plEventDragging&&!wrap.plTaskDragging&&press)settle(open);press=null;});
+    card.addEventListener('pointercancel',()=>{if(!wrap.plEventDragging&&!wrap.plTaskDragging&&press)settle(open);forwarder?.stop();forwarder=null;press=null;});
     card.addEventListener('click',e=>{
       if(performance.now()<suppressUntil){e.preventDefault();e.stopPropagation();return;}
       if(open){e.preventDefault();e.stopPropagation();settle(false);return;}
@@ -2100,12 +2130,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // переезжает туда, как обычное событие.
   function bindPlannerTaskDrag(wrap){
     const id=wrap.dataset.plTaskId,card=$('.pl-task',wrap);
-    let timer=null,startX=0,startY=0,lastY=0,lastT=0,vy=undefined,forwarding=false,pointerId=null,dragTask=null,ghost=null,bar=null,remove=false,dropTimeline=null,scroller=null;
+    let timer=null,startX=0,startY=0,lastY=0,pointerId=null,dragTask=null,ghost=null,bar=null,remove=false,dropTimeline=null,scroller=null,forwarder=null;
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
     wrap.cancelLongPress=cancel;
     card.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0||wrap.classList.contains('is-open'))return;
-      cancel();startX=e.clientX;startY=lastY=e.clientY;lastT=performance.now();vy=undefined;forwarding=false;pointerId=e.pointerId;scroller=wrap.closest('.pl-scroll');
+      cancel();startX=e.clientX;startY=lastY=e.clientY;pointerId=e.pointerId;scroller=wrap.closest('.pl-scroll');forwarder?.stop();forwarder=null;
       timer=setTimeout(()=>{
         timer=null;
         dragTask=state.planner.events.find(x=>x.id===id);if(!dragTask)return;
@@ -2129,10 +2159,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         // Карточка живёт с touch-action:none (нужен для самого драга ниже), поэтому обычный
         // вертикальный скролл списка, если удержание ещё не сработало, приходится прокручивать
         // вручную сюда же — иначе смахивание прямо по карточке не скроллит вообще ничего.
-        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8){cancel();forwarding=true;if(scroller)scroller.scrollTop-=e.clientY-lastY;}
-        const now=performance.now(),dt=now-lastT;
-        if(forwarding&&dt>0){const v=-(e.clientY-lastY)/dt;vy=vy===undefined?v:vy*.75+v*.25;}
-        lastY=e.clientY;lastT=now;
+        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8){cancel();if(!forwarder)forwarder=plannerScrollForwardStart(scroller);}
+        if(forwarder)forwarder.move(e.clientY-lastY,performance.now());
+        lastY=e.clientY;
         return;
       }
       e.preventDefault();
@@ -2175,10 +2204,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           dragTask.duration=dragTask.duration||60;
           savePlannerEvents();renderScreen();
         }
-      } else if(forwarding&&scroller){
-        plannerMomentumScroll(scroller,vy||0);
+      } else if(forwarder){
+        forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());
       }
-      forwarding=false;dropTimeline=null;pointerId=null;
+      forwarder=null;dropTimeline=null;pointerId=null;
     };
     card.addEventListener('pointerup',finish,{passive:true});
     card.addEventListener('pointercancel',finish,{passive:true});
@@ -2202,12 +2231,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // чтобы не терять layout/pointer capture под ним).
   function bindPlannerEventDrag(wrap){
     const id=wrap.dataset.plEventId,card=$('.pl-event',wrap);
-    let timer=null,startX=0,startY=0,lastY=0,lastT=0,vy=undefined,forwarding=false,pointerId=null,dragEv=null,dragStartTop=0,dragSnapped=0,ghost=null,bar=null,remove=false,dragAxis=null,swapTarget=null,scroller=null;
+    let timer=null,startX=0,startY=0,lastY=0,pointerId=null,dragEv=null,dragStartTop=0,dragSnapped=0,ghost=null,bar=null,remove=false,dragAxis=null,swapTarget=null,scroller=null,forwarder=null;
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
     wrap.cancelLongPress=cancel;
     card.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0||wrap.classList.contains('is-open'))return;
-      cancel();startX=e.clientX;startY=lastY=e.clientY;lastT=performance.now();vy=undefined;forwarding=false;pointerId=e.pointerId;scroller=wrap.closest('.pl-scroll');
+      cancel();startX=e.clientX;startY=lastY=e.clientY;pointerId=e.pointerId;scroller=wrap.closest('.pl-scroll');forwarder?.stop();forwarder=null;
       timer=setTimeout(()=>{
         timer=null;
         dragEv=state.planner.events.find(x=>x.id===id);if(!dragEv)return;
@@ -2234,10 +2263,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         // Карточка живёт с touch-action:none (нужен для самого драга ниже), поэтому обычный
         // вертикальный скролл ленты, если удержание ещё не сработало, приходится прокручивать
         // вручную сюда же — иначе смахивание прямо по карточке не скроллит вообще ничего.
-        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8){cancel();forwarding=true;if(scroller)scroller.scrollTop-=e.clientY-lastY;}
-        const now=performance.now(),dt=now-lastT;
-        if(forwarding&&dt>0){const v=-(e.clientY-lastY)/dt;vy=vy===undefined?v:vy*.75+v*.25;}
-        lastY=e.clientY;lastT=now;
+        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8){cancel();if(!forwarder)forwarder=plannerScrollForwardStart(scroller);}
+        if(forwarder)forwarder.move(e.clientY-lastY,performance.now());
+        lastY=e.clientY;
         return;
       }
       e.preventDefault();
@@ -2291,10 +2319,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           }
         } else if(remove){plannerDelete(id);}
         else if(dragEv){dragEv.time=plannerMinutesToTime(dragSnapped);savePlannerEvents();renderScreen();}
-      } else if(forwarding&&scroller){
-        plannerMomentumScroll(scroller,vy||0);
+      } else if(forwarder){
+        forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());
       }
-      forwarding=false;dragAxis=null;swapTarget=null;pointerId=null;
+      forwarder=null;dragAxis=null;swapTarget=null;pointerId=null;
     };
     card.addEventListener('pointerup',finish,{passive:true});
     card.addEventListener('pointercancel',finish,{passive:true});
@@ -2346,12 +2374,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // Зажал пустое место ленты часов + потянул — растёт прямоугольник выбора диапазона
   // времени, дальний край следует за пальцем (ближний остаётся на месте зажатия). Отпустил —
   // прямоугольник остаётся с кнопкой "+" в правом нижнем углу, по нажатию открывает форму
-  // создания события с уже подставленным временем. .pl-timeline держит touch-action:none, как
-  // и карточки событий/задач (в этой же кодовой базе уже проверено, что touch-action:pan-y
-  // ненадёжно уживается с долгим нажатием+драгом — гонка с нативным скроллом иногда съедает
-  // жест), поэтому обычный скролл по пустому месту приходится прокручивать вручную (см.
-  // pointermove ниже), а у самого края видимой ленты во время активного выделения включается
-  // автоскролл — как выделение диапазона ячеек в Google Таблицах/Excel.
+  // создания события с уже подставленным временем. .pl-timeline НЕ трогает touch-action —
+  // пробовали touch-action:none ради надёжности жеста, но это отключало нативный
+  // (композитный, с инерцией) скролл для ВСЕЙ пустой площади ленты, и обычная прокрутка дня
+  // стала ощутимо хуже недельного режима. Вместо этого полагаемся на то, что долгое нажатие
+  // требует полной неподвижности пальца все 550мс: если движение началось раньше — просто
+  // отменяем таймер и отдаём жест браузеру (нативный скролл идёт как обычно); только после
+  // срабатывания удержания перехватываем последующие движения через preventDefault. У самого
+  // края видимой ленты во время активного выделения включается автоскролл — как выделение
+  // диапазона ячеек в Google Таблицах/Excel.
   let plannerRangeSelect=null,plannerRangeSelectDragging=false;
   function plannerSnapMinutes(raw){
     const total=(PL_END_HOUR-PL_START_HOUR)*60;
@@ -2376,6 +2407,30 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(Math.abs(vel)>0.02)requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
+  }
+  // Ручная прокрутка (нужна там, где элемент живёт с touch-action:none — карточки и пустое
+  // место ленты часов) синхронно двигала scrollTop на каждом pointermove; если несколько
+  // событий прилетают в один кадр, это лишние повторные layout'ы подряд — на слабом
+  // железе выглядит как рывки. Вместо этого копим дельту и применяем её одной пачкой за
+  // кадр через rAF, а заодно считаем скорость для инерции на отпускании (plannerMomentumScroll).
+  function plannerScrollForwardStart(scroller){
+    let pendingDy=0,vy=undefined,lastT=performance.now(),rafId=null,running=true;
+    const tick=()=>{
+      if(!running)return;
+      if(scroller&&pendingDy){scroller.scrollTop+=pendingDy;pendingDy=0;}
+      rafId=requestAnimationFrame(tick);
+    };
+    rafId=requestAnimationFrame(tick);
+    return {
+      move(dy,now){
+        pendingDy-=dy;
+        const dt=now-lastT;
+        if(dt>0){const v=-dy/dt;vy=vy===undefined?v:vy*.75+v*.25;}
+        lastT=now;
+      },
+      stop(){running=false;if(rafId)cancelAnimationFrame(rafId);},
+      velocity(){return vy||0;}
+    };
   }
   // Слушаем именно 'click' (а не pointerdown/pointerup) — click не срабатывает, если жест
   // распознан браузером как скролл/драг, а не тап. pointerdown реагировал на сам ЗАПУСК любого
@@ -2434,14 +2489,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function bindPlannerRangeSelect(tl){
     const dateIso=tl.closest('.pl-day-block')?.dataset.plDate;if(!dateIso)return;
-    let timer=null,pointerId=null,press=null,active=false,forwarding=false,anchorMin=0,rafId=null,scroller=null;
+    let timer=null,pointerId=null,press=null,active=false,anchorMin=0,rafId=null,scroller=null,forwarder=null;
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
     const stopTick=()=>{if(rafId)cancelAnimationFrame(rafId);rafId=null;};
     tl.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0)return;
       if(e.target.closest('.pl-event-wrap')||e.target.closest('.pl-range-select'))return;
-      cancel();scroller=tl.closest('.pl-scroll');forwarding=false;
-      press={x:e.clientX,y:e.clientY,lastY:e.clientY,lastT:performance.now(),vy:0};pointerId=e.pointerId;active=false;
+      cancel();scroller=tl.closest('.pl-scroll');forwarder?.stop();forwarder=null;
+      press={x:e.clientX,y:e.clientY,lastY:e.clientY};pointerId=e.pointerId;active=false;
       timer=setTimeout(()=>{
         timer=null;active=true;plannerRangeSelectDragging=true;
         try{if(typeof navigator!=='undefined'&&typeof navigator.vibrate==='function')navigator.vibrate(18);}catch(_){}
@@ -2472,12 +2527,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(!press||e.pointerId!==pointerId)return;
       if(!active){
         // .pl-timeline живёт с touch-action:none (иначе долгое нажатие здесь ловит ту же
-        // гонку с нативным пан-скроллом, что и у карточек событий/задач — см. bindPlannerEventDrag),
-        // поэтому пока держим не отпустили и не дождались удержания, скроллим ленту вручную сюда же.
-        if(Math.hypot(e.clientX-press.x,e.clientY-press.y)>8){cancel();forwarding=true;if(scroller)scroller.scrollTop-=e.clientY-press.lastY;}
-        const now=performance.now(),dt=now-press.lastT;
-        if(forwarding&&dt>0){const v=-(e.clientY-press.lastY)/dt;press.vy=press.vy===undefined?v:press.vy*.75+v*.25;}
-        press.lastY=e.clientY;press.lastT=now;
+        // гонку с нативным пан-скроллом, что и у карточек событий/задач — проверено: браузер
+        // забирает жест на нативный скролл уже на первом pointermove и шлёт pointercancel,
+        // preventDefault опаздывает), поэтому обычный скролл по пустому месту приходится
+        // прокручивать вручную (см. plannerScrollForwardStart) — батчим дельту через rAF,
+        // чтобы не дёргать layout на каждом touch-сэмпле.
+        if(Math.hypot(e.clientX-press.x,e.clientY-press.y)>8){cancel();if(!forwarder)forwarder=plannerScrollForwardStart(scroller);}
+        if(forwarder)forwarder.move(e.clientY-press.lastY,performance.now());
+        press.lastY=e.clientY;
         return;
       }
       e.preventDefault();
@@ -2487,11 +2544,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(!press||e.pointerId!==pointerId){press=null;return;}
       cancel();stopTick();
       if(active)plannerRangeSelectFinish();
-      else if(forwarding&&scroller)plannerMomentumScroll(scroller,press.vy||0);
-      press=null;active=false;forwarding=false;plannerRangeSelectDragging=false;
+      else if(forwarder){forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());}
+      forwarder=null;press=null;active=false;plannerRangeSelectDragging=false;
     };
     tl.addEventListener('pointerup',release,{passive:true});
-    tl.addEventListener('pointercancel',()=>{cancel();stopTick();if(active)plannerRangeSelectRemove();press=null;active=false;plannerRangeSelectDragging=false;});
+    tl.addEventListener('pointercancel',()=>{cancel();stopTick();forwarder?.stop();forwarder=null;if(active)plannerRangeSelectRemove();press=null;active=false;plannerRangeSelectDragging=false;});
   }
   // Сумма offsetHeight всех .pl-day-block перед искомой датой — не зависит от offsetParent,
   // просто "сколько пикселей пролистать, чтобы этот день оказался вверху".
@@ -3118,7 +3175,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Кнопки "+"/"✕" у выделения диапазона времени теперь одинакового размера и по бокам, само выделение не пропадает от обычного скролла (только от тапа мимо), а текст времени не налезает на рамку у самого маленького диапазона. Скроллу дневной ленты вернули инерцию — раньше он останавливался сразу, как отпустишь палец.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Событие теперь может начинаться сегодня и заканчиваться после полуночи — на следующий день появится его продолжение. Скролл дневной ленты сглажен и не дёргается. Убрана пустота, которая иногда оставалась между карточкой и кнопкой редактирования при свайпе.</p></section>
     </div></section>`;
   }
 
@@ -4836,6 +4893,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const btn=e.target.closest('button');
     if(btn&&document.activeElement===btn)btn.blur();
   });
+  // Та же WebKit-ошибка в другой форме: после ввода текста (клавиатура открылась и
+  // закрылась) визуальный вьюпорт иногда не возвращается на место — снизу остаётся чёрная
+  // полоса, а position:fixed-элементы (кнопка "+") рисуются не там, где кажется (они
+  // считаются от layout-вьюпорта, который не сдвигался, а не от текущего визуального).
+  // Пока клавиатуры точно нет (ни один input/textarea не в фокусе), а страница всё равно
+  // прокручена — принудительно возвращаем на 0.
+  if(window.visualViewport){
+    const fixViewportLift=()=>{
+      const el=document.activeElement;
+      if(el&&(el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.isContentEditable))return;
+      if(window.scrollY||window.scrollX)window.scrollTo(0,0);
+    };
+    window.visualViewport.addEventListener('resize',fixViewportLift);
+    window.visualViewport.addEventListener('scroll',fixViewportLift);
+    document.addEventListener('focusout',()=>setTimeout(fixViewportLift,50));
+  }
 
   const splash=$('#splash'), app=$('#app');
   $('#splash-mark').innerHTML=renderDnaLoader('',false,true);
