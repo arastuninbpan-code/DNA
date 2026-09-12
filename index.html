@@ -980,7 +980,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-daynav .pl-day-label:active{opacity:.6;}
 .pl-scroll{flex:1;min-height:0;overflow-y:auto;padding:0 20px 100px;scrollbar-width:none;}
 .pl-scroll::-webkit-scrollbar{display:none;}
-.pl-day-block{position:relative;}
+.pl-day-block{position:relative;content-visibility:auto;contain-intrinsic-size:auto 1400px;}
 .pl-day-divider{position:sticky;top:0;z-index:2;margin:0 -20px;padding:10px 20px 6px;background:var(--bg);font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;text-transform:capitalize;color:rgba(255,255,255,.4);}
 .pl-day-divider.is-today{color:var(--gold);}
 .pl-notime-title,.pl-timeline-title{margin:10px 0 8px;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.35);}
@@ -1181,7 +1181,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.8';
+  const APP_VERSION = '0.9.9';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2072,7 +2072,17 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const buttons=Array.from(actions.querySelectorAll('button'));
     const editBtn=buttons[0],delBtn=buttons[buttons.length-1],btnW=actionsWidth/buttons.length,deleteThreshold=40;
     let offset=0,open=false,press=null,suppressUntil=0,scroller=null,forwarder=null,lastMerge=-1;
-    const rubberBand=raw=>raw<-actionsWidth?-(actionsWidth+(-actionsWidth-raw)*.4):raw;
+    // Ход второго свайпа демпфирован и упирается точно в deleteThreshold — дальше пальцем
+    // можно тянуть сколько угодно, но карточка визуально дальше не едет. Раньше хода не было
+    // предела (демпфирование, но без потолка), и на реальном устройстве при долгом свайпе
+    // иногда возникал огромный визуальный разрыв перед кнопкой — похоже на баг рендеринга
+    // WebKit (overflow:hidden+border-radius+transform) при большом смещении; жёсткий потолок
+    // убирает саму возможность экстремального смещения независимо от точной причины.
+    const rubberBand=raw=>{
+      if(raw>=-actionsWidth)return raw;
+      const over=Math.min(-actionsWidth-raw,deleteThreshold*2.5);
+      return -(actionsWidth+over*.4);
+    };
     const paint=(v,animate,rawValue)=>{
       offset=v;
       card.style.transition=animate?'transform .2s ease':'';
@@ -2424,9 +2434,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // края видимой ленты во время активного выделения включается автоскролл — как выделение
   // диапазона ячеек в Google Таблицах/Excel.
   let plannerRangeSelect=null,plannerRangeSelectDragging=false;
-  function plannerSnapMinutes(raw){
+  function plannerSnapMinutes(raw,max){
     const total=(PL_END_HOUR-PL_START_HOUR)*60;
-    return clamp(Math.round(raw/PL_RANGE_STEP)*PL_RANGE_STEP,0,total);
+    return clamp(Math.round(raw/PL_RANGE_STEP)*PL_RANGE_STEP,0,max??total);
   }
   // Ручная прокрутка ленты (см. pointermove-обработчики ниже) двигает scrollTop дельтой за
   // кадром и без неё сама по себе не докручивает по инерции после отпускания пальца, в отличие
@@ -2487,9 +2497,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function plannerRangeSelectPaint(){
     if(!plannerRangeSelect)return;
     const {startMin,endMin,el,labelEl}=plannerRangeSelect;
+    const total=(PL_END_HOUR-PL_START_HOUR)*60;
     el.style.top=(startMin/60*PL_HOUR_PX)+'px';
-    el.style.height=Math.max(34,(endMin-startMin)/60*PL_HOUR_PX)+'px';
-    labelEl.textContent=plannerMinutesToTime(startMin)+'–'+plannerMinutesToTime(endMin);
+    // Сам прямоугольник визуально не растёт ниже границы дня (иначе вылезал бы поверх
+    // заголовка следующего блока) — но endMin может честно уйти за полночь (см.
+    // bindPlannerRangeSelect), тогда в метке это отражаем "23:xx–01:xx ⋯", как у уже
+    // существующих переходящих через полночь событий (см. renderPlannerDayBlock).
+    el.style.height=Math.max(34,(Math.min(endMin,total)-startMin)/60*PL_HOUR_PX)+'px';
+    const endLabel=endMin>total?plannerMinutesToTime(endMin-total)+' ⋯':plannerMinutesToTime(endMin);
+    labelEl.textContent=plannerMinutesToTime(startMin)+'–'+endLabel;
   }
   function plannerRangeSelectStart(dateIso,anchorMin,tl){
     plannerRangeSelectRemove();
@@ -2533,8 +2549,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function plannerRangeSelectUpdate(startMin,endMin){
     if(!plannerRangeSelect)return;
     const total=(PL_END_HOUR-PL_START_HOUR)*60;
+    // startMin (точка зажатия) всегда внутри дня начала, а endMin может уйти за полночь на
+    // следующий день (до +24ч запаса), если автоскролл унёс туда во время драга — тянуть
+    // диапазон, переходящий через полночь, одним жестом, а не только вручную через форму.
     plannerRangeSelect.startMin=clamp(startMin,0,total);
-    plannerRangeSelect.endMin=clamp(Math.max(endMin,plannerRangeSelect.startMin+PL_RANGE_STEP),0,total);
+    plannerRangeSelect.endMin=clamp(Math.max(endMin,plannerRangeSelect.startMin+PL_RANGE_STEP),0,total*2);
     plannerRangeSelectPaint();
   }
   function plannerRangeSelectFinish(){
@@ -2546,8 +2565,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     addBtn.onclick=e=>{
       e.stopPropagation();
       const{date,startMin,endMin}=plannerRangeSelect;
+      const total=(PL_END_HOUR-PL_START_HOUR)*60;
       plannerRangeSelectRemove();
-      showPlannerEditSheet(null,{date,time:plannerMinutesToTime(startMin),endTime:plannerMinutesToTime(endMin)});
+      // endMin мог уйти за total (перешли через полночь драгом) — plannerMinutesToTime сам
+      // капается на 23:59, поэтому заворачиваем в "минуты следующего дня"; получившееся
+      // время окажется МЕНЬШЕ startMin, и форма сама распознает это как перенос на завтра
+      // (та же логика, что уже работает при ручном вводе времени окончания).
+      const endTime=endMin>=total?plannerMinutesToTime(endMin-total):plannerMinutesToTime(endMin);
+      showPlannerEditSheet(null,{date,time:plannerMinutesToTime(startMin),endTime});
     };
     const closeBtn=document.createElement('button');closeBtn.type='button';closeBtn.className='pl-range-select-close';
     closeBtn.setAttribute('aria-label','Отменить выделение');closeBtn.innerHTML=icon('close');
@@ -2585,7 +2610,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
             else if(press.lastY>r.bottom-36)scroller.scrollTop+=7;
           }
           const rect2=tl.getBoundingClientRect();
-          const curMin=plannerSnapMinutes((press.lastY-rect2.top)/PL_HOUR_PX*60);
+          // max — не 24ч дня, а 48ч: rect2.top уходит всё дальше в минус по мере автоскролла
+          // вниз (.pl-timeline давно физически выше экрана), и эта же арифметика естественно
+          // продолжает считать "минуты от полуночи дня начала" и после захода за полночь —
+          // так тянуть диапазон, переходящий на следующий день, можно прямо этим жестом.
+          const curMin=plannerSnapMinutes((press.lastY-rect2.top)/PL_HOUR_PX*60,(PL_END_HOUR-PL_START_HOUR)*120);
           plannerRangeSelectUpdate(Math.min(anchorMin,curMin),Math.max(anchorMin,curMin));
           rafId=requestAnimationFrame(tick);
         };
@@ -3244,7 +3273,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Свайп события или задачи теперь работает в два шага, как в привычках: первый — открывает кнопки, второй — тянешь ещё дальше, кнопка удаления поглощает редактирование и удаление срабатывает сразу. Починен скролл через прямоугольник выделения диапазона времени.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Выделение диапазона на ленте часов (зажать + потянуть) теперь можно протянуть через полночь — получится событие, переходящее на следующий день, одним жестом. Второй свайп у карточки события/задачи теперь жёстко ограничен, чтобы не возникало пустоты. Ускорена прокрутка дневной ленты.</p></section>
     </div></section>`;
   }
 
