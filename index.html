@@ -1009,7 +1009,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    край оказывается ровно на границе с панелью действий и подрезает её уголок скруглением.
    На открытой панели у карточки эта сторона больше не нужна скруглённой. */
 .pl-task-wrap.is-open .pl-task{border-radius:14px 0 0 14px;}
-.pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);touch-action:none;}
+.pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);touch-action:none;}
 .pl-task.done{filter:brightness(.6) saturate(.7);}
 .pl-task-check{width:36px;height:36px;flex:0 0 auto;border-radius:9px;border:1.5px solid rgba(20,16,10,.35);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-task-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
@@ -1061,13 +1061,32 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-actions [data-pl-event-delete]{background:#c94a50;color:#fff;}
 .pl-event-wrap.delete-ready [data-pl-event-delete]{background:#e0464f;}
 .pl-event-wrap.is-revealing .pl-event,.pl-event-wrap.is-open .pl-event{border-radius:10px 0 0 10px;}
-.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;align-items:center;gap:6px;}
+.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;flex-direction:column;gap:4px;}
+.pl-event-head{display:flex;align-items:flex-start;gap:6px;flex:0 0 auto;}
 .pl-event.done{filter:brightness(.6) saturate(.7);}
 .pl-event-check{width:24px;height:24px;flex:0 0 auto;border-radius:7px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-event-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
 .pl-event-check .icon{width:15px;height:15px;}
 .pl-event-title{flex:1;min-width:0;font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#171410;font-weight:600;overflow-wrap:anywhere;line-height:1.25;}
 .pl-event.done .pl-event-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
+/* Значки вложений (фото/чеклист/опрос/место) под шапкой события — видны только если высота
+   карточки (= длительность) реально даёт им место (см. PL_EXTRA_MIN_HEIGHT в JS). Сама
+   полоска скроллится, если значков больше, чем влезает по высоте, а не раздвигает карточку. */
+.pl-event-extra{flex:1;min-height:0;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;padding-left:30px;}
+.pl-event-extra-item{display:inline-flex;align-items:center;gap:3px;font-size:.6875rem;line-height:1;color:rgba(20,16,10,.75);background:rgba(255,255,255,.28);border-radius:6px;padding:3px 5px;white-space:nowrap;}
+.pl-event-extra-item .icon{width:11px;height:11px;flex:0 0 auto;}
+.pl-event-extra-image{padding:0;overflow:hidden;width:30px;height:22px;border-radius:4px;}
+.pl-event-extra-image img{width:100%;height:100%;object-fit:cover;display:block;}
+/* Плашка "+N" на месте карточек сверх PL_MAX_COLS в одном пересекающемся кластере (см.
+   renderPlannerTimeline) — тап открывает лист со всеми событиями кластера вбок. */
+.pl-event-more{width:100%;height:100%;border:1.5px dashed rgba(255,255,255,.32);border-radius:10px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.72);font-weight:700;font-size:.8125rem;font-variant-numeric:tabular-nums;display:grid;place-items:center;padding:0;}
+.pl-event-more:active{background:rgba(255,255,255,.1);}
+.pl-cluster-scroll{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 12px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;}
+.pl-cluster-card{flex:0 0 auto;width:150px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);scroll-snap-align:start;}
+.pl-cluster-card.done{filter:brightness(.6) saturate(.7);}
+.pl-cluster-card-time{font-size:.6875rem;font-weight:700;color:rgba(20,16,10,.6);font-variant-numeric:tabular-nums;}
+.pl-cluster-card-title{font-family:Georgia,'Times New Roman',serif;font-size:.875rem;color:#171410;font-weight:600;overflow-wrap:anywhere;text-align:left;}
+.pl-cluster-card.done .pl-cluster-card-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
 .pl-empty{text-align:center;color:rgba(255,255,255,.35);padding:24px 12px;font-size:.875rem;}
 /* Зум пальцами: день -> неделя -> месяц (и обратно). */
 .pl-week-block{position:relative;}
@@ -1153,7 +1172,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-image-thumb button .icon{width:10px;height:10px;}
 .pl-location-map{width:100%;height:140px;border-radius:10px;border:0;margin-top:8px;}
 .pl-detail-attach-images{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
-.pl-detail-attach-images img{width:72px;height:72px;object-fit:cover;border-radius:10px;}
+.pl-detail-image-btn{padding:0;border:0;border-radius:10px;background:transparent;overflow:hidden;display:block;}
+.pl-detail-attach-images img{width:72px;height:72px;object-fit:cover;border-radius:10px;display:block;}
+/* Полноэкранный просмотр фото события (см. plannerShowImageViewer) — поверх всего, крестик и
+   свайп вниз закрывают, кнопка "скачать" — обычная <a download> на data: URL вложения. */
+.pl-image-viewer{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:env(safe-area-inset-top,0px) 16px calc(env(safe-area-inset-bottom,0px) + 16px);}
+.pl-image-viewer-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;}
+.pl-image-viewer-close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);right:16px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;display:grid;place-items:center;padding:0;}
+.pl-image-viewer-close .icon{width:18px;height:18px;}
+.pl-image-viewer-save{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:24px;background:var(--gold);color:#171410;font-weight:700;font-size:.875rem;text-decoration:none;}
+.pl-image-viewer-save .icon{width:16px;height:16px;}
 .pl-poll-view{margin-bottom:10px;}
 .pl-poll-question{font-size:.875rem;color:#fff;font-weight:600;margin-bottom:8px;}
 .pl-poll-option{position:relative;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.06);margin-bottom:6px;overflow:hidden;border:0;width:100%;text-align:left;}
@@ -1199,7 +1227,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.12';
+  const APP_VERSION = '0.9.13';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1372,6 +1400,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       'skip-prev': '<path d="M6 5v14M18 6l-8 6 8 6V6Z"/>',
       'skip-next': '<path d="M18 5v14M6 6l8 6-8 6V6Z"/>',
       'close': '<path d="m6 6 12 12M18 6 6 18"/>',
+      'download': '<path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
       'filter': '<path d="M4 6h16M7 12h10M10 18h4"/>',
       'check': '<path d="m5 12 4 4L19 6"/>',
       'fitness': '<path d="M6 9v6M3 10v4m15-5v6m3-5v4M6 12h12"/>',
@@ -1815,7 +1844,28 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function plannerImagesView(ev){
     if(!ev.images||!ev.images.length)return '';
-    return `<div class="pl-detail-attach-images">${ev.images.map(src=>`<img src="${esc(src)}" alt="Фото">`).join('')}</div>`;
+    return `<div class="pl-detail-attach-images">${ev.images.map((src,i)=>`<button type="button" class="pl-detail-image-btn" data-pl-image-open="${i}" aria-label="Открыть фото на весь экран"><img src="${esc(src)}" alt="Фото"></button>`).join('')}</div>`;
+  }
+  // Полноэкранный просмотр фото события — тап по превью в деталях открывает, свайп вниз или
+  // крестик закрывают (как у листов, см. bindSheetDismiss, только тут без самого листа —
+  // изображение может быть выше/шире экрана, а не только "снизу-вверх"). Кнопка "скачать" —
+  // обычная <a download> на data: URL (вложения хранятся как data URL, см.
+  // plannerDownscaleImage), сохраняет как обычное фото средствами браузера/ОС.
+  function plannerShowImageViewer(images,index){
+    const root=$('#overlay-root');
+    const wrap=document.createElement('div');wrap.className='pl-image-viewer';
+    wrap.innerHTML=`<button type="button" class="pl-image-viewer-close" aria-label="Закрыть">${icon('close')}</button>
+      <img class="pl-image-viewer-img" src="${esc(images[index])}" alt="Фото">
+      <a class="pl-image-viewer-save" href="${esc(images[index])}" download="dna-photo.jpg" aria-label="Сохранить фото">${icon('download')}<span>Сохранить</span></a>`;
+    root.appendChild(wrap);
+    const close=()=>wrap.remove();
+    $('.pl-image-viewer-close',wrap).onclick=close;
+    wrap.addEventListener('click',e=>{if(e.target===wrap)close();});
+    let startY=null;
+    wrap.addEventListener('pointerdown',e=>{if(e.target.closest('.pl-image-viewer-save,.pl-image-viewer-close'))return;startY=e.clientY;});
+    wrap.addEventListener('pointerup',e=>{if(startY!=null&&e.clientY-startY>70)close();startY=null;});
+    const escHandler=e=>{if(e.key==='Escape'){close();document.removeEventListener('keydown',escHandler);}};
+    document.addEventListener('keydown',escHandler);
   }
   function plannerLocationView(ev){
     if(!ev.location)return '';
@@ -1866,7 +1916,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(cur.length)clusters.push(cur);
     clusters.forEach(cluster=>{
       const ordered=cluster.slice().sort((a,b)=>((a.e?a.e.laneOrder:a.laneOrder)??a.startMin)-((b.e?b.e.laneOrder:b.laneOrder)??b.startMin)||a.startMin-b.startMin);
-      ordered.forEach((it,i)=>{it.col=i;it.totalCols=ordered.length;});
+      // .cluster — общая ссылка на весь кластер (не копия), чтобы renderPlannerTimeline мог
+      // сгруппировать "лишние" элементы (col>=3) под одной плашкой "+N" за O(1) сравнением
+      // ссылок, а не пересчётом пересечений заново.
+      ordered.forEach((it,i)=>{it.col=i;it.totalCols=ordered.length;it.cluster=ordered;});
     });
     return sorted;
   }
@@ -2019,7 +2072,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const shortDay=PL_WEEKDAYS[(d.getDay()+6)%7]+' '+d.getDate();
     return `<div class="pl-day-block" data-pl-date="${dateIso}">
       <div class="pl-day-divider ${isToday?'is-today':''}" aria-label="${esc(dayLabelFor(d))}">${shortDay}</div>
-      ${renderPlannerTimeline(plannerDayItems(dateIso,firstIso),isToday)}
+      ${renderPlannerTimeline(plannerDayItems(dateIso,firstIso),isToday,dateIso)}
     </div>`;
   }
   function plannerTaskCard(e){
@@ -2032,23 +2085,89 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </button>
     </div>`;
   }
-  function renderPlannerTimeline(items,isToday){
+  // Компактные значки того, что вложено в событие (фото/чеклист/опрос/локация) — показываем
+  // ТОЛЬКО если после шапки (чекбокс+название) в карточке реально есть место (см. вызов ниже,
+  // порог PL_EXTRA_MIN_HEIGHT), и сама карточка при этом не растёт — если значков больше, чем
+  // влезает, эта полоска скроллится внутри себя (overflow-y:auto), а не раздвигает границы
+  // события на ленте (те завязаны только на длительность).
+  function plannerEventExtraHtml(e){
+    const parts=[];
+    if(e.images?.length)parts.push(`<span class="pl-event-extra-item pl-event-extra-image"><img src="${e.images[0]}" alt="" loading="lazy"></span>`);
+    if(e.subtasks?.length){const done=e.subtasks.filter(s=>s.done).length;parts.push(`<span class="pl-event-extra-item">${icon('check')}<span>${done}/${e.subtasks.length}</span></span>`);}
+    if(e.poll)parts.push(`<span class="pl-event-extra-item">${icon('poll')}<span>Опрос</span></span>`);
+    if(e.location)parts.push(`<span class="pl-event-extra-item">${icon('pin')}<span>${esc(e.location.label||'Место')}</span></span>`);
+    return parts.join('');
+  }
+  const PL_MAX_COLS=3,PL_EXTRA_MIN_HEIGHT=76;
+  function plannerRenderEventTile(e,top,height,leftPct,widthPct,col,totalCols){
+    const extraHtml=plannerEventExtraHtml(e);
+    const showExtra=height>=PL_EXTRA_MIN_HEIGHT&&extraHtml;
+    return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
+      <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
+      <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
+        <span class="pl-event-head">
+          <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
+          <span class="pl-event-title">${esc(e.title)}</span>
+        </span>
+        ${showExtra?`<span class="pl-event-extra">${extraHtml}</span>`:''}
+      </button>
+    </div>`;
+  }
+  function renderPlannerTimeline(items,isToday,dateIso){
     const curHour=isToday?new Date().getHours():-1;
     const rows=[];
     for(let h=PL_START_HOUR;h<PL_END_HOUR;h++)rows.push(`<div class="pl-hour-row ${h===curHour?'is-now':''}" data-pl-hour="${h}"><span class="pl-hour-label">${String(h).padStart(2,'0')}:00</span><span class="pl-hour-slot"></span></div>`);
-    const events=items.map(({e,startMin,endMin,col,totalCols})=>{
+    // Кластеры с больше чем PL_MAX_COLS пересекающихся событий раньше делили ширину поровну
+    // между всеми — с 5-6 событиями в одно время карточки становились полосками в пару
+    // пикселей, по ним было невозможно попасть пальцем. Теперь показываем не больше
+    // PL_MAX_COLS карточек нормальной ширины + одну плашку "+N" на месте оставшихся — тап по
+    // ней открывает те же события (и видимые тоже, для целостности) листалкой вбок (см.
+    // plannerShowClusterSheet), а не бесконечно сужающимися колонками.
+    const drawnOverflow=new Set();
+    const parts=[];
+    items.forEach(({e,startMin,endMin,col,totalCols,cluster})=>{
       const top=startMin/60*PL_HOUR_PX,height=Math.max(38,(endMin-startMin)/60*PL_HOUR_PX-2);
-      const leftPct=col/totalCols*100,widthPct=100/totalCols;
-      const edgeCls='';
-      return `<div class="pl-event-wrap${edgeCls}" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
-        <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
-        <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
-          <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
-          <span class="pl-event-title">${esc(e.title)}</span>
-        </button>
-      </div>`;
-    }).join('');
-    return `<div class="pl-timeline">${rows.join('')}<div class="pl-timeline-events">${events}</div></div>`;
+      if(totalCols<=PL_MAX_COLS){
+        parts.push(plannerRenderEventTile(e,top,height,col/totalCols*100,100/totalCols,col,totalCols));
+        return;
+      }
+      const cols=PL_MAX_COLS+1;
+      if(col<PL_MAX_COLS){parts.push(plannerRenderEventTile(e,top,height,col/cols*100,100/cols,col,cols-1));return;}
+      if(drawnOverflow.has(cluster))return;
+      drawnOverflow.add(cluster);
+      const hidden=cluster.filter(it=>it.col>=PL_MAX_COLS);
+      const oTop=Math.min(...hidden.map(it=>it.startMin))/60*PL_HOUR_PX;
+      const oBottom=Math.max(...hidden.map(it=>it.endMin));
+      const oHeight=Math.max(38,(oBottom-Math.min(...hidden.map(it=>it.startMin)))/60*PL_HOUR_PX-2);
+      const ids=cluster.map(it=>it.e.id).join(',');
+      parts.push(`<div class="pl-event-wrap" style="top:${oTop}px;height:${oHeight}px;left:calc(${PL_MAX_COLS/cols*100}% + 2px);width:calc(${100/cols}% - 4px)">
+        <button type="button" class="pl-event-more" data-pl-cluster="${esc(ids)}" data-pl-date="${esc(dateIso)}" aria-label="Ещё ${hidden.length} событий">+${hidden.length}</button>
+      </div>`);
+    });
+    return `<div class="pl-timeline">${rows.join('')}<div class="pl-timeline-events">${parts.join('')}</div></div>`;
+  }
+  // Плашка "+N" открывает лист с ГОРИЗОНТАЛЬНОЙ прокруткой по всем событиям кластера (включая
+  // уже видимые PL_MAX_COLS — так со всеми ими можно работать единообразно, не запоминая,
+  // какие уже были видны на ленте). Отдельный лист (не встроенный в саму ленту
+  // горизонтальный скролл) — сознательный выбор: пробовать делать сам таймлайн одновременно
+  // вертикально (по времени) и горизонтально (по кластеру) скроллящимся означало бы городить
+  // ещё один слой конкурирующих touch-action зон поверх уже непростой пары
+  // range-select/drag-to-retime — источник большинства свайп-багов в этом файле. Отдельный
+  // лист с обычным overflow-x:auto (нативный скролл, без единой строчки жестового JS) даёт
+  // ту же возможность "полистать вбок" надёжно и почти бесплатно.
+  function plannerShowClusterSheet(ids){
+    const events=ids.map(id=>state.planner.events.find(x=>x.id===id)).filter(Boolean).sort((a,b)=>plannerMinutesFromTime(a.time)-plannerMinutesFromTime(b.time));
+    if(!events.length)return;
+    const cards=events.map(e=>`<button type="button" class="pl-cluster-card ${e.done?'done':''}" data-pl-cluster-open="${e.id}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
+      <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
+      <span class="pl-cluster-card-time">${esc(e.time)}</span>
+      <span class="pl-cluster-card-title">${esc(e.title)}</span>
+    </button>`).join('');
+    const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${events.length} событий</div>
+      <div class="pl-cluster-scroll">${cards}</div>
+    </div>`,{sheet:true});
+    $$('[data-pl-toggle]',ov).forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);b.closest('.pl-cluster-card')?.classList.toggle('done',b.classList.contains('done'));});
+    $$('[data-pl-cluster-open]',ov).forEach(b=>b.onclick=()=>{closeOverlay();showPlannerDetail(b.dataset.plClusterOpen);});
   }
   function bindPlannerEvents(){
     $$('[data-pl-section]').forEach(b=>{b.onclick=()=>{state.planner.activeSection=b.dataset.plSection||null;renderScreen();};bindPlannerSectionDrag(b);});
@@ -2072,7 +2191,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $$('[data-pl-toggle]').forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);});
     $$('[data-pl-open]').forEach(b=>b.onclick=()=>showPlannerDetail(b.dataset.plOpen));
     $$('.pl-task-wrap').forEach(w=>{bindPlannerTaskSwipe(w);bindPlannerTaskDrag(w);});
-    $$('.pl-event-wrap').forEach(w=>{bindPlannerEventSwipe(w);bindPlannerEventDrag(w);});
+    $$('.pl-event-wrap[data-pl-event-id]').forEach(w=>{bindPlannerEventSwipe(w);bindPlannerEventDrag(w);});
+    $$('[data-pl-cluster]').forEach(b=>b.onclick=()=>plannerShowClusterSheet(b.dataset.plCluster.split(',')));
     $$('.pl-timeline').forEach(tl=>bindPlannerRangeSelect(tl));
     bindPlannerScroll();
     bindPlannerPinch();
@@ -2108,9 +2228,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function plannerSwipeStep(dir){
     const zoom=state.planner.zoom;
-    if(zoom==='day')plannerJumpTo(addDays(state.planner.viewDate,dir));
-    else if(zoom==='week')plannerJumpToWeek(addDays(state.planner.viewDate,7*dir));
-    else {const d=state.planner.calDisplay;plannerJumpToMonth(new Date(d.getFullYear(),d.getMonth()+dir,1));}
+    // Переключение между днями горизонтальным свайпом убрано по просьбе — в дневном виде и
+    // так можно долистать до соседних дней вертикальным скроллом непрерывной ленты, а
+    // горизонтальный жест теперь занят просмотром "+N" (см. plannerShowClusterSheet и
+    // .pl-event-more), так что оставлять здесь конкурирующий свайп для дня не нужно.
+    if(zoom==='week')plannerJumpToWeek(addDays(state.planner.viewDate,7*dir));
+    else if(zoom==='month'){const d=state.planner.calDisplay;plannerJumpToMonth(new Date(d.getFullYear(),d.getMonth()+dir,1));}
   }
   function closePlannerSwipes(except){$$('.pl-task-wrap,.pl-event-wrap').forEach(w=>{if(w!==except)w.closeSwipe?.();});}
   // Общий свайп-реveal (карточка едет transform'ом, панель кнопок лежит под ней неподвижно) —
@@ -2262,7 +2385,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         // Карточка живёт с touch-action:none (нужен для самого драга ниже), поэтому обычный
         // вертикальный скролл списка, если удержание ещё не сработало, приходится прокручивать
         // вручную сюда же — иначе смахивание прямо по карточке не скроллит вообще ничего.
-        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8)cancel();
+        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8){cancel();if(!forwarder)forwarder=plannerScrollForwardStart(scroller);}
+        if(forwarder)forwarder.move(e.clientY-lastY,performance.now());
         lastY=e.clientY;
         return;
       }
@@ -2365,7 +2489,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         // Карточка живёт с touch-action:none (нужен для самого драга ниже), поэтому обычный
         // вертикальный скролл ленты, если удержание ещё не сработало, приходится прокручивать
         // вручную сюда же — иначе смахивание прямо по карточке не скроллит вообще ничего.
-        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8)cancel();
+        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8){cancel();if(!forwarder)forwarder=plannerScrollForwardStart(scroller);}
+        if(forwarder)forwarder.move(e.clientY-lastY,performance.now());
         lastY=e.clientY;
         return;
       }
@@ -2969,16 +3094,41 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     timer=setTimeout(()=>finish(false),8000);
   }
   function plannerAddSectionPrompt(){
-    let color=PL_COLORS[state.planner.sections.length%PL_COLORS.length];
+    let color=PL_COLORS[state.planner.sections.length%PL_COLORS.length],isPublic=false;
     const ov=overlay(`<div class="modal"><div class="modal-title">Новый раздел</div><div class="modal-content">${formField('pl-section-name','Название раздела')}
       <div class="pl-color-picker">${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${c===color?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}</div>
+      <div class="pl-toggle-row"><label>Публичный раздел</label><button class="pl-switch" id="pl-section-new-public" type="button" aria-pressed="false"></button></div>
     </div><div class="modal-actions"><button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-section-save">Сохранить</button></div></div>`);
     $('[data-close]',ov).onclick=closeOverlay;
     $$('[data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color;$$('[data-color]',ov).forEach(x=>x.classList.toggle('active',x.dataset.color===color));});
-    $('#pl-section-save',ov).onclick=()=>{
+    $('#pl-section-new-public',ov).onclick=()=>{
+      isPublic=!isPublic;
+      $('#pl-section-new-public',ov).classList.toggle('on',isPublic);$('#pl-section-new-public',ov).setAttribute('aria-pressed',String(isPublic));
+    };
+    $('#pl-section-save',ov).onclick=async()=>{
       const name=$('#pl-section-name',ov).value.trim();
-      if(name&&!state.planner.sections.some(s=>s.name===name)){state.planner.sections.push({id:uid(),name,color});savePlannerSections();}
-      closeOverlay();renderScreen();
+      if(!name||state.planner.sections.some(s=>s.name===name))return;
+      const sec={id:uid(),name,color};
+      // Публикация раздела сразу при создании — тот же путь, что и при включении "Публичный"
+      // на уже существующем разделе (см. plannerEditSectionPrompt): просим Firebase создать
+      // shareId ДО того, как раздел появится в списке, чтобы не оставлять в UI на секунду
+      // "публичный" раздел без реальной ссылки.
+      if(isPublic){
+        if(!window.DNAFirebase){showToast('Синк ещё загружается, попробуй через секунду',false);return;}
+        const saveBtn=$('#pl-section-save',ov);saveBtn.disabled=true;saveBtn.textContent='Публикуем…';
+        try{
+          sec.shareId=await window.DNAFirebase.enablePublicSection(name,{section:{id:sec.id,name,color},events:[]});
+        }catch(err){
+          console.error('[DNA] публикация раздела не удалась:',err);
+          const code=err?.code||'';
+          const hint=code.includes('permission-denied')?' (нет доступа — проверь, что правила Firestore опубликованы в консоли)':code?' ('+code+')':'';
+          showToast('Не удалось опубликовать раздел'+hint,false);
+          saveBtn.disabled=false;saveBtn.textContent='Сохранить';return;
+        }
+        sec.public=true;
+      }
+      state.planner.sections.push(sec);savePlannerSections();plannerEnsureSubscriptions();closeOverlay();renderScreen();
+      if(sec.shareId)showPlannerShareLink(sec);
     };
   }
   // Долгий тап по чипу раздела (без последующего движения) открывает редактирование —
@@ -2992,14 +3142,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-form-row"><label>Название</label>${formField('pl-section-edit-name','Название раздела','text',sec.name)}</div>
       <div class="pl-form-row"><label>Цвет обводки</label><div class="pl-color-picker" id="pl-section-edit-color">${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${c===color?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}</div></div>
       <div class="pl-toggle-row"><label>Публичный раздел</label><button class="pl-switch ${isPublic?'on':''}" id="pl-section-public" type="button" aria-pressed="${isPublic}"></button></div>
-      <p class="settings-note" id="pl-section-public-hint" ${isPublic?'':'style="display:none"'}>Ссылкой на раздел можно поделиться — у получателя появится только он, а изменения обоих будут видны друг другу в реальном времени.${sec.shareId?' <button type="button" class="text-btn" id="pl-section-show-link" style="padding:0">Показать ссылку</button>':''}</p>
+      ${sec.shareId?`<p class="settings-note" id="pl-section-public-hint" ${isPublic?'':'style="display:none"'}><button type="button" class="text-btn" id="pl-section-show-link" style="padding:0">Показать ссылку</button></p>`:''}
       <div class="modal-actions"><button class="text-btn" id="pl-section-delete" style="color:#ff5a5a">Удалить раздел</button><button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-section-edit-save">Сохранить</button></div>
     </div>`,{sheet:true});
     $$('#pl-section-edit-color [data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color;$$('#pl-section-edit-color [data-color]',ov).forEach(x=>x.classList.toggle('active',x.dataset.color===color));});
     $('#pl-section-public',ov).onclick=()=>{
       isPublic=!isPublic;
       $('#pl-section-public',ov).classList.toggle('on',isPublic);$('#pl-section-public',ov).setAttribute('aria-pressed',String(isPublic));
-      $('#pl-section-public-hint',ov).style.display=isPublic?'':'none';
+      const hint=$('#pl-section-public-hint',ov);if(hint)hint.style.display=isPublic?'':'none';
     };
     $('#pl-section-show-link',ov)?.addEventListener('click',()=>showPlannerShareLink(sec));
     $('[data-close]',ov).onclick=closeOverlay;
@@ -3323,6 +3473,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ev.comments.push({id:plannerId(),text,date:new Date().toISOString(),authorId:plannerUserId()});$('#pl-comment-new',ov).value='';savePlannerEvents();
       $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
     });
+    $$('[data-pl-image-open]',ov).forEach(b=>b.onclick=()=>plannerShowImageViewer(ev.images,+b.dataset.plImageOpen));
     $('[data-close]',ov).onclick=closeOverlay;
     $('#pl-detail-delete',ov).onclick=()=>{plannerDelete(ev.id);closeOverlay();};
     $('[data-pl-edit]',ov).onclick=()=>{closeOverlay();showPlannerEditSheet(ev.id);};
@@ -3349,7 +3500,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Ночные события — единый блок. Компактные даты на шкале, выделение в обе стороны через полночь и сохранение многодневных диапазонов. Отмена удаления доступна 8 секунд. Улучшены свайп и надёжность сохранения планера.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">В планере: при новом разделе сразу можно сделать его публичным, из редактирования раздела убрана лишняя подсказка. Заголовок и чекбокс события/задачи прижаты к верхнему краю карточки. Если событий в одно время больше трёх — лишние сворачиваются в плашку "+N", тап открывает их листалкой вбок. Убрано переключение между днями свайпом (день и так листается вертикально). Шторку редактирования можно закрыть тапом по полоске сверху, не только свайпом вниз. В длинных событиях видно фото/чеклист/опрос, если есть место — фото можно открыть на весь экран и сохранить. Починена прокрутка свайпом по карточке задачи.</p></section>
     </div></section>`;
   }
 
@@ -4137,6 +4288,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     };
     handle.addEventListener('pointerup',finish,{passive:true});
     handle.addEventListener('pointercancel',finish,{passive:true});
+    // Простой тап по ручке (без протяжки) тоже закрывает шторку — привычная пара
+    // жестов "свайп вниз ИЛИ тап по полоске", как в нативных iOS/Android шторках.
+    handle.addEventListener('click',()=>closeOverlay());
   }
   function escClose(e){if(e.key==='Escape')closeOverlay();}
   function closeOverlay(){document.removeEventListener('keydown',escClose);$('#overlay-root').innerHTML='';}
