@@ -472,7 +472,12 @@ select.field { appearance:none; }
 .sheet { width:100%; max-height:82dvh; overflow:auto; background:#111; border-radius:28px 28px 0 0; padding:12px 24px calc(32px + var(--safe-bottom)); animation:sheetIn .28s cubic-bezier(.16,.84,.28,1) both; scrollbar-width:none; }
 .sheet::-webkit-scrollbar{display:none}
 @keyframes sheetIn { from{transform:translateY(100%)} to{transform:none} }
-.sheet-handle { width:100%; height:24px; margin:-8px 0 4px; display:flex; align-items:center; justify-content:center; touch-action:none; }
+/* position:sticky — форма события выросла (несколько блоков вложений теперь помещаются),
+   и при скролле контента внутри шторки ручка (обычный дочерний элемент .sheet, тот же
+   overflow:auto) раньше уезжала за экран вместе с остальным и становилась недостижимой ни
+   тапом, ни свайпом вниз. background нужен — иначе сквозь прилипшую ручку просвечивал бы
+   проскроллированный контент под ней. */
+.sheet-handle { position:sticky; top:0; z-index:5; background:#111; width:100%; height:24px; margin:-8px 0 4px; display:flex; align-items:center; justify-content:center; touch-action:none; }
 .sheet-handle::after { content:''; width:40px; height:4px; border-radius:2px; background:rgba(255,255,255,.15); }
 .sheet-title { margin-top:20px; text-align:center; font-family:Georgia,'Times New Roman',serif; font-size:20px; font-weight:600; }
 .sheet-sub { margin-top:8px; text-align:center; color:rgba(255,255,255,.4); font-family:Georgia,'Times New Roman',serif; font-size:14px; }
@@ -1276,7 +1281,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.22';
+  const APP_VERSION = '0.9.23';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -3772,7 +3777,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">На одно событие теперь можно добавить НЕСКОЛЬКО блоков одного типа — например, два разных чеклиста или два опроса: кнопки добавления в форме больше не исчезают после первого добавления.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Полосочка-ручка сверху формы события теперь прилипает к верху при скролле — раньше на длинной форме (с несколькими блоками) она уезжала за экран и закрыть форму тапом или свайпом вниз становилось нечем.</p></section>
     </div></section>`;
   }
 
