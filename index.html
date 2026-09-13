@@ -1068,13 +1068,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-actions [data-pl-event-delete]{background:#c94a50;color:#fff;}
 .pl-event-wrap.delete-ready [data-pl-event-delete]{background:#e0464f;}
 .pl-event-wrap.is-revealing .pl-event,.pl-event-wrap.is-open .pl-event{border-radius:10px 0 0 10px;}
-.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;flex-direction:column;gap:4px;}
-/* Событие с вложениями (showExtra=true в JS) — настоящая двухцветная карточка: цветная "шапка"
-   (чекбокс+название) отдельным блоком сверху, тёмное тело снизу под неё, а не сплошная заливка
-   на всю карточку "на глаз" — иначе шапка визуально ничем не отделена от остального. */
-.pl-event.has-extra{background:#1c1913;}
-.pl-event-head{display:flex;align-items:flex-start;gap:6px;flex:0 0 auto;}
-.pl-event.has-extra .pl-event-head{background:var(--pl-color,var(--gold));margin:-6px -10px 0;padding:7px 10px 6px;border-radius:8px 8px 0 0;}
+/* Двухцветная карточка ВСЕГДА (не только при вложениях): цветная "шапка" (чекбокс+название)
+   отдельным блоком сверху — цвет РАЗДЕЛА (--pl-head), не собственный цвет события, — и тело
+   карточки снизу под ней, цвета которое как раз и меняет выбор цвета события в форме
+   (--pl-body, по умолчанию тёмное, пока пользователь не выбрал свой цвет). Раньше оба слоя
+   красились одним и тем же --pl-color, и выбор цвета события красил шапку, а не остальное. */
+.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-body,#1c1913);border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;flex-direction:column;gap:4px;}
+.pl-event-head{display:flex;align-items:center;gap:6px;flex:0 0 auto;background:var(--pl-head,var(--gold));margin:-6px -10px 0;padding:7px 10px 6px;border-radius:8px 8px 0 0;}
 .pl-event.done{filter:brightness(.6) saturate(.7);}
 .pl-event-check{width:24px;height:24px;flex:0 0 auto;border-radius:7px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-event-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
@@ -1155,7 +1155,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-switch.on::after{transform:translateX(18px);background:var(--gold);}
 .pl-section-picker{display:flex;flex-wrap:wrap;gap:8px;}
 .pl-time-range-row{flex-direction:row;gap:10px;}
-.pl-time-field{flex:1;display:flex;flex-direction:column;gap:6px;}
+.pl-time-field{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px;}
+.pl-time-input-wrap{position:relative;display:flex;align-items:center;}
+.pl-time-input-wrap .icon{position:absolute;left:14px;width:18px;height:18px;color:var(--gold);pointer-events:none;}
+.pl-time-input-wrap .pl-time-input{padding-left:40px;font-size:1.0625rem;font-weight:600;text-align:left;}
 .pl-color-swatch.pl-color-auto{background:var(--surface);border:2px solid rgba(255,255,255,.15);position:relative;}
 .pl-color-swatch.pl-color-auto::after{content:'';position:absolute;inset:8px;border-radius:50%;background:conic-gradient(var(--gold),#7fb8e0,#e08fa0,#8fd19e,#d6a8e8,var(--gold));}
 .pl-color-swatch.pl-color-auto.active{border-color:#fff;}
@@ -1273,7 +1276,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.20';
+  const APP_VERSION = '0.9.21';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1476,6 +1479,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       'smile': '<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>',
       'send': '<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7Z"/>',
       'grip': '<circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none"/>',
+      'clock': '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
     }[name] || '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>';
     return `<span class="icon ${cls}"><svg ${common}>${p}</svg></span>`;
   }
@@ -2160,19 +2164,23 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // пользователя), остальные чипы идут под ней в выбранном порядке.
     return imageHtml+chipsHtml;
   }
-  const PL_MAX_COLS=3,PL_EXTRA_MIN_HEIGHT=76;
+  const PL_MAX_COLS=3;
   function plannerRenderEventTile(e,top,height,leftPct,widthPct,col,totalCols){
     const extraHtml=plannerEventExtraHtml(e);
-    const showExtra=height>=PL_EXTRA_MIN_HEIGHT&&extraHtml;
+    // Шапка (чекбокс+название на фоне цвета события/раздела) теперь двухцветная карточка
+    // ВСЕГДА, а не только у достаточно высоких событий с вложениями — раньше большинство
+    // коротких/пустых событий вообще не получали видимой "шапки" (просто сплошная заливка без
+    // разделения). Тело показывает вложения, если они есть, независимо от длительности —
+    // при нехватке места оно просто скроллится (overflow-y:auto), а не прячет контент целиком.
     return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
       <div class="pl-swipe-complete" aria-hidden="true">${icon('check')}</div>
       <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
-      <button type="button" class="pl-event ${e.done?'done':''} ${showExtra?'has-extra':''}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
+      <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-head:${plannerSectionColor(e.sectionId)};${e.color?`--pl-body:${e.color};`:''}${plannerOutlineStyle(e)}">
         <span class="pl-event-head">
           <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
           <span class="pl-event-title">${esc(e.title)}</span>
         </span>
-        ${showExtra?`<span class="pl-event-extra">${extraHtml}</span>`:''}
+        ${extraHtml?`<span class="pl-event-extra">${extraHtml}</span>`:''}
       </button>
     </div>`;
   }
@@ -2189,7 +2197,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const drawnOverflow=new Set();
     const parts=[];
     items.forEach(({e,startMin,endMin,col,totalCols,cluster})=>{
-      const top=startMin/60*PL_HOUR_PX,height=Math.max(38,(endMin-startMin)/60*PL_HOUR_PX-2);
+      // Событие с вложениями получает увеличенный минимум высоты — иначе на короткой по
+      // длительности карточке под шапкой физически не остаётся видимого места для содержимого
+      // (например, чеклист технически рендерится в DOM, но сжат до 1-2px и не виден). Карточка
+      // в этом случае визуально выходит за границы своего временного отрезка на ленте — это
+      // временное решение до полноценного разворачивания по "трём точкам" (см. задачу про это).
+      const minH=plannerEventExtraHtml(e)?96:38;
+      const top=startMin/60*PL_HOUR_PX,height=Math.max(minH,(endMin-startMin)/60*PL_HOUR_PX-2);
       if(totalCols<=PL_MAX_COLS){
         parts.push(plannerRenderEventTile(e,top,height,col/totalCols*100,100/totalCols,col,totalCols));
         return;
@@ -2404,13 +2418,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       e.preventDefault();
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
       press.lastRaw=raw;
-      if(press.wasOpen){
-        // Жёсткая стенка ровно на -actionsWidth (см. комментарий над функцией) — и у карточки,
-        // и у панели кнопок (см. paint() выше), синхронно. Раньше карточка могла уехать вплоть
-        // до wrap.clientWidth, а панель кнопок капалась отдельно на actionsWidth — граница
-        // карточки и граница панели расходились, и в зазоре между ними просвечивал фон обёртки
-        // ("дыра"). merge по-прежнему считается от недемпфированного raw, поэтому "дотянуть до
-        // удаления" вторым свайпом всё ещё работает, просто без визуального overshoot карточки.
+      if(raw<0){
+        // Влево — раскрытие И поглощение работают по одной и той же физике независимо от того,
+        // первый это свайп (из закрытого состояния) или второй (уже открыто): карточка стоит у
+        // жёсткой стенки -actionsWidth (см. комментарий выше про "дыру"), а merge считается от
+        // недемпфированного raw и может продолжать расти сколько угодно дальше. Раньше это было
+        // доступно только "вторым свайпом" — теперь один непрерывный жест от закрытого состояния
+        // тоже может доехать до удаления, без обязательного отпустить-и-потянуть-ещё-раз.
         paint(Math.max(raw,-actionsWidth),false,raw);
       } else {
         const cap=onComplete?Math.min(completeCap,press.maxRightSafe):20;
@@ -2425,7 +2439,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(wrap.plEventDragging||wrap.plTaskDragging)return;
       if(g.axis==='x'){
         suppressUntil=performance.now()+400;
-        if(g.wasOpen&&delBtn){
+        if(delBtn){
+          // Без условия g.wasOpen — доехать до удаления теперь можно и одним непрерывным
+          // свайпом от закрытого состояния (см. pointermove), не только "вторым" после отпускания.
           const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0;
           const pastOpen=-(g.lastRaw??offset)-actionsWidth;
           if(pastOpen>=deleteThreshold||(v<-.8&&pastOpen>=16)){delBtn.click();return;}
@@ -3309,7 +3325,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         return;
       }
       if(!dragging){
-        if(Math.abs(dx)<6)return;
+        // Порог поднят с 6 до 14px — после срабатывания долгого нажатия (480мс) палец почти
+        // никогда не стоит абсолютно неподвижно (естественная дрожь руки), и 6px слишком легко
+        // задевались сами по себе, из-за чего попытка долгим нажатием открыть редактирование
+        // раздела иногда неожиданно "срывалась" в режим перетаскивания/перестановки чипов.
+        if(Math.abs(dx)<14)return;
         dragging=true;chip.setPointerCapture?.(pointerId);
         fromIndex=state.planner.sections.findIndex(s=>s.id===id);toIndex=fromIndex;
         const box=chip.getBoundingClientRect();
@@ -3364,8 +3384,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-form-row"><label>Дата начала</label><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>
       <div class="pl-toggle-row" id="pl-time-toggle-row"><label>Время</label><button class="pl-switch ${timeOnDefault?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${timeOnDefault}"></button></div>
       <div class="pl-form-row pl-time-range-row" id="pl-time-row" ${timeOnDefault?'':'style="display:none"'}>
-        <div class="pl-time-field"><label>Начало</label><input class="field" id="pl-time-value" type="time" value="${esc(timeVal)}"></div>
-        <div class="pl-time-field"><label>Окончание</label><input class="field" id="pl-time-end-value" type="time" value="${esc(endVal)}"></div>
+        <div class="pl-time-field"><label>Начало</label><div class="pl-time-input-wrap">${icon('clock')}<input class="field pl-time-input" id="pl-time-value" type="time" value="${esc(timeVal)}"></div></div>
+        <div class="pl-time-field"><label>Окончание</label><div class="pl-time-input-wrap">${icon('clock')}<input class="field pl-time-input" id="pl-time-end-value" type="time" value="${esc(endVal)}"></div></div>
       </div>
       <div class="pl-form-row" id="pl-end-date-row" ${timeOnDefault?'':'style="display:none"'}><label>Дата окончания</label><input class="field" id="pl-end-date-value" type="date" value="${endDateVal}"></div>
       ${existing?`<div class="pl-form-row"><label>Раздел</label><div class="pl-section-picker" id="pl-section-picker">
@@ -3725,7 +3745,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Исправлен баг: добавление блока "Опрос" или "Локация" в форме без заполнения превращало карточку события в пустой тёмный прямоугольник во весь рост события (эти блоки не должны были считаться вложением, пока пустые). Теперь такие пустые блоки не сохраняются и не влияют на вид карточки — ни у новых событий, ни у уже сохранённых.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Шапка события теперь всегда на всю ширину и скруглена — цветом раздела, а не собственным цветом события (свой цвет красит тело карточки). Вложения показываются независимо от длительности события. Поля времени начала/окончания выровнены поровну. Свайп-удаление теперь срабатывает и одним непрерывным движением, без обязательного второго свайпа. Долгое нажатие на чип раздела реже случайно уходит в перестановку вместо открытия редактирования.</p></section>
     </div></section>`;
   }
 
