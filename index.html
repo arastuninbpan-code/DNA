@@ -1069,12 +1069,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-wrap.delete-ready [data-pl-event-delete]{background:#e0464f;}
 .pl-event-wrap.is-revealing .pl-event,.pl-event-wrap.is-open .pl-event{border-radius:10px 0 0 10px;}
 .pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;flex-direction:column;gap:4px;}
+/* Событие с вложениями (showExtra=true в JS) — настоящая двухцветная карточка: цветная "шапка"
+   (чекбокс+название) отдельным блоком сверху, тёмное тело снизу под неё, а не сплошная заливка
+   на всю карточку "на глаз" — иначе шапка визуально ничем не отделена от остального. */
+.pl-event.has-extra{background:#1c1913;}
 .pl-event-head{display:flex;align-items:flex-start;gap:6px;flex:0 0 auto;}
+.pl-event.has-extra .pl-event-head{background:var(--pl-color,var(--gold));margin:-6px -10px 0;padding:7px 10px 6px;border-radius:8px 8px 0 0;}
 .pl-event.done{filter:brightness(.6) saturate(.7);}
 .pl-event-check{width:24px;height:24px;flex:0 0 auto;border-radius:7px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-event-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
 .pl-event-check .icon{width:15px;height:15px;}
-.pl-event-title{flex:1;min-width:0;font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#171410;font-weight:600;overflow-wrap:anywhere;line-height:1.25;}
+/* Название события клэмпится на 2 строки с многоточием вместо свободного переноса — на узкой
+   (кластерной) карточке места по ширине мало, и обычный word-wrap ломал длинные слова почти
+   по одной букве на строку, выглядело некрасиво. */
+.pl-event-title{flex:1;min-width:0;font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#171410;font-weight:600;line-height:1.25;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:break-word;}
 .pl-event.done .pl-event-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
 /* Значки вложений (фото/чеклист/опрос/место) под шапкой события — видны только если высота
    карточки (= длительность) реально даёт им место (см. PL_EXTRA_MIN_HEIGHT в JS). Сама
@@ -1083,7 +1091,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    на всю ширину карточки, визуально отделяющая цветную шапку раздела от вложений. Крупное
    изображение теперь занимает почти всю ширину тела со скруглёнными углами (как на рисунке
    пользователя), а не мелкую иконку-превью вперемешку с чипами чеклиста/опроса/места. */
-.pl-event-extra{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin:2px -10px -6px;padding:7px 10px 8px;background:rgba(23,20,16,.18);border-radius:0 0 8px 8px;}
+.pl-event-extra{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin:2px -10px -6px;padding:7px 10px 8px;}
 .pl-event-extra-chips{display:flex;flex-wrap:wrap;gap:4px;}
 .pl-event-extra-item{display:inline-flex;align-items:center;gap:3px;font-size:.6875rem;line-height:1;color:rgba(20,16,10,.75);background:rgba(255,255,255,.28);border-radius:6px;padding:3px 5px;white-space:nowrap;}
 .pl-event-extra-item .icon{width:11px;height:11px;flex:0 0 auto;}
@@ -1265,7 +1273,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.17';
+  const APP_VERSION = '0.9.18';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2159,7 +2167,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
       <div class="pl-swipe-complete" aria-hidden="true">${icon('check')}</div>
       <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
-      <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
+      <button type="button" class="pl-event ${e.done?'done':''} ${showExtra?'has-extra':''}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
         <span class="pl-event-head">
           <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
           <span class="pl-event-title">${esc(e.title)}</span>
@@ -2361,7 +2369,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(e.isPrimary===false||e.button!==0||wrap.plEventDragging||wrap.plTaskDragging)return;
       closePlannerSwipes(wrap);
       forwarder?.stop();forwarder=null;
-      press={id:e.pointerId,x:e.clientX,y:e.clientY,lastY:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}]};
+      // Свайп вправо (complete) не должен визуально задевать панель редактировать/удалить,
+      // закреплённую у правого края (right:0, ширина actionsWidth). На узкой (кластерной)
+      // карточке ширина wrap бывает сопоставима с actionsWidth — без этого предела уже
+      // небольшая протяжка вправо обнажала бы с противоположной стороны край кнопки
+      // "Редактировать" (карточка визуально отступает от левого края wrap ровно настолько же,
+      // насколько сдвинулась, и при достаточном сдвиге её правый видимый край проезжает мимо
+      // левой границы actions-панели). Меряем реальную ширину один раз на старте жеста (не на
+      // каждый кадр) и капаем к безопасному пределу.
+      const maxRightSafe=Math.max(16,wrap.getBoundingClientRect().width-actionsWidth-4);
+      press={id:e.pointerId,x:e.clientX,y:e.clientY,lastY:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}],maxRightSafe};
     },{passive:true});
     card.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId||wrap.plEventDragging||wrap.plTaskDragging)return;
@@ -2396,7 +2413,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         // удаления" вторым свайпом всё ещё работает, просто без визуального overshoot карточки.
         paint(Math.max(raw,-actionsWidth),false,raw);
       } else {
-        paint(clamp(raw,-actionsWidth,onComplete?completeCap:20),false);
+        const cap=onComplete?Math.min(completeCap,press.maxRightSafe):20;
+        paint(clamp(raw,-actionsWidth,cap),false);
       }
       const now=performance.now();
       press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
@@ -2414,7 +2432,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         }
         if(!g.wasOpen&&onComplete&&(g.lastRaw??0)>0){
           const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0;
-          if(g.lastRaw>=completeThreshold||(v>.8&&g.lastRaw>=14)){onComplete();settle(false);return;}
+          const effThreshold=Math.min(completeThreshold,g.maxRightSafe);
+          if(g.lastRaw>=effThreshold||(v>.8&&g.lastRaw>=Math.min(14,effThreshold))){onComplete();settle(false);return;}
         }
         settle(offset<-actionsWidth*.4);
       }
@@ -3629,7 +3648,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <button type="button" class="pl-comment-bar-btn" id="pl-comment-invite" aria-label="Пригласить">${icon('person-add')}</button>
         <button type="button" class="pl-comment-bar-btn" id="pl-comment-image-btn" aria-label="Прикрепить фото">${icon('image')}</button>
         <input type="file" accept="image/*" id="pl-comment-image-input" hidden>
-        <input class="pl-comment-input" id="pl-comment-new" placeholder="Написать комментарий...">
+        <input class="pl-comment-input" id="pl-comment-new" placeholder="Комментарий...">
         <button type="button" class="pl-comment-bar-btn" id="pl-comment-emoji-btn" aria-label="Эмодзи">${icon('smile')}</button>
         <button type="button" class="pl-comment-bar-btn pl-comment-send" id="pl-comment-send" aria-label="Отправить">${icon('send')}</button>
       </div>
@@ -3717,7 +3736,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Блоки вложений в форме события (фото, чеклист, опрос, место) теперь всегда развёрнутые карточки с ручкой для перетаскивания, а не сворачиваемые чипы. Комментарии к событию переехали на единую ленту с разделителями по дате, записью "Событие создано" и нижней панелью (лайк, приглашение, фото, эмодзи).</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Исправлен баг: на узкой карточке (когда событие делит время с другими) свайп вправо "выполнено" мог задевать кнопку редактирования — теперь протяжка ограничена шириной самой карточки. Название события больше не разъезжается уродливым переносом на узкой карточке — аккуратно обрезается многоточием после двух строк. У события с вложением теперь настоящая цветная "шапка" сверху (чекбокс+название), явно отделённая от тёмного тела карточки с изображением ниже, а не сплошная заливка.</p></section>
     </div></section>`;
   }
 
