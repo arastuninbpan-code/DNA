@@ -1103,6 +1103,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    пользователя), а не мелкую иконку-превью вперемешку с чипами чеклиста/опроса/места. */
 .pl-event-extra{flex:1;min-height:0;min-width:0;width:100%;overflow-x:hidden;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin:0;padding:10px;}
 .pl-event-extra>*{flex-shrink:0;}
+.pl-event-actions,.pl-task-actions{touch-action:none;}
+.pl-event-extra button{font-family:inherit;color:inherit;text-align:left;cursor:pointer;}
+.pl-event-extra-image{border:0;padding:0;background:transparent;}
+.pl-event-extra-check{width:100%;border:0;min-height:32px;}
+.pl-event-extra-option{width:100%;background:transparent;min-height:36px;}
+.pl-event-extra-option[aria-pressed="true"]{background:rgba(201,168,76,.22);}
+.pl-inline-block{position:relative;min-width:0;flex:0 0 auto;}
+.pl-inline-block-head{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:.625rem;opacity:.8;margin-bottom:3px;}
+.pl-inline-grip{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;background:transparent;border:0;padding:4px;touch-action:none;cursor:grab!important;}
+.pl-inline-grip .icon{width:22px;height:22px;}
+.pl-inline-drop-before{box-shadow:0 -3px 0 var(--gold);}
+.pl-inline-drop-after{box-shadow:0 3px 0 var(--gold);}
+.pl-inline-ghost{box-shadow:0 8px 24px #0008;color:#fff;}
+.pl-inline-grip:focus-visible,.pl-event-extra button:focus-visible{outline:2px solid var(--gold);outline-offset:-2px;}
+
 .pl-event-extra-chips{display:flex;flex-wrap:wrap;gap:4px;}
 .pl-event-extra-item{display:inline-flex;align-items:center;gap:3px;font-size:.6875rem;line-height:1;color:rgba(20,16,10,.75);background:rgba(255,255,255,.28);border-radius:6px;padding:3px 5px;white-space:nowrap;}
 .pl-event-extra-item .icon{width:11px;height:11px;flex:0 0 auto;}
@@ -1302,7 +1317,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.26';
+  const APP_VERSION = '0.9.27';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2197,14 +2212,118 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // влезает, эта полоска скроллится внутри себя (overflow-y:auto), а не раздвигает границы
   // события на ленте (те завязаны только на длительность).
   function plannerEventExtraHtml(e){
-    // Render every block in its saved order, directly on the event card.
     return (e.blocks||[]).map(b=>{
-      if(b.type==='image')return (b.images||[]).map(src=>`<span class="pl-event-extra-image"><img src="${esc(src)}" alt="Фото события" loading="lazy"></span>`).join('');
-      if(b.type==='checklist'&&b.items?.length)return `<span class="pl-event-extra-list">${b.title?`<span class="pl-event-extra-question">${esc(b.title)}</span>`:''}${b.items.map(i=>`<span class="pl-event-extra-check ${i.done?'done':''}"><span class="pl-event-extra-check-box">${i.done?icon('check'):''}</span><span>${esc(i.text)}</span></span>`).join('')}</span>`;
-      if(b.type==='poll'&&(b.question?.trim()||b.options?.some(o=>o.text?.trim())))return `<span class="pl-event-extra-poll"><span class="pl-event-extra-question">${esc(b.question||'Опрос')}</span>${(b.options||[]).filter(o=>o.text?.trim()).map(o=>`<span class="pl-event-extra-option"><span>${esc(o.text)}</span><span>${Number(o.votes)||0}</span></span>`).join('')}</span>`;
-      if(b.type==='location'&&(b.label?.trim()||b.lat!=null))return `<span class="pl-event-extra-check">${icon('pin')}<span>${esc(b.label||[b.lat,b.lng].join(', '))}</span></span>`;
-      return '';
+      let content='';
+      if(b.type==='image')content=(b.images||[]).map((src,i)=>`<button type="button" class="pl-event-extra-image" data-pl-inline="image" data-image-index="${i}" aria-label="Открыть фото ${i+1}"><img src="${esc(src)}" alt="Фото события" loading="lazy" draggable="false"></button>`).join('');
+      if(b.type==='checklist'&&b.items?.length)content=`<div class="pl-event-extra-list">${b.title?`<span class="pl-event-extra-question">${esc(b.title)}</span>`:''}${b.items.map(i=>`<button type="button" class="pl-event-extra-check ${i.done?'done':''}" data-pl-inline="check" data-item-id="${esc(i.id)}" aria-pressed="${!!i.done}"><span class="pl-event-extra-check-box">${i.done?icon('check'):''}</span><span>${esc(i.text)}</span></button>`).join('')}</div>`;
+      if(b.type==='poll'&&(b.question?.trim()||b.options?.some(o=>o.text?.trim()))){
+        const vote=state.planner.pollVotes[b.id];
+        content=`<div class="pl-event-extra-poll"><span class="pl-event-extra-question">${esc(b.question||'Опрос')}</span>${(b.options||[]).filter(o=>o.text?.trim()).map(o=>`<button type="button" class="pl-event-extra-option" data-pl-inline="vote" data-option-id="${esc(o.id)}" aria-pressed="${vote===o.id}"><span>${esc(o.text)}${vote===o.id?' ✓':''}</span><span>${Number(o.votes)||0}</span></button>`).join('')}</div>`;
+      }
+      if(b.type==='location'&&(b.label?.trim()||b.lat!=null))content=`<button type="button" class="pl-event-extra-check" data-pl-inline="location">${icon('pin')}<span>${esc(b.label||[b.lat,b.lng].join(', '))}</span></button>`;
+      if(!content)return '';
+      const label={image:'Фото',checklist:'Чеклист',poll:'Опрос',location:'Локация'}[b.type]||'Блок';
+      return `<div class="pl-inline-block" data-inline-block="${esc(b.id)}"><div class="pl-inline-block-head"><span>${label}</span><button type="button" class="pl-inline-grip" data-pl-inline="reorder" aria-label="Переместить блок: ${label}" title="Потяни для перемещения. С клавиатуры: стрелки вверх и вниз.">${icon('grip')}</button></div>${content}</div>`;
     }).join('');
+  }
+  function plannerMoveInlineBlock(ev,id,beforeId){
+    const from=ev.blocks.findIndex(b=>b.id===id);
+    if(from<0||beforeId===id)return false;
+    if(beforeId!=null&&!ev.blocks.some(b=>b.id===beforeId))return false;
+    const next=ev.blocks.slice(),[block]=next.splice(from,1);
+    next.splice(beforeId==null?next.length:next.findIndex(b=>b.id===beforeId),0,block);
+    if(next.every((b,i)=>b===ev.blocks[i]))return false;
+    ev.blocks=next;return savePlannerEvents();
+  }
+  function plannerRefreshInline(id){
+    const ev=state.planner.events.find(e=>e.id===id);if(!ev)return;
+    $$('.pl-event-wrap[data-pl-event-id]').filter(w=>w.dataset.plEventId===id).forEach(w=>{
+      const extra=$('.pl-event-extra',w);if(!extra)return;
+      const top=extra.scrollTop;extra.innerHTML=plannerEventExtraHtml(ev);extra.scrollTop=top;
+      bindPlannerInline(w);
+    });
+  }
+  function bindPlannerInline(wrap){
+    const eventId=wrap.dataset.plEventId;
+    $$('[data-pl-inline]',wrap).forEach(btn=>{
+      if(btn.dataset.plInline==='reorder'){bindPlannerInlineDrag(wrap,btn);return;}
+      btn.addEventListener('click',e=>{
+        e.stopPropagation();
+        const ev=state.planner.events.find(x=>x.id===eventId),block=ev?.blocks.find(b=>b.id===btn.closest('[data-inline-block]').dataset.inlineBlock);
+        if(!block)return;
+        if(btn.dataset.plInline==='check'){
+          const item=block.items?.find(i=>i.id===btn.dataset.itemId);if(!item)return;
+          item.done=!item.done;savePlannerEvents();plannerRefreshInline(eventId);
+        }else if(btn.dataset.plInline==='vote'){
+          plannerVote(ev,block.id,btn.dataset.optionId);plannerRefreshInline(eventId);
+        }else if(btn.dataset.plInline==='image')plannerShowImageViewer(block.images,Number(btn.dataset.imageIndex));
+        else if(btn.dataset.plInline==='location')showPlannerDetail(eventId);
+      });
+    });
+  }
+  function bindPlannerInlineDrag(wrap,handle){
+    const row=handle.closest('[data-inline-block]'),extra=row.parentElement;
+    let pointer=null,startY=0,lastY=0,moving=false,ghost=null,raf=null,beforeId=null;
+    const clearMarker=()=>$$('[data-inline-block]',extra).forEach(r=>r.classList.remove('pl-inline-drop-before','pl-inline-drop-after'));
+    const locate=()=>{
+      const rows=$$('[data-inline-block]',extra).filter(r=>r!==row);
+      const before=rows.find(r=>{const box=r.getBoundingClientRect();return lastY<box.top+box.height/2;});
+      beforeId=before?.dataset.inlineBlock||null;
+      clearMarker();if(before)before.classList.add('pl-inline-drop-before');else rows[rows.length-1]?.classList.add('pl-inline-drop-after');
+    };
+    const tick=()=>{
+      if(!moving)return;
+      if(!handle.isConnected){finish(false);return;}
+      const box=extra.getBoundingClientRect();
+      if(lastY<box.top+32)extra.scrollTop-=8;else if(lastY>box.bottom-32)extra.scrollTop+=8;
+      locate();raf=requestAnimationFrame(tick);
+    };
+    const finish=(commit)=>{
+      if(pointer==null)return;
+      const captured=pointer;pointer=null;wrap.plInlineSuppressUntil=performance.now()+400;
+      if(raf)cancelAnimationFrame(raf);raf=null;ghost?.remove();ghost=null;
+      clearMarker();row.style.opacity='';wrap.plEventDragging=false;
+      if(handle.hasPointerCapture?.(captured))handle.releasePointerCapture(captured);
+      document.removeEventListener('keydown',escape);
+      const wasMoving=moving;moving=false;
+      if(commit&&wasMoving){
+        const ev=state.planner.events.find(e=>e.id===wrap.dataset.plEventId);
+        if(ev){plannerMoveInlineBlock(ev,row.dataset.inlineBlock,beforeId);plannerRefreshInline(ev.id);}
+      }
+    };
+    const escape=e=>{if(e.key==='Escape'){e.preventDefault();finish(false);}};
+    handle.addEventListener('pointerdown',e=>{
+      if(e.isPrimary===false||e.button!==0)return;
+      e.stopPropagation();wrap.closeSwipe?.();wrap.cancelLongPress?.();plannerStopMomentum(extra);
+      pointer=e.pointerId;startY=lastY=e.clientY;moving=false;beforeId=null;wrap.plEventDragging=true;
+      handle.setPointerCapture?.(pointer);document.addEventListener('keydown',escape);
+    });
+    handle.addEventListener('pointermove',e=>{
+      if(e.pointerId!==pointer)return;
+      e.stopPropagation();e.preventDefault();lastY=e.clientY;
+      if(!moving){
+        if(Math.abs(lastY-startY)<6)return;
+        moving=true;const box=row.getBoundingClientRect();ghost=row.cloneNode(true);
+        ghost.classList.add('pl-inline-ghost');ghost.setAttribute('aria-hidden','true');
+        ghost.style.cssText=`position:fixed;left:${box.left}px;top:${box.top}px;width:${box.width}px;max-height:180px;overflow:hidden;z-index:650;pointer-events:none;background:var(--surface);padding:8px;border-radius:10px;`;
+        document.body.appendChild(ghost);row.style.opacity='.3';raf=requestAnimationFrame(tick);
+      }
+      ghost.style.transform=`translateY(${lastY-startY}px)`;locate();
+    },{passive:false});
+    handle.addEventListener('pointerup',e=>{if(e.pointerId===pointer){e.stopPropagation();finish(true);}});
+    handle.addEventListener('pointercancel',e=>{if(e.pointerId===pointer){e.stopPropagation();finish(false);}});
+    handle.addEventListener('lostpointercapture',()=>finish(false));
+    handle.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});
+    handle.addEventListener('keydown',e=>{
+      if(!['ArrowUp','ArrowDown'].includes(e.key))return;
+      e.preventDefault();e.stopPropagation();
+      const ev=state.planner.events.find(x=>x.id===wrap.dataset.plEventId);if(!ev)return;
+      const from=ev.blocks.findIndex(b=>b.id===row.dataset.inlineBlock),to=from+(e.key==='ArrowUp'?-1:1);
+      if(to<0||to>=ev.blocks.length)return;
+      const before=e.key==='ArrowUp'?ev.blocks[to].id:ev.blocks[to+1]?.id||null;
+      plannerMoveInlineBlock(ev,row.dataset.inlineBlock,before);plannerRefreshInline(ev.id);
+      $$('[data-inline-block]',wrap).find(r=>r.dataset.inlineBlock===row.dataset.inlineBlock)?.querySelector('.pl-inline-grip')?.focus();
+    });
   }
 
   const PL_MAX_COLS=3;
@@ -2223,7 +2342,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
           <span class="pl-event-title">${esc(e.title)}</span>
         </span>
-        ${extraHtml?`<span class="pl-event-extra">${extraHtml}</span>`:''}
+        ${extraHtml?`<div class="pl-event-extra">${extraHtml}</div>`:''}
       </div>
     </div>`;
   }
@@ -2311,7 +2430,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $$('[data-pl-toggle]').forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);});
     $$('[data-pl-open]').forEach(b=>b.onclick=()=>showPlannerDetail(b.dataset.plOpen));
     $$('.pl-task-wrap').forEach(w=>{bindPlannerTaskSwipe(w);bindPlannerTaskDrag(w);});
-    $$('.pl-event-wrap[data-pl-event-id]').forEach(w=>{bindPlannerEventSwipe(w);bindPlannerEventDrag(w);});
+    $$('.pl-event-wrap[data-pl-event-id]').forEach(w=>{bindPlannerEventSwipe(w);bindPlannerEventDrag(w);bindPlannerInline(w);});
     $$('[data-pl-cluster]').forEach(b=>b.onclick=()=>plannerShowClusterSheet(b.dataset.plCluster.split(',')));
     $$('.pl-timeline').forEach(tl=>bindPlannerRangeSelect(tl));
     bindPlannerScroll();
@@ -2379,7 +2498,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // deleteThreshold, потому что это разовое обратимое действие (тап по чекбоксу снова снимет
     // отметку), а не необратимое удаление, которому нужна защита от случайного срабатывания.
     const completeEl=wrap.querySelector('.pl-swipe-complete'),completeThreshold=28,completeCap=completeThreshold+20;
-    let offset=0,open=false,press=null,suppressUntil=0,scroller=null,forwarder=null,lastMerge=-1,lastCompleteReveal=-1;
+    let offset=0,open=false,press=null,suppressUntil=0,scroller=null,forwarder=null,lastMerge=-1,lastCompleteReveal=-1,allowActionClick=false;
     const paint=(v,animate,rawValue)=>{
       offset=v;
       card.style.transition=animate?'transform .24s cubic-bezier(.22,.8,.25,1)':'none';
@@ -2408,7 +2527,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // ниже через merge и flex-basis — это его не касается, так как editW+delW всегда в
       // сумме равны actionsWidth.
       const pull=rawValue==null?v:rawValue;
-      const merge=clamp((-pull-actionsWidth)/deleteThreshold,0,1);
+      const merge=press?.wasOpen?clamp((-pull-actionsWidth)/deleteThreshold,0,1):0;
       wrap.classList.toggle('delete-ready',open&&merge>=1);
       if(merge!==lastMerge){
         lastMerge=merge;
@@ -2422,10 +2541,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const settle=(toOpen,animate=true)=>{open=toOpen;wrap.classList.toggle('is-open',open);paint(open?-actionsWidth:0,animate);};
     wrap.closeSwipe=()=>{if(open)settle(false);};
     paint(0,false);
-    card.addEventListener('pointerdown',e=>{
-      if(e.isPrimary===false||e.button!==0||wrap.plEventDragging||wrap.plTaskDragging)return;
+    wrap.addEventListener('pointerdown',e=>{
+      if(e.isPrimary===false||e.button!==0||wrap.plEventDragging||wrap.plTaskDragging||e.target.closest('[data-pl-inline="reorder"]'))return;
       closePlannerSwipes(wrap);
-      forwarder?.stop();forwarder=null;scroller=null;
+      forwarder?.stop();forwarder=null;scroller=null;suppressUntil=0;wrap.plInlineSuppressUntil=0;
       // Свайп вправо (complete) не должен визуально задевать панель редактировать/удалить,
       // закреплённую у правого края (right:0, ширина actionsWidth). На узкой (кластерной)
       // карточке ширина wrap бывает сопоставима с actionsWidth — без этого предела уже
@@ -2435,23 +2554,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // левой границы actions-панели). Меряем реальную ширину один раз на старте жеста (не на
       // каждый кадр) и капаем к безопасному пределу.
       const maxRightSafe=Math.max(16,wrap.getBoundingClientRect().width-actionsWidth-4);
-      press={id:e.pointerId,x:e.clientX,y:e.clientY,lastY:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}],maxRightSafe};
+      press={id:e.pointerId,x:e.clientX,y:e.clientY,lastY:e.clientY,from:offset,wasOpen:open,extra:e.target.closest('.pl-event-extra'),axis:null,samples:[{x:e.clientX,t:performance.now()}],maxRightSafe};
     },{passive:true});
-    card.addEventListener('pointermove',e=>{
+    wrap.addEventListener('pointermove',e=>{
       if(!press||press.id!==e.pointerId||wrap.plEventDragging||wrap.plTaskDragging)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
       if(!press.axis){
         if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;
-        press.axis=Math.abs(dx)>Math.abs(dy)*1.2?'x':'y';
+        if(Math.abs(dx)<Math.abs(dy)*1.15&&Math.abs(dy)<Math.abs(dx)*1.15&&Math.max(Math.abs(dx),Math.abs(dy))<18)return;
+        press.axis=Math.abs(dx)>Math.abs(dy)?'x':'y';
         wrap.cancelLongPress?.();
-        if(press.axis==='x')card.setPointerCapture?.(e.pointerId);
+        wrap.setPointerCapture?.(e.pointerId);
+        suppressUntil=performance.now()+500;
       }
       if(press.axis!=='x'){
         // .pl-event живёt с touch-action:none (иначе долгое нажатие+вертикальный драг для
         // переноса времени обрывается гонкой с нативным пан-скроллом — см. bindPlannerEventDrag),
         // поэтому обычный вертикальный скролл списка приходится прокручивать вручную сюда же.
         if(manualScrollY){
-          if(!scroller){const extra=e.target.closest('.pl-event-extra');scroller=extra&&extra.scrollHeight>extra.clientHeight?extra:wrap.closest('.pl-scroll,.pl-day-tasks');}
+          if(!scroller){const extra=press.extra;scroller=extra&&extra.scrollHeight>extra.clientHeight?extra:wrap.closest('.pl-scroll,.pl-day-tasks');plannerStopMomentum(scroller);}
           if(!forwarder)forwarder=plannerScrollForwardStart(scroller);
           e.preventDefault();forwarder.move(e.clientY-press.lastY,performance.now());
         }
@@ -2462,12 +2583,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
       press.lastRaw=raw;
       if(raw<0){
-        // Влево — раскрытие И поглощение работают по одной и той же физике независимо от того,
-        // первый это свайп (из закрытого состояния) или второй (уже открыто): карточка стоит у
-        // жёсткой стенки -actionsWidth (см. комментарий выше про "дыру"), а merge считается от
-        // недемпфированного raw и может продолжать расти сколько угодно дальше. Раньше это было
-        // доступно только "вторым свайпом" — теперь один непрерывный жест от закрытого состояния
-        // тоже может доехать до удаления, без обязательного отпустить-и-потянуть-ещё-раз.
+        // Первый жест только раскрывает действия. Удаление доступно со второго.
         paint(Math.max(raw,-actionsWidth),false,raw);
       } else {
         const cap=onComplete?Math.min(completeCap,press.maxRightSafe):20;
@@ -2476,34 +2592,34 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const now=performance.now();
       press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
     },{passive:false});
-    card.addEventListener('pointerup',e=>{
+    wrap.addEventListener('pointerup',e=>{
       if(!press||press.id!==e.pointerId){press=null;return;}
       const g=press;press=null;
       if(wrap.plEventDragging||wrap.plTaskDragging)return;
       if(g.axis==='x'){
         suppressUntil=performance.now()+400;
-        if(delBtn){
-          // Без условия g.wasOpen — доехать до удаления теперь можно и одним непрерывным
-          // свайпом от закрытого состояния (см. pointermove), не только "вторым" после отпускания.
+        if(delBtn&&g.wasOpen){
           const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0;
           const pastOpen=-(g.lastRaw??offset)-actionsWidth;
-          if(pastOpen>=deleteThreshold||(v<-.8&&pastOpen>=16)){delBtn.click();return;}
+          if(pastOpen>=deleteThreshold||(v<-.8&&pastOpen>=16)){allowActionClick=true;try{delBtn.click();}finally{allowActionClick=false;}return;}
         }
         if(!g.wasOpen&&onComplete&&(g.lastRaw??0)>0){
           const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0;
           const effThreshold=Math.min(completeThreshold,g.maxRightSafe);
           if(g.lastRaw>=effThreshold||(v>.8&&g.lastRaw>=Math.min(14,effThreshold))){onComplete();settle(false);return;}
         }
-        settle(offset<-actionsWidth*.4);
+        const dt=Math.max(1,performance.now()-g.samples[0].t),velocity=(e.clientX-g.samples[0].x)/dt;
+        settle(offset<-actionsWidth*.4||(!g.wasOpen&&(g.lastRaw??0)<-14&&velocity<-.35));
       }
-      else if(forwarder){forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());forwarder=null;}
+      else if(forwarder){suppressUntil=performance.now()+400;forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());forwarder=null;}
     },{passive:true});
-    card.addEventListener('pointercancel',()=>{if(!wrap.plEventDragging&&!wrap.plTaskDragging&&press)settle(open);forwarder?.stop();forwarder=null;press=null;});
-    card.addEventListener('click',e=>{
-      if(performance.now()<suppressUntil){e.preventDefault();e.stopPropagation();return;}
-      if(open){e.preventDefault();e.stopPropagation();settle(false);return;}
-      onTap?.();
-    });
+    wrap.addEventListener('pointercancel',()=>{suppressUntil=performance.now()+400;if(!wrap.plEventDragging&&!wrap.plTaskDragging&&press)settle(open);forwarder?.stop();forwarder=null;press=null;});
+    wrap.addEventListener('click',e=>{
+      if(allowActionClick)return;
+      if(performance.now()<suppressUntil||performance.now()<(wrap.plInlineSuppressUntil||0)){e.preventDefault();e.stopImmediatePropagation();return;}
+      if(open&&card.contains(e.target)){e.preventDefault();e.stopImmediatePropagation();settle(false);return;}
+    },true);
+    card.addEventListener('click',e=>{const control=e.target.closest('[data-pl-inline],button,[data-pl-toggle]');if(!control||control===card)onTap?.();});
     return {settle};
   }
   function bindPlannerTaskSwipe(wrap){
@@ -2522,7 +2638,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
     wrap.cancelLongPress=cancel;
     card.addEventListener('pointerdown',e=>{
-      if(e.isPrimary===false||e.button!==0||wrap.classList.contains('is-open'))return;
+      if(e.isPrimary===false||e.button!==0||wrap.classList.contains('is-open')||e.target.closest('[data-pl-inline],[data-pl-toggle]'))return;
       cancel();startX=e.clientX;startY=e.clientY;pointerId=e.pointerId;
       timer=setTimeout(()=>{
         timer=null;
@@ -2603,7 +2719,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function bindPlannerEventSwipe(wrap){
     const id=wrap.dataset.plEventId,card=$('.pl-event',wrap),actions=$('.pl-event-actions',wrap);
-    card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();card.click();}});
+    card.addEventListener('keydown',e=>{if(e.target===card&&(e.key==='Enter'||e.key===' ')){e.preventDefault();card.click();}});
     bindSwipeReveal(wrap,card,actions,72,()=>showPlannerDetail(id),true,()=>plannerToggleDone(id));
     $('[data-pl-event-edit]',actions).onclick=()=>{wrap.closeSwipe();showPlannerEditSheet(id);};
     $('[data-pl-event-delete]',actions).onclick=()=>{plannerDelete(id);};
@@ -2624,7 +2740,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
     wrap.cancelLongPress=cancel;
     card.addEventListener('pointerdown',e=>{
-      if(e.isPrimary===false||e.button!==0||wrap.classList.contains('is-open'))return;
+      if(e.isPrimary===false||e.button!==0||wrap.classList.contains('is-open')||e.target.closest('[data-pl-inline],[data-pl-toggle]'))return;
       cancel();startX=e.clientX;startY=e.clientY;pointerId=e.pointerId;
       timer=setTimeout(()=>{
         timer=null;
@@ -3819,7 +3935,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Исправлены ширина и скругление шапки события: кнопки удаления видны только при свайпе. Время отображается крупно, отдельно от значка часов. Форма ограничена шириной экрана. После включения «Другой даты» остаются поля дат; переход через полночь раскрывает их автоматически. Недельный заголовок получил сплошной фон. Фото без обрезки, пункты чеклистов и варианты опросов показаны прямо на карточке в заданном порядке.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Первый свайп влево открывает редактирование и удаление, второй удаляет событие. Свайп вправо отмечает выполнение; движение по списку не нажимает его кнопки. На карточке можно отмечать пункты чеклиста, голосовать и открывать фото. Потяни вложение за шесть точек, чтобы изменить порядок; изменения сохраняются автоматически.</p></section>
     </div></section>`;
   }
 
@@ -4142,7 +4258,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       settle(g.wasOpen&&dx>12?false:shouldOpen);
     },{passive:true});
     row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;settle(open);},{passive:true});
-    row.addEventListener('click',e=>{if(e.target.closest('.fin-tx-actions'))return;if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();return;}if(open){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
+    row.addEventListener('click',e=>{if(e.target.closest('.fin-tx-actions'))return;if(performance.now()<suppressUntil||performance.now()<(wrap.plInlineSuppressUntil||0)){e.preventDefault();e.stopImmediatePropagation();return;}if(open){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
   }
   let pendingFinTxUndo=null;
   function deleteFinTxWithUndo(id) {
@@ -4424,7 +4540,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;if(!row.habitLiftActive)settle(open);},{passive:true});
     // Подавление клика после драга — только для самой карточки (чтобы отпускание свайпа не засчиталось
     // как тап-тогл выполнения); кнопки в открывшейся панели должны быть кликабельны сразу, без этой паузы.
-    row.addEventListener('click',e=>{if(e.target.closest('.habit-swipe-actions'))return;if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();return;}if(open&&e.target.closest('.habit-card')){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
+    row.addEventListener('click',e=>{if(e.target.closest('.habit-swipe-actions'))return;if(performance.now()<suppressUntil||performance.now()<(wrap.plInlineSuppressUntil||0)){e.preventDefault();e.stopImmediatePropagation();return;}if(open&&e.target.closest('.habit-card')){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
     row.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();settle(false);}});
   }
   function updateHabitUI() {
