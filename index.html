@@ -1160,18 +1160,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-subtask-text{flex:1;font-size:.875rem;color:#fff;}
 .pl-subtask-row.done .pl-subtask-text{text-decoration:line-through;color:rgba(255,255,255,.35);}
 .pl-subtask-add{display:flex;gap:8px;margin-top:6px;}
-.pl-attach-box{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.pl-attach-btn{width:40px;height:40px;border-radius:10px;border:1px solid rgba(201,168,76,.35);background:var(--surface);color:var(--gold);display:grid;place-items:center;padding:0;flex:0 0 auto;}
-.pl-attach-btn .icon{width:18px;height:18px;}
-.pl-attach-chips{display:flex;flex-wrap:wrap;gap:6px;}
-.pl-attach-chip{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:12px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);font-size:.75rem;border:0;}
-.pl-attach-chip .icon{width:13px;height:13px;}
 .pl-attach-menu{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
 .pl-attach-menu button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px;border-radius:12px;background:var(--surface);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-size:.6875rem;flex:1;min-width:64px;}
 .pl-attach-menu button .icon{width:18px;height:18px;color:var(--gold);}
-.pl-attach-editor{margin-top:12px;padding:12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);}
-.pl-attach-editor-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.pl-attach-editor-head span{font-size:.8125rem;color:rgba(255,255,255,.7);font-weight:600;}
 .pl-checklist-row,.pl-poll-option-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
 .pl-checklist-row input,.pl-poll-option-row input{flex:1;}
 .pl-attach-remove{width:26px;height:26px;border-radius:50%;background:transparent;color:rgba(255,255,255,.4);display:grid;place-items:center;padding:0;flex:0 0 auto;}
@@ -1182,6 +1173,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-image-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
 .pl-image-thumb button{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;padding:0;display:grid;place-items:center;border:0;}
 .pl-image-thumb button .icon{width:10px;height:10px;}
+/* Блоки вложений (изображение/чеклист/опрос/локация) в форме редактирования события — всегда
+   развёрнутые карточки-ряды (не сворачиваемые чипы), с ручкой-перетаскиванием справа. */
+.pl-block-row{margin-top:10px;padding:12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);}
+.pl-block-head{display:flex;align-items:center;gap:8px;}
+.pl-block-icon{width:32px;height:32px;border-radius:9px;background:rgba(201,168,76,.14);color:var(--gold);display:grid;place-items:center;flex:0 0 auto;}
+.pl-block-icon .icon{width:16px;height:16px;}
+.pl-block-headtext{flex:1;min-width:0;display:flex;flex-direction:column;}
+.pl-block-title{font-size:.875rem;font-weight:700;color:#fff;}
+.pl-block-sub{font-size:.75rem;color:rgba(255,255,255,.45);}
+.pl-block-thumb{width:36px;height:36px;border-radius:8px;object-fit:cover;flex:0 0 auto;}
+.pl-block-remove{width:26px;height:26px;border-radius:50%;background:transparent;color:rgba(255,255,255,.4);display:grid;place-items:center;padding:0;flex:0 0 auto;}
+.pl-block-remove .icon{width:13px;height:13px;}
+.pl-block-handle{width:26px;height:26px;display:grid;place-items:center;color:rgba(255,255,255,.35);flex:0 0 auto;touch-action:none;}
+.pl-block-handle .icon{width:16px;height:16px;}
+.pl-block-content{margin-top:10px;}
+.pl-block-ghost{box-shadow:0 10px 28px rgba(0,0,0,.5);opacity:.95;border-radius:12px;}
 .pl-location-map{width:100%;height:140px;border-radius:10px;border:0;margin-top:8px;}
 .pl-detail-attach-images{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
 .pl-detail-image-btn{padding:0;border:0;border-radius:10px;background:transparent;overflow:hidden;display:block;}
@@ -1199,19 +1206,38 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-poll-option{position:relative;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.06);margin-bottom:6px;overflow:hidden;border:0;width:100%;text-align:left;}
 .pl-poll-option-fill{position:absolute;inset:0;background:rgba(201,168,76,.22);width:var(--pct,0%);transition:width .3s ease;}
 .pl-poll-option-label{position:relative;display:flex;justify-content:space-between;font-size:.8125rem;color:#fff;}
-.pl-comment-item{display:flex;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.06);}
+/* Единый мессенджер-тред комментариев события (см. plannerCommentList) — системная запись
+   "Событие создано" + сообщения, сгруппированные разделителями по дате. */
+.pl-comment-thread{display:flex;flex-direction:column;}
+.pl-comment-divider{display:flex;align-items:center;gap:8px;margin:16px 0 8px;color:rgba(255,255,255,.4);font-size:.6875rem;text-transform:uppercase;letter-spacing:.05em;}
+.pl-comment-divider:first-child{margin-top:4px;}
+.pl-comment-divider::before,.pl-comment-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.08);}
+.pl-comment-system{text-align:center;font-size:.75rem;color:rgba(255,255,255,.35);padding:4px 0 10px;}
+.pl-comment-item{display:flex;gap:10px;padding:5px 0;}
 .pl-comment-avatar{width:28px;height:28px;border-radius:50%;background:var(--gold);color:#1a1508;font-size:.75rem;font-weight:700;display:grid;place-items:center;flex:0 0 auto;}
+.pl-comment-item.theirs .pl-comment-avatar{background:rgba(255,255,255,.16);color:#fff;}
 .pl-comment-body{flex:1;min-width:0;}
 .pl-comment-name{font-size:.8125rem;font-weight:700;color:#fff;margin-right:6px;}
-.pl-comment-date{font-size:.6875rem;color:rgba(255,255,255,.35);margin-top:4px;}
-.pl-comment-text{font-size:.875rem;color:#eee;white-space:pre-wrap;overflow-wrap:anywhere;display:inline;}
-.pl-comment-list.messenger{display:flex;flex-direction:column;gap:10px;}
-.pl-comment-list.messenger .pl-comment-item{border-top:0;padding:0;display:flex;flex-direction:column;max-width:78%;gap:0;}
-.pl-comment-list.messenger .pl-comment-item.mine{align-self:flex-end;align-items:flex-end;}
-.pl-comment-list.messenger .pl-comment-item.theirs{align-self:flex-start;align-items:flex-start;}
-.pl-comment-list.messenger .pl-comment-bubble{padding:8px 12px;border-radius:16px;font-size:.875rem;color:#171410;background:var(--gold);white-space:pre-wrap;overflow-wrap:anywhere;}
-.pl-comment-list.messenger .pl-comment-item.theirs .pl-comment-bubble{background:rgba(255,255,255,.1);color:#fff;}
-.pl-comment-list.messenger .pl-comment-date{margin-top:2px;}
+.pl-comment-bubble{margin-top:3px;padding:8px 12px;border-radius:4px 14px 14px 14px;background:rgba(255,255,255,.08);display:inline-block;max-width:100%;}
+.pl-comment-item.mine .pl-comment-bubble{background:rgba(201,168,76,.2);}
+.pl-comment-text{font-size:.875rem;color:#eee;white-space:pre-wrap;overflow-wrap:anywhere;}
+.pl-comment-image{display:block;max-width:220px;width:100%;border-radius:10px;margin-bottom:4px;}
+.pl-comment-date{font-size:.6875rem;color:rgba(255,255,255,.35);margin-top:3px;}
+/* Нижняя панель действий под лентой комментариев (сердце/пригласить/фото/ввод/эмодзи/отправить). */
+.pl-comment-staged{display:flex;align-items:center;gap:8px;margin-top:10px;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.06);}
+.pl-comment-staged img{width:36px;height:36px;border-radius:8px;object-fit:cover;}
+.pl-comment-staged button{margin-left:auto;background:transparent;border:0;color:rgba(255,255,255,.6);padding:4px;}
+.pl-comment-staged button .icon{width:16px;height:16px;}
+.pl-comment-bar{display:flex;align-items:center;gap:6px;margin-top:10px;}
+.pl-comment-bar-btn{flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:0;background:transparent;color:rgba(255,255,255,.55);display:grid;place-items:center;padding:0;}
+.pl-comment-bar-btn .icon{width:18px;height:18px;}
+.pl-comment-bar-btn.active{color:#ff5a7a;}
+.pl-comment-bar-btn.pl-comment-send{background:var(--gold);color:#171410;}
+.pl-comment-input{flex:1;min-width:0;height:36px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;padding:0 14px;font-size:.875rem;}
+.pl-comment-input::placeholder{color:rgba(255,255,255,.35);}
+.pl-emoji-picker{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;padding:8px;border-radius:12px;background:rgba(255,255,255,.06);}
+.pl-emoji-picker button{width:34px;height:34px;border:0;background:transparent;font-size:1.125rem;border-radius:8px;padding:0;}
+.pl-emoji-picker button:active{background:rgba(255,255,255,.1);}
 @media(prefers-reduced-motion:reduce){.pl-switch::after{transition:none;}}
 </style>
 </head>
@@ -1239,7 +1265,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.16';
+  const APP_VERSION = '0.9.17';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1437,6 +1463,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       'paperclip': '<path d="M8 12.5V7a4 4 0 0 1 8 0v9a2.5 2.5 0 0 1-5 0V8.5"/>',
       'poll': '<path d="M6 20V10M12 20V4m6 16v-7"/>',
       'pin': '<path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/>',
+      'heart': '<path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9Z"/>',
+      'person-add': '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.5 2.5-6 6-6s6 2.5 6 6M18 8v6m3-3h-6"/>',
+      'smile': '<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>',
+      'send': '<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7Z"/>',
+      'grip': '<circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none"/>',
     }[name] || '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>';
     return `<span class="icon ${cls}"><svg ${common}>${p}</svg></span>`;
   }
@@ -3326,15 +3357,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <button type="button" class="pl-color-swatch pl-color-auto ${!evColor?'active':''}" data-color="" aria-label="Цвет раздела"></button>
         ${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${evColor===c?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}
       </div></div>
-      <div class="pl-form-row"><label>Вложения</label>
-        <div class="pl-attach-box"><button type="button" class="pl-attach-btn" id="pl-attach-toggle" aria-label="Добавить вложение">${icon('paperclip')}</button><div class="pl-attach-chips" id="pl-attach-chips"></div></div>
-        <div class="pl-attach-menu" id="pl-attach-menu" hidden>
-          <button type="button" data-attach-add="checklist">${icon('check')}<span>Чеклист</span></button>
-          <button type="button" data-attach-add="poll">${icon('poll')}<span>Опрос</span></button>
-          <button type="button" data-attach-add="image">${icon('image')}<span>Фото</span></button>
-          <button type="button" data-attach-add="location">${icon('pin')}<span>Локация</span></button>
-        </div>
-        <div id="pl-attach-editors"></div>
+      <div class="pl-form-row"><label>Блоки</label>
+        <div class="pl-attach-menu" id="pl-block-add-row"></div>
+        <p class="settings-note" id="pl-block-hint" hidden>Перетаскивайте блоки, чтобы менять порядок</p>
+        <div id="pl-block-list"></div>
       </div>
       <div class="modal-actions">${existing?'<button class="text-btn" id="pl-form-delete" style="color:#ff5a5a">Удалить</button>':''}<button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-form-save">Сохранить</button></div>
     </div>`,{sheet:true});
@@ -3345,146 +3371,154 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let poll=existing?.poll?{question:existing.poll.question,options:existing.poll.options.map(o=>({...o}))}:null;
     let images=(existing?.images||[]).slice();
     let location=existing?.location?{...existing.location}:null;
-    // Порядок "блоков" вложений (изображение/чеклист/опрос/локация) — то, в каком порядке они
-    // потом показываются и в этой форме, и на самой карточке события (см. plannerEventExtraHtml).
-    // Пользователь может перетаскивать чипы ниже, чтобы поменять порядок; новый тип вложения
-    // при добавлении просто дописывается в конец текущего порядка.
+    // Порядок "блоков" (изображение/чеклист/опрос/локация) — то, в каком порядке они потом
+    // показываются и в этой форме, и на самой карточке события (см. plannerEventExtraHtml).
+    // Каждый блок — всегда развёрнутая карточка-ряд (не сворачиваемый чип), перетаскивается за
+    // ручку справа. Присутствие блока хранится ОТДЕЛЬНО от того, есть ли в нём уже контент
+    // (blockFlags) — иначе только что добавленный пустой чеклист тут же исчезал бы обратно.
     let order=(existing?.attachOrder&&existing.attachOrder.length?existing.attachOrder.slice():['image','checklist','poll','location']);
-    const attachLabel={checklist:()=>`${checklist.length} пункт.`,poll:()=>'Опрос',image:()=>`${images.length} фото`,location:()=>'Место'};
-    const attachPresent={checklist:()=>checklist.length>0,poll:()=>!!poll,image:()=>images.length>0,location:()=>!!location};
-    const attachBox=$('#pl-attach-editors',ov);
-    const renderAttachChips=()=>{
-      order=order.filter(t=>attachPresent[t]?.());
-      ['checklist','poll','image','location'].forEach(t=>{if(attachPresent[t]?.()&&!order.includes(t))order.push(t);});
-      const chips=order.map(t=>`<button type="button" class="pl-attach-chip" draggable="false" data-attach-edit="${t}">${icon(t==='image'?'image':t==='poll'?'poll':t==='location'?'pin':'check')}<span>${attachLabel[t]()}</span></button>`);
-      $('#pl-attach-chips',ov).innerHTML=chips.join('');
-      $$('#pl-attach-chips [data-attach-edit]',ov).forEach(b=>bindAttachChipDrag(b,()=>renderEditor(b.dataset.attachEdit)));
+    let blockFlags={checklist:checklist.length>0,poll:!!poll,image:images.length>0,location:!!location};
+    const blockMeta={checklist:{title:'Чеклист',icon:'check'},poll:{title:'Опрос',icon:'poll'},image:{title:'Фото',icon:'image'},location:{title:'Локация',icon:'pin'}};
+    const blockContentHtml=type=>{
+      if(type==='checklist')return `<div id="pl-checklist-rows">${checklist.map(s=>`<div class="pl-checklist-row" data-id="${s.id}"><span class="pl-task-check ${s.done?'done':''}" data-checklist-toggle="${s.id}">${s.done?icon('check'):''}</span><input class="field" value="${esc(s.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
+        <div class="pl-attach-add-row"><input class="field" id="pl-checklist-new" placeholder="Новый пункт"><button type="button" class="gold-action" id="pl-checklist-add" style="flex:0 0 auto">+</button></div>`;
+      if(type==='poll')return `<input class="field" id="pl-poll-question" placeholder="Вопрос" value="${esc(poll.question)}" style="margin-bottom:8px">
+        <div id="pl-poll-options">${poll.options.map(o=>`<div class="pl-poll-option-row" data-id="${o.id}"><input class="field" placeholder="Вариант" value="${esc(o.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
+        <button type="button" class="text-btn" id="pl-poll-add-option">+ вариант</button>`;
+      if(type==='image')return `<div class="pl-image-thumbs" id="pl-image-thumbs">${images.map((src,i)=>`<div class="pl-image-thumb"><img src="${src}"><button type="button" data-remove-image="${i}">${icon('close')}</button></div>`).join('')}</div>
+        ${images.length<4?'<input type="file" accept="image/*" id="pl-image-input">':'<p class="settings-note">Максимум 4 фото</p>'}`;
+      if(type==='location')return `<input class="field" id="pl-location-label" placeholder="Название места" value="${esc(location?.label||'')}" style="margin-bottom:8px">
+        <button type="button" class="text-btn" id="pl-location-geo">${icon('pin')} Определить моё местоположение</button>
+        <div id="pl-location-map-box">${location?plannerLocationMapEmbed(location):''}</div>`;
+      return '';
     };
-    // Долгое нажатие + перетаскивание чипа меняет его место в `order` — тот же принцип, что и
-    // у перестановки разделов (bindPlannerSectionDrag): сам DOM во время движения не трогаем
-    // (только двигаем "призрак"-клон), реальный reorder + перерисовка применяются ОДИН раз при
-    // отпускании — иначе пересборка списка на каждый кадр отвязывала бы обработчики от узла,
-    // на котором браузер уже захватил указатель (pointer capture), и жест обрывался бы.
-    const bindAttachChipDrag=(chip,onTap)=>{
-      let timer=null,pointerId=null,startX=0,startY=0,active=false,dragging=false,ghost=null,fromIndex=-1,toIndex=-1,suppressUntil=0;
-      const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
-      chip.addEventListener('pointerdown',e=>{
-        if(e.isPrimary===false||e.button!==0)return;
-        cancel();pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;active=false;dragging=false;
-        timer=setTimeout(()=>{timer=null;active=true;holdFeedback(chip);},420);
-      },{passive:true});
-      chip.addEventListener('pointermove',e=>{
-        if(e.pointerId!==pointerId||!active)return;
-        const dx=e.clientX-startX,dy=e.clientY-startY;
-        if(!dragging){
-          if(Math.hypot(dx,dy)<6)return;
-          dragging=true;chip.setPointerCapture?.(pointerId);
-          fromIndex=order.indexOf(chip.dataset.attachEdit);toIndex=fromIndex;
-          const box=chip.getBoundingClientRect();
-          ghost=chip.cloneNode(true);ghost.classList.add('pl-chip-ghost');
-          ghost.style.cssText='position:fixed;left:'+box.left+'px;top:'+box.top+'px;width:'+box.width+'px;height:'+box.height+'px;margin:0;z-index:600;pointer-events:none;';
-          document.body.appendChild(ghost);chip.style.opacity='0';
-        }
-        e.preventDefault();
-        ghost.style.transform='translate3d('+dx+'px,'+dy+'px,0)';
-        // Ближайший по центру чип (не только по X — ряд может переноситься на вторую строку).
-        let nearest=null,nearestDist=Infinity;
-        $$('#pl-attach-chips [data-attach-edit]',ov).forEach(c=>{
-          if(c===chip)return;
-          const r=c.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
-          const dist=Math.hypot(e.clientX-cx,e.clientY-cy);
-          if(dist<nearestDist){nearestDist=dist;nearest=c;}
-        });
-        if(nearest)toIndex=order.indexOf(nearest.dataset.attachEdit);
-      },{passive:false});
-      const finish=e=>{
-        if(e.pointerId!==pointerId)return;
-        cancel();
-        if(dragging){
-          ghost?.remove();ghost=null;chip.style.opacity='';
-          suppressUntil=performance.now()+300;
-          if(fromIndex>-1&&toIndex>-1&&fromIndex!==toIndex){
-            const [item]=order.splice(fromIndex,1);order.splice(toIndex,0,item);
-            renderAttachChips();
-          }
-        }
-        active=false;dragging=false;pointerId=null;
-      };
-      chip.addEventListener('pointerup',finish,{passive:true});
-      chip.addEventListener('pointercancel',finish,{passive:true});
-      chip.addEventListener('contextmenu',e=>e.preventDefault());
-      chip.addEventListener('click',e=>{
-        if(performance.now()<suppressUntil){e.preventDefault();e.stopPropagation();return;}
-        onTap?.();
-      });
+    const renderBlocks=()=>{
+      order=order.filter(t=>blockFlags[t]);
+      ['checklist','poll','image','location'].forEach(t=>{if(blockFlags[t]&&!order.includes(t))order.push(t);});
+      $('#pl-block-hint',ov).hidden=!order.length;
+      $('#pl-block-add-row',ov).innerHTML=['checklist','poll','image','location'].filter(t=>!order.includes(t)).map(t=>`<button type="button" data-attach-add="${t}">${icon(blockMeta[t].icon)}<span>${blockMeta[t].title}</span></button>`).join('');
+      $$('#pl-block-add-row [data-attach-add]',ov).forEach(b=>b.onclick=()=>addBlock(b.dataset.attachAdd));
+      $('#pl-block-list',ov).innerHTML=order.map(t=>`<div class="pl-block-row" data-block="${t}">
+        <div class="pl-block-head">
+          <span class="pl-block-icon">${icon(blockMeta[t].icon)}</span>
+          <span class="pl-block-headtext"><span class="pl-block-title">${blockMeta[t].title}</span>${t==='image'?`<span class="pl-block-sub">${images.length} фото</span>`:''}</span>
+          ${t==='image'&&images[0]?`<img class="pl-block-thumb" src="${images[0]}" alt="">`:''}
+          <button type="button" class="pl-block-remove" data-block-remove="${t}" aria-label="Убрать блок">${icon('close')}</button>
+          <span class="pl-block-handle" data-block-handle aria-label="Перетащить">${icon('grip')}</span>
+        </div>
+        <div class="pl-block-content" data-block-content="${t}">${blockContentHtml(t)}</div>
+      </div>`).join('');
+      bindBlockContent();
+      $$('#pl-block-list [data-block-remove]',ov).forEach(b=>b.onclick=()=>removeBlock(b.dataset.blockRemove));
+      $$('#pl-block-list [data-block-handle]',ov).forEach(h=>bindBlockDrag(h));
     };
-    const renderEditor=type=>{
-      if(type==='checklist'){
-        attachBox.innerHTML=`<div class="pl-attach-editor"><div class="pl-attach-editor-head"><span>Чеклист</span><button type="button" class="pl-attach-remove" data-attach-close aria-label="Свернуть">${icon('close')}</button></div>
-          <div id="pl-checklist-rows">${checklist.map(s=>`<div class="pl-checklist-row" data-id="${s.id}"><input class="field" value="${esc(s.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
-          <div class="pl-attach-add-row"><input class="field" id="pl-checklist-new" placeholder="Новый пункт"><button type="button" class="gold-action" id="pl-checklist-add" style="flex:0 0 auto">+</button></div>
-        </div>`;
-        const syncRows=()=>{checklist=$$('.pl-checklist-row',attachBox).map(r=>({id:r.dataset.id,text:$('input',r).value,done:(checklist.find(s=>s.id===r.dataset.id)||{}).done||false}));};
-        $$('.pl-checklist-row input',attachBox).forEach(inp=>inp.addEventListener('input',syncRows));
-        $$('.pl-checklist-row [data-remove]',attachBox).forEach(btn=>btn.onclick=()=>{btn.closest('.pl-checklist-row').remove();syncRows();renderAttachChips();});
-        $('#pl-checklist-add',attachBox).onclick=()=>{
-          const inp=$('#pl-checklist-new',attachBox),text=inp.value.trim();if(!text)return;
-          checklist.push({id:plannerId(),text,done:false});renderEditor('checklist');renderAttachChips();
+    const addBlock=type=>{
+      blockFlags[type]=true;
+      if(type==='poll'&&!poll)poll={question:'',options:[{id:plannerId(),text:'',votes:0},{id:plannerId(),text:'',votes:0}]};
+      if(type==='location'&&!location)location={lat:null,lng:null,label:''};
+      renderBlocks();
+    };
+    const removeBlock=type=>{
+      blockFlags[type]=false;
+      if(type==='checklist')checklist=[];
+      if(type==='poll')poll=null;
+      if(type==='image')images=[];
+      if(type==='location')location=null;
+      renderBlocks();
+    };
+    const bindBlockContent=()=>{
+      if(blockFlags.checklist){
+        const box=$('[data-block-content="checklist"]',ov);
+        const syncRows=()=>{checklist=$$('.pl-checklist-row',box).map(r=>({id:r.dataset.id,text:$('input',r).value,done:(checklist.find(s=>s.id===r.dataset.id)||{}).done||false}));};
+        $$('.pl-checklist-row input',box).forEach(inp=>inp.addEventListener('input',syncRows));
+        $$('[data-checklist-toggle]',box).forEach(chk=>chk.onclick=()=>{const s=checklist.find(x=>x.id===chk.dataset.checklistToggle);if(s){s.done=!s.done;renderBlocks();}});
+        $$('.pl-checklist-row [data-remove]',box).forEach(btn=>btn.onclick=()=>{checklist=checklist.filter(s=>s.id!==btn.closest('.pl-checklist-row').dataset.id);renderBlocks();});
+        $('#pl-checklist-add',box).onclick=()=>{
+          const inp=$('#pl-checklist-new',box),text=inp.value.trim();if(!text)return;
+          checklist.push({id:plannerId(),text,done:false});renderBlocks();
         };
-        $('[data-attach-close]',attachBox).onclick=()=>{attachBox.innerHTML='';};
-      } else if(type==='poll'){
-        if(!poll)poll={question:'',options:[{id:plannerId(),text:'',votes:0},{id:plannerId(),text:'',votes:0}]};
-        attachBox.innerHTML=`<div class="pl-attach-editor"><div class="pl-attach-editor-head"><span>Опрос</span><button type="button" class="pl-attach-remove" data-attach-close aria-label="Свернуть">${icon('close')}</button></div>
-          <input class="field" id="pl-poll-question" placeholder="Вопрос" value="${esc(poll.question)}" style="margin-bottom:8px">
-          <div id="pl-poll-options">${poll.options.map(o=>`<div class="pl-poll-option-row" data-id="${o.id}"><input class="field" placeholder="Вариант" value="${esc(o.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
-          <div class="pl-attach-add-row"><button type="button" class="text-btn" id="pl-poll-add-option">+ вариант</button><button type="button" class="text-btn" id="pl-poll-remove-all" style="color:#ff5a5a;margin-left:auto">Убрать опрос</button></div>
-        </div>`;
+      }
+      if(blockFlags.poll){
+        const box=$('[data-block-content="poll"]',ov);
         const syncPoll=()=>{
-          poll.question=$('#pl-poll-question',attachBox).value;
-          poll.options=$$('.pl-poll-option-row',attachBox).map(r=>({id:r.dataset.id,text:$('input',r).value,votes:(poll.options.find(o=>o.id===r.dataset.id)||{}).votes||0}));
+          poll.question=$('#pl-poll-question',box).value;
+          poll.options=$$('.pl-poll-option-row',box).map(r=>({id:r.dataset.id,text:$('input',r).value,votes:(poll.options.find(o=>o.id===r.dataset.id)||{}).votes||0}));
         };
-        $('#pl-poll-question',attachBox).addEventListener('input',syncPoll);
-        $$('.pl-poll-option-row input',attachBox).forEach(inp=>inp.addEventListener('input',syncPoll));
-        $$('.pl-poll-option-row [data-remove]',attachBox).forEach(btn=>btn.onclick=()=>{if(poll.options.length<=2)return;btn.closest('.pl-poll-option-row').remove();syncPoll();});
-        $('#pl-poll-add-option',attachBox).onclick=()=>{poll.options.push({id:plannerId(),text:'',votes:0});renderEditor('poll');};
-        $('#pl-poll-remove-all',attachBox).onclick=()=>{poll=null;attachBox.innerHTML='';renderAttachChips();};
-        $('[data-attach-close]',attachBox).onclick=()=>{syncPoll();attachBox.innerHTML='';renderAttachChips();};
-      } else if(type==='image'){
-        attachBox.innerHTML=`<div class="pl-attach-editor"><div class="pl-attach-editor-head"><span>Фото</span><button type="button" class="pl-attach-remove" data-attach-close aria-label="Свернуть">${icon('close')}</button></div>
-          <div class="pl-image-thumbs" id="pl-image-thumbs">${images.map((src,i)=>`<div class="pl-image-thumb"><img src="${src}"><button type="button" data-remove-image="${i}">${icon('close')}</button></div>`).join('')}</div>
-          ${images.length<4?'<input type="file" accept="image/*" id="pl-image-input">':'<p class="settings-note">Максимум 4 фото</p>'}
-        </div>`;
-        $$('[data-remove-image]',attachBox).forEach(btn=>btn.onclick=()=>{images.splice(+btn.dataset.removeImage,1);renderEditor('image');renderAttachChips();});
-        $('#pl-image-input',attachBox)?.addEventListener('change',async e=>{
+        $('#pl-poll-question',box).addEventListener('input',syncPoll);
+        $$('.pl-poll-option-row input',box).forEach(inp=>inp.addEventListener('input',syncPoll));
+        $$('.pl-poll-option-row [data-remove]',box).forEach(btn=>btn.onclick=()=>{if(poll.options.length<=2)return;syncPoll();poll.options=poll.options.filter(o=>o.id!==btn.closest('.pl-poll-option-row').dataset.id);renderBlocks();});
+        $('#pl-poll-add-option',box).onclick=()=>{syncPoll();poll.options.push({id:plannerId(),text:'',votes:0});renderBlocks();};
+      }
+      if(blockFlags.image){
+        const box=$('[data-block-content="image"]',ov);
+        $$('[data-remove-image]',box).forEach(btn=>btn.onclick=()=>{images.splice(+btn.dataset.removeImage,1);renderBlocks();});
+        $('#pl-image-input',box)?.addEventListener('change',async e=>{
           const file=e.target.files[0];if(!file)return;
           const dataUrl=await plannerDownscaleImage(file);
-          images.push(dataUrl);renderEditor('image');renderAttachChips();
+          images.push(dataUrl);renderBlocks();
         });
-        $('[data-attach-close]',attachBox).onclick=()=>{attachBox.innerHTML='';};
-      } else if(type==='location'){
-        attachBox.innerHTML=`<div class="pl-attach-editor"><div class="pl-attach-editor-head"><span>Локация</span><button type="button" class="pl-attach-remove" data-attach-close aria-label="Свернуть">${icon('close')}</button></div>
-          <input class="field" id="pl-location-label" placeholder="Название места" value="${esc(location?.label||'')}" style="margin-bottom:8px">
-          <button type="button" class="text-btn" id="pl-location-geo">${icon('pin')} Определить моё местоположение</button>
-          <div id="pl-location-map-box">${location?plannerLocationMapEmbed(location):''}</div>
-        </div>`;
-        $('#pl-location-label',attachBox).addEventListener('input',()=>{if(!location)location={lat:null,lng:null,label:''};location.label=$('#pl-location-label',attachBox).value;});
-        $('#pl-location-geo',attachBox).onclick=()=>{
+      }
+      if(blockFlags.location){
+        const box=$('[data-block-content="location"]',ov);
+        $('#pl-location-label',box).addEventListener('input',()=>{if(!location)location={lat:null,lng:null,label:''};location.label=$('#pl-location-label',box).value;});
+        $('#pl-location-geo',box).onclick=()=>{
           if(!navigator.geolocation){alert('Геолокация недоступна в этом браузере.');return;}
           navigator.geolocation.getCurrentPosition(pos=>{
-            location={lat:pos.coords.latitude,lng:pos.coords.longitude,label:$('#pl-location-label',attachBox).value||location?.label||''};
-            $('#pl-location-map-box',attachBox).innerHTML=plannerLocationMapEmbed(location);
-            renderAttachChips();
+            location={lat:pos.coords.latitude,lng:pos.coords.longitude,label:$('#pl-location-label',box).value||location?.label||''};
+            renderBlocks();
           },()=>{alert('Не удалось определить местоположение.');});
-        };
-        $('[data-attach-close]',attachBox).onclick=()=>{
-          if(location&&!location.label&&location.lat==null)location=null;
-          attachBox.innerHTML='';renderAttachChips();
         };
       }
     };
-    renderAttachChips();
-    $('#pl-attach-toggle',ov).onclick=()=>{$('#pl-attach-menu',ov).hidden=!$('#pl-attach-menu',ov).hidden;};
-    $$('#pl-attach-menu [data-attach-add]',ov).forEach(b=>b.onclick=()=>{$('#pl-attach-menu',ov).hidden=true;renderEditor(b.dataset.attachAdd);});
+    // Ручка перетаскивания у каждого блока — драг стартует сразу с неё (без долгого нажатия,
+    // в отличие от чипов разделов/старых чипов вложений), потому что сам ряд теперь занят
+    // интерактивным содержимым (поля ввода, чекбоксы) и не может ещё и запускать драг по тапу
+    // в произвольном месте. DOM во время движения не трогаем (только "призрак"-клон) — реальный
+    // reorder + перерисовка применяются один раз при отпускании (см. bindPlannerSectionDrag).
+    const bindBlockDrag=handle=>{
+      const row=handle.closest('.pl-block-row');
+      let pointerId=null,startY=0,dragging=false,ghost=null,fromIndex=-1,toIndex=-1;
+      handle.addEventListener('pointerdown',e=>{
+        if(e.isPrimary===false||e.button!==0)return;
+        pointerId=e.pointerId;startY=e.clientY;dragging=false;handle.setPointerCapture?.(pointerId);
+      },{passive:true});
+      handle.addEventListener('pointermove',e=>{
+        if(e.pointerId!==pointerId)return;
+        const dy=e.clientY-startY;
+        if(!dragging){
+          if(Math.abs(dy)<6)return;
+          dragging=true;fromIndex=order.indexOf(row.dataset.block);toIndex=fromIndex;
+          const box=row.getBoundingClientRect();
+          ghost=row.cloneNode(true);ghost.classList.add('pl-block-ghost');
+          ghost.style.cssText='position:fixed;left:'+box.left+'px;top:'+box.top+'px;width:'+box.width+'px;margin:0;z-index:600;pointer-events:none;';
+          document.body.appendChild(ghost);row.style.opacity='.25';
+        }
+        e.preventDefault();
+        ghost.style.transform='translate3d(0,'+dy+'px,0)';
+        let nearest=null,nearestDist=Infinity;
+        $$('#pl-block-list .pl-block-row',ov).forEach(r=>{
+          if(r===row)return;
+          const rr=r.getBoundingClientRect(),cy=rr.top+rr.height/2;
+          const dist=Math.abs(e.clientY-cy);
+          if(dist<nearestDist){nearestDist=dist;nearest=r;}
+        });
+        if(nearest)toIndex=order.indexOf(nearest.dataset.block);
+      },{passive:false});
+      const finish=e=>{
+        if(e.pointerId!==pointerId)return;
+        if(dragging){
+          ghost?.remove();ghost=null;row.style.opacity='';
+          if(fromIndex>-1&&toIndex>-1&&fromIndex!==toIndex){
+            const [item]=order.splice(fromIndex,1);order.splice(toIndex,0,item);
+            renderBlocks();
+          }
+        }
+        dragging=false;pointerId=null;
+      };
+      handle.addEventListener('pointerup',finish,{passive:true});
+      handle.addEventListener('pointercancel',finish,{passive:true});
+    };
+    renderBlocks();
     $$('[data-section]',ov).forEach(b=>b.onclick=()=>{sectionId=b.dataset.section||null;$$('[data-section]',ov).forEach(x=>x.classList.toggle('active',x.dataset.section===sectionId));});
     $$('#pl-event-color-picker [data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color||null;$$('#pl-event-color-picker [data-color]',ov).forEach(x=>x.classList.toggle('active',(x.dataset.color||null)===color));});
     $('#pl-time-toggle',ov).onclick=()=>{
@@ -3529,7 +3563,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(duration<5||duration>31*1440){showToast('Окончание должно быть позже начала: от 5 минут до 31 дня');return;}
       }
       if(existing){const index=state.planner.events.findIndex(e=>e.id===existing.id);if(index<0){showToast('Событие уже удалено. Закрой форму и обнови список.');return;}state.planner.events[index]={...state.planner.events[index],title,date,time,duration,sectionId,color,subtasks:checklist,poll,images,location,attachOrder:order};}
-      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,subtasks:checklist,comments:[],done:false,poll,images,location,attachOrder:order});
+      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,subtasks:checklist,comments:[],done:false,poll,images,location,attachOrder:order,createdAt:new Date().toISOString()});
       if(!savePlannerEvents())return;closeOverlay();renderScreen();
     };
   }
@@ -3537,21 +3571,43 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(!ev.subtasks.length)return '<div class="pl-empty" style="padding:8px 0">Пока пусто</div>';
     return ev.subtasks.map(s=>`<div class="pl-subtask-row ${s.done?'done':''}"><span class="pl-task-check ${s.done?'done':''}" data-sub-toggle="${s.id}">${s.done?icon('check'):''}</span><span class="pl-subtask-text">${esc(s.text)}</span><button class="text-btn" data-sub-remove="${s.id}" aria-label="Удалить пункт">${icon('close')}</button></div>`).join('');
   }
-  // В обычном разделе комментарии — плоский список в стиле Instagram (аватар + имя + текст
-  // в строку). В публичном разделе (два реальных человека, см. задачу про Firebase-синк)
-  // вид меняется на мессенджер: свои сообщения справа, чужие слева, различаем по authorId
-  // (плановые комментарии без authorId — старые локальные, считаем своими).
+  // Единый мессенджер-тред (по референсу пользователя) вместо старого разделения на плоский
+  // "инстаграм"-список (непубличные разделы) и лево/право-мессенджер (публичные): системная
+  // запись "Событие создано" первой, дальше все комментарии по возрастанию времени, с
+  // разделителями по дате (Сегодня/Вчера/будний день/полная дата — см. plannerCommentDateLabel),
+  // у каждого сообщения аватар+имя+пузырь. "Мои" сообщения (authorId===plannerUserId(), либо
+  // без authorId — старые локальные) просто выделены цветом пузыря, без деления на стороны.
+  function plannerCommentDateLabel(iso){
+    const d=dateOnly(new Date(iso)),today=dateOnly(),days=Math.round((today-d)/86400000);
+    if(days===0)return 'Сегодня';
+    if(days===1)return 'Вчера';
+    if(days>1&&days<7)return PL_WEEKDAYS[(d.getDay()+6)%7];
+    return formatPlannerDate(isoDate(d));
+  }
+  function plannerCommentTimeLabel(iso){return new Date(iso).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
   function plannerCommentList(ev){
-    if(!ev.comments.length)return '';
-    const messenger=!!plannerSectionById(ev.sectionId)?.public;
     const my=plannerUserId();
-    if(messenger){
-      return `<div class="pl-comment-list messenger">${ev.comments.map(c=>{
-        const mine=(c.authorId||my)===my;
-        return `<div class="pl-comment-item ${mine?'mine':'theirs'}"><div class="pl-comment-bubble">${esc(c.text)}</div><div class="pl-comment-date">${formatPlannerDateTime(c.date)}</div></div>`;
-      }).join('')}</div>`;
-    }
-    return ev.comments.slice().reverse().map(c=>`<div class="pl-comment-item"><div class="pl-comment-avatar">Я</div><div class="pl-comment-body"><span class="pl-comment-name">Я</span><span class="pl-comment-text">${esc(c.text)}</span><div class="pl-comment-date">${formatPlannerDateTime(c.date)}</div></div></div>`).join('');
+    const items=[];
+    if(ev.createdAt)items.push({system:true,date:ev.createdAt});
+    ev.comments.slice().sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(c=>items.push({...c,system:false}));
+    if(!items.length)return '';
+    let lastDay=null;
+    const rows=items.map(it=>{
+      const dayLabel=plannerCommentDateLabel(it.date);
+      const divider=dayLabel!==lastDay?`<div class="pl-comment-divider"><span>${esc(dayLabel)}</span></div>`:'';
+      lastDay=dayLabel;
+      if(it.system)return divider+`<div class="pl-comment-system">Событие создано</div>`;
+      const mine=(it.authorId||my)===my,name=mine?'Я':'Собеседник';
+      return divider+`<div class="pl-comment-item ${mine?'mine':'theirs'}">
+        <div class="pl-comment-avatar">${mine?'Я':'С'}</div>
+        <div class="pl-comment-body">
+          <span class="pl-comment-name">${esc(name)}</span>
+          <div class="pl-comment-bubble">${it.image?`<img class="pl-comment-image" src="${esc(it.image)}" alt="">`:''}${it.text?`<span class="pl-comment-text">${esc(it.text)}</span>`:''}</div>
+          <div class="pl-comment-date">${plannerCommentTimeLabel(it.date)}</div>
+        </div>
+      </div>`;
+    });
+    return `<div class="pl-comment-thread">${rows.join('')}</div>`;
   }
   function showPlannerDetail(id){
     const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;
@@ -3567,7 +3623,17 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-subtask-add">${formField('pl-subtask-new','Добавить пункт')}<button class="gold-action" id="pl-subtask-add-btn" style="flex:0 0 auto">+</button></div>
       <h3>Комментарии</h3>
       <div id="pl-comment-list">${plannerCommentList(ev)}</div>
-      <textarea class="field" id="pl-comment-new" placeholder="Написать комментарий..." rows="2" style="margin-top:10px;resize:vertical"></textarea>
+      <div class="pl-comment-staged" id="pl-comment-staged" hidden></div>
+      <div class="pl-comment-bar">
+        <button type="button" class="pl-comment-bar-btn ${ev.liked?'active':''}" id="pl-comment-like" aria-label="Нравится">${icon('heart')}</button>
+        <button type="button" class="pl-comment-bar-btn" id="pl-comment-invite" aria-label="Пригласить">${icon('person-add')}</button>
+        <button type="button" class="pl-comment-bar-btn" id="pl-comment-image-btn" aria-label="Прикрепить фото">${icon('image')}</button>
+        <input type="file" accept="image/*" id="pl-comment-image-input" hidden>
+        <input class="pl-comment-input" id="pl-comment-new" placeholder="Написать комментарий...">
+        <button type="button" class="pl-comment-bar-btn" id="pl-comment-emoji-btn" aria-label="Эмодзи">${icon('smile')}</button>
+        <button type="button" class="pl-comment-bar-btn pl-comment-send" id="pl-comment-send" aria-label="Отправить">${icon('send')}</button>
+      </div>
+      <div class="pl-emoji-picker" id="pl-emoji-picker" hidden></div>
       <div class="modal-actions" style="margin-top:18px"><button class="text-btn" style="color:#ff5a5a" id="pl-detail-delete">Удалить событие</button><button class="text-btn" data-close>Закрыть</button></div>
     </div></div>`,{sheet:true});
     const refreshSub=()=>{$('#pl-subtask-list',ov).innerHTML=plannerSubtaskList(ev);bindSubtasks();};
@@ -3582,11 +3648,48 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const input=$('#pl-subtask-new',ov),text=input.value.trim();if(!text)return;
       ev.subtasks.push({id:plannerId(),text,done:false});input.value='';savePlannerEvents();refreshSub();
     };
-    $('#pl-comment-new',ov).addEventListener('blur',()=>{
-      const text=$('#pl-comment-new',ov).value.trim();if(!text)return;
-      ev.comments.push({id:plannerId(),text,date:new Date().toISOString(),authorId:plannerUserId()});$('#pl-comment-new',ov).value='';savePlannerEvents();
+    // Нижняя панель комментариев (сердце/пригласить/фото/поле/эмодзи/отправить) — по рисунку
+    // пользователя. Фото к комментарию "прикрепляется" заранее (staged), отправляется вместе
+    // со следующим текстом (или само, без текста) по нажатию на "Отправить" или Enter.
+    let stagedImage=null;
+    const renderStaged=()=>{
+      const box=$('#pl-comment-staged',ov);
+      box.hidden=!stagedImage;
+      box.innerHTML=stagedImage?`<img src="${esc(stagedImage)}" alt=""><button type="button" id="pl-comment-staged-remove" aria-label="Убрать фото">${icon('close')}</button>`:'';
+      $('#pl-comment-staged-remove',ov)?.addEventListener('click',()=>{stagedImage=null;renderStaged();});
+    };
+    const postComment=()=>{
+      const input=$('#pl-comment-new',ov),text=input.value.trim();
+      if(!text&&!stagedImage)return;
+      ev.comments.push({id:plannerId(),text,date:new Date().toISOString(),authorId:plannerUserId(),image:stagedImage||undefined});
+      input.value='';stagedImage=null;renderStaged();savePlannerEvents();
       $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
+      $('#pl-comment-list',ov).scrollTop=$('#pl-comment-list',ov).scrollHeight;
+    };
+    $('#pl-comment-send',ov).onclick=postComment;
+    $('#pl-comment-new',ov).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();postComment();}});
+    $('#pl-comment-like',ov).onclick=()=>{
+      ev.liked=!ev.liked;savePlannerEvents();
+      $('#pl-comment-like',ov).classList.toggle('active',ev.liked);
+    };
+    $('#pl-comment-invite',ov).onclick=()=>{
+      const sec=plannerSectionById(ev.sectionId);
+      if(!sec){showToast('У события нет раздела — выбери раздел в редактировании, чтобы делиться');return;}
+      if(!sec.public||!sec.shareId){showToast('Раздел не публичный — включи публичность в его настройках');return;}
+      showPlannerShareLink(sec);
+    };
+    $('#pl-comment-image-btn',ov).onclick=()=>$('#pl-comment-image-input',ov).click();
+    $('#pl-comment-image-input',ov).addEventListener('change',async e=>{
+      const file=e.target.files[0];if(!file)return;
+      stagedImage=await plannerDownscaleImage(file);renderStaged();
     });
+    const EMOJI_SET=['😀','😂','😍','👍','🎉','❤️','🔥','😢','🤔','👏','🙏','😎'];
+    $('#pl-comment-emoji-btn',ov).onclick=()=>{
+      const box=$('#pl-emoji-picker',ov);
+      if(box.hidden){box.innerHTML=EMOJI_SET.map(em=>`<button type="button" data-emoji="${em}">${em}</button>`).join('');box.hidden=false;
+        $$('[data-emoji]',box).forEach(b=>b.onclick=()=>{const input=$('#pl-comment-new',ov);input.value+=b.dataset.emoji;input.focus();});
+      } else box.hidden=true;
+    };
     $$('[data-pl-image-open]',ov).forEach(b=>b.onclick=()=>plannerShowImageViewer(ev.images,+b.dataset.plImageOpen));
     $('[data-close]',ov).onclick=closeOverlay;
     $('#pl-detail-delete',ov).onclick=()=>{plannerDelete(ev.id);closeOverlay();};
@@ -3614,7 +3717,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">В форме редактирования события блоки вложений (фото, чеклист, опрос, место) теперь можно перетаскивать, меняя их порядок — тот же порядок используется и на самой карточке события в ленте.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Блоки вложений в форме события (фото, чеклист, опрос, место) теперь всегда развёрнутые карточки с ручкой для перетаскивания, а не сворачиваемые чипы. Комментарии к событию переехали на единую ленту с разделителями по дате, записью "Событие создано" и нижней панелью (лайк, приглашение, фото, эмодзи).</p></section>
     </div></section>`;
   }
 
