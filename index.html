@@ -1317,7 +1317,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.27';
+  const APP_VERSION = '0.9.28';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -3935,7 +3935,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Первый свайп влево открывает редактирование и удаление, второй удаляет событие. Свайп вправо отмечает выполнение; движение по списку не нажимает его кнопки. На карточке можно отмечать пункты чеклиста, голосовать и открывать фото. Потяни вложение за шесть точек, чтобы изменить порядок; изменения сохраняются автоматически.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Исправлен баг: обычный тап по операции в финансах или по карточке привычки иногда не открывался (ошибка в коде). Первый свайп влево открывает редактирование и удаление, второй удаляет событие. Свайп вправо отмечает выполнение. На карточке можно отмечать пункты чеклиста, голосовать и открывать фото. Потяни вложение за шесть точек, чтобы изменить порядок; изменения сохраняются автоматически.</p></section>
     </div></section>`;
   }
 
@@ -4258,7 +4258,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       settle(g.wasOpen&&dx>12?false:shouldOpen);
     },{passive:true});
     row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;settle(open);},{passive:true});
-    row.addEventListener('click',e=>{if(e.target.closest('.fin-tx-actions'))return;if(performance.now()<suppressUntil||performance.now()<(wrap.plInlineSuppressUntil||0)){e.preventDefault();e.stopImmediatePropagation();return;}if(open){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
+    row.addEventListener('click',e=>{if(e.target.closest('.fin-tx-actions'))return;if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();return;}if(open){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
   }
   let pendingFinTxUndo=null;
   function deleteFinTxWithUndo(id) {
@@ -4540,7 +4540,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;if(!row.habitLiftActive)settle(open);},{passive:true});
     // Подавление клика после драга — только для самой карточки (чтобы отпускание свайпа не засчиталось
     // как тап-тогл выполнения); кнопки в открывшейся панели должны быть кликабельны сразу, без этой паузы.
-    row.addEventListener('click',e=>{if(e.target.closest('.habit-swipe-actions'))return;if(performance.now()<suppressUntil||performance.now()<(wrap.plInlineSuppressUntil||0)){e.preventDefault();e.stopImmediatePropagation();return;}if(open&&e.target.closest('.habit-card')){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
+    row.addEventListener('click',e=>{if(e.target.closest('.habit-swipe-actions'))return;if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();return;}if(open&&e.target.closest('.habit-card')){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
     row.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();settle(false);}});
   }
   function updateHabitUI() {
