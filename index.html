@@ -1276,7 +1276,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.21';
+  const APP_VERSION = '0.9.22';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1415,6 +1415,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // Инбокс (задачи без даты) убран — всё, что раньше в нём лежало, переносим на сегодня,
     // чтобы записи остались видны в обычном списке дня, а не потерялись без доступа к экрану.
     if (!e.date) e.date = isoDate(dateOnly());
+    // Вложения раньше хранились одним полем на тип (subtasks/poll/images/location) — теперь
+    // это массив блоков e.blocks, чтобы можно было добавить НЕСКОЛЬКО чеклистов/фото/опросов
+    // на одно событие. Разовая миграция старых полей в блоки, порядок — по attachOrder, если
+    // он был сохранён, иначе по умолчанию (картинка, чеклист, опрос, локация).
+    if (!e.blocks) {
+      e.blocks = [];
+      const order = (e.attachOrder && e.attachOrder.length ? e.attachOrder : ['image', 'checklist', 'poll', 'location']);
+      order.forEach(type => {
+        if (type === 'image' && e.images?.length) e.blocks.push({ id: plannerId(), type: 'image', images: e.images });
+        if (type === 'checklist' && e.subtasks?.length) e.blocks.push({ id: plannerId(), type: 'checklist', title: '', items: e.subtasks });
+        if (type === 'poll' && e.poll && (e.poll.question?.trim() || e.poll.options?.some(o => o.text?.trim()))) e.blocks.push({ id: plannerId(), type: 'poll', question: e.poll.question || '', options: e.poll.options || [] });
+        if (type === 'location' && e.location && (e.location.label?.trim() || e.location.lat != null)) e.blocks.push({ id: plannerId(), type: 'location', label: e.location.label || '', lat: e.location.lat ?? null, lng: e.location.lng ?? null });
+      });
+      delete e.images; delete e.subtasks; delete e.poll; delete e.location; delete e.attachOrder;
+    }
   });
   saveJSON('planner_sections', state.planner.sections);
   saveJSON('planner_events', state.planner.events);
@@ -1898,8 +1913,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `<iframe class="pl-location-map" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&marker=${loc.lat}%2C${loc.lng}" loading="lazy" title="Карта"></iframe>`;
   }
   function plannerImagesView(ev){
-    if(!ev.images||!ev.images.length)return '';
-    return `<div class="pl-detail-attach-images">${ev.images.map((src,i)=>`<button type="button" class="pl-detail-image-btn" data-pl-image-open="${i}" aria-label="Открыть фото на весь экран"><img src="${esc(src)}" alt="Фото"></button>`).join('')}</div>`;
+    // Событие может содержать НЕСКОЛЬКО блоков-фото (см. e.blocks) — каждый рисуется своей
+    // отдельной галереей, открывается на весь экран в пределах СВОЕГО блока (см. data-pl-image-*
+    // атрибуты и обработчик в showPlannerDetail).
+    const blocks=(ev.blocks||[]).filter(b=>b.type==='image'&&b.images?.length);
+    return blocks.map(b=>`<div class="pl-detail-attach-images">${b.images.map((src,i)=>`<button type="button" class="pl-detail-image-btn" data-pl-image-open="${b.id}" data-pl-image-index="${i}" aria-label="Открыть фото на весь экран"><img src="${esc(src)}" alt="Фото"></button>`).join('')}</div>`).join('');
   }
   // Полноэкранный просмотр фото события — тап по превью в деталях открывает, свайп вниз или
   // крестик закрывают (как у листов, см. bindSheetDismiss, только тут без самого листа —
@@ -1923,24 +1941,28 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     document.addEventListener('keydown',escHandler);
   }
   function plannerLocationView(ev){
-    if(!ev.location)return '';
-    return `<div class="pl-detail-meta">${icon('pin')} ${esc(ev.location.label||'Место')}</div>${plannerLocationMapEmbed(ev.location)}`;
+    const blocks=(ev.blocks||[]).filter(b=>b.type==='location'&&(b.label?.trim()||b.lat!=null));
+    return blocks.map(b=>`<div class="pl-detail-meta">${icon('pin')} ${esc(b.label||'Место')}</div>${plannerLocationMapEmbed(b)}`).join('');
   }
+  // Опрос теперь тоже блок в e.blocks — голоса храним по id БЛОКА (не события), иначе у
+  // события с несколькими опросами голос в одном перетирал бы голос в другом.
   function plannerPollView(ev){
-    if(!ev.poll)return '';
-    const total=ev.poll.options.reduce((s,o)=>s+(o.votes||0),0)||1;
-    const myVote=state.planner.pollVotes[ev.id];
-    return `<div class="pl-poll-view" id="pl-poll-container"><div class="pl-poll-question">${esc(ev.poll.question||'Голосование')}</div>
-      ${ev.poll.options.map(o=>{const pct=Math.round((o.votes||0)/total*100);return `<button type="button" class="pl-poll-option" data-vote="${o.id}" style="--pct:${pct}%"><span class="pl-poll-option-fill"></span><span class="pl-poll-option-label"><span>${esc(o.text||'Вариант')}${myVote===o.id?' ✓':''}</span><span>${pct}%</span></span></button>`;}).join('')}
-    </div>`;
+    const blocks=(ev.blocks||[]).filter(b=>b.type==='poll');
+    return blocks.map(b=>{
+      const total=b.options.reduce((s,o)=>s+(o.votes||0),0)||1;
+      const myVote=state.planner.pollVotes[b.id];
+      return `<div class="pl-poll-view" data-poll-id="${b.id}"><div class="pl-poll-question">${esc(b.question||'Голосование')}</div>
+        ${b.options.map(o=>{const pct=Math.round((o.votes||0)/total*100);return `<button type="button" class="pl-poll-option" data-vote-poll="${b.id}" data-vote="${o.id}" style="--pct:${pct}%"><span class="pl-poll-option-fill"></span><span class="pl-poll-option-label"><span>${esc(o.text||'Вариант')}${myVote===o.id?' ✓':''}</span><span>${pct}%</span></span></button>`;}).join('')}
+      </div>`;
+    }).join('');
   }
-  function plannerVote(ev,optionId){
-    if(!ev.poll)return;
-    const prev=state.planner.pollVotes[ev.id];
+  function plannerVote(ev,blockId,optionId){
+    const block=ev.blocks?.find(b=>b.id===blockId&&b.type==='poll');if(!block)return;
+    const prev=state.planner.pollVotes[blockId];
     if(prev===optionId)return;
-    if(prev){const old=ev.poll.options.find(o=>o.id===prev);if(old)old.votes=Math.max(0,(old.votes||0)-1);}
-    const opt=ev.poll.options.find(o=>o.id===optionId);if(opt)opt.votes=(opt.votes||0)+1;
-    state.planner.pollVotes[ev.id]=optionId;
+    if(prev){const old=block.options.find(o=>o.id===prev);if(old)old.votes=Math.max(0,(old.votes||0)-1);}
+    const opt=block.options.find(o=>o.id===optionId);if(opt)opt.votes=(opt.votes||0)+1;
+    state.planner.pollVotes[blockId]=optionId;
     savePlannerEvents();savePlannerPollVotes();
   }
   function plannerSectionById(id){return id?state.planner.sections.find(s=>s.id===id):null;}
@@ -2147,22 +2169,27 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // влезает, эта полоска скроллится внутри себя (overflow-y:auto), а не раздвигает границы
   // события на ленте (те завязаны только на длительность).
   function plannerEventExtraHtml(e){
-    // Порядок блоков (картинка/чеклист/опрос/локация) — как задал пользователь в форме
-    // редактирования (см. showPlannerEditSheet, e.attachOrder), с откатом на разумный порядок
-    // по умолчанию для старых событий без сохранённого порядка.
-    const order=(e.attachOrder&&e.attachOrder.length?e.attachOrder:['image','checklist','poll','location']);
-    const blocks={
-      image:()=>e.images?.length?`<span class="pl-event-extra-image"><img src="${e.images[0]}" alt="" loading="lazy"></span>`:'',
-      checklist:()=>{if(!e.subtasks?.length)return '';const done=e.subtasks.filter(s=>s.done).length;return `<span class="pl-event-extra-item">${icon('check')}<span>${done}/${e.subtasks.length}</span></span>`;},
-      poll:()=>e.poll&&(e.poll.question?.trim()||e.poll.options?.some(o=>o.text?.trim()))?`<span class="pl-event-extra-item">${icon('poll')}<span>Опрос</span></span>`:'',
-      location:()=>e.location&&(e.location.label?.trim()||e.location.lat!=null)?`<span class="pl-event-extra-item">${icon('pin')}<span>${esc(e.location.label||'Место')}</span></span>`:'',
-    };
-    const imageHtml=blocks.image();
-    const chips=order.filter(t=>t!=='image').map(t=>blocks[t]?.()||'').filter(Boolean);
-    const chipsHtml=chips.length?`<span class="pl-event-extra-chips">${chips.join('')}</span>`:'';
-    // Картинка всегда первым визуальным блоком (крупная, задаёт форму карточки — см. рисунок
-    // пользователя), остальные чипы идут под ней в выбранном порядке.
-    return imageHtml+chipsHtml;
+    // Событие может содержать несколько блоков ОДНОГО типа (e.blocks — см. миграцию выше) —
+    // порядок массива это и есть выбранный пользователем порядок. Первое найденное фото
+    // рисуется крупно (задаёт форму карточки — см. рисунок пользователя), всё остальное —
+    // компактными чипами под ним, в том числе доп. фото-блоки сверх первого.
+    const parts=[];let usedBigImage=false;
+    (e.blocks||[]).forEach(b=>{
+      if(b.type==='image'&&b.images?.length){
+        if(!usedBigImage){usedBigImage=true;parts.push({big:true,html:`<span class="pl-event-extra-image"><img src="${b.images[0]}" alt="" loading="lazy"></span>`});}
+        else parts.push({big:false,html:`<span class="pl-event-extra-item">${icon('image')}<span>${b.images.length} фото</span></span>`});
+      } else if(b.type==='checklist'&&b.items?.length){
+        const done=b.items.filter(s=>s.done).length;
+        parts.push({big:false,html:`<span class="pl-event-extra-item">${icon('check')}<span>${b.title?esc(b.title)+': ':''}${done}/${b.items.length}</span></span>`});
+      } else if(b.type==='poll'&&(b.question?.trim()||b.options?.some(o=>o.text?.trim()))){
+        parts.push({big:false,html:`<span class="pl-event-extra-item">${icon('poll')}<span>Опрос</span></span>`});
+      } else if(b.type==='location'&&(b.label?.trim()||b.lat!=null)){
+        parts.push({big:false,html:`<span class="pl-event-extra-item">${icon('pin')}<span>${esc(b.label||'Место')}</span></span>`});
+      }
+    });
+    const imageHtml=parts.filter(p=>p.big).map(p=>p.html).join('');
+    const chipsHtml=parts.filter(p=>!p.big).map(p=>p.html).join('');
+    return imageHtml+(chipsHtml?`<span class="pl-event-extra-chips">${chipsHtml}</span>`:'');
   }
   const PL_MAX_COLS=3;
   function plannerRenderEventTile(e,top,height,leftPct,widthPct,col,totalCols){
@@ -3404,116 +3431,99 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="modal-actions">${existing?'<button class="text-btn" id="pl-form-delete" style="color:#ff5a5a">Удалить</button>':''}<button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-form-save">Сохранить</button></div>
     </div>`,{sheet:true});
     let sectionId=existing?.sectionId||null,color=evColor;
-    // Вложения: чеклист (переиспользует subtasks), опрос, фото (сжимаются в data URL, максимум
-    // 4 штуки — не раздувать localStorage), локация (lat/lng + встроенный OSM-превью без ключа).
-    let checklist=(existing?.subtasks||[]).map(s=>({...s}));
-    let poll=existing?.poll?{question:existing.poll.question,options:existing.poll.options.map(o=>({...o}))}:null;
-    let images=(existing?.images||[]).slice();
-    let location=existing?.location?{...existing.location}:null;
-    // Порядок "блоков" (изображение/чеклист/опрос/локация) — то, в каком порядке они потом
-    // показываются и в этой форме, и на самой карточке события (см. plannerEventExtraHtml).
-    // Каждый блок — всегда развёрнутая карточка-ряд (не сворачиваемый чип), перетаскивается за
-    // ручку справа. Присутствие блока хранится ОТДЕЛЬНО от того, есть ли в нём уже контент
-    // (blockFlags) — иначе только что добавленный пустой чеклист тут же исчезал бы обратно.
-    let order=(existing?.attachOrder&&existing.attachOrder.length?existing.attachOrder.slice():['image','checklist','poll','location']);
-    let blockFlags={checklist:checklist.length>0,poll:!!poll,image:images.length>0,location:!!location};
+    // Блоки вложений (фото/чеклист/опрос/локация) — массив, а не одно поле на тип, поэтому
+    // можно добавить НЕСКОЛЬКО блоков одного типа (например, два разных чеклиста). Кнопки
+    // добавления в pl-block-add-row поэтому никогда не скрываются, даже если такой тип уже
+    // есть — клик всегда дописывает НОВЫЙ блок в конец списка. Фото сжимаются в data URL
+    // (макс. 4 на блок), локация — lat/lng + встроенный OSM-превью без ключа.
+    let blocks=(existing?.blocks||[]).map(b=>b.type==='checklist'?{...b,items:b.items.map(i=>({...i}))}:b.type==='poll'?{...b,options:b.options.map(o=>({...o}))}:b.type==='image'?{...b,images:b.images.slice()}:{...b});
     const blockMeta={checklist:{title:'Чеклист',icon:'check'},poll:{title:'Опрос',icon:'poll'},image:{title:'Фото',icon:'image'},location:{title:'Локация',icon:'pin'}};
-    const blockContentHtml=type=>{
-      if(type==='checklist')return `<div id="pl-checklist-rows">${checklist.map(s=>`<div class="pl-checklist-row" data-id="${s.id}"><span class="pl-task-check ${s.done?'done':''}" data-checklist-toggle="${s.id}">${s.done?icon('check'):''}</span><input class="field" value="${esc(s.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
-        <div class="pl-attach-add-row"><input class="field" id="pl-checklist-new" placeholder="Новый пункт"><button type="button" class="gold-action" id="pl-checklist-add" style="flex:0 0 auto">+</button></div>`;
-      if(type==='poll')return `<input class="field" id="pl-poll-question" placeholder="Вопрос" value="${esc(poll.question)}" style="margin-bottom:8px">
-        <div id="pl-poll-options">${poll.options.map(o=>`<div class="pl-poll-option-row" data-id="${o.id}"><input class="field" placeholder="Вариант" value="${esc(o.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
-        <button type="button" class="text-btn" id="pl-poll-add-option">+ вариант</button>`;
-      if(type==='image')return `<div class="pl-image-thumbs" id="pl-image-thumbs">${images.map((src,i)=>`<div class="pl-image-thumb"><img src="${src}"><button type="button" data-remove-image="${i}">${icon('close')}</button></div>`).join('')}</div>
-        ${images.length<4?'<input type="file" accept="image/*" id="pl-image-input">':'<p class="settings-note">Максимум 4 фото</p>'}`;
-      if(type==='location')return `<input class="field" id="pl-location-label" placeholder="Название места" value="${esc(location?.label||'')}" style="margin-bottom:8px">
-        <button type="button" class="text-btn" id="pl-location-geo">${icon('pin')} Определить моё местоположение</button>
-        <div id="pl-location-map-box">${location?plannerLocationMapEmbed(location):''}</div>`;
+    const blockContentHtml=b=>{
+      if(b.type==='checklist')return `<div>${b.items.map(s=>`<div class="pl-checklist-row" data-id="${s.id}"><span class="pl-task-check ${s.done?'done':''}" data-checklist-toggle="${s.id}">${s.done?icon('check'):''}</span><input class="field" value="${esc(s.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
+        <div class="pl-attach-add-row"><input class="field" data-checklist-new="${b.id}" placeholder="Новый пункт"><button type="button" class="gold-action" data-checklist-add="${b.id}" style="flex:0 0 auto">+</button></div>`;
+      if(b.type==='poll')return `<input class="field" data-poll-question="${b.id}" placeholder="Вопрос" value="${esc(b.question)}" style="margin-bottom:8px">
+        <div>${b.options.map(o=>`<div class="pl-poll-option-row" data-id="${o.id}"><input class="field" placeholder="Вариант" value="${esc(o.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
+        <button type="button" class="text-btn" data-poll-add-option="${b.id}">+ вариант</button>`;
+      if(b.type==='image')return `<div class="pl-image-thumbs">${b.images.map((src,i)=>`<div class="pl-image-thumb"><img src="${src}"><button type="button" data-remove-image="${i}">${icon('close')}</button></div>`).join('')}</div>
+        ${b.images.length<4?`<input type="file" accept="image/*" data-image-input="${b.id}">`:'<p class="settings-note">Максимум 4 фото</p>'}`;
+      if(b.type==='location')return `<input class="field" data-location-label="${b.id}" placeholder="Название места" value="${esc(b.label||'')}" style="margin-bottom:8px">
+        <button type="button" class="text-btn" data-location-geo="${b.id}">${icon('pin')} Определить моё местоположение</button>
+        <div>${b.lat!=null?plannerLocationMapEmbed(b):''}</div>`;
       return '';
     };
     const renderBlocks=()=>{
-      order=order.filter(t=>blockFlags[t]);
-      ['checklist','poll','image','location'].forEach(t=>{if(blockFlags[t]&&!order.includes(t))order.push(t);});
-      $('#pl-block-hint',ov).hidden=!order.length;
-      $('#pl-block-add-row',ov).innerHTML=['checklist','poll','image','location'].filter(t=>!order.includes(t)).map(t=>`<button type="button" data-attach-add="${t}">${icon(blockMeta[t].icon)}<span>${blockMeta[t].title}</span></button>`).join('');
+      $('#pl-block-hint',ov).hidden=!blocks.length;
+      $('#pl-block-add-row',ov).innerHTML=['checklist','poll','image','location'].map(t=>`<button type="button" data-attach-add="${t}">${icon(blockMeta[t].icon)}<span>${blockMeta[t].title}</span></button>`).join('');
       $$('#pl-block-add-row [data-attach-add]',ov).forEach(b=>b.onclick=()=>addBlock(b.dataset.attachAdd));
-      $('#pl-block-list',ov).innerHTML=order.map(t=>`<div class="pl-block-row" data-block="${t}">
+      $('#pl-block-list',ov).innerHTML=blocks.map(b=>`<div class="pl-block-row" data-block-id="${b.id}">
         <div class="pl-block-head">
-          <span class="pl-block-icon">${icon(blockMeta[t].icon)}</span>
-          <span class="pl-block-headtext"><span class="pl-block-title">${blockMeta[t].title}</span>${t==='image'?`<span class="pl-block-sub">${images.length} фото</span>`:''}</span>
-          ${t==='image'&&images[0]?`<img class="pl-block-thumb" src="${images[0]}" alt="">`:''}
-          <button type="button" class="pl-block-remove" data-block-remove="${t}" aria-label="Убрать блок">${icon('close')}</button>
+          <span class="pl-block-icon">${icon(blockMeta[b.type].icon)}</span>
+          <span class="pl-block-headtext"><span class="pl-block-title">${blockMeta[b.type].title}</span>${b.type==='image'?`<span class="pl-block-sub">${b.images.length} фото</span>`:''}</span>
+          ${b.type==='image'&&b.images[0]?`<img class="pl-block-thumb" src="${b.images[0]}" alt="">`:''}
+          <button type="button" class="pl-block-remove" data-block-remove="${b.id}" aria-label="Убрать блок">${icon('close')}</button>
           <span class="pl-block-handle" data-block-handle aria-label="Перетащить">${icon('grip')}</span>
         </div>
-        <div class="pl-block-content" data-block-content="${t}">${blockContentHtml(t)}</div>
+        <div class="pl-block-content" data-block-content="${b.id}">${blockContentHtml(b)}</div>
       </div>`).join('');
       bindBlockContent();
       $$('#pl-block-list [data-block-remove]',ov).forEach(b=>b.onclick=()=>removeBlock(b.dataset.blockRemove));
       $$('#pl-block-list [data-block-handle]',ov).forEach(h=>bindBlockDrag(h));
     };
     const addBlock=type=>{
-      blockFlags[type]=true;
-      if(type==='poll'&&!poll)poll={question:'',options:[{id:plannerId(),text:'',votes:0},{id:plannerId(),text:'',votes:0}]};
-      if(type==='location'&&!location)location={lat:null,lng:null,label:''};
+      const b={id:plannerId(),type};
+      if(type==='checklist')b.items=[];
+      if(type==='poll')b.options=[{id:plannerId(),text:'',votes:0},{id:plannerId(),text:'',votes:0}],b.question='';
+      if(type==='image')b.images=[];
+      if(type==='location'){b.label='';b.lat=null;b.lng=null;}
+      blocks.push(b);
       renderBlocks();
     };
-    const removeBlock=type=>{
-      blockFlags[type]=false;
-      if(type==='checklist')checklist=[];
-      if(type==='poll')poll=null;
-      if(type==='image')images=[];
-      if(type==='location')location=null;
-      renderBlocks();
-    };
+    const removeBlock=id=>{blocks=blocks.filter(b=>b.id!==id);renderBlocks();};
     const bindBlockContent=()=>{
-      if(blockFlags.checklist){
-        const box=$('[data-block-content="checklist"]',ov);
-        const syncRows=()=>{checklist=$$('.pl-checklist-row',box).map(r=>({id:r.dataset.id,text:$('input',r).value,done:(checklist.find(s=>s.id===r.dataset.id)||{}).done||false}));};
-        $$('.pl-checklist-row input',box).forEach(inp=>inp.addEventListener('input',syncRows));
-        $$('[data-checklist-toggle]',box).forEach(chk=>chk.onclick=()=>{const s=checklist.find(x=>x.id===chk.dataset.checklistToggle);if(s){s.done=!s.done;renderBlocks();}});
-        $$('.pl-checklist-row [data-remove]',box).forEach(btn=>btn.onclick=()=>{checklist=checklist.filter(s=>s.id!==btn.closest('.pl-checklist-row').dataset.id);renderBlocks();});
-        $('#pl-checklist-add',box).onclick=()=>{
-          const inp=$('#pl-checklist-new',box),text=inp.value.trim();if(!text)return;
-          checklist.push({id:plannerId(),text,done:false});renderBlocks();
-        };
-      }
-      if(blockFlags.poll){
-        const box=$('[data-block-content="poll"]',ov);
-        const syncPoll=()=>{
-          poll.question=$('#pl-poll-question',box).value;
-          poll.options=$$('.pl-poll-option-row',box).map(r=>({id:r.dataset.id,text:$('input',r).value,votes:(poll.options.find(o=>o.id===r.dataset.id)||{}).votes||0}));
-        };
-        $('#pl-poll-question',box).addEventListener('input',syncPoll);
-        $$('.pl-poll-option-row input',box).forEach(inp=>inp.addEventListener('input',syncPoll));
-        $$('.pl-poll-option-row [data-remove]',box).forEach(btn=>btn.onclick=()=>{if(poll.options.length<=2)return;syncPoll();poll.options=poll.options.filter(o=>o.id!==btn.closest('.pl-poll-option-row').dataset.id);renderBlocks();});
-        $('#pl-poll-add-option',box).onclick=()=>{syncPoll();poll.options.push({id:plannerId(),text:'',votes:0});renderBlocks();};
-      }
-      if(blockFlags.image){
-        const box=$('[data-block-content="image"]',ov);
-        $$('[data-remove-image]',box).forEach(btn=>btn.onclick=()=>{images.splice(+btn.dataset.removeImage,1);renderBlocks();});
-        $('#pl-image-input',box)?.addEventListener('change',async e=>{
-          const file=e.target.files[0];if(!file)return;
-          const dataUrl=await plannerDownscaleImage(file);
-          images.push(dataUrl);renderBlocks();
-        });
-      }
-      if(blockFlags.location){
-        const box=$('[data-block-content="location"]',ov);
-        $('#pl-location-label',box).addEventListener('input',()=>{if(!location)location={lat:null,lng:null,label:''};location.label=$('#pl-location-label',box).value;});
-        $('#pl-location-geo',box).onclick=()=>{
-          if(!navigator.geolocation){alert('Геолокация недоступна в этом браузере.');return;}
-          navigator.geolocation.getCurrentPosition(pos=>{
-            location={lat:pos.coords.latitude,lng:pos.coords.longitude,label:$('#pl-location-label',box).value||location?.label||''};
-            renderBlocks();
-          },()=>{alert('Не удалось определить местоположение.');});
-        };
-      }
+      blocks.forEach(b=>{
+        const box=$(`[data-block-content="${b.id}"]`,ov);if(!box)return;
+        if(b.type==='checklist'){
+          const syncRows=()=>{b.items=$$('.pl-checklist-row',box).map(r=>({id:r.dataset.id,text:$('input',r).value,done:(b.items.find(s=>s.id===r.dataset.id)||{}).done||false}));};
+          $$('.pl-checklist-row input',box).forEach(inp=>inp.addEventListener('input',syncRows));
+          $$('[data-checklist-toggle]',box).forEach(chk=>chk.onclick=()=>{const s=b.items.find(x=>x.id===chk.dataset.checklistToggle);if(s){s.done=!s.done;renderBlocks();}});
+          $$('.pl-checklist-row [data-remove]',box).forEach(btn=>btn.onclick=()=>{b.items=b.items.filter(s=>s.id!==btn.closest('.pl-checklist-row').dataset.id);renderBlocks();});
+          $(`[data-checklist-add="${b.id}"]`,box).onclick=()=>{
+            const inp=$(`[data-checklist-new="${b.id}"]`,box),text=inp.value.trim();if(!text)return;
+            b.items.push({id:plannerId(),text,done:false});renderBlocks();
+          };
+        } else if(b.type==='poll'){
+          const syncPoll=()=>{
+            b.question=$(`[data-poll-question="${b.id}"]`,box).value;
+            b.options=$$('.pl-poll-option-row',box).map(r=>({id:r.dataset.id,text:$('input',r).value,votes:(b.options.find(o=>o.id===r.dataset.id)||{}).votes||0}));
+          };
+          $(`[data-poll-question="${b.id}"]`,box).addEventListener('input',syncPoll);
+          $$('.pl-poll-option-row input',box).forEach(inp=>inp.addEventListener('input',syncPoll));
+          $$('.pl-poll-option-row [data-remove]',box).forEach(btn=>btn.onclick=()=>{if(b.options.length<=2)return;syncPoll();b.options=b.options.filter(o=>o.id!==btn.closest('.pl-poll-option-row').dataset.id);renderBlocks();});
+          $(`[data-poll-add-option="${b.id}"]`,box).onclick=()=>{syncPoll();b.options.push({id:plannerId(),text:'',votes:0});renderBlocks();};
+        } else if(b.type==='image'){
+          $$('[data-remove-image]',box).forEach(btn=>btn.onclick=()=>{b.images.splice(+btn.dataset.removeImage,1);renderBlocks();});
+          $(`[data-image-input="${b.id}"]`,box)?.addEventListener('change',async e=>{
+            const file=e.target.files[0];if(!file)return;
+            const dataUrl=await plannerDownscaleImage(file);
+            b.images.push(dataUrl);renderBlocks();
+          });
+        } else if(b.type==='location'){
+          $(`[data-location-label="${b.id}"]`,box).addEventListener('input',()=>{b.label=$(`[data-location-label="${b.id}"]`,box).value;});
+          $(`[data-location-geo="${b.id}"]`,box).onclick=()=>{
+            if(!navigator.geolocation){alert('Геолокация недоступна в этом браузере.');return;}
+            navigator.geolocation.getCurrentPosition(pos=>{
+              b.lat=pos.coords.latitude;b.lng=pos.coords.longitude;b.label=$(`[data-location-label="${b.id}"]`,box).value||b.label||'';
+              renderBlocks();
+            },()=>{alert('Не удалось определить местоположение.');});
+          };
+        }
+      });
     };
     // Ручка перетаскивания у каждого блока — драг стартует сразу с неё (без долгого нажатия,
-    // в отличие от чипов разделов/старых чипов вложений), потому что сам ряд теперь занят
-    // интерактивным содержимым (поля ввода, чекбоксы) и не может ещё и запускать драг по тапу
-    // в произвольном месте. DOM во время движения не трогаем (только "призрак"-клон) — реальный
-    // reorder + перерисовка применяются один раз при отпускании (см. bindPlannerSectionDrag).
+    // в отличие от чипов разделов), потому что сам ряд теперь занят интерактивным содержимым
+    // (поля ввода, чекбоксы) и не может ещё и запускать драг по тапу в произвольном месте. DOM
+    // во время движения не трогаем (только "призрак"-клон) — реальный reorder + перерисовка
+    // применяются один раз при отпускании (см. bindPlannerSectionDrag).
     const bindBlockDrag=handle=>{
       const row=handle.closest('.pl-block-row');
       let pointerId=null,startY=0,dragging=false,ghost=null,fromIndex=-1,toIndex=-1;
@@ -3526,7 +3536,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         const dy=e.clientY-startY;
         if(!dragging){
           if(Math.abs(dy)<6)return;
-          dragging=true;fromIndex=order.indexOf(row.dataset.block);toIndex=fromIndex;
+          dragging=true;fromIndex=blocks.findIndex(b=>b.id===row.dataset.blockId);toIndex=fromIndex;
           const box=row.getBoundingClientRect();
           ghost=row.cloneNode(true);ghost.classList.add('pl-block-ghost');
           ghost.style.cssText='position:fixed;left:'+box.left+'px;top:'+box.top+'px;width:'+box.width+'px;margin:0;z-index:600;pointer-events:none;';
@@ -3541,14 +3551,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           const dist=Math.abs(e.clientY-cy);
           if(dist<nearestDist){nearestDist=dist;nearest=r;}
         });
-        if(nearest)toIndex=order.indexOf(nearest.dataset.block);
+        if(nearest)toIndex=blocks.findIndex(b=>b.id===nearest.dataset.blockId);
       },{passive:false});
       const finish=e=>{
         if(e.pointerId!==pointerId)return;
         if(dragging){
           ghost?.remove();ghost=null;row.style.opacity='';
           if(fromIndex>-1&&toIndex>-1&&fromIndex!==toIndex){
-            const [item]=order.splice(fromIndex,1);order.splice(toIndex,0,item);
+            const [item]=blocks.splice(fromIndex,1);blocks.splice(toIndex,0,item);
             renderBlocks();
           }
         }
@@ -3602,20 +3612,32 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(duration<5||duration>31*1440){showToast('Окончание должно быть позже начала: от 5 минут до 31 дня');return;}
       }
       // Блок "опрос"/"локация" мог быть добавлен (кнопкой в списке блоков) и тут же сохранён
-      // без заполнения — poll/location тогда не null, а пустая заготовка (см. addBlock), и
-      // e.poll/e.location трактуются как "есть контент" везде, где на них проверяют (карточка
-      // события, deталь) — без этой чистки пустой блок всё равно считался бы вложением и
-      // включал бы тёмное "тело" карточки (.has-extra) без единого видимого чипа внутри.
-      const cleanPoll=poll&&(poll.question.trim()||poll.options.some(o=>o.text.trim()))?poll:null;
-      const cleanLocation=location&&(location.label?.trim()||location.lat!=null)?location:null;
-      if(existing){const index=state.planner.events.findIndex(e=>e.id===existing.id);if(index<0){showToast('Событие уже удалено. Закрой форму и обнови список.');return;}state.planner.events[index]={...state.planner.events[index],title,date,time,duration,sectionId,color,subtasks:checklist,poll:cleanPoll,images,location:cleanLocation,attachOrder:order};}
-      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,subtasks:checklist,comments:[],done:false,poll:cleanPoll,images,location:cleanLocation,attachOrder:order,createdAt:new Date().toISOString()});
+      // без заполнения — пустая заготовка (см. addBlock) везде, где на неё проверяют (карточка
+      // события, деталь), трактовалась бы как "есть контент" и включала бы тёмное "тело"
+      // карточки без единого видимого чипа внутри. Чеклист/фото пустыми быть безвредны (просто
+      // не показывают чип), поэтому чистим только опрос/локацию.
+      const cleanBlocks=blocks.filter(b=>{
+        if(b.type==='poll')return b.question.trim()||b.options.some(o=>o.text.trim());
+        if(b.type==='location')return b.label?.trim()||b.lat!=null;
+        return true;
+      });
+      if(existing){const index=state.planner.events.findIndex(e=>e.id===existing.id);if(index<0){showToast('Событие уже удалено. Закрой форму и обнови список.');return;}state.planner.events[index]={...state.planner.events[index],title,date,time,duration,sectionId,color,blocks:cleanBlocks};}
+      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,comments:[],done:false,blocks:cleanBlocks,createdAt:new Date().toISOString()});
       if(!savePlannerEvents())return;closeOverlay();renderScreen();
     };
   }
-  function plannerSubtaskList(ev){
-    if(!ev.subtasks.length)return '<div class="pl-empty" style="padding:8px 0">Пока пусто</div>';
-    return ev.subtasks.map(s=>`<div class="pl-subtask-row ${s.done?'done':''}"><span class="pl-task-check ${s.done?'done':''}" data-sub-toggle="${s.id}">${s.done?icon('check'):''}</span><span class="pl-subtask-text">${esc(s.text)}</span><button class="text-btn" data-sub-remove="${s.id}" aria-label="Удалить пункт">${icon('close')}</button></div>`).join('');
+  // Событие может содержать НЕСКОЛЬКО чеклистов (блоков типа checklist) — каждый рисуется
+  // своим заголовком (если несколько — "Чеклист 1"/"Чеклист 2", иначе просто "Чеклист") и
+  // собственным списком/полем добавления, id пункта адресуется как "blockId:itemId".
+  function plannerSubtaskRows(b){
+    if(!b.items.length)return '<div class="pl-empty" style="padding:8px 0">Пока пусто</div>';
+    return b.items.map(s=>`<div class="pl-subtask-row ${s.done?'done':''}"><span class="pl-task-check ${s.done?'done':''}" data-sub-toggle="${b.id}:${s.id}">${s.done?icon('check'):''}</span><span class="pl-subtask-text">${esc(s.text)}</span><button class="text-btn" data-sub-remove="${b.id}:${s.id}" aria-label="Удалить пункт">${icon('close')}</button></div>`).join('');
+  }
+  function plannerChecklistView(ev){
+    const blocks=(ev.blocks||[]).filter(b=>b.type==='checklist');
+    return blocks.map((b,idx)=>`<h3>${b.title?esc(b.title):(blocks.length>1?'Чеклист '+(idx+1):'Чеклист')}</h3>
+      <div>${plannerSubtaskRows(b)}</div>
+      <div class="pl-subtask-add">${formField('pl-subtask-new-'+b.id,'Добавить пункт')}<button class="gold-action" data-subtask-add="${b.id}" style="flex:0 0 auto">+</button></div>`).join('');
   }
   // Единый мессенджер-тред (по референсу пользователя) вместо старого разделения на плоский
   // "инстаграм"-список (непубличные разделы) и лево/право-мессенджер (публичные): системная
@@ -3663,10 +3685,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-detail-meta">${esc(meta)}</div>
       ${plannerImagesView(ev)}
       ${plannerLocationView(ev)}
-      ${plannerPollView(ev)}
-      <h3>Подзадачи</h3>
-      <div id="pl-subtask-list">${plannerSubtaskList(ev)}</div>
-      <div class="pl-subtask-add">${formField('pl-subtask-new','Добавить пункт')}<button class="gold-action" id="pl-subtask-add-btn" style="flex:0 0 auto">+</button></div>
+      <div id="pl-poll-section">${plannerPollView(ev)}</div>
+      <div id="pl-checklist-section">${plannerChecklistView(ev)}</div>
       <h3>Комментарии</h3>
       <div class="pl-comment-panel">
         <div id="pl-comment-list">${plannerCommentList(ev)}</div>
@@ -3680,18 +3700,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </div>
       <div class="modal-actions" style="margin-top:18px"><button class="text-btn" style="color:#ff5a5a" id="pl-detail-delete">Удалить событие</button><button class="text-btn" data-close>Закрыть</button></div>
     </div></div>`,{sheet:true});
-    const refreshSub=()=>{$('#pl-subtask-list',ov).innerHTML=plannerSubtaskList(ev);bindSubtasks();};
-    const bindSubtasks=()=>{
-      $$('[data-sub-toggle]',ov).forEach(b=>b.onclick=()=>{const s=ev.subtasks.find(x=>x.id===b.dataset.subToggle);if(s){s.done=!s.done;savePlannerEvents();refreshSub();}});
-      $$('[data-sub-remove]',ov).forEach(b=>b.onclick=()=>{ev.subtasks=ev.subtasks.filter(x=>x.id!==b.dataset.subRemove);savePlannerEvents();refreshSub();});
+    const refreshChecklist=()=>{$('#pl-checklist-section',ov).innerHTML=plannerChecklistView(ev);bindChecklist();};
+    const bindChecklist=()=>{
+      $$('[data-sub-toggle]',ov).forEach(b=>b.onclick=()=>{
+        const[blockId,subId]=b.dataset.subToggle.split(':'),blk=ev.blocks.find(x=>x.id===blockId),s=blk?.items.find(x=>x.id===subId);
+        if(s){s.done=!s.done;savePlannerEvents();refreshChecklist();}
+      });
+      $$('[data-sub-remove]',ov).forEach(b=>b.onclick=()=>{
+        const[blockId,subId]=b.dataset.subRemove.split(':'),blk=ev.blocks.find(x=>x.id===blockId);
+        if(blk){blk.items=blk.items.filter(x=>x.id!==subId);savePlannerEvents();refreshChecklist();}
+      });
+      $$('[data-subtask-add]',ov).forEach(btn=>btn.onclick=()=>{
+        const blockId=btn.dataset.subtaskAdd,blk=ev.blocks.find(x=>x.id===blockId);
+        const input=$('#pl-subtask-new-'+blockId,ov),text=input.value.trim();if(!text||!blk)return;
+        blk.items.push({id:plannerId(),text,done:false});input.value='';savePlannerEvents();refreshChecklist();
+      });
     };
-    bindSubtasks();
-    const bindVotes=()=>{$$('[data-vote]',ov).forEach(b=>b.onclick=()=>{plannerVote(ev,b.dataset.vote);const box=$('#pl-poll-container',ov);if(box)box.outerHTML=plannerPollView(ev);bindVotes();});};
+    bindChecklist();
+    const bindVotes=()=>{$$('[data-vote]',ov).forEach(b=>b.onclick=()=>{plannerVote(ev,b.dataset.votePoll,b.dataset.vote);$('#pl-poll-section',ov).innerHTML=plannerPollView(ev);bindVotes();});};
     bindVotes();
-    $('#pl-subtask-add-btn',ov).onclick=()=>{
-      const input=$('#pl-subtask-new',ov),text=input.value.trim();if(!text)return;
-      ev.subtasks.push({id:plannerId(),text,done:false});input.value='';savePlannerEvents();refreshSub();
-    };
     // Нижняя панель комментариев — только поле ввода, скрепка (вложение) и отправка, без
     // лайка/приглашения/эмодзи (убраны по просьбе — пользователю нужен был именно минимум).
     // Фото к комментарию "прикрепляется" заранее (staged), отправляется вместе со следующим
@@ -3718,7 +3745,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const file=e.target.files[0];if(!file)return;
       stagedImage=await plannerDownscaleImage(file);renderStaged();
     });
-    $$('[data-pl-image-open]',ov).forEach(b=>b.onclick=()=>plannerShowImageViewer(ev.images,+b.dataset.plImageOpen));
+    $$('[data-pl-image-open]',ov).forEach(b=>b.onclick=()=>{const blk=ev.blocks.find(x=>x.id===b.dataset.plImageOpen);if(blk)plannerShowImageViewer(blk.images,+b.dataset.plImageIndex);});
     $('[data-close]',ov).onclick=closeOverlay;
     $('#pl-detail-delete',ov).onclick=()=>{plannerDelete(ev.id);closeOverlay();};
     $('[data-pl-edit]',ov).onclick=()=>{closeOverlay();showPlannerEditSheet(ev.id);};
@@ -3745,7 +3772,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Шапка события теперь всегда на всю ширину и скруглена — цветом раздела, а не собственным цветом события (свой цвет красит тело карточки). Вложения показываются независимо от длительности события. Поля времени начала/окончания выровнены поровну. Свайп-удаление теперь срабатывает и одним непрерывным движением, без обязательного второго свайпа. Долгое нажатие на чип раздела реже случайно уходит в перестановку вместо открытия редактирования.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">На одно событие теперь можно добавить НЕСКОЛЬКО блоков одного типа — например, два разных чеклиста или два опроса: кнопки добавления в форме больше не исчезают после первого добавления.</p></section>
     </div></section>`;
   }
 
