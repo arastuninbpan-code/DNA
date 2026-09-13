@@ -469,7 +469,7 @@ select.field { appearance:none; }
 .type-btn.expense.active { border-color:var(--red); background:rgba(255,90,90,.1); }
 .type-btn.income.active { border-color:var(--green); background:rgba(76,175,80,.1); }
 .sheet-overlay { align-items:flex-end; padding:0; }
-.sheet { width:100%; max-height:82dvh; overflow:auto; background:#111; border-radius:28px 28px 0 0; padding:12px 24px calc(32px + var(--safe-bottom)); animation:sheetIn .28s cubic-bezier(.16,.84,.28,1) both; scrollbar-width:none; }
+.sheet { width:100%; max-height:82dvh; overflow-x:hidden; overflow-y:auto; background:#111; border-radius:28px 28px 0 0; padding:12px 24px calc(32px + var(--safe-bottom)); animation:sheetIn .28s cubic-bezier(.16,.84,.28,1) both; scrollbar-width:none; touch-action:pan-y; }
 .sheet::-webkit-scrollbar{display:none}
 @keyframes sheetIn { from{transform:translateY(100%)} to{transform:none} }
 /* position:sticky — форма события выросла (несколько блоков вложений теперь помещаются),
@@ -1078,9 +1078,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    карточки снизу под ней, цвета которое как раз и меняет выбор цвета события в форме
    (--pl-body, по умолчанию тёмное, пока пользователь не выбрал свой цвет). Раньше оба слоя
    красились одним и тем же --pl-color, и выбор цвета события красил шапку, а не остальное. */
-.pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-body,#1c1913);border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;flex-direction:column;gap:4px;}
+.pl-event{position:absolute;inset:-1px;z-index:1;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-body,#1c1913);border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;flex-direction:column;gap:4px;}
 .pl-event-head{display:flex;align-items:center;gap:6px;flex:0 0 auto;background:var(--pl-head,var(--gold));margin:-6px -10px 0;padding:7px 10px 6px;border-radius:8px 8px 0 0;}
 .pl-event.done{filter:brightness(.6) saturate(.7);}
+.pl-event-wrap.is-revealing .pl-event-head,.pl-event-wrap.is-open .pl-event-head{border-radius:8px 0 0 0;}
 .pl-event-check{width:24px;height:24px;flex:0 0 auto;border-radius:7px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
 .pl-event-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
 .pl-event-check .icon{width:15px;height:15px;}
@@ -1100,8 +1101,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-extra-chips{display:flex;flex-wrap:wrap;gap:4px;}
 .pl-event-extra-item{display:inline-flex;align-items:center;gap:3px;font-size:.6875rem;line-height:1;color:rgba(20,16,10,.75);background:rgba(255,255,255,.28);border-radius:6px;padding:3px 5px;white-space:nowrap;}
 .pl-event-extra-item .icon{width:11px;height:11px;flex:0 0 auto;}
-.pl-event-extra-image{display:block;width:100%;flex:0 0 auto;border-radius:10px;overflow:hidden;aspect-ratio:16/9;max-height:140px;}
+.pl-event-extra-image{display:block;width:100%;flex:0 0 auto;border-radius:10px;overflow:hidden;aspect-ratio:4/3;max-height:220px;}
 .pl-event-extra-image img{width:100%;height:100%;object-fit:cover;display:block;}
+.pl-event-extra-list{display:flex;flex-direction:column;gap:3px;}
+.pl-event-extra-list-title{align-self:flex-start;font-size:.6875rem;font-weight:700;color:rgba(20,16,10,.75);background:rgba(255,255,255,.28);border-radius:6px;padding:3px 6px;margin-bottom:1px;}
+.pl-event-extra-check{display:flex;align-items:center;gap:6px;font-size:.75rem;line-height:1.25;color:rgba(20,16,10,.85);background:rgba(255,255,255,.28);border-radius:7px;padding:4px 7px;}
+.pl-event-extra-check-box{width:14px;height:14px;flex:0 0 auto;border-radius:4px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;}
+.pl-event-extra-check-box .icon{width:10px;height:10px;}
+.pl-event-extra-check.done{opacity:.6;}
+.pl-event-extra-check.done span:last-child{text-decoration:line-through;}
 /* Плашка "+N" на месте карточек сверх PL_MAX_COLS в одном пересекающемся кластере (см.
    renderPlannerTimeline) — тап открывает лист со всеми событиями кластера вбок. */
 .pl-event-more{width:100%;height:100%;border:1.5px dashed rgba(255,255,255,.32);border-radius:10px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.72);font-weight:700;font-size:.8125rem;font-variant-numeric:tabular-nums;display:grid;place-items:center;padding:0;}
@@ -1115,9 +1123,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-empty{text-align:center;color:rgba(255,255,255,.35);padding:24px 12px;font-size:.875rem;}
 /* Зум пальцами: день -> неделя -> месяц (и обратно). */
 .pl-week-block{position:relative;}
-.pl-week-block-label{position:sticky;top:0;z-index:3;margin:0 -20px;padding:10px 20px 2px;background:var(--bg);font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;text-transform:capitalize;color:rgba(255,255,255,.4);}
+.pl-week-sticky-head{position:sticky;top:0;z-index:3;background:var(--bg);margin:0 -20px;padding:0 20px;}
+.pl-week-block-label{padding:10px 0 2px;font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;text-transform:capitalize;color:rgba(255,255,255,.4);}
 .pl-week-block-label.is-current{color:var(--gold);}
-.pl-week-head{display:flex;padding:4px 0 4px;gap:1px;position:sticky;top:27px;z-index:2;background:var(--bg);}
+.pl-week-head{display:flex;padding:4px 0 4px;gap:1px;}
 .pl-week-gutter{flex:0 0 28px;}
 .pl-week-daycol-head{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;border:0;background:transparent;border-radius:10px;color:rgba(255,255,255,.6);}
 .pl-week-dow{font-size:.625rem;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.35);}
@@ -1161,9 +1170,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-section-picker{display:flex;flex-wrap:wrap;gap:8px;}
 .pl-time-range-row{flex-direction:row;gap:10px;}
 .pl-time-field{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px;}
-.pl-time-input-wrap{position:relative;display:flex;align-items:center;}
-.pl-time-input-wrap .icon{position:absolute;left:14px;width:18px;height:18px;color:var(--gold);pointer-events:none;}
-.pl-time-input-wrap .pl-time-input{padding-left:40px;font-size:1.0625rem;font-weight:600;text-align:left;}
+.pl-time-input-wrap{box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;border-radius:12px;border:1px solid rgba(201,168,76,.2);background:#090909;padding:0 12px;}
+.pl-time-input-wrap:focus-within{border-color:var(--gold);}
+.pl-time-input-wrap .icon{flex:0 0 auto;width:18px;height:18px;color:var(--gold);pointer-events:none;}
+.pl-time-input-wrap .pl-time-input{flex:1;min-width:0;width:auto;border:0;background:transparent;padding:12px 0;font-size:1.0625rem;font-weight:600;text-align:left;}
+.pl-time-input-wrap .pl-time-input:focus{border:0;}
 .pl-color-swatch.pl-color-auto{background:var(--surface);border:2px solid rgba(255,255,255,.15);position:relative;}
 .pl-color-swatch.pl-color-auto::after{content:'';position:absolute;inset:8px;border-radius:50%;background:conic-gradient(var(--gold),#7fb8e0,#e08fa0,#8fd19e,#d6a8e8,var(--gold));}
 .pl-color-swatch.pl-color-auto.active{border-color:#fff;}
@@ -1281,7 +1292,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.24';
+  const APP_VERSION = '0.9.25';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2081,11 +2092,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const todayIso=isoDate(dateOnly());
     const isCurrent=isoDate(start)===isoDate(startOfWeek(dateOnly()));
     return `<div class="pl-week-block" data-pl-week-start="${isoDate(start)}">
-      <div class="pl-week-block-label ${isCurrent?'is-current':''}">${esc(weekLabelFor(start))}${isCurrent?' · Эта неделя':''}</div>
-      <div class="pl-week-head"><span class="pl-week-gutter"></span>${days.map(d=>{
-        const iso=isoDate(d);
-        return `<button class="pl-week-daycol-head ${iso===todayIso?'is-today':''}" data-pl-week-day="${iso}"><span class="pl-week-dow">${PL_WEEKDAYS[(d.getDay()+6)%7]}</span><span class="pl-week-num">${d.getDate()}</span></button>`;
-      }).join('')}</div>
+      <div class="pl-week-sticky-head">
+        <div class="pl-week-block-label ${isCurrent?'is-current':''}">${esc(weekLabelFor(start))}${isCurrent?' · Эта неделя':''}</div>
+        <div class="pl-week-head"><span class="pl-week-gutter"></span>${days.map(d=>{
+          const iso=isoDate(d);
+          return `<button class="pl-week-daycol-head ${iso===todayIso?'is-today':''}" data-pl-week-day="${iso}"><span class="pl-week-dow">${PL_WEEKDAYS[(d.getDay()+6)%7]}</span><span class="pl-week-num">${d.getDate()}</span></button>`;
+        }).join('')}</div>
+      </div>
       ${renderPlannerWeekGrid(days,todayIso)}
     </div>`;
   }
@@ -2184,8 +2197,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(!usedBigImage){usedBigImage=true;parts.push({big:true,html:`<span class="pl-event-extra-image"><img src="${b.images[0]}" alt="" loading="lazy"></span>`});}
         else parts.push({big:false,html:`<span class="pl-event-extra-item">${icon('image')}<span>${b.images.length} фото</span></span>`});
       } else if(b.type==='checklist'&&b.items?.length){
-        const done=b.items.filter(s=>s.done).length;
-        parts.push({big:false,html:`<span class="pl-event-extra-item">${icon('check')}<span>${b.title?esc(b.title)+': ':''}${done}/${b.items.length}</span></span>`});
+        const rows=b.items.map(s=>`<span class="pl-event-extra-check ${s.done?'done':''}"><span class="pl-event-extra-check-box">${s.done?icon('check'):''}</span><span>${esc(s.text)}</span></span>`).join('');
+        parts.push({big:true,html:`<span class="pl-event-extra-list">${b.title?`<span class="pl-event-extra-list-title">${esc(b.title)}</span>`:''}${rows}</span>`});
       } else if(b.type==='poll'&&(b.question?.trim()||b.options?.some(o=>o.text?.trim()))){
         parts.push({big:false,html:`<span class="pl-event-extra-item">${icon('poll')}<span>Опрос</span></span>`});
       } else if(b.type==='location'&&(b.label?.trim()||b.lat!=null)){
@@ -3582,23 +3595,36 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     renderBlocks();
     $$('[data-section]',ov).forEach(b=>b.onclick=()=>{sectionId=b.dataset.section||null;$$('[data-section]',ov).forEach(x=>x.classList.toggle('active',x.dataset.section===sectionId));});
     $$('#pl-event-color-picker [data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color||null;$$('#pl-event-color-picker [data-color]',ov).forEach(x=>x.classList.toggle('active',(x.dataset.color||null)===color));});
-    $('#pl-multiday-toggle',ov).onclick=()=>{
-      const on=!$('#pl-multiday-toggle',ov).classList.contains('on');
-      $('#pl-multiday-toggle',ov).classList.toggle('on',on);$('#pl-multiday-toggle',ov).setAttribute('aria-pressed',String(on));
-      $('#pl-date-row',ov).style.display=on?'':'none';
-      $('#pl-end-date-row',ov).style.display=(on&&$('#pl-time-toggle',ov).classList.contains('on'))?'':'none';
-    };
-    $('#pl-time-toggle',ov).onclick=()=>{
-      const on=!$('#pl-time-toggle',ov).classList.contains('on');
-      $('#pl-time-toggle',ov).classList.toggle('on',on);$('#pl-time-toggle',ov).setAttribute('aria-pressed',String(on));
-      $('#pl-time-row',ov).style.display=on?'':'none';
-      $('#pl-end-date-row',ov).style.display=(on&&$('#pl-multiday-toggle',ov).classList.contains('on'))?'':'none';
-    };
     // Пока пользователь не тронул поле "Окончание" руками, оно молча следует за "Началом"
     // (держит исходную длительность) — иначе при переносе начала конец остаётся старым
     // значением и на сохранении читается как "конец раньше начала", ошибочно уезжая на
     // следующий день.
     let endTouched=false,endDateTouched=false;
+    // Если пользователь сам явно указал, что конец раньше начала (переход через полночь) или
+    // вручную выставил другую дату окончания — многодневность уже и так очевидна из введённых
+    // значений, и кнопка-переключатель "Другая дата" в этом случае только путает (показывает
+    // "выкл", пока дата уже отображена) — прячем её и показываем даты напрямую, без ручного шага.
+    const syncMultiDayUI=()=>{
+      const timeOn=$('#pl-time-toggle',ov).classList.contains('on');
+      const start=plannerMinutesFromTime($('#pl-time-value',ov).value||timeVal);
+      const end=plannerMinutesFromTime($('#pl-time-end-value',ov).value||endVal);
+      const autoMultiDay=timeOn&&((endTouched&&end<start)||(endDateTouched&&$('#pl-end-date-value',ov).value!==$('#pl-date-value',ov).value));
+      const manualOn=$('#pl-multiday-toggle',ov).classList.contains('on');
+      $('#pl-multiday-toggle-row',ov).style.display=autoMultiDay?'none':'';
+      $('#pl-date-row',ov).style.display=(autoMultiDay||manualOn)?'':'none';
+      $('#pl-end-date-row',ov).style.display=(timeOn&&(autoMultiDay||manualOn))?'':'none';
+    };
+    $('#pl-multiday-toggle',ov).onclick=()=>{
+      const on=!$('#pl-multiday-toggle',ov).classList.contains('on');
+      $('#pl-multiday-toggle',ov).classList.toggle('on',on);$('#pl-multiday-toggle',ov).setAttribute('aria-pressed',String(on));
+      syncMultiDayUI();
+    };
+    $('#pl-time-toggle',ov).onclick=()=>{
+      const on=!$('#pl-time-toggle',ov).classList.contains('on');
+      $('#pl-time-toggle',ov).classList.toggle('on',on);$('#pl-time-toggle',ov).setAttribute('aria-pressed',String(on));
+      $('#pl-time-row',ov).style.display=on?'':'none';
+      syncMultiDayUI();
+    };
     const updateEnd=()=>{
       const date=$('#pl-date-value',ov).value||dateVal;
       const start=plannerMinutesFromTime($('#pl-time-value',ov).value||timeVal);
@@ -3608,9 +3634,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         const days=endTouched?(end<start?1:0):Math.floor((start+initialDuration)/1440);
         $('#pl-end-date-value',ov).value=plannerShiftDate(date,days);
       }
+      syncMultiDayUI();
     };
     $('#pl-time-end-value',ov).addEventListener('input',()=>{endTouched=true;updateEnd();});
-    $('#pl-end-date-value',ov).addEventListener('input',()=>{endDateTouched=true;});
+    $('#pl-end-date-value',ov).addEventListener('input',()=>{endDateTouched=true;syncMultiDayUI();});
     $('#pl-time-value',ov).addEventListener('input',updateEnd);
     $('#pl-date-value',ov).addEventListener('input',updateEnd);
     $('[data-close]',ov).onclick=closeOverlay;
@@ -3790,7 +3817,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Плашки "Дата начала"/"Дата окончания" в форме события теперь скрыты по умолчанию (день и так понятен из контекста) и открываются переключателем "Другая дата" — он сам включается, если редактируешь уже многодневное событие. Создать событие на несколько дней по-прежнему можно, просто явным включением переключателя.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Иконка часов в полях времени больше не наезжает на цифры. Форму события нельзя случайно сдвинуть вбок при скролле. Переключатель "Другая дата" сам прячется и уступает место датам, если событие уходит за полночь или дата окончания явно другая. В недельном режиме убрана щель между заголовками дат. Вложения на карточке события теперь выглядят как в примере: крупное фото и чеклист полным списком пунктов, а не сокращённым значком.</p></section>
     </div></section>`;
   }
 
