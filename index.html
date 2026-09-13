@@ -999,6 +999,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    Теперь ширина панели и видимое смещение карточки геометрически завязаны друг на друга
    (см. bindSwipeReveal — жёсткая стенка ровно на actionsWidth). */
 .pl-task-wrap{position:relative;overflow:hidden;border-radius:14px;isolation:isolate;touch-action:none;}
+/* Свайп ВПРАВО (в противоположную от удаления сторону) отмечает выполнение одним "флик"-
+   жестом, без второй стадии — как свайп-архивация в Mail. Подложка лежит слева, раскрывается
+   по мере протяжки вправо, цвет усиливается после completeThreshold (см. bindSwipeReveal). */
+.pl-swipe-complete{position:absolute;left:0;top:0;bottom:0;width:0;overflow:hidden;display:flex;align-items:center;padding-left:16px;background:#2f9e5c;color:#fff;border-radius:14px 0 0 14px;pointer-events:none;}
+.pl-event-wrap .pl-swipe-complete{border-radius:10px 0 0 10px;padding-left:10px;}
+.pl-swipe-complete.is-ready{background:#3ab86c;}
+.pl-swipe-complete .icon{width:18px;height:18px;flex:0 0 auto;}
 .pl-task-actions{position:absolute;right:0;left:auto;top:0;bottom:0;display:flex;justify-content:flex-end;pointer-events:none;}
 .pl-task-wrap.is-open .pl-task-actions{pointer-events:auto;}
 .pl-task-actions button{width:40px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
@@ -1227,7 +1234,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.13';
+  const APP_VERSION = '0.9.14';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2078,6 +2085,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function plannerTaskCard(e){
     const sec=plannerSectionById(e.sectionId);
     return `<div class="pl-task-wrap" data-pl-task-id="${e.id}">
+      <div class="pl-swipe-complete" aria-hidden="true">${icon('check')}</div>
       <div class="pl-task-actions"><button type="button" data-pl-task-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-task-delete aria-label="Удалить">${icon('trash')}</button></div>
       <button type="button" class="pl-task ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
         <span class="pl-task-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
@@ -2103,6 +2111,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const extraHtml=plannerEventExtraHtml(e);
     const showExtra=height>=PL_EXTRA_MIN_HEIGHT&&extraHtml;
     return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
+      <div class="pl-swipe-complete" aria-hidden="true">${icon('check')}</div>
       <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
       <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
         <span class="pl-event-head">
@@ -2251,18 +2260,43 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // НЕДЕМПФИРОВАННОЙ дистанции пальца (press.lastRaw), так что тянуть "ещё дальше" для решительного
   // жеста по-прежнему можно и это по-прежнему ощущается как второй свайп — просто карточка при
   // этом визуально стоит у стенки, а не создаёт пустоту за её пределами.
-  function bindSwipeReveal(wrap,card,actions,actionsWidth,onTap,manualScrollY){
+  function bindSwipeReveal(wrap,card,actions,actionsWidth,onTap,manualScrollY,onComplete){
     const buttons=Array.from(actions.querySelectorAll('button'));
     const editBtn=buttons[0],delBtn=buttons[buttons.length-1],btnW=actionsWidth/buttons.length,deleteThreshold=40;
-    let offset=0,open=false,press=null,suppressUntil=0,scroller=null,forwarder=null,lastMerge=-1;
+    // Свайп вправо (закрытая карточка, никогда не при уже открытой панели удаления) отмечает
+    // выполнение одним "флик"-движением, без второго этапа — completeThreshold ощутимо короче
+    // deleteThreshold, потому что это разовое обратимое действие (тап по чекбоксу снова снимет
+    // отметку), а не необратимое удаление, которому нужна защита от случайного срабатывания.
+    const completeEl=wrap.querySelector('.pl-swipe-complete'),completeThreshold=actionsWidth*.8,completeCap=completeThreshold+24;
+    let offset=0,open=false,press=null,suppressUntil=0,scroller=null,forwarder=null,lastMerge=-1,lastCompleteReveal=-1;
     const paint=(v,animate,rawValue)=>{
       offset=v;
       card.style.transition=animate?'transform .24s cubic-bezier(.22,.8,.25,1)':'none';
       actions.style.transition=animate?'width .24s cubic-bezier(.22,.8,.25,1)':'none';
       card.style.transform='translate3d('+offset+'px,0,0)';
+      if(completeEl){
+        const reveal=Math.max(0,v);
+        if(reveal!==lastCompleteReveal){
+          lastCompleteReveal=reveal;
+          completeEl.style.transition=animate?'width .24s cubic-bezier(.22,.8,.25,1)':'none';
+          completeEl.style.width=reveal+'px';
+          completeEl.classList.toggle('is-ready',reveal>=completeThreshold);
+        }
+      }
       if(buttons.length<2||!editBtn||!delBtn)return;
       wrap.classList.toggle('is-revealing',v<0);
-      const reveal=Math.max(0,-v);
+      // Ширина панели кнопок жёстко капается на actionsWidth — раньше (после правок другой
+      // сессии) она напрямую следовала за -v без потолка, а второй свайп при этом мог тянуть
+      // карточку вплоть до wrap.clientWidth (почти вся ширина карточки). Для одиночного
+      // (широкого) события это давало большой запас хода ПОСЛЕ полного "поглощения" (merge=1)
+      // — кнопка удаления (flex:1 0 0px, растёт на всё оставшееся место в контейнере) эффектно
+      // разрасталась на реальном протяжении жеста, и анимация поглощения читалась хорошо. Для
+      // события в кластере (делит время с соседними, узкая колонка) свободного хода почти не
+      // оставалось — тот же merge=1 достигался почти у самой стенки wrap.clientWidth, так что
+      // рост кнопки за пределами формулы поглощения почти не успевал произойти и заметить его
+      // не получалось ("нет анимации, как у одиночного"). Теперь ширина панели и кнопок целиком
+      // определяется только merge (0..1) и actionsWidth — одинаково для любой ширины карточки.
+      const reveal=Math.min(actionsWidth,Math.max(0,-v));
       actions.style.width=reveal+'px';
       actions.style.overflow='hidden';
       const pull=rawValue==null?v:rawValue;
@@ -2274,7 +2308,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         editBtn.style.transition=btnTransition;delBtn.style.transition=btnTransition;
         const editW=btnW*(1-merge);
         editBtn.style.flex='0 0 '+editW+'px';editBtn.style.minWidth='0';editBtn.style.opacity=String(1-merge);
-        delBtn.style.flex='1 0 0px';delBtn.style.minWidth='0';
+        delBtn.style.flex='0 0 '+(btnW+(btnW-editW))+'px';delBtn.style.minWidth='0';
       }
     };
     const settle=(toOpen,animate=true)=>{open=toOpen;wrap.classList.toggle('is-open',open);paint(open?-actionsWidth:0,animate);};
@@ -2311,12 +2345,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
       press.lastRaw=raw;
       if(press.wasOpen){
-        // Жёсткая стенка ровно на -actionsWidth (см. комментарий над функцией) — merge
-        // по-прежнему считается от недемпфированного raw, поэтому "дотянуть до удаления"
-        // вторым свайпом всё ещё работает, просто без визуального overshoot карточки.
-        paint(Math.max(raw,-Math.max(actionsWidth,wrap.clientWidth)),false,raw);
+        // Жёсткая стенка ровно на -actionsWidth (см. комментарий над функцией) — и у карточки,
+        // и у панели кнопок (см. paint() выше), синхронно. Раньше карточка могла уехать вплоть
+        // до wrap.clientWidth, а панель кнопок капалась отдельно на actionsWidth — граница
+        // карточки и граница панели расходились, и в зазоре между ними просвечивал фон обёртки
+        // ("дыра"). merge по-прежнему считается от недемпфированного raw, поэтому "дотянуть до
+        // удаления" вторым свайпом всё ещё работает, просто без визуального overshoot карточки.
+        paint(Math.max(raw,-actionsWidth),false,raw);
       } else {
-        paint(clamp(raw,-actionsWidth,20),false);
+        paint(clamp(raw,-actionsWidth,onComplete?completeCap:20),false);
       }
       const now=performance.now();
       press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
@@ -2332,6 +2369,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           const pastOpen=-(g.lastRaw??offset)-actionsWidth;
           if(pastOpen>=deleteThreshold||(v<-.8&&pastOpen>=16)){delBtn.click();return;}
         }
+        if(!g.wasOpen&&onComplete&&(g.lastRaw??0)>0){
+          const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0;
+          if(g.lastRaw>=completeThreshold||(v>.8&&g.lastRaw>=24)){onComplete();settle(false);return;}
+        }
         settle(offset<-actionsWidth*.4);
       }
       else if(forwarder){forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());forwarder=null;}
@@ -2346,7 +2387,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function bindPlannerTaskSwipe(wrap){
     const id=wrap.dataset.plTaskId,card=$('.pl-task',wrap),actions=$('.pl-task-actions',wrap);
-    bindSwipeReveal(wrap,card,actions,80,()=>showPlannerDetail(id),true);
+    bindSwipeReveal(wrap,card,actions,80,()=>showPlannerDetail(id),true,()=>plannerToggleDone(id));
     $('[data-pl-task-edit]',actions).onclick=()=>{wrap.closeSwipe();showPlannerEditSheet(id);};
     $('[data-pl-task-delete]',actions).onclick=()=>{plannerDelete(id);};
   }
@@ -2356,12 +2397,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // переезжает туда, как обычное событие.
   function bindPlannerTaskDrag(wrap){
     const id=wrap.dataset.plTaskId,card=$('.pl-task',wrap);
-    let timer=null,startX=0,startY=0,lastY=0,pointerId=null,dragTask=null,ghost=null,bar=null,remove=false,dropTimeline=null,scroller=null,forwarder=null;
+    let timer=null,startX=0,startY=0,pointerId=null,dragTask=null,ghost=null,bar=null,remove=false,dropTimeline=null;
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
     wrap.cancelLongPress=cancel;
     card.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0||wrap.classList.contains('is-open'))return;
-      cancel();startX=e.clientX;startY=lastY=e.clientY;pointerId=e.pointerId;scroller=wrap.closest('.pl-scroll,.pl-day-tasks');forwarder?.stop();forwarder=null;
+      cancel();startX=e.clientX;startY=e.clientY;pointerId=e.pointerId;
       timer=setTimeout(()=>{
         timer=null;
         dragTask=state.planner.events.find(x=>x.id===id);if(!dragTask)return;
@@ -2382,12 +2423,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     card.addEventListener('pointermove',e=>{
       if(e.pointerId!==pointerId)return;
       if(!wrap.plTaskDragging){
-        // Карточка живёт с touch-action:none (нужен для самого драга ниже), поэтому обычный
-        // вертикальный скролл списка, если удержание ещё не сработало, приходится прокручивать
-        // вручную сюда же — иначе смахивание прямо по карточке не скроллит вообще ничего.
-        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8){cancel();if(!forwarder)forwarder=plannerScrollForwardStart(scroller);}
-        if(forwarder)forwarder.move(e.clientY-lastY,performance.now());
-        lastY=e.clientY;
+        // Прокрутку списка, если удержание ещё не сработало, теперь целиком отдаём
+        // bindPlannerTaskSwipe/bindSwipeReveal — та же карточка уже слушает те же события и
+        // сама прокручивает .pl-day-tasks/.pl-scroll при вертикальном движении (см. её
+        // manualScrollY-ветку). Раньше оба обработчика прокручивали одновременно и независимо
+        // друг от друга — на реальном устройстве это удваивало скорость скролла при касании
+        // прямо по карточке ("листается в несколько раз быстрее"). Тут только гасим таймер
+        // долгого нажатия, если палец уже реально сдвинулся.
+        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8)cancel();
         return;
       }
       e.preventDefault();
@@ -2430,10 +2473,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           dragTask.duration=dragTask.duration||60;
           savePlannerEvents();renderScreen();
         }
-      } else if(forwarder){
-        forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());
       }
-      forwarder=null;dropTimeline=null;pointerId=null;
+      dropTimeline=null;pointerId=null;
     };
     card.addEventListener('pointerup',finish,{passive:true});
     card.addEventListener('pointercancel',finish,{passive:true});
@@ -2441,7 +2482,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function bindPlannerEventSwipe(wrap){
     const id=wrap.dataset.plEventId,card=$('.pl-event',wrap),actions=$('.pl-event-actions',wrap);
-    bindSwipeReveal(wrap,card,actions,72,()=>showPlannerDetail(id),true);
+    bindSwipeReveal(wrap,card,actions,72,()=>showPlannerDetail(id),true,()=>plannerToggleDone(id));
     $('[data-pl-event-edit]',actions).onclick=()=>{wrap.closeSwipe();showPlannerEditSheet(id);};
     $('[data-pl-event-delete]',actions).onclick=()=>{plannerDelete(id);};
   }
@@ -2457,12 +2498,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // чтобы не терять layout/pointer capture под ним).
   function bindPlannerEventDrag(wrap){
     const id=wrap.dataset.plEventId,card=$('.pl-event',wrap);
-    let timer=null,startX=0,startY=0,lastY=0,pointerId=null,dragEv=null,dragStartTop=0,dragSnapped=0,ghost=null,bar=null,remove=false,dragAxis=null,swapTarget=null,scroller=null,forwarder=null;
+    let timer=null,startX=0,startY=0,pointerId=null,dragEv=null,dragStartTop=0,dragSnapped=0,ghost=null,bar=null,remove=false,dragAxis=null,swapTarget=null;
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
     wrap.cancelLongPress=cancel;
     card.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0||wrap.classList.contains('is-open'))return;
-      cancel();startX=e.clientX;startY=lastY=e.clientY;pointerId=e.pointerId;scroller=wrap.closest('.pl-scroll,.pl-day-tasks');forwarder?.stop();forwarder=null;
+      cancel();startX=e.clientX;startY=e.clientY;pointerId=e.pointerId;
       timer=setTimeout(()=>{
         timer=null;
         dragEv=state.planner.events.find(x=>x.id===id);if(!dragEv)return;
@@ -2486,12 +2527,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     card.addEventListener('pointermove',e=>{
       if(e.pointerId!==pointerId)return;
       if(!wrap.plEventDragging){
-        // Карточка живёт с touch-action:none (нужен для самого драга ниже), поэтому обычный
-        // вертикальный скролл ленты, если удержание ещё не сработало, приходится прокручивать
-        // вручную сюда же — иначе смахивание прямо по карточке не скроллит вообще ничего.
-        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8){cancel();if(!forwarder)forwarder=plannerScrollForwardStart(scroller);}
-        if(forwarder)forwarder.move(e.clientY-lastY,performance.now());
-        lastY=e.clientY;
+        // Прокрутку ленты, если удержание ещё не сработало, отдаём bindPlannerEventSwipe/
+        // bindSwipeReveal — та же карточка уже прокручивает сама при вертикальном движении
+        // (см. её manualScrollY-ветку). Раньше оба обработчика прокручивали одновременно —
+        // на реальном устройстве это удваивало скорость скролла при касании прямо по
+        // карточке. Тут только гасим таймер долгого нажатия, если палец сдвинулся.
+        if(Math.hypot(e.clientX-startX,e.clientY-startY)>8)cancel();
         return;
       }
       e.preventDefault();
@@ -2550,10 +2591,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           }
         } else if(remove){plannerDelete(id);}
         else if(dragEv){const base=wrap.closest('[data-pl-date]')?.dataset.plDate||dragEv.date;dragEv.date=plannerShiftDate(base,Math.floor(dragSnapped/1440));dragEv.time=plannerMinutesToTime(dragSnapped);savePlannerEvents();renderScreen();}
-      } else if(forwarder){
-        forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());
       }
-      forwarder=null;dragAxis=null;swapTarget=null;pointerId=null;
+      dragAxis=null;swapTarget=null;pointerId=null;
     };
     card.addEventListener('pointerup',finish,{passive:true});
     card.addEventListener('pointercancel',finish,{passive:true});
@@ -3500,7 +3539,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">В планере: при новом разделе сразу можно сделать его публичным, из редактирования раздела убрана лишняя подсказка. Заголовок и чекбокс события/задачи прижаты к верхнему краю карточки. Если событий в одно время больше трёх — лишние сворачиваются в плашку "+N", тап открывает их листалкой вбок. Убрано переключение между днями свайпом (день и так листается вертикально). Шторку редактирования можно закрыть тапом по полоске сверху, не только свайпом вниз. В длинных событиях видно фото/чеклист/опрос, если есть место — фото можно открыть на весь экран и сохранить. Починена прокрутка свайпом по карточке задачи.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Скролл при касании прямо по карточке события/задачи больше не в два раза быстрее обычного (два независимых обработчика прокручивали одновременно). Свайп вправо теперь отмечает событие/задачу выполненными. Анимация поглощения при удалении свайпом теперь одинаковая и для одиночных событий, и для тех, что делят время с другими (панель кнопок больше не растягивается на всю ширину карточки).</p></section>
     </div></section>`;
   }
 
