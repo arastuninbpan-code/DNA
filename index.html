@@ -987,25 +987,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-notime-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;}
 /* Свайп задач/событий: обёртка обрезает, внутренняя карточка едет transform'ом,
    панель Править/Удалить лежит неподвижно под ней (тот же принцип, что у привычек).
-   Кнопка удаления теперь лежит ДО карточки (слева) — свайп вправо её открывает. Панель
-   действий не растянута на всю ширину обёртки (не inset:0) — у неё зафиксирован только
-   левый край (left:0, right:auto), а ширина берётся "по контенту" (сумма ширин кнопок),
-   как у .habit-swipe-actions. Это ключевая часть фикса "дыры": раньше при overshoot
-   второго свайпа карточка могла уехать дальше, чем реально был виден фон панели с
-   кнопками — оставался пустой (прозрачный, фон обёртки) зазор между карточкой и кнопкой.
+   Привычное направление — свайп ВЛЕВО, кнопка удаления справа (как в bindHabitSwipe и в
+   большинстве приложений). Панель действий не растянута на всю ширину обёртки (не inset:0) —
+   у неё зафиксирован только правый край (right:0, left:auto), а ширина берётся "по контенту"
+   (сумма ширин кнопок), как у .habit-swipe-actions. Это ключевая часть фикса "дыры": раньше
+   при overshoot второго свайпа карточка могла уехать дальше, чем реально был виден фон панели
+   с кнопками — оставался пустой (прозрачный, фон обёртки) зазор между карточкой и кнопкой.
    Теперь ширина панели и видимое смещение карточки геометрически завязаны друг на друга
    (см. bindSwipeReveal — жёсткая стенка ровно на actionsWidth). */
 .pl-task-wrap{position:relative;overflow:hidden;border-radius:14px;isolation:isolate;touch-action:none;}
-.pl-task-actions{position:absolute;left:0;right:auto;top:0;bottom:0;display:flex;justify-content:flex-start;pointer-events:none;}
+.pl-task-actions{position:absolute;right:0;left:auto;top:0;bottom:0;display:flex;justify-content:flex-end;pointer-events:none;}
 .pl-task-wrap.is-open .pl-task-actions{pointer-events:auto;}
 .pl-task-actions button{width:40px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
 .pl-task-actions button .icon{width:15px;height:15px;}
 .pl-task-actions [data-pl-task-delete]{background:#c94a50;color:#fff;}
 .pl-task-wrap.delete-ready [data-pl-task-delete]{background:#e0464f;}
-/* Когда карточка сдвинута свайпом вправо, её собственный (изначально левый) скруглённый
+/* Когда карточка сдвинута свайпом влево, её собственный (изначально правый) скруглённый
    край оказывается ровно на границе с панелью действий и подрезает её уголок скруглением.
    На открытой панели у карточки эта сторона больше не нужна скруглённой. */
-.pl-task-wrap.is-open .pl-task{border-radius:0 14px 14px 0;}
+.pl-task-wrap.is-open .pl-task{border-radius:14px 0 0 14px;}
 .pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);touch-action:none;}
 .pl-task.done{filter:brightness(.6) saturate(.7);}
 .pl-task-check{width:36px;height:36px;flex:0 0 auto;border-radius:9px;border:1.5px solid rgba(20,16,10,.35);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
@@ -1037,11 +1037,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    как у carry-in события. Без кнопок и без pointer-events — это только предпросмотр. */
 .pl-range-select-next{border-radius:0 0 10px 10px;border-top:none;padding:6px 12px;pointer-events:none;}
 .pl-event-wrap{position:absolute;left:0;right:4px;overflow:hidden;border-radius:10px;isolation:isolate;pointer-events:auto;}
-/* Событие, перевалившее за полночь: "хвост" на следующий день (carry-in) обрезан сверху,
-   исходный сегмент на дне начала (carry-out) обрезан снизу — скруглённый край убираем с той
-   стороны, где карточка визуально продолжается (плюс троеточие в заголовке, см. JS). */
-.pl-event-wrap.carry-in .pl-event{border-radius:0 0 10px 10px;}
-.pl-event-wrap.carry-out .pl-event{border-radius:10px 10px 0 0;}
+/* Событие, перевалившее за полночь, раньше рисовалось с обрезанным краем на стыке (плоская
+   грань там, где сегменты "продолжают" друг друга) — на практике выглядело как один овал и
+   один незакруглённый обрубок, а не как два одинаковых события. Оба сегмента (carry-in на
+   следующем дне, carry-out на дне начала) теперь просто обычные полностью скруглённые
+   карточки — .pl-event уже имеет border-radius:10px по умолчанию, здесь переопределять нечего. */
 .pl-event-ghost{box-shadow:0 10px 28px rgba(0,0,0,.5);}
 .pl-event-wrap.swap-target .pl-event{box-shadow:0 0 0 2px #fff;}
 .pl-event-ghost .pl-event{box-shadow:0 0 0 1.5px var(--gold);}
@@ -1049,15 +1049,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-drag-bar button{display:grid;place-items:center;box-sizing:border-box;padding:0;width:52px;height:52px;border:1px solid #ad444a;border-radius:50%;color:#ff696d;background:#221416;transition:background-color .15s ease,box-shadow .15s ease;}
 .pl-drag-bar button.ready{background:#922f36;box-shadow:0 0 18px #dc465b55;}
 .pl-drag-bar .icon{display:block;width:20px;height:20px;margin:0;}
-/* Как и .pl-task-actions выше — панель зафиксирована по левому краю (left:0, right:auto),
-   ширина по контенту, кнопка удаления лежит ДО карточки (см. bindSwipeReveal). */
-.pl-event-actions{position:absolute;left:0;right:auto;top:0;bottom:0;display:flex;justify-content:flex-start;pointer-events:none;}
+/* Как и .pl-task-actions выше — панель зафиксирована по правому краю (right:0, left:auto),
+   ширина по контенту, свайп влево, кнопка удаления справа (см. bindSwipeReveal). */
+.pl-event-actions{position:absolute;right:0;left:auto;top:0;bottom:0;display:flex;justify-content:flex-end;pointer-events:none;}
 .pl-event-wrap.is-open .pl-event-actions{pointer-events:auto;}
 .pl-event-actions button{width:36px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
 .pl-event-actions button .icon{width:14px;height:14px;}
 .pl-event-actions [data-pl-event-delete]{background:#c94a50;color:#fff;}
 .pl-event-wrap.delete-ready [data-pl-event-delete]{background:#e0464f;}
-.pl-event-wrap.is-open .pl-event{border-radius:0 10px 10px 0;}
+.pl-event-wrap.is-open .pl-event{border-radius:10px 0 0 10px;}
 .pl-event{position:relative;z-index:1;width:100%;height:100%;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;align-items:center;gap:6px;}
 .pl-event.done{filter:brightness(.6) saturate(.7);}
 .pl-event-check{width:24px;height:24px;flex:0 0 auto;border-radius:7px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
@@ -1196,7 +1196,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.10';
+  const APP_VERSION = '0.9.11';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1594,6 +1594,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const key=host?.dataset.viewKey||currentViewKey();viewScroll.set(key,sc.scrollTop);
     if(key.startsWith('finance:'))state.finance.scrollTop=sc.scrollTop;
     if(key==='nav:3'){const list=$('.habits-list');if(list)state.habits.habitsScrollTop=list.scrollTop;}
+    // День планера на КАЖДЫЙ renderScreen() пересоздаёт DOM всех блоков окна с нуля (см.
+    // renderScreen), а .pl-day-block живёт с content-visibility:auto — до первого попадания
+    // блока в кадр офф-скрин блок отдаёт приближённый contain-intrinsic-size вместо настоящей
+    // высоты. Голый scrollTop (число из СТАРОГО DOM) после такого пересоздания может указывать
+    // на другое место, если сумма высот блоков ДО текущего чуть "поплыла" — глазами это
+    // выглядит как случайный прыжок экрана при обычном сохранении/отметке события. Поэтому для
+    // дневного вида якорим позицию к (дню + смещению внутри него) — тот же приём, что уже
+    // используется при авто-расширении окна скролла (см. plannerHandleScroll) — а не к голому
+    // пикселю: top и реальный скролл после рендера считаются по ОДНИМ и тем же (пусть и
+    // приближённым) высотам блоков, так что несовпадение сокращается само собой. Не трогаем,
+    // если вызывающий код уже сам поставил конкретную цель навигации (pendingPlannerScroll).
+    if(key==='nav:1'&&state.planner.zoom==='day'&&!pendingPlannerScroll){
+      const active=plannerActiveBlock(sc);
+      if(active?.dataset.plDate)pendingPlannerScroll={type:'anchor',iso:active.dataset.plDate,offset:sc.scrollTop-plannerBlockTop(sc,active.dataset.plDate)};
+    }
   }
   function renderScreen(smoothDateScroll) {
     pendingHabitUndo?.render();pendingFinTxUndo?.render();pendingPlannerUndo?.render();plannerRangeSelectRemove();
@@ -2007,7 +2022,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
         <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
           <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
-          <span class="pl-event-title">${carry?'⋯ ':''}${esc(e.title)}${continues?' ⋯':''}</span>
+          <span class="pl-event-title">${esc(e.title)}</span>
         </button>
       </div>`;
     }).join('');
@@ -2078,11 +2093,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function closePlannerSwipes(except){$$('.pl-task-wrap,.pl-event-wrap').forEach(w=>{if(w!==except)w.closeSwipe?.();});}
   // Общий свайп-реveal (карточка едет transform'ом, панель кнопок лежит под ней неподвижно) —
   // используется и для задач без времени, и (вместе с bindPlannerEventDrag) для событий на ленте.
-  // Кнопка удаления лежит ДО карточки (слева) — свайп ВПРАВО раскрывает панель. Первый свайп
-  // (из закрытого состояния) только раскрывает обе кнопки. Второй свайп (когда уже открыто) даёт
-  // визуальную обратную связь "поглощения" (flex-basis анимация редактировать→удалить) и, если
-  // дотянуть до deleteThreshold (или отпустить с хорошей скоростью пальца) — удаление срабатывает
-  // сразу, одним движением — как в bindHabitSwipe.
+  // Привычное направление — свайп ВЛЕВО, кнопка удаления справа (как в bindHabitSwipe). Первый
+  // свайп (из закрытого состояния) только раскрывает обе кнопки. Второй свайп (когда уже
+  // открыто) даёт визуальную обратную связь "поглощения" (flex-basis анимация
+  // редактировать→удалить) и, если дотянуть до deleteThreshold (или отпустить с хорошей
+  // скоростью пальца) — удаление срабатывает сразу, одним движением — как в bindHabitSwipe.
   // Смещение карточки НИКОГДА не превышает actionsWidth ни на первом, ни на втором свайпе —
   // никакого overshoot/rubber-band за эту точку. Раньше второй свайп демпфированно тянулся
   // дальше actionsWidth (иллюзия "резины"), и на реальном устройстве видимое смещение карточки
@@ -2101,7 +2116,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       card.style.transform='translate3d('+offset+'px,0,0)';
       if(buttons.length<2||!editBtn||!delBtn)return;
       const pull=rawValue==null?v:rawValue;
-      const merge=clamp((pull-actionsWidth)/deleteThreshold,0,1);
+      const merge=clamp((-pull-actionsWidth)/deleteThreshold,0,1);
       wrap.classList.toggle('delete-ready',open&&merge>=1);
       if(merge!==lastMerge){
         lastMerge=merge;
@@ -2112,7 +2127,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         delBtn.style.flexBasis=(btnW+(btnW-editW))+'px';
       }
     };
-    const settle=(toOpen,animate=true)=>{open=toOpen;wrap.classList.toggle('is-open',open);paint(open?actionsWidth:0,animate);};
+    const settle=(toOpen,animate=true)=>{open=toOpen;wrap.classList.toggle('is-open',open);paint(open?-actionsWidth:0,animate);};
     wrap.closeSwipe=()=>{if(open)settle(false);};
     paint(0,false);
     card.addEventListener('pointerdown',e=>{
@@ -2143,15 +2158,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         return;
       }
       e.preventDefault();
-      let raw=press.from+dx;if(press.wasOpen)raw=Math.max(0,raw);
+      let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
       press.lastRaw=raw;
       if(press.wasOpen){
-        // Жёсткая стенка ровно на actionsWidth (см. комментарий над функцией) — merge
+        // Жёсткая стенка ровно на -actionsWidth (см. комментарий над функцией) — merge
         // по-прежнему считается от недемпфированного raw, поэтому "дотянуть до удаления"
         // вторым свайпом всё ещё работает, просто без визуального overshoot карточки.
-        paint(Math.min(raw,actionsWidth),false,raw);
+        paint(Math.max(raw,-actionsWidth),false,raw);
       } else {
-        paint(clamp(raw,-20,actionsWidth),false);
+        paint(clamp(raw,-actionsWidth,20),false);
       }
       const now=performance.now();
       press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
@@ -2164,10 +2179,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         suppressUntil=performance.now()+400;
         if(g.wasOpen&&delBtn){
           const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0;
-          const pastOpen=(g.lastRaw??offset)-actionsWidth;
-          if(pastOpen>=deleteThreshold||(v>.8&&pastOpen>=16)){delBtn.click();return;}
+          const pastOpen=-(g.lastRaw??offset)-actionsWidth;
+          if(pastOpen>=deleteThreshold||(v<-.8&&pastOpen>=16)){delBtn.click();return;}
         }
-        settle(offset>actionsWidth*.4);
+        settle(offset<-actionsWidth*.4);
       }
       else if(forwarder){forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());forwarder=null;}
     },{passive:true});
@@ -2356,7 +2371,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(ghost)ghost.style.opacity='.5';
       } else {
         const rawMin=(dragStartTop+dy)/PL_HOUR_PX*60;
-        dragSnapped=clamp(Math.round(rawMin/5)*5,0,24*60-(dragEv.duration||60));
+        // Верхняя граница раньше зависела от duration (0..1440-длительность), из-за чего
+        // перетащить событие так, чтобы оно перевалило за полночь, было в принципе нельзя —
+        // хотя сама модель данных (time+duration>1440) и рендер такого события давно
+        // поддерживаются (см. carryOver в renderPlannerDayBlock). Дата события при вертикальном
+        // драге не меняется, так что ограничивать нужно только само время начала сутками.
+        dragSnapped=clamp(Math.round(rawMin/5)*5,0,24*60-5);
         if(ghost){ghost.style.opacity='';ghost.style.transform='translate3d(0,'+(dragSnapped/60*PL_HOUR_PX-dragStartTop)+'px,0)';}
       }
     },{passive:false});
@@ -3328,7 +3348,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Инерция прокрутки дневной ленты теперь останавливается сразу при новом касании. Кнопка удаления у события/задачи перенесена перед карточкой (свайп вправо) — пустота при свайпе больше не должна возникать. Выделение диапазона, протянутое через полночь, теперь видно прямоугольником и на следующем дне. Тост отмены удаления при свайпе больше не исчезает мгновенно.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Событие, переходящее через полночь, теперь рисуется двумя обычными скруглёнными карточками без многоточий. Сохранение/отметка события больше не сбрасывает прокрутку дневной ленты на случайное место. Готовое событие теперь можно перетащить так, чтобы оно перевалило за полночь. Свайп карточки события/задачи — привычное направление (влево, кнопка удаления справа), пустота при свайпе по-прежнему не возникает. Инерция прокрутки останавливается сразу при новом касании, выделение диапазона через полночь видно и на следующем дне, тост отмены удаления не исчезает мгновенно.</p></section>
     </div></section>`;
   }
 
