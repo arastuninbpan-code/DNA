@@ -1239,7 +1239,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.15';
+  const APP_VERSION = '0.9.16';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2104,12 +2104,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // влезает, эта полоска скроллится внутри себя (overflow-y:auto), а не раздвигает границы
   // события на ленте (те завязаны только на длительность).
   function plannerEventExtraHtml(e){
-    const chips=[];
-    if(e.subtasks?.length){const done=e.subtasks.filter(s=>s.done).length;chips.push(`<span class="pl-event-extra-item">${icon('check')}<span>${done}/${e.subtasks.length}</span></span>`);}
-    if(e.poll)chips.push(`<span class="pl-event-extra-item">${icon('poll')}<span>Опрос</span></span>`);
-    if(e.location)chips.push(`<span class="pl-event-extra-item">${icon('pin')}<span>${esc(e.location.label||'Место')}</span></span>`);
-    const imageHtml=e.images?.length?`<span class="pl-event-extra-image"><img src="${e.images[0]}" alt="" loading="lazy"></span>`:'';
+    // Порядок блоков (картинка/чеклист/опрос/локация) — как задал пользователь в форме
+    // редактирования (см. showPlannerEditSheet, e.attachOrder), с откатом на разумный порядок
+    // по умолчанию для старых событий без сохранённого порядка.
+    const order=(e.attachOrder&&e.attachOrder.length?e.attachOrder:['image','checklist','poll','location']);
+    const blocks={
+      image:()=>e.images?.length?`<span class="pl-event-extra-image"><img src="${e.images[0]}" alt="" loading="lazy"></span>`:'',
+      checklist:()=>{if(!e.subtasks?.length)return '';const done=e.subtasks.filter(s=>s.done).length;return `<span class="pl-event-extra-item">${icon('check')}<span>${done}/${e.subtasks.length}</span></span>`;},
+      poll:()=>e.poll?`<span class="pl-event-extra-item">${icon('poll')}<span>Опрос</span></span>`:'',
+      location:()=>e.location?`<span class="pl-event-extra-item">${icon('pin')}<span>${esc(e.location.label||'Место')}</span></span>`:'',
+    };
+    const imageHtml=blocks.image();
+    const chips=order.filter(t=>t!=='image').map(t=>blocks[t]?.()||'').filter(Boolean);
     const chipsHtml=chips.length?`<span class="pl-event-extra-chips">${chips.join('')}</span>`:'';
+    // Картинка всегда первым визуальным блоком (крупная, задаёт форму карточки — см. рисунок
+    // пользователя), остальные чипы идут под ней в выбранном порядке.
     return imageHtml+chipsHtml;
   }
   const PL_MAX_COLS=3,PL_EXTRA_MIN_HEIGHT=76;
@@ -3336,15 +3345,78 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let poll=existing?.poll?{question:existing.poll.question,options:existing.poll.options.map(o=>({...o}))}:null;
     let images=(existing?.images||[]).slice();
     let location=existing?.location?{...existing.location}:null;
+    // Порядок "блоков" вложений (изображение/чеклист/опрос/локация) — то, в каком порядке они
+    // потом показываются и в этой форме, и на самой карточке события (см. plannerEventExtraHtml).
+    // Пользователь может перетаскивать чипы ниже, чтобы поменять порядок; новый тип вложения
+    // при добавлении просто дописывается в конец текущего порядка.
+    let order=(existing?.attachOrder&&existing.attachOrder.length?existing.attachOrder.slice():['image','checklist','poll','location']);
+    const attachLabel={checklist:()=>`${checklist.length} пункт.`,poll:()=>'Опрос',image:()=>`${images.length} фото`,location:()=>'Место'};
+    const attachPresent={checklist:()=>checklist.length>0,poll:()=>!!poll,image:()=>images.length>0,location:()=>!!location};
     const attachBox=$('#pl-attach-editors',ov);
     const renderAttachChips=()=>{
-      const chips=[];
-      if(checklist.length)chips.push(`<button type="button" class="pl-attach-chip" data-attach-edit="checklist">${icon('check')}<span>${checklist.length} пункт.</span></button>`);
-      if(poll)chips.push(`<button type="button" class="pl-attach-chip" data-attach-edit="poll">${icon('poll')}<span>Опрос</span></button>`);
-      if(images.length)chips.push(`<button type="button" class="pl-attach-chip" data-attach-edit="image">${icon('image')}<span>${images.length} фото</span></button>`);
-      if(location)chips.push(`<button type="button" class="pl-attach-chip" data-attach-edit="location">${icon('pin')}<span>Место</span></button>`);
+      order=order.filter(t=>attachPresent[t]?.());
+      ['checklist','poll','image','location'].forEach(t=>{if(attachPresent[t]?.()&&!order.includes(t))order.push(t);});
+      const chips=order.map(t=>`<button type="button" class="pl-attach-chip" draggable="false" data-attach-edit="${t}">${icon(t==='image'?'image':t==='poll'?'poll':t==='location'?'pin':'check')}<span>${attachLabel[t]()}</span></button>`);
       $('#pl-attach-chips',ov).innerHTML=chips.join('');
-      $$('#pl-attach-chips [data-attach-edit]',ov).forEach(b=>b.onclick=()=>renderEditor(b.dataset.attachEdit));
+      $$('#pl-attach-chips [data-attach-edit]',ov).forEach(b=>bindAttachChipDrag(b,()=>renderEditor(b.dataset.attachEdit)));
+    };
+    // Долгое нажатие + перетаскивание чипа меняет его место в `order` — тот же принцип, что и
+    // у перестановки разделов (bindPlannerSectionDrag): сам DOM во время движения не трогаем
+    // (только двигаем "призрак"-клон), реальный reorder + перерисовка применяются ОДИН раз при
+    // отпускании — иначе пересборка списка на каждый кадр отвязывала бы обработчики от узла,
+    // на котором браузер уже захватил указатель (pointer capture), и жест обрывался бы.
+    const bindAttachChipDrag=(chip,onTap)=>{
+      let timer=null,pointerId=null,startX=0,startY=0,active=false,dragging=false,ghost=null,fromIndex=-1,toIndex=-1,suppressUntil=0;
+      const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
+      chip.addEventListener('pointerdown',e=>{
+        if(e.isPrimary===false||e.button!==0)return;
+        cancel();pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;active=false;dragging=false;
+        timer=setTimeout(()=>{timer=null;active=true;holdFeedback(chip);},420);
+      },{passive:true});
+      chip.addEventListener('pointermove',e=>{
+        if(e.pointerId!==pointerId||!active)return;
+        const dx=e.clientX-startX,dy=e.clientY-startY;
+        if(!dragging){
+          if(Math.hypot(dx,dy)<6)return;
+          dragging=true;chip.setPointerCapture?.(pointerId);
+          fromIndex=order.indexOf(chip.dataset.attachEdit);toIndex=fromIndex;
+          const box=chip.getBoundingClientRect();
+          ghost=chip.cloneNode(true);ghost.classList.add('pl-chip-ghost');
+          ghost.style.cssText='position:fixed;left:'+box.left+'px;top:'+box.top+'px;width:'+box.width+'px;height:'+box.height+'px;margin:0;z-index:600;pointer-events:none;';
+          document.body.appendChild(ghost);chip.style.opacity='0';
+        }
+        e.preventDefault();
+        ghost.style.transform='translate3d('+dx+'px,'+dy+'px,0)';
+        // Ближайший по центру чип (не только по X — ряд может переноситься на вторую строку).
+        let nearest=null,nearestDist=Infinity;
+        $$('#pl-attach-chips [data-attach-edit]',ov).forEach(c=>{
+          if(c===chip)return;
+          const r=c.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+          const dist=Math.hypot(e.clientX-cx,e.clientY-cy);
+          if(dist<nearestDist){nearestDist=dist;nearest=c;}
+        });
+        if(nearest)toIndex=order.indexOf(nearest.dataset.attachEdit);
+      },{passive:false});
+      const finish=e=>{
+        if(e.pointerId!==pointerId)return;
+        cancel();
+        if(dragging){
+          ghost?.remove();ghost=null;chip.style.opacity='';
+          suppressUntil=performance.now()+300;
+          if(fromIndex>-1&&toIndex>-1&&fromIndex!==toIndex){
+            const [item]=order.splice(fromIndex,1);order.splice(toIndex,0,item);
+            renderAttachChips();
+          }
+        }
+        active=false;dragging=false;pointerId=null;
+      };
+      chip.addEventListener('pointerup',finish,{passive:true});
+      chip.addEventListener('pointercancel',finish,{passive:true});
+      chip.addEventListener('contextmenu',e=>e.preventDefault());
+      chip.addEventListener('click',e=>{
+        if(performance.now()<suppressUntil){e.preventDefault();e.stopPropagation();return;}
+        onTap?.();
+      });
     };
     const renderEditor=type=>{
       if(type==='checklist'){
@@ -3456,8 +3528,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         duration=endMin-startMin;
         if(duration<5||duration>31*1440){showToast('Окончание должно быть позже начала: от 5 минут до 31 дня');return;}
       }
-      if(existing){const index=state.planner.events.findIndex(e=>e.id===existing.id);if(index<0){showToast('Событие уже удалено. Закрой форму и обнови список.');return;}state.planner.events[index]={...state.planner.events[index],title,date,time,duration,sectionId,color,subtasks:checklist,poll,images,location};}
-      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,subtasks:checklist,comments:[],done:false,poll,images,location});
+      if(existing){const index=state.planner.events.findIndex(e=>e.id===existing.id);if(index<0){showToast('Событие уже удалено. Закрой форму и обнови список.');return;}state.planner.events[index]={...state.planner.events[index],title,date,time,duration,sectionId,color,subtasks:checklist,poll,images,location,attachOrder:order};}
+      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,subtasks:checklist,comments:[],done:false,poll,images,location,attachOrder:order});
       if(!savePlannerEvents())return;closeOverlay();renderScreen();
     };
   }
@@ -3542,7 +3614,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Анимация поглощения при свайпе-удалении событий, делящих время с другими, больше не дёргается — убрана лишняя перерисовка панели кнопок на каждый кадр жеста. Свайп вправо "выполнено" срабатывает гораздо более коротким движением и теперь золотого цвета (как у привычек), а не зелёного. Карточка события с вложением показывает крупное изображение со скруглёнными углами под цветной шапкой раздела.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">В форме редактирования события блоки вложений (фото, чеклист, опрос, место) теперь можно перетаскивать, меняя их порядок — тот же порядок используется и на самой карточке события в ленте.</p></section>
     </div></section>`;
   }
 
