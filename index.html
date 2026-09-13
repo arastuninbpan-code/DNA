@@ -1232,20 +1232,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-comment-image{display:block;max-width:220px;width:100%;border-radius:10px;margin-bottom:4px;}
 .pl-comment-date{font-size:.6875rem;color:rgba(255,255,255,.35);margin-top:3px;}
 /* Нижняя панель действий под лентой комментариев (сердце/пригласить/фото/ввод/эмодзи/отправить). */
+/* Панель комментариев — собственная (чуть темнее общего фона шторки) подложка, отделяющая
+   пространство комментариев от инфы о событии выше (по просьбе — на референсе это два разных
+   визуальных блока, а не один сплошной список на фоне шторки). */
+.pl-comment-panel{background:rgba(0,0,0,.22);border-radius:14px;padding:12px 12px 10px;}
 .pl-comment-staged{display:flex;align-items:center;gap:8px;margin-top:10px;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.06);}
 .pl-comment-staged img{width:36px;height:36px;border-radius:8px;object-fit:cover;}
 .pl-comment-staged button{margin-left:auto;background:transparent;border:0;color:rgba(255,255,255,.6);padding:4px;}
 .pl-comment-staged button .icon{width:16px;height:16px;}
-.pl-comment-bar{display:flex;align-items:center;gap:6px;margin-top:10px;}
+.pl-comment-bar{display:flex;align-items:center;gap:8px;margin-top:10px;}
 .pl-comment-bar-btn{flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:0;background:transparent;color:rgba(255,255,255,.55);display:grid;place-items:center;padding:0;}
 .pl-comment-bar-btn .icon{width:18px;height:18px;}
-.pl-comment-bar-btn.active{color:#ff5a7a;}
 .pl-comment-bar-btn.pl-comment-send{background:var(--gold);color:#171410;}
 .pl-comment-input{flex:1;min-width:0;height:36px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;padding:0 14px;font-size:.875rem;}
 .pl-comment-input::placeholder{color:rgba(255,255,255,.35);}
-.pl-emoji-picker{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;padding:8px;border-radius:12px;background:rgba(255,255,255,.06);}
-.pl-emoji-picker button{width:34px;height:34px;border:0;background:transparent;font-size:1.125rem;border-radius:8px;padding:0;}
-.pl-emoji-picker button:active{background:rgba(255,255,255,.1);}
 @media(prefers-reduced-motion:reduce){.pl-switch::after{transition:none;}}
 </style>
 </head>
@@ -1273,7 +1273,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.18';
+  const APP_VERSION = '0.9.19';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -3641,18 +3641,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div id="pl-subtask-list">${plannerSubtaskList(ev)}</div>
       <div class="pl-subtask-add">${formField('pl-subtask-new','Добавить пункт')}<button class="gold-action" id="pl-subtask-add-btn" style="flex:0 0 auto">+</button></div>
       <h3>Комментарии</h3>
-      <div id="pl-comment-list">${plannerCommentList(ev)}</div>
-      <div class="pl-comment-staged" id="pl-comment-staged" hidden></div>
-      <div class="pl-comment-bar">
-        <button type="button" class="pl-comment-bar-btn ${ev.liked?'active':''}" id="pl-comment-like" aria-label="Нравится">${icon('heart')}</button>
-        <button type="button" class="pl-comment-bar-btn" id="pl-comment-invite" aria-label="Пригласить">${icon('person-add')}</button>
-        <button type="button" class="pl-comment-bar-btn" id="pl-comment-image-btn" aria-label="Прикрепить фото">${icon('image')}</button>
-        <input type="file" accept="image/*" id="pl-comment-image-input" hidden>
-        <input class="pl-comment-input" id="pl-comment-new" placeholder="Комментарий...">
-        <button type="button" class="pl-comment-bar-btn" id="pl-comment-emoji-btn" aria-label="Эмодзи">${icon('smile')}</button>
-        <button type="button" class="pl-comment-bar-btn pl-comment-send" id="pl-comment-send" aria-label="Отправить">${icon('send')}</button>
+      <div class="pl-comment-panel">
+        <div id="pl-comment-list">${plannerCommentList(ev)}</div>
+        <div class="pl-comment-staged" id="pl-comment-staged" hidden></div>
+        <div class="pl-comment-bar">
+          <button type="button" class="pl-comment-bar-btn" id="pl-comment-image-btn" aria-label="Прикрепить вложение">${icon('paperclip')}</button>
+          <input type="file" accept="image/*" id="pl-comment-image-input" hidden>
+          <input class="pl-comment-input" id="pl-comment-new" placeholder="Комментарий...">
+          <button type="button" class="pl-comment-bar-btn pl-comment-send" id="pl-comment-send" aria-label="Отправить">${icon('send')}</button>
+        </div>
       </div>
-      <div class="pl-emoji-picker" id="pl-emoji-picker" hidden></div>
       <div class="modal-actions" style="margin-top:18px"><button class="text-btn" style="color:#ff5a5a" id="pl-detail-delete">Удалить событие</button><button class="text-btn" data-close>Закрыть</button></div>
     </div></div>`,{sheet:true});
     const refreshSub=()=>{$('#pl-subtask-list',ov).innerHTML=plannerSubtaskList(ev);bindSubtasks();};
@@ -3667,9 +3665,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const input=$('#pl-subtask-new',ov),text=input.value.trim();if(!text)return;
       ev.subtasks.push({id:plannerId(),text,done:false});input.value='';savePlannerEvents();refreshSub();
     };
-    // Нижняя панель комментариев (сердце/пригласить/фото/поле/эмодзи/отправить) — по рисунку
-    // пользователя. Фото к комментарию "прикрепляется" заранее (staged), отправляется вместе
-    // со следующим текстом (или само, без текста) по нажатию на "Отправить" или Enter.
+    // Нижняя панель комментариев — только поле ввода, скрепка (вложение) и отправка, без
+    // лайка/приглашения/эмодзи (убраны по просьбе — пользователю нужен был именно минимум).
+    // Фото к комментарию "прикрепляется" заранее (staged), отправляется вместе со следующим
+    // текстом (или само, без текста) по нажатию на "Отправить" или Enter.
     let stagedImage=null;
     const renderStaged=()=>{
       const box=$('#pl-comment-staged',ov);
@@ -3687,28 +3686,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     };
     $('#pl-comment-send',ov).onclick=postComment;
     $('#pl-comment-new',ov).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();postComment();}});
-    $('#pl-comment-like',ov).onclick=()=>{
-      ev.liked=!ev.liked;savePlannerEvents();
-      $('#pl-comment-like',ov).classList.toggle('active',ev.liked);
-    };
-    $('#pl-comment-invite',ov).onclick=()=>{
-      const sec=plannerSectionById(ev.sectionId);
-      if(!sec){showToast('У события нет раздела — выбери раздел в редактировании, чтобы делиться');return;}
-      if(!sec.public||!sec.shareId){showToast('Раздел не публичный — включи публичность в его настройках');return;}
-      showPlannerShareLink(sec);
-    };
     $('#pl-comment-image-btn',ov).onclick=()=>$('#pl-comment-image-input',ov).click();
     $('#pl-comment-image-input',ov).addEventListener('change',async e=>{
       const file=e.target.files[0];if(!file)return;
       stagedImage=await plannerDownscaleImage(file);renderStaged();
     });
-    const EMOJI_SET=['😀','😂','😍','👍','🎉','❤️','🔥','😢','🤔','👏','🙏','😎'];
-    $('#pl-comment-emoji-btn',ov).onclick=()=>{
-      const box=$('#pl-emoji-picker',ov);
-      if(box.hidden){box.innerHTML=EMOJI_SET.map(em=>`<button type="button" data-emoji="${em}">${em}</button>`).join('');box.hidden=false;
-        $$('[data-emoji]',box).forEach(b=>b.onclick=()=>{const input=$('#pl-comment-new',ov);input.value+=b.dataset.emoji;input.focus();});
-      } else box.hidden=true;
-    };
     $$('[data-pl-image-open]',ov).forEach(b=>b.onclick=()=>plannerShowImageViewer(ev.images,+b.dataset.plImageOpen));
     $('[data-close]',ov).onclick=closeOverlay;
     $('#pl-detail-delete',ov).onclick=()=>{plannerDelete(ev.id);closeOverlay();};
@@ -3736,7 +3718,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Исправлен баг: на узкой карточке (когда событие делит время с другими) свайп вправо "выполнено" мог задевать кнопку редактирования — теперь протяжка ограничена шириной самой карточки. Название события больше не разъезжается уродливым переносом на узкой карточке — аккуратно обрезается многоточием после двух строк. У события с вложением теперь настоящая цветная "шапка" сверху (чекбокс+название), явно отделённая от тёмного тела карточки с изображением ниже, а не сплошная заливка.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Комментарии к событию теперь на собственной затемнённой подложке, явно отделённой от информации о событии выше. Нижняя панель упрощена: убраны лайк/пригласить/эмодзи, остались только вложение (скрепка), поле ввода и отправка.</p></section>
     </div></section>`;
   }
 
