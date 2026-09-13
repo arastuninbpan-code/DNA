@@ -482,7 +482,7 @@ select.field { appearance:none; }
    проскроллированный контент под ней. */
 .sheet-handle { position:sticky; top:0; z-index:5; background:#111; width:100%; height:24px; margin:-8px 0 4px; display:flex; align-items:center; justify-content:center; touch-action:none; }
 .sheet-handle::after { content:''; width:40px; height:4px; border-radius:2px; background:rgba(255,255,255,.15); }
-.sheet-title { margin-top:20px; text-align:center; font-family:Georgia,'Times New Roman',serif; font-size:20px; font-weight:600; }
+.sheet-title { margin-top:20px; text-align:center; font-family:Georgia,'Times New Roman',serif; font-size:20px; font-weight:600; touch-action:none; }
 .sheet-sub { margin-top:8px; text-align:center; color:rgba(255,255,255,.4); font-family:Georgia,'Times New Roman',serif; font-size:14px; }
 .sheet-option { margin-top:12px; padding:16px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid rgba(201,168,76,.15); display:flex; align-items:center; }
 .sheet-option-icon { width:44px; height:44px; border-radius:12px; background:rgba(201,168,76,.1); color:var(--gold); display:grid; place-items:center; }
@@ -980,7 +980,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-chip-ghost{box-shadow:0 8px 22px rgba(0,0,0,.5);}
 .pl-chip-add{width:32px;padding:0;display:grid;place-items:center;color:var(--gold);}
 .pl-chip-add .icon{width:16px;height:16px;}
-.pl-color-picker{display:flex;gap:10px;flex-wrap:wrap;padding:12px 0 4px;}
+.pl-color-picker{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;padding:12px 0 4px;}
+.pl-color-swatch.pl-color-custom{background:conic-gradient(from 90deg,#e08fa0,#e0b17f,#d6a8e8,#7fb8e0,#8fd19e,#c9a84c,#e08fa0);position:relative;}
+.pl-color-swatch.pl-color-custom::after{content:'';position:absolute;inset:9px;border-radius:50%;background:var(--surface);}
+.pl-color-swatch.pl-color-custom.active::after{background:var(--sw,var(--surface));inset:2px;}
+.pl-color-swatch.pl-color-custom input[type="color"]{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;cursor:pointer;}
 .pl-color-swatch{width:30px;height:30px;border-radius:50%;background:var(--sw);border:2px solid transparent;padding:0;}
 .pl-color-swatch.active{border-color:#fff;}
 .pl-daynav{display:flex;align-items:center;justify-content:center;padding:8px 20px 4px;flex-shrink:0;}
@@ -989,7 +993,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-scroll{flex:1;min-height:0;overflow-y:auto;padding:0 20px 100px;scrollbar-width:none;}
 .pl-scroll::-webkit-scrollbar{display:none;}
 .pl-day-block{position:relative;overflow:visible;}
-.pl-day-divider{position:absolute;top:0;left:0;z-index:2;width:48px;padding:2px 0;background:var(--bg);font-size:.6875rem;line-height:16px;font-weight:600;color:rgba(255,255,255,.65);font-variant-numeric:tabular-nums;}
+/* Плашка даты сидит поверх самой первой строки часов (00:00) — сплошной var(--bg) там, где
+   эта строка подсвечена как текущий час (.pl-hour-row.is-now, золотистый тон), выглядит
+   отдельным чёрным прямоугольником поверх подсветки. Полупрозрачная подложка + лёгкое
+   размытие вместо сплошного цвета — текст остаётся читаемым на любой сетке часов И
+   пропускает подсветку "сейчас" сквозь себя, а не перекрывает её глухим пятном. */
+.pl-day-divider{position:absolute;top:0;left:0;z-index:2;width:48px;padding:2px 0;background:rgba(10,10,10,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);font-size:.6875rem;line-height:16px;font-weight:600;color:rgba(255,255,255,.65);font-variant-numeric:tabular-nums;}
 .pl-day-block .pl-hour-row:first-child .pl-hour-label{padding-top:20px;}
 .pl-day-tasks{max-height:112px;overflow:auto;flex-shrink:0;}
 .pl-day-tasks:empty{display:none;}
@@ -1026,7 +1035,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-task-wrap.is-open .pl-task{border-radius:14px 0 0 14px;}
 .pl-task{position:relative;z-index:1;width:100%;box-sizing:border-box;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);touch-action:none;}
 .pl-task.done{filter:brightness(.6) saturate(.7);}
-.pl-task-check{width:36px;height:36px;flex:0 0 auto;border-radius:9px;border:1.5px solid rgba(20,16,10,.35);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
+.pl-task-check{width:36px;height:36px;flex:0 0 auto;border-radius:9px;border:1.5px solid rgba(20,16,10,.35);display:grid;place-items:center;color:#171410;background:transparent;padding:0;transition:background-color .18s ease,border-color .18s ease;}
 .pl-task-check.done{border-color:#171410;background:rgba(20,16,10,.18);}
 .pl-task-check .icon{width:20px;height:20px;}
 .pl-task-body{flex:1;min-width:0;}
@@ -1104,10 +1113,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-extra{flex:1;min-height:0;min-width:0;width:100%;overflow-x:hidden;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin:0;padding:10px;}
 .pl-event-extra>*{flex-shrink:0;}
 .pl-event-actions,.pl-task-actions{touch-action:none;}
-.pl-event-extra button{font-family:inherit;color:inherit;text-align:left;cursor:pointer;}
+/* touch-action:none — без этого свайп карточки, начатый пальцем прямо на интерактивной
+   кнопке вложения (чеклист/опрос/фото — с v0.9.27 настоящие <button>), обрывается
+   pointercancel через кадр-другой после начала жеста: браузер у элементов форм иногда всё
+   равно запускает свою собственную обработку тача, даже когда предок (.pl-event) уже
+   объявил touch-action:none. Явно повторяем то же самое здесь — тот же приём, что уже
+   стоит у .pl-inline-grip (ручка реордера) чуть ниже. */
+.pl-event-extra button{touch-action:none;font-family:inherit;color:inherit;text-align:left;cursor:pointer;}
 .pl-event-extra-image{border:0;padding:0;background:transparent;}
 .pl-event-extra-check{width:100%;border:0;min-height:32px;}
-.pl-event-extra-option{width:100%;background:transparent;min-height:36px;}
+.pl-event-extra-option{width:100%;background:transparent;min-height:36px;transition:background-color .18s ease;}
 .pl-event-extra-option[aria-pressed="true"]{background:rgba(201,168,76,.22);}
 .pl-inline-block{position:relative;min-width:0;flex:0 0 auto;}
 .pl-inline-block-head{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:.625rem;opacity:.8;margin-bottom:3px;}
@@ -1128,8 +1143,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-extra-question{font-weight:700;overflow-wrap:anywhere;}
 .pl-event-extra-option{display:flex;justify-content:space-between;gap:6px;padding:6px 8px;border:1px solid currentColor;border-radius:7px;overflow-wrap:anywhere;}
 .pl-event-extra-list-title{align-self:flex-start;font-size:.6875rem;font-weight:700;color:rgba(20,16,10,.75);background:rgba(255,255,255,.28);border-radius:6px;padding:3px 6px;margin-bottom:1px;}
-.pl-event-extra-check{display:flex;align-items:center;gap:6px;font-size:.75rem;line-height:1.25;color:inherit;background:transparent;border-radius:0;padding:3px 0;overflow-wrap:anywhere;}
-.pl-event-extra-check-box{width:18px;height:18px;flex:0 0 auto;border-radius:4px;border:1.5px solid currentColor;display:grid;place-items:center;color:inherit;}
+.pl-event-extra-check{display:flex;align-items:center;gap:6px;font-size:.75rem;line-height:1.25;color:inherit;background:transparent;border-radius:0;padding:3px 0;overflow-wrap:anywhere;transition:opacity .18s ease;}
+.pl-event-extra-check-box{width:18px;height:18px;flex:0 0 auto;border-radius:4px;border:1.5px solid currentColor;display:grid;place-items:center;color:inherit;transition:background-color .18s ease;}
 .pl-event-extra-check-box .icon{width:10px;height:10px;}
 .pl-event-extra-check.done{opacity:.6;}
 .pl-event-extra-check.done span:last-child{text-decoration:line-through;}
@@ -1209,7 +1224,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-detail-meta{color:rgba(255,255,255,.45);font-size:.8125rem;margin:2px 0 18px;}
 .pl-detail h3{font-size:.8125rem;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.4);margin:18px 0 10px;}
 .pl-subtask-row{display:flex;align-items:center;gap:10px;padding:8px 0;}
-.pl-subtask-text{flex:1;font-size:.875rem;color:#fff;}
+.pl-subtask-text{flex:1;font-size:.875rem;color:#fff;transition:color .18s ease;}
 .pl-subtask-row.done .pl-subtask-text{text-decoration:line-through;color:rgba(255,255,255,.35);}
 .pl-subtask-add{display:flex;gap:8px;margin-top:6px;}
 .pl-attach-menu{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
@@ -1251,7 +1266,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-image-viewer-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;}
 .pl-image-viewer-close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);right:16px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;display:grid;place-items:center;padding:0;}
 .pl-image-viewer-close .icon{width:18px;height:18px;}
-.pl-image-viewer-save{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:24px;background:var(--gold);color:#171410;font-weight:700;font-size:.875rem;text-decoration:none;}
+.pl-image-viewer-save{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:24px;background:var(--gold);color:#171410;font-weight:700;font-size:.875rem;text-decoration:none;border:0;font-family:inherit;transition:background-color .15s ease;}
+.pl-image-viewer-save.is-saved{background:#3fa85c;color:#fff;}
 .pl-image-viewer-save .icon{width:16px;height:16px;}
 .pl-poll-view{margin-bottom:10px;}
 .pl-poll-question{font-size:.875rem;color:#fff;font-weight:600;margin-bottom:8px;}
@@ -1317,7 +1333,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.29';
+  const APP_VERSION = '0.9.30';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1366,7 +1382,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // после удаления/сортировки индексы «плывут» и легко зацепить не ту запись. Добиваем id всем,
   // у кого его ещё нет (уже сохранённые локально данные), новые записи создаются сразу с id.
   function withIds(arr){return Array.isArray(arr)?arr.map(x=>x&&!x.id?{...x,id:uid()}:x):[];}
-  const PL_COLORS=['#c9a84c','#7fb8e0','#e08fa0','#8fd19e','#d6a8e8','#e0b17f'];
+  const PL_COLORS=['#c9a84c','#7fb8e0','#e08fa0','#8fd19e','#d6a8e8','#e0b17f','#a3d9d3'];
   function plannerHashColor(name){
     let h=0;for(let i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))>>>0;
     return PL_COLORS[h%PL_COLORS.length];
@@ -1755,7 +1771,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function renderScreen(smoothDateScroll) {
     pendingHabitUndo?.render();pendingFinTxUndo?.render();plannerRangeSelectRemove();
-    habitOutlineObserver?.disconnect();activeHabitLiftCleanup?.();
+    habitOutlineObserver?.disconnect();activeHabitLiftCleanup?.();activePlannerDragCleanup?.();
     const host=$('#screen'),key=currentViewKey();
     if(host.dataset.viewKey===key)storeCurrentScroll();
     const epoch=++renderEpoch;
@@ -1790,6 +1806,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   const PL_START_HOUR=0,PL_END_HOUR=24,PL_HOUR_PX=56,PL_WINDOW_RADIUS=6,PL_WEEK_HOUR_PX=32,PL_OVERLAP_STEP=34,PL_WEEK_WINDOW_RADIUS=4,PL_MONTH_WINDOW_RADIUS=3,PL_RANGE_STEP=15;
   const PL_WEEKDAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   let plannerExtending=false,pendingPlannerScroll=null,pendingPlannerWeekScroll=null,pendingPlannerMonthScroll=null,plannerLastZoom=null;
+  // Долгое перетаскивание события/задачи (bindPlannerEventDrag/bindPlannerTaskDrag) тащит
+  // отдельный fixed-клон ("призрак") и плавающую мусорку-кнопку удаления, оба appendChild
+  // прямо на document.body — вне поддерева, которое renderScreen() перерисовывает. Если рендер
+  // всё же случится посреди жеста (гонка, которую не предугадать целиком — см. защиту в
+  // plannerRefreshNow/plannerApplyRemoteSection), у старой (теперь отсоединённой) карточки
+  // никогда не сработает pointerup/pointercancel, и оба элемента застревают навсегда поверх
+  // всего интерфейса, не пуская тапы под собой. activePlannerDragCleanup — страховка на этот
+  // случай: renderScreen() всегда обязан её дёрнуть перед перерисовкой (см. ниже), как уже
+  // сделано для activeHabitLiftCleanup у привычек.
+  let activePlannerDragCleanup=null;
   function plannerId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
   // Публичные разделы (Firebase): любое локальное сохранение событий/разделов заодно
   // толкает актуальный снимок в облако для всех разделов с shareId — не нужно расставлять
@@ -1965,15 +1991,47 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // изображение может быть выше/шире экрана, а не только "снизу-вверх"). Кнопка "скачать" —
   // обычная <a download> на data: URL (вложения хранятся как data URL, см.
   // plannerDownscaleImage), сохраняет как обычное фото средствами браузера/ОС.
+  // Раньше кнопка "Сохранить" была простой <a download> на data:-URL — на iOS Safari это
+  // ненадёжно: download на data: URL там чаще просто открывает фото в новой вкладке вместо
+  // настоящего сохранения, без всякой обратной связи, что не сработало. Теперь пробуем Web
+  // Share API с файлом (это и есть путь к нативному "Сохранить изображение" в шторке шара
+  // на iOS/Android, с настоящим системным подтверждением) и только если его нет — падаем на
+  // обычную <a download> (там, где она и так работает надёжно, т.е. везде кроме iOS Safari).
+  // Успех — не всплывающий тост, а сама подпись кнопки на секунду становится зелёной
+  // "Успешно" и возвращается обратно.
+  async function plannerSaveImageToDevice(src,btn){
+    const label=$('span',btn);
+    const markSaved=()=>{
+      btn.classList.add('is-saved');if(label)label.textContent='Успешно';
+      setTimeout(()=>{btn.classList.remove('is-saved');if(label)label.textContent='Сохранить';},1800);
+    };
+    try{
+      if(navigator.canShare){
+        const res=await fetch(src),blob=await res.blob();
+        const file=new File([blob],'dna-photo.jpg',{type:blob.type||'image/jpeg'});
+        if(navigator.canShare({files:[file]})){
+          await navigator.share({files:[file],title:'Фото из D.N.A.'});
+          markSaved();return;
+        }
+      }
+    }catch(err){
+      if(err?.name==='AbortError')return; // пользователь сам закрыл системную шторку — не ошибка
+    }
+    const a=document.createElement('a');a.href=src;a.download='dna-photo.jpg';a.style.display='none';
+    document.body.appendChild(a);a.click();a.remove();
+    markSaved();
+  }
   function plannerShowImageViewer(images,index){
     const root=$('#overlay-root');
     const wrap=document.createElement('div');wrap.className='pl-image-viewer';
     wrap.innerHTML=`<button type="button" class="pl-image-viewer-close" aria-label="Закрыть">${icon('close')}</button>
       <img class="pl-image-viewer-img" src="${esc(images[index])}" alt="Фото">
-      <a class="pl-image-viewer-save" href="${esc(images[index])}" download="dna-photo.jpg" aria-label="Сохранить фото">${icon('download')}<span>Сохранить</span></a>`;
+      <button type="button" class="pl-image-viewer-save" aria-label="Сохранить фото">${icon('download')}<span>Сохранить</span></button>`;
     root.appendChild(wrap);
     const close=()=>wrap.remove();
     $('.pl-image-viewer-close',wrap).onclick=close;
+    const saveBtn=$('.pl-image-viewer-save',wrap);
+    saveBtn.onclick=()=>plannerSaveImageToDevice(images[index],saveBtn);
     wrap.addEventListener('click',e=>{if(e.target===wrap)close();});
     let startY=null;
     wrap.addEventListener('pointerdown',e=>{if(e.target.closest('.pl-image-viewer-save,.pl-image-viewer-close'))return;startY=e.clientY;});
@@ -2000,10 +2058,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function plannerVote(ev,blockId,optionId){
     const block=ev.blocks?.find(b=>b.id===blockId&&b.type==='poll');if(!block)return;
     const prev=state.planner.pollVotes[blockId];
-    if(prev===optionId)return;
     if(prev){const old=block.options.find(o=>o.id===prev);if(old)old.votes=Math.max(0,(old.votes||0)-1);}
-    const opt=block.options.find(o=>o.id===optionId);if(opt)opt.votes=(opt.votes||0)+1;
-    state.planner.pollVotes[blockId]=optionId;
+    if(prev===optionId){
+      // Повторный тап по уже выбранному варианту — отменяет голос целиком, а не игнорируется.
+      delete state.planner.pollVotes[blockId];
+    } else {
+      const opt=block.options.find(o=>o.id===optionId);if(opt)opt.votes=(opt.votes||0)+1;
+      state.planner.pollVotes[blockId]=optionId;
+    }
     savePlannerEvents();savePlannerPollVotes();
   }
   function plannerSectionById(id){return id?state.planner.sections.find(s=>s.id===id):null;}
@@ -2253,9 +2315,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(!block)return;
         if(btn.dataset.plInline==='check'){
           const item=block.items?.find(i=>i.id===btn.dataset.itemId);if(!item)return;
-          item.done=!item.done;savePlannerEvents();plannerRefreshInline(eventId);
+          item.done=!item.done;savePlannerEvents();
+          // Как и в детальном листе — простую отметку пункта правим прямо на существующем
+          // узле, без plannerRefreshInline() (которая целиком пересобирает .pl-event-extra):
+          // остаётся на месте (не дёргает scrollTop) и даёт живую анимацию галочки.
+          btn.classList.toggle('done',item.done);
+          btn.setAttribute('aria-pressed',String(!!item.done));
+          const box=$('.pl-event-extra-check-box',btn);
+          if(box){
+            box.innerHTML=item.done?icon('check'):'';
+            if(!reducedMotion())box.animate?.([{transform:'scale(.7)'},{transform:'scale(1.2)'},{transform:'scale(1)'}],{duration:220,easing:'cubic-bezier(.34,1.56,.64,1)'});
+          }
         }else if(btn.dataset.plInline==='vote'){
-          plannerVote(ev,block.id,btn.dataset.optionId);plannerRefreshInline(eventId);
+          const optionId=btn.dataset.optionId;
+          plannerVote(ev,block.id,optionId);
+          plannerRefreshInline(eventId);
+          if(!reducedMotion()){
+            const picked=wrap.querySelector('[data-option-id="'+CSS.escape(optionId)+'"]');
+            picked?.animate?.([{transform:'scale(1)'},{transform:'scale(1.04)'},{transform:'scale(1)'}],{duration:200,easing:'ease-out'});
+          }
         }else if(btn.dataset.plInline==='image')plannerShowImageViewer(block.images,Number(btn.dataset.imageIndex));
         else if(btn.dataset.plInline==='location')showPlannerDetail(eventId);
       });
@@ -2645,6 +2723,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let timer=null,startX=0,startY=0,pointerId=null,dragTask=null,ghost=null,bar=null,remove=false,dropTimeline=null;
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
     wrap.cancelLongPress=cancel;
+    // Отдельная "тихая" очистка (без commit'а удаления/переноса) — вызывается и естественным
+    // finish(), и принудительно из renderScreen() через activePlannerDragCleanup, если жест
+    // прервался снаружи (см. комментарий у объявления activePlannerDragCleanup выше).
+    const cleanup=()=>{
+      cancel();
+      if(wrap.plTaskDragging){
+        wrap.plTaskDragging=false;
+        wrap.style.opacity='';
+        ghost?.remove();ghost=null;
+        bar?.remove();bar=null;
+        $('.pl-timeline.drop-ready')?.classList.remove('drop-ready');
+      }
+      dropTimeline=null;pointerId=null;
+      if(activePlannerDragCleanup===cleanup)activePlannerDragCleanup=null;
+    };
     card.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0||wrap.classList.contains('is-open')||e.target.closest('[data-pl-inline],[data-pl-toggle]'))return;
       cancel();startX=e.clientX;startY=e.clientY;pointerId=e.pointerId;
@@ -2653,6 +2746,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         dragTask=state.planner.events.find(x=>x.id===id);if(!dragTask)return;
         remove=false;dropTimeline=null;
         wrap.plTaskDragging=true;
+        activePlannerDragCleanup=cleanup;
         holdFeedback(card);
         const bounds=wrap.getBoundingClientRect();
         ghost=wrap.cloneNode(true);ghost.classList.add('pl-event-ghost');
@@ -2700,26 +2794,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     },{passive:false});
     const finish=e=>{
       if(e.pointerId!==pointerId)return;
-      cancel();
-      if(wrap.plTaskDragging){
-        wrap.plTaskDragging=false;
-        wrap.style.opacity='';
-        ghost?.remove();ghost=null;
-        bar?.remove();bar=null;
-        $('.pl-timeline.drop-ready')?.classList.remove('drop-ready');
-        if(remove){plannerDelete(id);}
-        else if(dropTimeline&&dragTask){
-          const rect=dropTimeline.getBoundingClientRect();
+      const wasDragging=wrap.plTaskDragging,didRemove=remove,dt=dropTimeline,dTask=dragTask;
+      cleanup();
+      if(wasDragging){
+        if(didRemove){plannerDelete(id);}
+        else if(dt&&dTask){
+          const rect=dt.getBoundingClientRect();
           const rawMin=(e.clientY-rect.top)/PL_HOUR_PX*60;
-          const snapped=clamp(Math.round(rawMin/5)*5,0,24*60-(dragTask.duration||60));
-          const dayBlock=dropTimeline.closest('.pl-day-block');
-          if(dayBlock)dragTask.date=dayBlock.dataset.plDate;
-          dragTask.time=plannerMinutesToTime(snapped);
-          dragTask.duration=dragTask.duration||60;
+          const snapped=clamp(Math.round(rawMin/5)*5,0,24*60-(dTask.duration||60));
+          const dayBlock=dt.closest('.pl-day-block');
+          if(dayBlock)dTask.date=dayBlock.dataset.plDate;
+          dTask.time=plannerMinutesToTime(snapped);
+          dTask.duration=dTask.duration||60;
           savePlannerEvents();renderScreen();
         }
       }
-      dropTimeline=null;pointerId=null;
     };
     card.addEventListener('pointerup',finish,{passive:true});
     card.addEventListener('pointercancel',finish,{passive:true});
@@ -2747,6 +2836,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let timer=null,startX=0,startY=0,pointerId=null,dragEv=null,dragStartTop=0,dragSnapped=0,ghost=null,bar=null,remove=false,dragAxis=null,swapTarget=null;
     const cancel=()=>{if(timer)clearTimeout(timer);timer=null;};
     wrap.cancelLongPress=cancel;
+    // См. cleanup у bindPlannerTaskDrag выше — тот же приём против застрявшего "призрака"/
+    // мусорки, если renderScreen() случится посреди долгого перетаскивания события.
+    const cleanup=()=>{
+      cancel();
+      if(wrap.plEventDragging){
+        wrap.plEventDragging=false;
+        wrap.style.opacity='';
+        ghost?.remove();ghost=null;
+        bar?.remove();bar=null;
+        $$('.pl-event-wrap.swap-target').forEach(w=>w.classList.remove('swap-target'));
+      }
+      dragAxis=null;swapTarget=null;pointerId=null;
+      if(activePlannerDragCleanup===cleanup)activePlannerDragCleanup=null;
+    };
     card.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0||wrap.classList.contains('is-open')||e.target.closest('[data-pl-inline],[data-pl-toggle]'))return;
       cancel();startX=e.clientX;startY=e.clientY;pointerId=e.pointerId;
@@ -2755,6 +2858,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         dragEv=state.planner.events.find(x=>x.id===id);if(!dragEv)return;
         dragStartTop=wrap.offsetTop;dragSnapped=dragStartTop;remove=false;dragAxis=null;swapTarget=null;
         wrap.plEventDragging=true;
+        activePlannerDragCleanup=cleanup;
         holdFeedback(card);
         const bounds=wrap.getBoundingClientRect();
         ghost=wrap.cloneNode(true);
@@ -2819,26 +2923,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     },{passive:false});
     const finish=e=>{
       if(e.pointerId!==pointerId)return;
-      cancel();
-      if(wrap.plEventDragging){
-        wrap.plEventDragging=false;
-        wrap.style.opacity='';
-        ghost?.remove();ghost=null;
-        bar?.remove();bar=null;
-        $$('.pl-event-wrap.swap-target').forEach(w=>w.classList.remove('swap-target'));
-        if(dragAxis==='x'){
-          if(swapTarget&&dragEv){
-            const other=state.planner.events.find(x=>x.id===swapTarget);
+      const wasDragging=wrap.plEventDragging,axis=dragAxis,target=swapTarget,didRemove=remove,ev=dragEv,snapped=dragSnapped,base=wrap.closest('[data-pl-date]')?.dataset.plDate;
+      cleanup();
+      if(wasDragging){
+        if(axis==='x'){
+          if(target&&ev){
+            const other=state.planner.events.find(x=>x.id===target);
             if(other){
-              const aKey=dragEv.laneOrder??plannerMinutesFromTime(dragEv.time),bKey=other.laneOrder??plannerMinutesFromTime(other.time);
-              dragEv.laneOrder=bKey;other.laneOrder=aKey===bKey?aKey+.01:aKey;
+              const aKey=ev.laneOrder??plannerMinutesFromTime(ev.time),bKey=other.laneOrder??plannerMinutesFromTime(other.time);
+              ev.laneOrder=bKey;other.laneOrder=aKey===bKey?aKey+.01:aKey;
               savePlannerEvents();renderScreen();
             }
           }
-        } else if(remove){plannerDelete(id);}
-        else if(dragEv){const base=wrap.closest('[data-pl-date]')?.dataset.plDate||dragEv.date;dragEv.date=plannerShiftDate(base,Math.floor(dragSnapped/1440));dragEv.time=plannerMinutesToTime(dragSnapped);savePlannerEvents();renderScreen();}
+        } else if(didRemove){plannerDelete(id);}
+        else if(ev){ev.date=plannerShiftDate(base||ev.date,Math.floor(snapped/1440));ev.time=plannerMinutesToTime(snapped);savePlannerEvents();renderScreen();}
       }
-      dragAxis=null;swapTarget=null;pointerId=null;
     };
     card.addEventListener('pointerup',finish,{passive:true});
     card.addEventListener('pointercancel',finish,{passive:true});
@@ -3570,6 +3669,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-form-row"><label>Цвет</label><div class="pl-color-picker" id="pl-event-color-picker">
         <button type="button" class="pl-color-swatch pl-color-auto ${!evColor?'active':''}" data-color="" aria-label="Цвет раздела"></button>
         ${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${evColor===c?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}
+        <span class="pl-color-swatch pl-color-custom ${evColor&&!PL_COLORS.includes(evColor)?'active':''}" style="${evColor&&!PL_COLORS.includes(evColor)?`--sw:${esc(evColor)};`:''}"><input type="color" id="pl-event-color-custom" aria-label="Выбрать свой цвет" value="${esc(evColor&&!PL_COLORS.includes(evColor)?evColor:'#c9a84c')}"></span>
       </div></div>
       <div class="pl-form-row"><label>Блоки</label>
         <div class="pl-attach-menu" id="pl-block-add-row"></div>
@@ -3717,7 +3817,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     };
     renderBlocks();
     $$('[data-section]',ov).forEach(b=>b.onclick=()=>{sectionId=b.dataset.section||null;$$('[data-section]',ov).forEach(x=>x.classList.toggle('active',x.dataset.section===sectionId));});
-    $$('#pl-event-color-picker [data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color||null;$$('#pl-event-color-picker [data-color]',ov).forEach(x=>x.classList.toggle('active',(x.dataset.color||null)===color));});
+    const syncColorActive=()=>{
+      $$('#pl-event-color-picker [data-color]',ov).forEach(x=>x.classList.toggle('active',(x.dataset.color||null)===color));
+      $('.pl-color-custom',ov)?.classList.toggle('active',!!color&&!PL_COLORS.includes(color));
+    };
+    $$('#pl-event-color-picker [data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color||null;syncColorActive();});
+    $('#pl-event-color-custom',ov)?.addEventListener('input',e=>{
+      color=e.target.value;
+      $('.pl-color-custom',ov).style.setProperty('--sw',color);
+      syncColorActive();
+    });
     // Пока пользователь не тронул поле "Окончание" руками, оно молча следует за "Началом"
     // (держит исходную длительность) — иначе при переносе начала конец остаётся старым
     // значением и на сохранении читается как "конец раньше начала", ошибочно уезжая на
@@ -3871,11 +3980,29 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </div>
       <div class="modal-actions" style="margin-top:18px"><button class="text-btn" style="color:#ff5a5a" id="pl-detail-delete">Удалить событие</button><button class="text-btn" data-close>Закрыть</button></div>
     </div></div>`,{sheet:true});
-    const refreshChecklist=()=>{$('#pl-checklist-section',ov).innerHTML=plannerChecklistView(ev);bindChecklist();};
+    // Замена #pl-checklist-section целиком (innerHTML) выше в дереве шторки сбрасывала бы
+    // scrollTop .sheet на глазах у пользователя (или как минимум перекладку контента под
+    // пальцем) — оборачиваем в сохранение/восстановление позиции, как и у bindVotes выше.
+    const refreshChecklist=()=>{
+      const sheetEl=$('.sheet',ov),top=sheetEl?.scrollTop;
+      $('#pl-checklist-section',ov).innerHTML=plannerChecklistView(ev);bindChecklist();
+      if(sheetEl&&top!=null)sheetEl.scrollTop=top;
+    };
     const bindChecklist=()=>{
       $$('[data-sub-toggle]',ov).forEach(b=>b.onclick=()=>{
         const[blockId,subId]=b.dataset.subToggle.split(':'),blk=ev.blocks.find(x=>x.id===blockId),s=blk?.items.find(x=>x.id===subId);
-        if(s){s.done=!s.done;savePlannerEvents();refreshChecklist();}
+        if(!s)return;
+        s.done=!s.done;savePlannerEvents();
+        // Простую отметку/снятие пункта не нужно перерисовывать всей секцией целиком — ни
+        // список, ни заголовок от неё не зависят. Меняем классы/иконку прямо на уже
+        // существующих узлах: это и снимает вопрос про "не должно отматывать наверх" сам
+        // собой (ничего не удаляется и не пересоздаётся), и даёт место для живой анимации
+        // галочки, а не мгновенной телепортации в готовое состояние.
+        const row=b.closest('.pl-subtask-row');
+        row?.classList.toggle('done',s.done);
+        b.classList.toggle('done',s.done);
+        b.innerHTML=s.done?icon('check'):'';
+        if(!reducedMotion())b.animate?.([{transform:'scale(.75)'},{transform:'scale(1.15)'},{transform:'scale(1)'}],{duration:240,easing:'cubic-bezier(.34,1.56,.64,1)'});
       });
       $$('[data-sub-remove]',ov).forEach(b=>b.onclick=()=>{
         const[blockId,subId]=b.dataset.subRemove.split(':'),blk=ev.blocks.find(x=>x.id===blockId);
@@ -3888,7 +4015,34 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       });
     };
     bindChecklist();
-    const bindVotes=()=>{$$('[data-vote]',ov).forEach(b=>b.onclick=()=>{plannerVote(ev,b.dataset.votePoll,b.dataset.vote);$('#pl-poll-section',ov).innerHTML=plannerPollView(ev);bindVotes();});};
+    const bindVotes=()=>{$$('[data-vote]',ov).forEach(b=>b.onclick=()=>{
+      const sheetEl=$('.sheet',ov),scrollTop=sheetEl?.scrollTop;
+      const pickedId=b.dataset.vote;
+      const oldPct=new Map($$('.pl-poll-option',ov).map(o=>[o.dataset.vote,o.style.getPropertyValue('--pct')]));
+      plannerVote(ev,b.dataset.votePoll,pickedId);
+      $('#pl-poll-section',ov).innerHTML=plannerPollView(ev);
+      // Скролл шторки не должен уезжать наверх из-за замены #pl-poll-section — восстанавливаем
+      // ровно ту же позицию, что была до тапа (как и в refreshChecklist ниже).
+      if(sheetEl&&scrollTop!=null)sheetEl.scrollTop=scrollTop;
+      if(!reducedMotion()){
+        // Заливка (.pl-poll-option-fill) уже умеет анимировать свою ширину (transition:width в
+        // CSS), но новые кнопки только что созданы через innerHTML сразу с ФИНАЛЬНЫМ --pct —
+        // анимировать нечего, браузер просто рисует готовый результат. Классический FLIP:
+        // мгновенно откатываем каждую кнопку к её ПРЕЖНЕМУ проценту, форсируем рефлоу (чтобы
+        // браузер зафиксировал этот откат как стартовый кадр), и только затем возвращаем к
+        // настоящему значению — вот теперь transition отрабатывает по-честному.
+        $$('.pl-poll-option',ov).forEach(o=>{
+          const target=o.style.getPropertyValue('--pct'),from=oldPct.get(o.dataset.vote);
+          if(from==null||from===target)return;
+          o.style.setProperty('--pct',from);
+          void o.offsetHeight;
+          o.style.setProperty('--pct',target);
+        });
+        const picked=$$('.pl-poll-option',ov).find(o=>o.dataset.vote===pickedId);
+        picked?.animate?.([{transform:'scale(1)'},{transform:'scale(1.035)'},{transform:'scale(1)'}],{duration:220,easing:'ease-out'});
+      }
+      bindVotes();
+    });};
     bindVotes();
     // Нижняя панель комментариев — только поле ввода, скрепка (вложение) и отправка, без
     // лайка/приглашения/эмодзи (убраны по просьбе — пользователю нужен был именно минимум).
@@ -3943,7 +4097,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Свайп в планере теперь срабатывает при том же наклоне пальца, что и в привычках — не обязательно вести палец строго горизонтально. Убран чёрный зазор в уголке между карточкой события и кнопкой выполнения при свайпе вправо. Исправлен баг: обычный тап по операции в финансах или по карточке привычки иногда не открывался. Первый свайп влево открывает редактирование и удаление, второй удаляет событие. На карточке можно отмечать пункты чеклиста, голосовать и открывать фото; потяни вложение за шесть точек, чтобы изменить порядок.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Свайп по событию теперь работает из любой точки карточки, не только за шапку. Все окна и шторки закрываются с анимацией, а не мгновенно. Повторный тап по своему варианту в опросе отменяет голос. Отметки в чеклисте и голоса не сбрасывают прокрутку и анимированы. Сохранение фото переделано (кнопка сама становится зелёной "Успешно"). Починен редкий баг с зависающей кнопкой удаления поверх интерфейса. Цветов для события стало больше, и добавлен выбор произвольного цвета.</p></section>
     </div></section>`;
   }
 
@@ -4710,33 +4864,70 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const handle=$('.sheet-handle',ov),sheetEl=handle?.closest('.sheet');
     if(!handle||!sheetEl)return;
     let startY=0,pointerId=null,dragging=false;
-    handle.addEventListener('pointerdown',e=>{
+    // Ловим свайп-вниз не только с тонкой полоски-ручки, но и с заголовка шторки — у высокой
+    // формы (создание/редактирование события) палец легко промахивается мимо 24px ручки, а
+    // заголовок — статичный текст без своих жестов, безопасно вешать сюда тот же драг.
+    const grabZone=$('.sheet-title',ov);
+    const onPointerDown=e=>{
       pointerId=e.pointerId;startY=e.clientY;dragging=true;
       sheetEl.style.transition='';
-      handle.setPointerCapture?.(pointerId);
-    },{passive:true});
-    handle.addEventListener('pointermove',e=>{
+      (e.currentTarget).setPointerCapture?.(pointerId);
+    };
+    handle.addEventListener('pointerdown',onPointerDown,{passive:true});
+    grabZone?.addEventListener('pointerdown',onPointerDown,{passive:true});
+    const onPointerMove=e=>{
       if(!dragging||e.pointerId!==pointerId)return;
       e.preventDefault();
       const dy=Math.max(0,e.clientY-startY);
       sheetEl.style.transform='translate3d(0,'+dy+'px,0)';
-    },{passive:false});
+    };
+    handle.addEventListener('pointermove',onPointerMove,{passive:false});
+    grabZone?.addEventListener('pointermove',onPointerMove,{passive:false});
     const finish=e=>{
       if(!dragging||e.pointerId!==pointerId)return;
       dragging=false;
       const dy=Math.max(0,e.clientY-startY);
-      sheetEl.style.transition='transform .2s ease';
-      if(dy>80){sheetEl.style.transform='translate3d(0,100%,0)';setTimeout(()=>{if(sheetEl.isConnected)closeOverlay();},180);}
-      else sheetEl.style.transform='';
+      // dy>80 отдаёт саму анимацию закрытия closeOverlay() (единая точка для всех путей
+      // закрытия, см. её комментарий) — не проигрываем её здесь ещё раз параллельно.
+      if(dy>80){closeOverlay();return;}
+      sheetEl.style.transition='transform .2s ease';sheetEl.style.transform='';
     };
     handle.addEventListener('pointerup',finish,{passive:true});
     handle.addEventListener('pointercancel',finish,{passive:true});
+    grabZone?.addEventListener('pointerup',finish,{passive:true});
+    grabZone?.addEventListener('pointercancel',finish,{passive:true});
     // Простой тап по ручке (без протяжки) тоже закрывает шторку — привычная пара
     // жестов "свайп вниз ИЛИ тап по полоске", как в нативных iOS/Android шторках.
     handle.addEventListener('click',()=>closeOverlay());
   }
   function escClose(e){if(e.key==='Escape')closeOverlay();}
-  function closeOverlay(){document.removeEventListener('keydown',escClose);$('#overlay-root').innerHTML='';}
+  // Открытие шторки анимировано (@keyframes sheetIn), а закрытие раньше стирало #overlay-root
+  // мгновенно (innerHTML='') из ЛЮБОГО пути — крестик, "Отмена", тап по фону, Escape, свайп-
+  // ручка сама вручную анимировала СЕБЯ отдельно, а остальные пути вообще без анимации. Теперь
+  // сама closeOverlay() всегда быстро (180мс) уводит шторку вниз и гасит фон перед удалением —
+  // единая точка, все вызывающие места получают анимацию бесплатно.
+  // ВАЖНО: удаляем именно КОНКРЕТНЫЙ узел ov.remove(), а не root.innerHTML='' — многие места
+  // зовут closeOverlay() и сразу следующей строкой открывают НОВУЮ шторку (например
+  // data-pl-edit: closeOverlay();showPlannerEditSheet(id)), а overlay() рендерит её тоже через
+  // root.innerHTML=. Если бы отложенная (через 180мс) очистка стирала весь root, она бы через
+  // 180мс снесла уже открывшуюся НОВУЮ шторку вместо старой. ov.remove() на уже отсоединённом
+  // (замещённом) узле — безопасный no-op, так что эта гонка больше не проблема. "Уже закрывается"
+  // помечаем прямо на узле (dataset), а не глобальным флагом — так что новая шторка, открытая
+  // взамен, всегда закрывается независимо, даже пока старая ещё доигрывает анимацию.
+  function closeOverlay(){
+    document.removeEventListener('keydown',escClose);
+    const root=$('#overlay-root'),ov=root.firstElementChild;
+    if(!ov||ov.dataset.closing)return;
+    if(reducedMotion()){ov.remove();return;}
+    ov.dataset.closing='1';
+    const sheetEl=$('.sheet',ov),modalEl=$('.modal',ov);
+    ov.style.transition='background-color .18s ease';
+    ov.style.pointerEvents='none';
+    requestAnimationFrame(()=>{ov.style.backgroundColor='transparent';});
+    if(sheetEl){sheetEl.style.transition='transform .18s cubic-bezier(.4,0,1,1)';sheetEl.style.transform='translate3d(0,100%,0)';}
+    else if(modalEl){modalEl.style.transition='transform .18s ease,opacity .18s ease';modalEl.style.transform='scale(.94)';modalEl.style.opacity='0';}
+    setTimeout(()=>{ov.remove();},180);
+  }
   function showToast(text,ok=false){
     clearTimeout(toastTimer);clearTimeout(toastRemoveTimer);
     const root=$('#toast-root');Array.from(root.children).filter(t=>t.className.split(' ').includes('toast')).forEach(t=>t.remove());
@@ -5604,7 +5795,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function plannerRefreshNow(){
     if(state.nav!==1)return;
     const todayIso=isoDate(dateOnly());
-    if(plannerLastKnownToday&&plannerLastKnownToday!==todayIso){plannerLastKnownToday=todayIso;renderScreen();return;}
+    // Не дёргаем renderScreen(), пока пользователь держит событие/задачу в долгом
+    // перетаскивании — тот же приём, что и у plannerApplyRemoteSection ниже. Полночь никуда не
+    // денется, следующий тик (через 20с) подхватит смену дня, когда жест уже завершится.
+    if(plannerLastKnownToday&&plannerLastKnownToday!==todayIso){
+      if($$('.pl-event-wrap,.pl-task-wrap').some(w=>w.plEventDragging||w.plTaskDragging))return;
+      plannerLastKnownToday=todayIso;renderScreen();return;
+    }
     plannerLastKnownToday=todayIso;
     const curHour=new Date().getHours();
     // data-pl-hour повторяется в КАЖДОМ дне ленты (у всех своя лента 0-23) — подсвечивать
