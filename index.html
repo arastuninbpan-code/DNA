@@ -1002,9 +1002,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 /* Свайп ВПРАВО (в противоположную от удаления сторону) отмечает выполнение одним "флик"-
    жестом, без второй стадии — как свайп-архивация в Mail. Подложка лежит слева, раскрывается
    по мере протяжки вправо, цвет усиливается после completeThreshold (см. bindSwipeReveal). */
-.pl-swipe-complete{position:absolute;left:0;top:0;bottom:0;width:0;overflow:hidden;display:flex;align-items:center;padding-left:16px;background:#2f9e5c;color:#fff;border-radius:14px 0 0 14px;pointer-events:none;}
+.pl-swipe-complete{position:absolute;left:0;top:0;bottom:0;width:0;overflow:hidden;display:flex;align-items:center;padding-left:16px;background:#26251f;color:#c2c5cb;border-radius:14px 0 0 14px;pointer-events:none;transition:background-color .15s ease,color .15s ease;}
 .pl-event-wrap .pl-swipe-complete{border-radius:10px 0 0 10px;padding-left:10px;}
-.pl-swipe-complete.is-ready{background:#3ab86c;}
+.pl-swipe-complete.is-ready{background:#3a2f13;color:var(--gold);}
 .pl-swipe-complete .icon{width:18px;height:18px;flex:0 0 auto;}
 .pl-task-actions{position:absolute;right:0;left:auto;top:0;bottom:0;display:flex;justify-content:flex-end;pointer-events:none;}
 .pl-task-wrap.is-open .pl-task-actions{pointer-events:auto;}
@@ -1079,10 +1079,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 /* Значки вложений (фото/чеклист/опрос/место) под шапкой события — видны только если высота
    карточки (= длительность) реально даёт им место (см. PL_EXTRA_MIN_HEIGHT в JS). Сама
    полоска скроллится, если значков больше, чем влезает по высоте, а не раздвигает карточку. */
-.pl-event-extra{flex:1;min-height:0;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;padding-left:30px;}
+/* Тело события (панель под цветной "шапкой" — чекбоксом+названием) — затемняющая подложка
+   на всю ширину карточки, визуально отделяющая цветную шапку раздела от вложений. Крупное
+   изображение теперь занимает почти всю ширину тела со скруглёнными углами (как на рисунке
+   пользователя), а не мелкую иконку-превью вперемешку с чипами чеклиста/опроса/места. */
+.pl-event-extra{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin:2px -10px -6px;padding:7px 10px 8px;background:rgba(23,20,16,.18);border-radius:0 0 8px 8px;}
+.pl-event-extra-chips{display:flex;flex-wrap:wrap;gap:4px;}
 .pl-event-extra-item{display:inline-flex;align-items:center;gap:3px;font-size:.6875rem;line-height:1;color:rgba(20,16,10,.75);background:rgba(255,255,255,.28);border-radius:6px;padding:3px 5px;white-space:nowrap;}
 .pl-event-extra-item .icon{width:11px;height:11px;flex:0 0 auto;}
-.pl-event-extra-image{padding:0;overflow:hidden;width:30px;height:22px;border-radius:4px;}
+.pl-event-extra-image{display:block;width:100%;flex:0 0 auto;border-radius:10px;overflow:hidden;aspect-ratio:16/9;max-height:140px;}
 .pl-event-extra-image img{width:100%;height:100%;object-fit:cover;display:block;}
 /* Плашка "+N" на месте карточек сверх PL_MAX_COLS в одном пересекающемся кластере (см.
    renderPlannerTimeline) — тап открывает лист со всеми событиями кластера вбок. */
@@ -1234,7 +1239,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.14';
+  const APP_VERSION = '0.9.15';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2099,12 +2104,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // влезает, эта полоска скроллится внутри себя (overflow-y:auto), а не раздвигает границы
   // события на ленте (те завязаны только на длительность).
   function plannerEventExtraHtml(e){
-    const parts=[];
-    if(e.images?.length)parts.push(`<span class="pl-event-extra-item pl-event-extra-image"><img src="${e.images[0]}" alt="" loading="lazy"></span>`);
-    if(e.subtasks?.length){const done=e.subtasks.filter(s=>s.done).length;parts.push(`<span class="pl-event-extra-item">${icon('check')}<span>${done}/${e.subtasks.length}</span></span>`);}
-    if(e.poll)parts.push(`<span class="pl-event-extra-item">${icon('poll')}<span>Опрос</span></span>`);
-    if(e.location)parts.push(`<span class="pl-event-extra-item">${icon('pin')}<span>${esc(e.location.label||'Место')}</span></span>`);
-    return parts.join('');
+    const chips=[];
+    if(e.subtasks?.length){const done=e.subtasks.filter(s=>s.done).length;chips.push(`<span class="pl-event-extra-item">${icon('check')}<span>${done}/${e.subtasks.length}</span></span>`);}
+    if(e.poll)chips.push(`<span class="pl-event-extra-item">${icon('poll')}<span>Опрос</span></span>`);
+    if(e.location)chips.push(`<span class="pl-event-extra-item">${icon('pin')}<span>${esc(e.location.label||'Место')}</span></span>`);
+    const imageHtml=e.images?.length?`<span class="pl-event-extra-image"><img src="${e.images[0]}" alt="" loading="lazy"></span>`:'';
+    const chipsHtml=chips.length?`<span class="pl-event-extra-chips">${chips.join('')}</span>`:'';
+    return imageHtml+chipsHtml;
   }
   const PL_MAX_COLS=3,PL_EXTRA_MIN_HEIGHT=76;
   function plannerRenderEventTile(e,top,height,leftPct,widthPct,col,totalCols){
@@ -2267,12 +2273,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // выполнение одним "флик"-движением, без второго этапа — completeThreshold ощутимо короче
     // deleteThreshold, потому что это разовое обратимое действие (тап по чекбоксу снова снимет
     // отметку), а не необратимое удаление, которому нужна защита от случайного срабатывания.
-    const completeEl=wrap.querySelector('.pl-swipe-complete'),completeThreshold=actionsWidth*.8,completeCap=completeThreshold+24;
+    const completeEl=wrap.querySelector('.pl-swipe-complete'),completeThreshold=28,completeCap=completeThreshold+20;
     let offset=0,open=false,press=null,suppressUntil=0,scroller=null,forwarder=null,lastMerge=-1,lastCompleteReveal=-1;
     const paint=(v,animate,rawValue)=>{
       offset=v;
       card.style.transition=animate?'transform .24s cubic-bezier(.22,.8,.25,1)':'none';
-      actions.style.transition=animate?'width .24s cubic-bezier(.22,.8,.25,1)':'none';
       card.style.transform='translate3d('+offset+'px,0,0)';
       if(completeEl){
         const reveal=Math.max(0,v);
@@ -2285,20 +2290,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       }
       if(buttons.length<2||!editBtn||!delBtn)return;
       wrap.classList.toggle('is-revealing',v<0);
-      // Ширина панели кнопок жёстко капается на actionsWidth — раньше (после правок другой
-      // сессии) она напрямую следовала за -v без потолка, а второй свайп при этом мог тянуть
-      // карточку вплоть до wrap.clientWidth (почти вся ширина карточки). Для одиночного
-      // (широкого) события это давало большой запас хода ПОСЛЕ полного "поглощения" (merge=1)
-      // — кнопка удаления (flex:1 0 0px, растёт на всё оставшееся место в контейнере) эффектно
-      // разрасталась на реальном протяжении жеста, и анимация поглощения читалась хорошо. Для
-      // события в кластере (делит время с соседними, узкая колонка) свободного хода почти не
-      // оставалось — тот же merge=1 достигался почти у самой стенки wrap.clientWidth, так что
-      // рост кнопки за пределами формулы поглощения почти не успевал произойти и заметить его
-      // не получалось ("нет анимации, как у одиночного"). Теперь ширина панели и кнопок целиком
-      // определяется только merge (0..1) и actionsWidth — одинаково для любой ширины карточки.
-      const reveal=Math.min(actionsWidth,Math.max(0,-v));
-      actions.style.width=reveal+'px';
-      actions.style.overflow='hidden';
+      // Панель кнопок НЕ анимируется через JS-запись width — это layout-триггерящее свойство,
+      // и раздельный прогон её анимации рядом с (композитным, GPU) transform карточки на
+      // каждый кадр на реальном устройстве расходился по времени с самой карточкой на 1-2
+      // кадра. На широкой (одиночной) карточке разрыв в пару кадров почти незаметен, а на
+      // узкой (кластерной, где сама ширина карточки сопоставима с actionsWidth) тот же разрыв
+      // — заметная доля всей карточки, и читался как "анимации нет" или как дыра. Панель
+      // кнопок изначально имеет фиксированную (естественную, по сумме ширин кнопок) ширину
+      // actionsWidth и лежит под карточкой с right:0 — реveal делает исключительно
+      // overflow:hidden у wrap по мере transform карточки, без единой JS-записи layout-
+      // свойства на кадр. Ширина/рост самих кнопок (эффект поглощения) по-прежнему считается
+      // ниже через merge и flex-basis — это его не касается, так как editW+delW всегда в
+      // сумме равны actionsWidth.
       const pull=rawValue==null?v:rawValue;
       const merge=clamp((-pull-actionsWidth)/deleteThreshold,0,1);
       wrap.classList.toggle('delete-ready',open&&merge>=1);
@@ -2371,7 +2374,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         }
         if(!g.wasOpen&&onComplete&&(g.lastRaw??0)>0){
           const now=performance.now(),first=g.samples[0],v=first&&now>first.t?(e.clientX-first.x)/(now-first.t):0;
-          if(g.lastRaw>=completeThreshold||(v>.8&&g.lastRaw>=24)){onComplete();settle(false);return;}
+          if(g.lastRaw>=completeThreshold||(v>.8&&g.lastRaw>=14)){onComplete();settle(false);return;}
         }
         settle(offset<-actionsWidth*.4);
       }
@@ -3539,7 +3542,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Скролл при касании прямо по карточке события/задачи больше не в два раза быстрее обычного (два независимых обработчика прокручивали одновременно). Свайп вправо теперь отмечает событие/задачу выполненными. Анимация поглощения при удалении свайпом теперь одинаковая и для одиночных событий, и для тех, что делят время с другими (панель кнопок больше не растягивается на всю ширину карточки).</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Анимация поглощения при свайпе-удалении событий, делящих время с другими, больше не дёргается — убрана лишняя перерисовка панели кнопок на каждый кадр жеста. Свайп вправо "выполнено" срабатывает гораздо более коротким движением и теперь золотого цвета (как у привычек), а не зелёного. Карточка события с вложением показывает крупное изображение со скруглёнными углами под цветной шапкой раздела.</p></section>
     </div></section>`;
   }
 
