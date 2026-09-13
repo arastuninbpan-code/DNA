@@ -1273,7 +1273,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.19';
+  const APP_VERSION = '0.9.20';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2150,8 +2150,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const blocks={
       image:()=>e.images?.length?`<span class="pl-event-extra-image"><img src="${e.images[0]}" alt="" loading="lazy"></span>`:'',
       checklist:()=>{if(!e.subtasks?.length)return '';const done=e.subtasks.filter(s=>s.done).length;return `<span class="pl-event-extra-item">${icon('check')}<span>${done}/${e.subtasks.length}</span></span>`;},
-      poll:()=>e.poll?`<span class="pl-event-extra-item">${icon('poll')}<span>Опрос</span></span>`:'',
-      location:()=>e.location?`<span class="pl-event-extra-item">${icon('pin')}<span>${esc(e.location.label||'Место')}</span></span>`:'',
+      poll:()=>e.poll&&(e.poll.question?.trim()||e.poll.options?.some(o=>o.text?.trim()))?`<span class="pl-event-extra-item">${icon('poll')}<span>Опрос</span></span>`:'',
+      location:()=>e.location&&(e.location.label?.trim()||e.location.lat!=null)?`<span class="pl-event-extra-item">${icon('pin')}<span>${esc(e.location.label||'Место')}</span></span>`:'',
     };
     const imageHtml=blocks.image();
     const chips=order.filter(t=>t!=='image').map(t=>blocks[t]?.()||'').filter(Boolean);
@@ -3581,8 +3581,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         duration=endMin-startMin;
         if(duration<5||duration>31*1440){showToast('Окончание должно быть позже начала: от 5 минут до 31 дня');return;}
       }
-      if(existing){const index=state.planner.events.findIndex(e=>e.id===existing.id);if(index<0){showToast('Событие уже удалено. Закрой форму и обнови список.');return;}state.planner.events[index]={...state.planner.events[index],title,date,time,duration,sectionId,color,subtasks:checklist,poll,images,location,attachOrder:order};}
-      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,subtasks:checklist,comments:[],done:false,poll,images,location,attachOrder:order,createdAt:new Date().toISOString()});
+      // Блок "опрос"/"локация" мог быть добавлен (кнопкой в списке блоков) и тут же сохранён
+      // без заполнения — poll/location тогда не null, а пустая заготовка (см. addBlock), и
+      // e.poll/e.location трактуются как "есть контент" везде, где на них проверяют (карточка
+      // события, deталь) — без этой чистки пустой блок всё равно считался бы вложением и
+      // включал бы тёмное "тело" карточки (.has-extra) без единого видимого чипа внутри.
+      const cleanPoll=poll&&(poll.question.trim()||poll.options.some(o=>o.text.trim()))?poll:null;
+      const cleanLocation=location&&(location.label?.trim()||location.lat!=null)?location:null;
+      if(existing){const index=state.planner.events.findIndex(e=>e.id===existing.id);if(index<0){showToast('Событие уже удалено. Закрой форму и обнови список.');return;}state.planner.events[index]={...state.planner.events[index],title,date,time,duration,sectionId,color,subtasks:checklist,poll:cleanPoll,images,location:cleanLocation,attachOrder:order};}
+      else state.planner.events.push({id:plannerId(),title,date,time,duration,sectionId:state.planner.activeSection,color,subtasks:checklist,comments:[],done:false,poll:cleanPoll,images,location:cleanLocation,attachOrder:order,createdAt:new Date().toISOString()});
       if(!savePlannerEvents())return;closeOverlay();renderScreen();
     };
   }
@@ -3718,7 +3725,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Комментарии к событию теперь на собственной затемнённой подложке, явно отделённой от информации о событии выше. Нижняя панель упрощена: убраны лайк/пригласить/эмодзи, остались только вложение (скрепка), поле ввода и отправка.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Исправлен баг: добавление блока "Опрос" или "Локация" в форме без заполнения превращало карточку события в пустой тёмный прямоугольник во весь рост события (эти блоки не должны были считаться вложением, пока пустые). Теперь такие пустые блоки не сохраняются и не влияют на вид карточки — ни у новых событий, ни у уже сохранённых.</p></section>
     </div></section>`;
   }
 
