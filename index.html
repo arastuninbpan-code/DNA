@@ -468,9 +468,12 @@ select.field { appearance:none; }
 .type-btn { padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:transparent; color:rgba(255,255,255,.7); font-family:Georgia,'Times New Roman',serif; }
 .type-btn.expense.active { border-color:var(--red); background:rgba(255,90,90,.1); }
 .type-btn.income.active { border-color:var(--green); background:rgba(76,175,80,.1); }
-.sheet-overlay { align-items:flex-end; padding:0; }
-.sheet { width:100%; max-height:82dvh; overflow-x:hidden; overflow-y:auto; background:#111; border-radius:28px 28px 0 0; padding:12px 24px calc(32px + var(--safe-bottom)); animation:sheetIn .28s cubic-bezier(.16,.84,.28,1) both; scrollbar-width:none; touch-action:pan-y; }
+.sheet-overlay { align-items:flex-end; padding:0; overflow:hidden; overscroll-behavior:none; }
+.sheet { width:100%; max-width:100%; min-width:0; overscroll-behavior-x:none; max-height:82dvh; overflow-x:hidden; overflow-y:auto; background:#111; border-radius:28px 28px 0 0; padding:12px 24px calc(32px + var(--safe-bottom)); animation:sheetIn .28s cubic-bezier(.16,.84,.28,1) both; scrollbar-width:none; touch-action:pan-y; }
 .sheet::-webkit-scrollbar{display:none}
+.sheet input,.sheet select,.sheet textarea{min-width:0;max-width:100%;font-size:16px;}
+.sheet input[type="file"]{display:block;width:100%;}
+.sheet .pl-block-row,.sheet .pl-block-content{min-width:0;max-width:100%;overflow-wrap:anywhere;}
 @keyframes sheetIn { from{transform:translateY(100%)} to{transform:none} }
 /* position:sticky — форма события выросла (несколько блоков вложений теперь помещаются),
    и при скролле контента внутри шторки ручка (обычный дочерний элемент .sheet, тот же
@@ -1066,7 +1069,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-drag-bar .icon{display:block;width:20px;height:20px;margin:0;}
 /* Как и .pl-task-actions выше — панель зафиксирована по правому краю (right:0, left:auto),
    ширина по контенту, свайп влево, кнопка удаления справа (см. bindSwipeReveal). */
-.pl-event-actions{position:absolute;right:0;left:auto;top:0;bottom:0;display:flex;justify-content:flex-end;pointer-events:none;}
+.pl-event-actions{visibility:hidden;position:absolute;right:0;left:auto;top:0;bottom:0;display:flex;justify-content:flex-end;pointer-events:none;}
+.pl-event-wrap.is-revealing .pl-event-actions,.pl-event-wrap.is-open .pl-event-actions{visibility:visible;}
 .pl-event-wrap.is-open .pl-event-actions{pointer-events:auto;}
 .pl-event-actions button{width:36px;border:0;background:#26251f;color:#c2c5cb;display:grid;place-items:center;padding:0;}
 .pl-event-actions button .icon{width:14px;height:14px;}
@@ -1078,8 +1082,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    карточки снизу под ней, цвета которое как раз и меняет выбор цвета события в форме
    (--pl-body, по умолчанию тёмное, пока пользователь не выбрал свой цвет). Раньше оба слоя
    красились одним и тем же --pl-color, и выбор цвета события красил шапку, а не остальное. */
-.pl-event{position:absolute;inset:-1px;z-index:1;box-sizing:border-box;padding:6px 10px;border-radius:10px;background:var(--pl-body,#1c1913);border:2px solid var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;flex-direction:column;gap:4px;}
-.pl-event-head{display:flex;align-items:center;gap:6px;flex:0 0 auto;background:var(--pl-head,var(--gold));margin:-6px -10px 0;padding:7px 10px 6px;border-radius:8px 8px 0 0;}
+.pl-event{position:absolute;inset:0;width:100%;height:100%;min-width:0;z-index:1;box-sizing:border-box;padding:0;border-radius:10px;background:var(--pl-body,#1c1913);color:var(--pl-ink,#eee);border:0;box-shadow:inset 0 0 0 2px var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;flex-direction:column;align-items:stretch;gap:0;}
+.pl-event-head{display:flex;align-items:center;align-self:stretch;width:100%;min-width:0;gap:6px;flex:0 0 auto;background:var(--pl-head,var(--gold));margin:0;padding:8px 10px;border-radius:10px 10px 0 0;}
 .pl-event.done{filter:brightness(.6) saturate(.7);}
 .pl-event-wrap.is-revealing .pl-event-head,.pl-event-wrap.is-open .pl-event-head{border-radius:8px 0 0 0;}
 .pl-event-check{width:24px;height:24px;flex:0 0 auto;border-radius:7px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;background:transparent;padding:0;}
@@ -1097,16 +1101,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    на всю ширину карточки, визуально отделяющая цветную шапку раздела от вложений. Крупное
    изображение теперь занимает почти всю ширину тела со скруглёнными углами (как на рисунке
    пользователя), а не мелкую иконку-превью вперемешку с чипами чеклиста/опроса/места. */
-.pl-event-extra{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin:2px -10px -6px;padding:7px 10px 8px;}
+.pl-event-extra{flex:1;min-height:0;min-width:0;width:100%;overflow-x:hidden;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin:0;padding:10px;}
+.pl-event-extra>*{flex-shrink:0;}
 .pl-event-extra-chips{display:flex;flex-wrap:wrap;gap:4px;}
 .pl-event-extra-item{display:inline-flex;align-items:center;gap:3px;font-size:.6875rem;line-height:1;color:rgba(20,16,10,.75);background:rgba(255,255,255,.28);border-radius:6px;padding:3px 5px;white-space:nowrap;}
 .pl-event-extra-item .icon{width:11px;height:11px;flex:0 0 auto;}
-.pl-event-extra-image{display:block;width:100%;flex:0 0 auto;border-radius:10px;overflow:hidden;aspect-ratio:4/3;max-height:220px;}
-.pl-event-extra-image img{width:100%;height:100%;object-fit:cover;display:block;}
-.pl-event-extra-list{display:flex;flex-direction:column;gap:3px;}
+.pl-event-extra-image{display:block;width:100%;flex:0 0 auto;border-radius:10px;overflow:hidden;}
+.pl-event-extra-image img{width:100%;height:auto;display:block;}
+.pl-event-extra-list{display:flex;flex-direction:column;gap:5px;}
+.pl-event-extra-poll{display:flex;flex-direction:column;gap:5px;font-size:.75rem;}
+.pl-event-extra-question{font-weight:700;overflow-wrap:anywhere;}
+.pl-event-extra-option{display:flex;justify-content:space-between;gap:6px;padding:6px 8px;border:1px solid currentColor;border-radius:7px;overflow-wrap:anywhere;}
 .pl-event-extra-list-title{align-self:flex-start;font-size:.6875rem;font-weight:700;color:rgba(20,16,10,.75);background:rgba(255,255,255,.28);border-radius:6px;padding:3px 6px;margin-bottom:1px;}
-.pl-event-extra-check{display:flex;align-items:center;gap:6px;font-size:.75rem;line-height:1.25;color:rgba(20,16,10,.85);background:rgba(255,255,255,.28);border-radius:7px;padding:4px 7px;}
-.pl-event-extra-check-box{width:14px;height:14px;flex:0 0 auto;border-radius:4px;border:1.5px solid rgba(20,16,10,.4);display:grid;place-items:center;color:#171410;}
+.pl-event-extra-check{display:flex;align-items:center;gap:6px;font-size:.75rem;line-height:1.25;color:inherit;background:transparent;border-radius:0;padding:3px 0;overflow-wrap:anywhere;}
+.pl-event-extra-check-box{width:18px;height:18px;flex:0 0 auto;border-radius:4px;border:1.5px solid currentColor;display:grid;place-items:center;color:inherit;}
 .pl-event-extra-check-box .icon{width:10px;height:10px;}
 .pl-event-extra-check.done{opacity:.6;}
 .pl-event-extra-check.done span:last-child{text-decoration:line-through;}
@@ -1123,7 +1131,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-empty{text-align:center;color:rgba(255,255,255,.35);padding:24px 12px;font-size:.875rem;}
 /* Зум пальцами: день -> неделя -> месяц (и обратно). */
 .pl-week-block{position:relative;}
-.pl-week-sticky-head{position:sticky;top:0;z-index:3;background:var(--bg);margin:0 -20px;padding:0 20px;}
+.pl-week-sticky-head{position:sticky;top:0;z-index:3;isolation:isolate;background:#0a0a0a;margin:0 -20px;padding:0 20px;box-shadow:0 1px 0 #0a0a0a;}
 .pl-week-block-label{padding:10px 0 2px;font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;text-transform:capitalize;color:rgba(255,255,255,.4);}
 .pl-week-block-label.is-current{color:var(--gold);}
 .pl-week-head{display:flex;padding:4px 0 4px;gap:1px;}
@@ -1133,7 +1141,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-week-num{font-family:Georgia,'Times New Roman',serif;font-size:.9375rem;color:#fff;}
 .pl-week-daycol-head.is-today{background:rgba(201,168,76,.14);}
 .pl-week-daycol-head.is-today .pl-week-num{color:var(--gold);font-weight:700;}
-.pl-week-scroll{padding:4px 20px 100px;}
+.pl-week-scroll{padding:0 20px 100px;overflow-x:hidden;}
 .pl-week-grid{display:flex;gap:1px;position:relative;}
 .pl-week-gutter-col{flex:0 0 28px;}
 .pl-week-hour-label{height:32px;font-size:.625rem;color:rgba(255,255,255,.3);}
@@ -1170,11 +1178,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-section-picker{display:flex;flex-wrap:wrap;gap:8px;}
 .pl-time-range-row{flex-direction:row;gap:10px;}
 .pl-time-field{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px;}
-.pl-time-input-wrap{box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;border-radius:12px;border:1px solid rgba(201,168,76,.2);background:#090909;padding:0 12px;}
+/* Native picker is an invisible full-size hit target; its platform-specific icon/value
+   never overlaps the visible clock and centered time (including iOS Safari). */
+.pl-time-input-wrap{position:relative;box-sizing:border-box;display:grid;grid-template-columns:22px minmax(0,1fr);align-items:center;gap:8px;width:100%;min-height:48px;border-radius:12px;border:1px solid rgba(201,168,76,.4);background:#090909;padding:0 12px;}
 .pl-time-input-wrap:focus-within{border-color:var(--gold);}
-.pl-time-input-wrap .icon{flex:0 0 auto;width:18px;height:18px;color:var(--gold);pointer-events:none;}
-.pl-time-input-wrap .pl-time-input{flex:1;min-width:0;width:auto;border:0;background:transparent;padding:12px 0;font-size:1.0625rem;font-weight:600;text-align:left;}
-.pl-time-input-wrap .pl-time-input:focus{border:0;}
+.pl-time-input-wrap>.icon{display:block;width:22px;height:22px;margin:0;color:var(--gold);pointer-events:none;}
+.pl-time-display{font-size:18px;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;color:#fff;pointer-events:none;}
+.pl-time-input-wrap .pl-time-input{position:absolute;inset:0;width:100%;height:100%;min-width:0;opacity:0;margin:0;padding:0;border:0;font-size:16px;cursor:pointer;}
 .pl-color-swatch.pl-color-auto{background:var(--surface);border:2px solid rgba(255,255,255,.15);position:relative;}
 .pl-color-swatch.pl-color-auto::after{content:'';position:absolute;inset:8px;border-radius:50%;background:conic-gradient(var(--gold),#7fb8e0,#e08fa0,#8fd19e,#d6a8e8,var(--gold));}
 .pl-color-swatch.pl-color-auto.active{border-color:#fff;}
@@ -1292,7 +1302,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.25';
+  const APP_VERSION = '0.9.26';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2187,28 +2197,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // влезает, эта полоска скроллится внутри себя (overflow-y:auto), а не раздвигает границы
   // события на ленте (те завязаны только на длительность).
   function plannerEventExtraHtml(e){
-    // Событие может содержать несколько блоков ОДНОГО типа (e.blocks — см. миграцию выше) —
-    // порядок массива это и есть выбранный пользователем порядок. Первое найденное фото
-    // рисуется крупно (задаёт форму карточки — см. рисунок пользователя), всё остальное —
-    // компактными чипами под ним, в том числе доп. фото-блоки сверх первого.
-    const parts=[];let usedBigImage=false;
-    (e.blocks||[]).forEach(b=>{
-      if(b.type==='image'&&b.images?.length){
-        if(!usedBigImage){usedBigImage=true;parts.push({big:true,html:`<span class="pl-event-extra-image"><img src="${b.images[0]}" alt="" loading="lazy"></span>`});}
-        else parts.push({big:false,html:`<span class="pl-event-extra-item">${icon('image')}<span>${b.images.length} фото</span></span>`});
-      } else if(b.type==='checklist'&&b.items?.length){
-        const rows=b.items.map(s=>`<span class="pl-event-extra-check ${s.done?'done':''}"><span class="pl-event-extra-check-box">${s.done?icon('check'):''}</span><span>${esc(s.text)}</span></span>`).join('');
-        parts.push({big:true,html:`<span class="pl-event-extra-list">${b.title?`<span class="pl-event-extra-list-title">${esc(b.title)}</span>`:''}${rows}</span>`});
-      } else if(b.type==='poll'&&(b.question?.trim()||b.options?.some(o=>o.text?.trim()))){
-        parts.push({big:false,html:`<span class="pl-event-extra-item">${icon('poll')}<span>Опрос</span></span>`});
-      } else if(b.type==='location'&&(b.label?.trim()||b.lat!=null)){
-        parts.push({big:false,html:`<span class="pl-event-extra-item">${icon('pin')}<span>${esc(b.label||'Место')}</span></span>`});
-      }
-    });
-    const imageHtml=parts.filter(p=>p.big).map(p=>p.html).join('');
-    const chipsHtml=parts.filter(p=>!p.big).map(p=>p.html).join('');
-    return imageHtml+(chipsHtml?`<span class="pl-event-extra-chips">${chipsHtml}</span>`:'');
+    // Render every block in its saved order, directly on the event card.
+    return (e.blocks||[]).map(b=>{
+      if(b.type==='image')return (b.images||[]).map(src=>`<span class="pl-event-extra-image"><img src="${esc(src)}" alt="Фото события" loading="lazy"></span>`).join('');
+      if(b.type==='checklist'&&b.items?.length)return `<span class="pl-event-extra-list">${b.title?`<span class="pl-event-extra-question">${esc(b.title)}</span>`:''}${b.items.map(i=>`<span class="pl-event-extra-check ${i.done?'done':''}"><span class="pl-event-extra-check-box">${i.done?icon('check'):''}</span><span>${esc(i.text)}</span></span>`).join('')}</span>`;
+      if(b.type==='poll'&&(b.question?.trim()||b.options?.some(o=>o.text?.trim())))return `<span class="pl-event-extra-poll"><span class="pl-event-extra-question">${esc(b.question||'Опрос')}</span>${(b.options||[]).filter(o=>o.text?.trim()).map(o=>`<span class="pl-event-extra-option"><span>${esc(o.text)}</span><span>${Number(o.votes)||0}</span></span>`).join('')}</span>`;
+      if(b.type==='location'&&(b.label?.trim()||b.lat!=null))return `<span class="pl-event-extra-check">${icon('pin')}<span>${esc(b.label||[b.lat,b.lng].join(', '))}</span></span>`;
+      return '';
+    }).join('');
   }
+
   const PL_MAX_COLS=3;
   function plannerRenderEventTile(e,top,height,leftPct,widthPct,col,totalCols){
     const extraHtml=plannerEventExtraHtml(e);
@@ -2220,13 +2218,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
       <div class="pl-swipe-complete" aria-hidden="true">${icon('check')}</div>
       <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
-      <button type="button" class="pl-event ${e.done?'done':''}" style="--pl-head:${plannerSectionColor(e.sectionId)};${e.color?`--pl-body:${e.color};`:''}${plannerOutlineStyle(e)}">
+      <div role="button" tabindex="0" class="pl-event ${e.done?'done':''}" style="--pl-head:${plannerSectionColor(e.sectionId)};${e.color?`--pl-body:${e.color};--pl-ink:#171410;`:''}${plannerOutlineStyle(e)}">
         <span class="pl-event-head">
           <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
           <span class="pl-event-title">${esc(e.title)}</span>
         </span>
         ${extraHtml?`<span class="pl-event-extra">${extraHtml}</span>`:''}
-      </button>
+      </div>
     </div>`;
   }
   function renderPlannerTimeline(items,isToday,dateIso){
@@ -2427,7 +2425,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     card.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0||wrap.plEventDragging||wrap.plTaskDragging)return;
       closePlannerSwipes(wrap);
-      forwarder?.stop();forwarder=null;
+      forwarder?.stop();forwarder=null;scroller=null;
       // Свайп вправо (complete) не должен визуально задевать панель редактировать/удалить,
       // закреплённую у правого края (right:0, ширина actionsWidth). На узкой (кластерной)
       // карточке ширина wrap бывает сопоставима с actionsWidth — без этого предела уже
@@ -2453,7 +2451,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         // переноса времени обрывается гонкой с нативным пан-скроллом — см. bindPlannerEventDrag),
         // поэтому обычный вертикальный скролл списка приходится прокручивать вручную сюда же.
         if(manualScrollY){
-          if(!scroller)scroller=wrap.closest('.pl-scroll,.pl-day-tasks');
+          if(!scroller){const extra=e.target.closest('.pl-event-extra');scroller=extra&&extra.scrollHeight>extra.clientHeight?extra:wrap.closest('.pl-scroll,.pl-day-tasks');}
           if(!forwarder)forwarder=plannerScrollForwardStart(scroller);
           e.preventDefault();forwarder.move(e.clientY-press.lastY,performance.now());
         }
@@ -2605,6 +2603,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function bindPlannerEventSwipe(wrap){
     const id=wrap.dataset.plEventId,card=$('.pl-event',wrap),actions=$('.pl-event-actions',wrap);
+    card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();card.click();}});
     bindSwipeReveal(wrap,card,actions,72,()=>showPlannerDetail(id),true,()=>plannerToggleDone(id));
     $('[data-pl-event-edit]',actions).onclick=()=>{wrap.closeSwipe();showPlannerEditSheet(id);};
     $('[data-pl-event-delete]',actions).onclick=()=>{plannerDelete(id);};
@@ -3436,8 +3435,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-form-row" id="pl-date-row" ${multiDayDefault?'':'style="display:none"'}><label>Дата начала</label><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>
       <div class="pl-toggle-row" id="pl-time-toggle-row"><label>Время</label><button class="pl-switch ${timeOnDefault?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${timeOnDefault}"></button></div>
       <div class="pl-form-row pl-time-range-row" id="pl-time-row" ${timeOnDefault?'':'style="display:none"'}>
-        <div class="pl-time-field"><label>Начало</label><div class="pl-time-input-wrap">${icon('clock')}<input class="field pl-time-input" id="pl-time-value" type="time" value="${esc(timeVal)}"></div></div>
-        <div class="pl-time-field"><label>Окончание</label><div class="pl-time-input-wrap">${icon('clock')}<input class="field pl-time-input" id="pl-time-end-value" type="time" value="${esc(endVal)}"></div></div>
+        <div class="pl-time-field"><label>Начало</label><div class="pl-time-input-wrap">${icon('clock')}<span class="pl-time-display" aria-hidden="true">${esc(timeVal)}</span><input class="field pl-time-input" aria-label="Время начала" id="pl-time-value" type="time" value="${esc(timeVal)}" ></div></div>
+        <div class="pl-time-field"><label>Окончание</label><div class="pl-time-input-wrap">${icon('clock')}<span class="pl-time-display" aria-hidden="true">${esc(endVal)}</span><input class="field pl-time-input" aria-label="Время окончания" id="pl-time-end-value" type="time" value="${esc(endVal)}" ></div></div>
       </div>
       <div class="pl-form-row" id="pl-end-date-row" ${timeOnDefault&&multiDayDefault?'':'style="display:none"'}><label>Дата окончания</label><input class="field" id="pl-end-date-value" type="date" value="${endDateVal}"></div>
       ${existing?`<div class="pl-form-row"><label>Раздел</label><div class="pl-section-picker" id="pl-section-picker">
@@ -3599,6 +3598,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // (держит исходную длительность) — иначе при переносе начала конец остаётся старым
     // значением и на сохранении читается как "конец раньше начала", ошибочно уезжая на
     // следующий день.
+    $$('.pl-time-input',ov).forEach(inp=>inp.addEventListener('click',()=>{try{inp.showPicker?.();}catch(_){}}));
     let endTouched=false,endDateTouched=false;
     // Если пользователь сам явно указал, что конец раньше начала (переход через полночь) или
     // вручную выставил другую дату окончания — многодневность уже и так очевидна из введённых
@@ -3608,9 +3608,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const timeOn=$('#pl-time-toggle',ov).classList.contains('on');
       const start=plannerMinutesFromTime($('#pl-time-value',ov).value||timeVal);
       const end=plannerMinutesFromTime($('#pl-time-end-value',ov).value||endVal);
-      const autoMultiDay=timeOn&&((endTouched&&end<start)||(endDateTouched&&$('#pl-end-date-value',ov).value!==$('#pl-date-value',ov).value));
+      const autoMultiDay=timeOn&&(end<start||$('#pl-end-date-value',ov).value!==$('#pl-date-value',ov).value);
       const manualOn=$('#pl-multiday-toggle',ov).classList.contains('on');
-      $('#pl-multiday-toggle-row',ov).style.display=autoMultiDay?'none':'';
+      $('#pl-multiday-toggle-row',ov).style.display=(autoMultiDay||manualOn)?'none':'';
+      $$('.pl-time-input',ov).forEach(inp=>{inp.previousElementSibling.textContent=inp.value||'—:—';});
       $('#pl-date-row',ov).style.display=(autoMultiDay||manualOn)?'':'none';
       $('#pl-end-date-row',ov).style.display=(timeOn&&(autoMultiDay||manualOn))?'':'none';
     };
@@ -3640,6 +3641,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('#pl-end-date-value',ov).addEventListener('input',()=>{endDateTouched=true;syncMultiDayUI();});
     $('#pl-time-value',ov).addEventListener('input',updateEnd);
     $('#pl-date-value',ov).addEventListener('input',updateEnd);
+    syncMultiDayUI();
     $('[data-close]',ov).onclick=closeOverlay;
     $('#pl-form-delete',ov)?.addEventListener('click',()=>{plannerDelete(existing.id);closeOverlay();});
     $('#pl-form-save',ov).onclick=()=>{
@@ -3817,7 +3819,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Иконка часов в полях времени больше не наезжает на цифры. Форму события нельзя случайно сдвинуть вбок при скролле. Переключатель "Другая дата" сам прячется и уступает место датам, если событие уходит за полночь или дата окончания явно другая. В недельном режиме убрана щель между заголовками дат. Вложения на карточке события теперь выглядят как в примере: крупное фото и чеклист полным списком пунктов, а не сокращённым значком.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Исправлены ширина и скругление шапки события: кнопки удаления видны только при свайпе. Время отображается крупно, отдельно от значка часов. Форма ограничена шириной экрана. После включения «Другой даты» остаются поля дат; переход через полночь раскрывает их автоматически. Недельный заголовок получил сплошной фон. Фото без обрезки, пункты чеклистов и варианты опросов показаны прямо на карточке в заданном порядке.</p></section>
     </div></section>`;
   }
 
