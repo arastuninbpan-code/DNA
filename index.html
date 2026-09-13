@@ -1281,7 +1281,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.23';
+  const APP_VERSION = '0.9.24';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -3411,15 +3411,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const endDateVal=prefill?.endDate||plannerShiftDate(dateVal,Math.floor((plannerMinutesFromTime(timeVal)+initialDuration)/1440));
     const evColor=existing?.color||null;
     const timeOnDefault=existing?hasTime:!!prefill;
+    // Плашки дат по умолчанию скрыты (для обычного однодневного события день и так понятен —
+    // это тот день, на котором нажали "+") и открываются переключателем "Другая дата",
+    // который сам включается, если редактируемое событие уже реально многодневное (dateVal
+    // !== endDateVal). Событие на несколько дней по-прежнему можно создать — просто через
+    // явно раскрытый переключатель, а не постоянно видимыми полями.
+    const multiDayDefault=dateVal!==endDateVal;
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${existing?'Редактировать задачу':'Новая задача'}</div>
       <div class="pl-form-row"><label>Название</label>${formField('pl-title','Что нужно сделать','text',existing?.title||'')}</div>
-      <div class="pl-form-row"><label>Дата начала</label><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>
+      <div class="pl-toggle-row" id="pl-multiday-toggle-row"><label>Другая дата</label><button class="pl-switch ${multiDayDefault?'on':''}" id="pl-multiday-toggle" type="button" aria-pressed="${multiDayDefault}"></button></div>
+      <div class="pl-form-row" id="pl-date-row" ${multiDayDefault?'':'style="display:none"'}><label>Дата начала</label><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>
       <div class="pl-toggle-row" id="pl-time-toggle-row"><label>Время</label><button class="pl-switch ${timeOnDefault?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${timeOnDefault}"></button></div>
       <div class="pl-form-row pl-time-range-row" id="pl-time-row" ${timeOnDefault?'':'style="display:none"'}>
         <div class="pl-time-field"><label>Начало</label><div class="pl-time-input-wrap">${icon('clock')}<input class="field pl-time-input" id="pl-time-value" type="time" value="${esc(timeVal)}"></div></div>
         <div class="pl-time-field"><label>Окончание</label><div class="pl-time-input-wrap">${icon('clock')}<input class="field pl-time-input" id="pl-time-end-value" type="time" value="${esc(endVal)}"></div></div>
       </div>
-      <div class="pl-form-row" id="pl-end-date-row" ${timeOnDefault?'':'style="display:none"'}><label>Дата окончания</label><input class="field" id="pl-end-date-value" type="date" value="${endDateVal}"></div>
+      <div class="pl-form-row" id="pl-end-date-row" ${timeOnDefault&&multiDayDefault?'':'style="display:none"'}><label>Дата окончания</label><input class="field" id="pl-end-date-value" type="date" value="${endDateVal}"></div>
       ${existing?`<div class="pl-form-row"><label>Раздел</label><div class="pl-section-picker" id="pl-section-picker">
         <button type="button" class="pl-chip ${!existing?.sectionId?'active':''}" data-section="">Без раздела</button>
         ${state.planner.sections.map(s=>`<button type="button" class="pl-chip ${existing?.sectionId===s.id?'active':''}" data-section="${esc(s.id)}" style="--pl-color:${s.color}">${esc(s.name)}</button>`).join('')}
@@ -3575,11 +3582,17 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     renderBlocks();
     $$('[data-section]',ov).forEach(b=>b.onclick=()=>{sectionId=b.dataset.section||null;$$('[data-section]',ov).forEach(x=>x.classList.toggle('active',x.dataset.section===sectionId));});
     $$('#pl-event-color-picker [data-color]',ov).forEach(b=>b.onclick=()=>{color=b.dataset.color||null;$$('#pl-event-color-picker [data-color]',ov).forEach(x=>x.classList.toggle('active',(x.dataset.color||null)===color));});
+    $('#pl-multiday-toggle',ov).onclick=()=>{
+      const on=!$('#pl-multiday-toggle',ov).classList.contains('on');
+      $('#pl-multiday-toggle',ov).classList.toggle('on',on);$('#pl-multiday-toggle',ov).setAttribute('aria-pressed',String(on));
+      $('#pl-date-row',ov).style.display=on?'':'none';
+      $('#pl-end-date-row',ov).style.display=(on&&$('#pl-time-toggle',ov).classList.contains('on'))?'':'none';
+    };
     $('#pl-time-toggle',ov).onclick=()=>{
       const on=!$('#pl-time-toggle',ov).classList.contains('on');
       $('#pl-time-toggle',ov).classList.toggle('on',on);$('#pl-time-toggle',ov).setAttribute('aria-pressed',String(on));
       $('#pl-time-row',ov).style.display=on?'':'none';
-      $('#pl-end-date-row',ov).style.display=on?'':'none';
+      $('#pl-end-date-row',ov).style.display=(on&&$('#pl-multiday-toggle',ov).classList.contains('on'))?'':'none';
     };
     // Пока пользователь не тронул поле "Окончание" руками, оно молча следует за "Началом"
     // (держит исходную длительность) — иначе при переносе начала конец остаётся старым
@@ -3777,7 +3790,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Полосочка-ручка сверху формы события теперь прилипает к верху при скролле — раньше на длинной форме (с несколькими блоками) она уезжала за экран и закрыть форму тапом или свайпом вниз становилось нечем.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Плашки "Дата начала"/"Дата окончания" в форме события теперь скрыты по умолчанию (день и так понятен из контекста) и открываются переключателем "Другая дата" — он сам включается, если редактируешь уже многодневное событие. Создать событие на несколько дней по-прежнему можно, просто явным включением переключателя.</p></section>
     </div></section>`;
   }
 
