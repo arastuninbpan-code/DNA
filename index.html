@@ -1317,7 +1317,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.9.28';
+  const APP_VERSION = '0.9.29';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2508,7 +2508,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(reveal!==lastCompleteReveal){
           lastCompleteReveal=reveal;
           completeEl.style.transition=animate?'width .24s cubic-bezier(.22,.8,.25,1)':'none';
-          completeEl.style.width=reveal+'px';
+          // +16px: карточка остаётся скруглённой (не трогаем её форму), но скруглённый левый
+          // угол самой карточки отступает от прямого края этой подложки внутрь — узкий зазор на
+          // пару пикселей в углах, сквозь который было видно фон wrap (чёрный). Подложка теперь
+          // всегда чуть шире видимой протяжки — лишнее просто прячется под карточкой сверху
+          // (z-index), а угол карточки везде накрыт тем же цветом подложки, а не пустотой.
+          completeEl.style.width=(reveal>0?reveal+16:0)+'px';
           completeEl.classList.toggle('is-ready',reveal>=completeThreshold);
         }
       }
@@ -2560,9 +2565,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(!press||press.id!==e.pointerId||wrap.plEventDragging||wrap.plTaskDragging)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
       if(!press.axis){
-        if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;
-        if(Math.abs(dx)<Math.abs(dy)*1.15&&Math.abs(dy)<Math.abs(dx)*1.15&&Math.max(Math.abs(dx),Math.abs(dy))<18)return;
-        press.axis=Math.abs(dx)>Math.abs(dy)?'x':'y';
+        // Тот же допуск угла, что и у привычек (bindHabitSwipe) — палец не обязан идти строго
+        // горизонтально, чтобы жест засчитался как свайп: dx>dy*.2 (~79° от горизонтали).
+        // Раньше здесь была граница строго 45° (dx>dy) плюс мёртвая зона у диагонали — заметно
+        // строже, чем в привычках, поэтому свайп по событиям/задачам срабатывал не так охотно.
+        if(Math.max(Math.abs(dx),Math.abs(dy))<6)return;
+        press.axis=Math.abs(dx)>Math.abs(dy)*.2?'x':'y';
         wrap.cancelLongPress?.();
         wrap.setPointerCapture?.(e.pointerId);
         suppressUntil=performance.now()+500;
@@ -3935,7 +3943,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Исправлен баг: обычный тап по операции в финансах или по карточке привычки иногда не открывался (ошибка в коде). Первый свайп влево открывает редактирование и удаление, второй удаляет событие. Свайп вправо отмечает выполнение. На карточке можно отмечать пункты чеклиста, голосовать и открывать фото. Потяни вложение за шесть точек, чтобы изменить порядок; изменения сохраняются автоматически.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Свайп в планере теперь срабатывает при том же наклоне пальца, что и в привычках — не обязательно вести палец строго горизонтально. Убран чёрный зазор в уголке между карточкой события и кнопкой выполнения при свайпе вправо. Исправлен баг: обычный тап по операции в финансах или по карточке привычки иногда не открывался. Первый свайп влево открывает редактирование и удаление, второй удаляет событие. На карточке можно отмечать пункты чеклиста, голосовать и открывать фото; потяни вложение за шесть точек, чтобы изменить порядок.</p></section>
     </div></section>`;
   }
 
