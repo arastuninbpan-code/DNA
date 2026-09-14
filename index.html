@@ -138,7 +138,12 @@ body {
   overscroll-behavior: none;
 }
 button, input, select, textarea { font: inherit; }
-button { color: inherit; }
+/* -webkit-appearance:none — без этого iOS Safari подмешивает СВОЙ нативный вид кнопки (внутренние
+   отступы/скругления/смещения) поверх кастомных стилей даже при явном background/border/border-
+   radius; на десктопном Chrome этого не происходит, отсюда и разница "на ПК ровно, на телефоне
+   иконка в круглой кнопке съезжает от центра". Только appearance — background/border у каждой
+   кнопки и так переопределены точечно, трогать их здесь незачем и рискованно. */
+button { color: inherit; -webkit-appearance: none; appearance: none; }
 button, [role="button"], .tap { cursor: pointer; user-select: none; }
 .app-shell {
   position: relative;
@@ -1462,7 +1467,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.11.0';
+  const APP_VERSION = '0.11.1';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2697,8 +2702,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // "..." (см. plannerFitEventCards) даёт раскрыть её целиком без этого искажения.
       const minH=plannerEventExtraHtml(e)?96:38;
       const top=pxFor(startMin);
-      let height=Math.max(minH,(endMin-startMin)/60*PL_HOUR_PX-2);
-      if(expansion&&e.id===expansion.id)height+=expansion.extraH;
+      // Высота через pxFor(endMin)-top, а не через сырую длительность — иначе у события,
+      // которое просто идёт рядом/после раскрытого (даже без вложений и кнопки "..." самого)
+      // и чей конец приходится ПОСЛЕ точки разрыва, нижний край оставался бы на старом месте,
+      // не дотягиваясь до сдвинутой вниз сетки, — событие визуально заканчивалось бы раньше,
+      // чем должно. Само раскрытое событие — исключение: его высота считается от СОБСТВЕННОЙ
+      // (не раздвинутой) длительности плюс фиксированная добавка, иначе добавка задвоилась бы.
+      let height;
+      if(expansion&&e.id===expansion.id)height=Math.max(minH,(endMin-startMin)/60*PL_HOUR_PX-2)+expansion.extraH;
+      else height=Math.max(minH,pxFor(endMin)-top-2);
       if(totalCols<=PL_MAX_COLS){
         parts.push(plannerRenderEventTile(e,top,height,col/totalCols*100,100/totalCols,col,totalCols));
         return;
@@ -2709,8 +2721,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       drawnOverflow.add(cluster);
       const hidden=cluster.filter(it=>it.col>=PL_MAX_COLS);
       const oTop=pxFor(Math.min(...hidden.map(it=>it.startMin)));
-      const oBottom=Math.max(...hidden.map(it=>it.endMin));
-      const oHeight=Math.max(38,(oBottom-Math.min(...hidden.map(it=>it.startMin)))/60*PL_HOUR_PX-2);
+      const oHeight=Math.max(38,pxFor(Math.max(...hidden.map(it=>it.endMin)))-oTop-2);
       const ids=cluster.map(it=>it.e.id).join(',');
       parts.push(`<div class="pl-event-wrap" style="top:${oTop}px;height:${oHeight}px;left:calc(${PL_MAX_COLS/cols*100}% + 2px);width:calc(${100/cols}% - 4px)">
         <button type="button" class="pl-event-more" data-pl-cluster="${esc(ids)}" data-pl-date="${esc(dateIso)}" aria-label="Ещё ${hidden.length} событий">+${hidden.length}</button>
@@ -4146,6 +4157,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('[data-close]',ov).onclick=closeOverlay;
     $('#pl-form-delete',ov)?.addEventListener('click',()=>{plannerDelete(existing.id);closeOverlay();});
     $('#pl-form-save',ov).onclick=()=>{
+      // Текст, набранный в поле "Новый пункт" чеклиста, но не подтверждённый нажатием "+" —
+      // раньше молча терялся при сохранении формы целиком (b.items пополняется только внутри
+      // обработчика data-checklist-add). Дочищаем его сюда же как обычный пункт для КАЖДОГО
+      // чеклист-блока формы, прежде чем читать остальные поля и сохранять событие.
+      $$('[data-checklist-new]',ov).forEach(inp=>{
+        const text=inp.value.trim();if(!text)return;
+        const b=blocks.find(x=>x.id===inp.dataset.checklistNew);
+        if(b)b.items.push({id:plannerId(),text,done:false});
+      });
       const title=$('#pl-title',ov).value.trim();if(!title)return;
       const timeOn=$('#pl-time-toggle',ov).classList.contains('on');
       const date=$('#pl-date-value',ov).value||dateVal;
@@ -4372,7 +4392,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Короткое событие с вложениями теперь можно раскрыть кнопкой "..." под карточкой — время на ленте при этом не "растягивается", просто освобождается место. Фото в карточке всегда обрезается под её размер (не листается вместо ленты дня), а если места совсем нет — не показывается вовсе, вместо обрезка на пару пикселей. Золотистые акценты в светлой теме стали заметно ярче. Иконки в круглых кнопках больше не съезжают от центра на телефоне. Переключение между разделами — с короткой ненавязчивой анимацией. Добавлена полноценная система тем: светлая, тёмная и системная, без перезагрузки, с запоминанием выбора. Свайп по событию работает из любой точки карточки. Все окна и шторки закрываются с анимацией. Повторный тап по своему варианту в опросе отменяет голос. Сохранение фото переделано (кнопка становится зелёной "Успешно"). Цветов для события стало больше, добавлен выбор произвольного цвета.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">При раскрытии короткого события кнопкой "..." соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в свои настоящие время — не только сама раскрытая карточка. В чеклисте формы события пункт, который набрали, но не подтвердили нажатием "+", теперь всё равно сохраняется при нажатии общей кнопки "Сохранить". Круглые кнопки (назад, настройки и другие) на телефоне больше не съезжают от центра — почищен нативный вид кнопок iOS, который перебивал вёрстку. Короткое событие с вложениями можно раскрыть кнопкой "..." под карточкой — время на ленте при этом не "растягивается", просто освобождается место. Фото в карточке всегда обрезается под её размер (не листается вместо ленты дня), а если места совсем нет — не показывается вовсе. Золотистые акценты в светлой теме стали заметно ярче. Переключение между разделами — с короткой ненавязчивой анимацией. Добавлена полноценная система тем: светлая, тёмная и системная, без перезагрузки, с запоминанием выбора. Свайп по событию работает из любой точки карточки. Все окна и шторки закрываются с анимацией. Повторный тап по своему варианту в опросе отменяет голос. Сохранение фото переделано (кнопка становится зелёной "Успешно"). Цветов для события стало больше, добавлен выбор произвольного цвета.</p></section>
     </div></section>`;
   }
 
