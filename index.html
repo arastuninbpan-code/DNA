@@ -65,6 +65,9 @@
   --logo-a: #c9a84c;
   --logo-b: #8a723d;
   --logo-c: #b19753;
+  --swipe-panel-bg: #26251f;
+  --swipe-panel-ink: #c2c5cb;
+  --swipe-panel-ready-bg: #3a2f13;
   --nav-h: 56px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   color-scheme: dark;
@@ -96,6 +99,13 @@
   --logo-a: #e3ad35;
   --logo-b: #a67f2b;
   --logo-c: #c2953c;
+  /* Панель свайп-действий (редактировать/удалить, числовой режим у привычек) раньше была
+     зашита в один фиксированный почти-чёрный цвет для ОБЕИХ тем — в светлой она читалась как
+     чужеродный чёрный прямоугольник. Здесь — тёплый светлый нейтральный тон в цвет остального
+     светлого интерфейса. */
+  --swipe-panel-bg: #ece4d0;
+  --swipe-panel-ink: #6b5f4a;
+  --swipe-panel-ready-bg: #f6e6b8;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]):not([data-theme="light"]) {
@@ -119,6 +129,9 @@
     --logo-a: #e3ad35;
     --logo-b: #a67f2b;
     --logo-c: #c2953c;
+    --swipe-panel-bg: #ece4d0;
+    --swipe-panel-ink: #6b5f4a;
+    --swipe-panel-ready-bg: #f6e6b8;
   }
 }
 /* Переключение темы — плавное, не мигающее: пока идёт смена (см. applyThemeMode в скрипте),
@@ -1056,17 +1069,17 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-check .icon,.habit-swipe-actions .icon{display:block;flex:none;margin:0;}
 .habit-card .habit-check,.habit-swipe-actions button{display:grid;place-items:center;padding:0;flex-shrink:0;box-sizing:border-box;}
 .habit-check .icon svg,.habit-swipe-actions .icon svg,.habit-drag-bar .icon svg{display:block;width:100%;height:100%;}
-.habit-swipe-actions button{border:0;background:#26251f;box-shadow:none;border-radius:0;width:52px;height:auto;flex:0 0 52px;color:#c2c5cb;transition:background-color .15s ease;overflow:hidden;}
+.habit-swipe-actions button{border:0;background:var(--swipe-panel-bg);box-shadow:none;border-radius:0;width:52px;height:auto;flex:0 0 52px;color:var(--swipe-panel-ink);transition:background-color .15s ease;overflow:hidden;}
 .habit-swipe-actions button .icon{display:grid;place-items:center;box-sizing:content-box;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;flex-shrink:0;}
 .habit-swipe-actions [data-swipe-delete]{background:#c94a50;color:#fff;}
 @media(prefers-reduced-motion:reduce){.habit-outline rect{transition:none;}}
 
 /* Right swipe: numeric-goal toggle reveal (Telegram mark-read style). */
 /* Та же слегка утопленная панель, что у edit/delete, для единообразия. */
-.habit-number-reveal{position:absolute;inset:5px auto 5px 0;width:70px;display:grid;place-items:center;pointer-events:none;background:#26251f;color:#c2c5cb;border-radius:0 10px 10px 0;overflow:hidden;box-shadow:inset -5px 0 8px -5px rgba(0,0,0,.65);transition:background-color .15s ease,color .15s ease;}
+.habit-number-reveal{position:absolute;inset:5px auto 5px 0;width:70px;display:grid;place-items:center;pointer-events:none;background:var(--swipe-panel-bg);color:var(--swipe-panel-ink);border-radius:0 10px 10px 0;overflow:hidden;box-shadow:inset -5px 0 8px -5px rgba(0,0,0,.65);transition:background-color .15s ease,color .15s ease;}
 .habit-number-badge{display:grid;place-items:center;}
 .habit-number-badge .icon{width:20px;height:20px;}
-.habit-number-reveal.ready{background:#3a2f13;color:var(--gold);}
+.habit-number-reveal.ready{background:var(--swipe-panel-ready-bg);color:var(--gold);}
 @keyframes habitShakeInvalid{10%,90%{transform:translate3d(-3px,0,0)}20%,80%{transform:translate3d(5px,0,0)}30%,50%,70%{transform:translate3d(-7px,0,0)}40%,60%{transform:translate3d(7px,0,0)}}
 .habit-swipe.shake-invalid{animation:habitShakeInvalid .5s cubic-bezier(.36,.07,.19,.97) both;}
 .habit-swipe.shake-invalid .habit-card{border-color:#c94a50;box-shadow:0 0 10px rgba(201,74,80,.3);}
@@ -1538,8 +1551,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 (() => {
   'use strict';
 
-  const GOLD = '#c9a84c';
-  const APP_VERSION = '0.15.0';
+  // GOLD — цвет для canvas-отрисовки (кольцо дисциплины, графики привычек/финансов): canvas не
+  // умеет резолвить var(--gold) сам, и раньше этот цвет был ЗАФИКСИРОВАН на тёмно-жёлтом тоне
+  // тёмной темы навсегда — даже после переключения на светлую тему (где --gold заметно ярче)
+  // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
+  // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
+  let GOLD = '#c9a84c';
+  const APP_VERSION = '0.15.1';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1614,6 +1632,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(metaTheme)metaTheme.content=resolved==='light'?'#F7F4ED':'#0A0A0A';
     // Canvas-графики (привычки/финансы) сами не подписаны на CSS var — перерисовываем их поверх
     // смены темы, иначе они бы остались с цветами предыдущей темы до следующего явного redraw.
+    // GOLD тоже обновляем здесь же — иначе сам redraw ниже продолжил бы красить тем же
+    // зафиксированным тёмным оттенком независимо от темы (см. комментарий у объявления GOLD).
+    if(typeof themeVar==='function')try{GOLD=themeVar('--gold')||GOLD;}catch(_){}
     if(typeof updateHabitUI==='function')try{updateHabitUI();}catch(_){}
     if(typeof drawFinanceCharts==='function')try{drawFinanceCharts();}catch(_){}
   }
@@ -4684,7 +4705,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Долгое нажатие на сообщение в комментариях теперь выделяет его на месте (как в Telegram) и показывает рядом меню "Скопировать / Редактировать / Скачать / Удалить" — экран деталей события никуда не переключается. Удаление — с 8-секундной отменой, как у событий/привычек. Круглые кнопки (в том числе на главном экране) на телефоне больше не съезжают от центра — добавлен явный нулевой отступ, которого не хватало одному сбросу нативного вида кнопки. Починен баг, из-за которого пустой блок прикреплённого к комментарию фото иногда оставался едва заметной белой полоской после отправки — та же причина, что и у кнопки "..." под событием, которая из-за неё была видна всегда, а не только когда реально нужна. Свои сообщения в комментариях — справа, как в обычных мессенджерах. Кнопка "..." больше не перекрывает чеклист/фото — сама уступает им место. Убраны системные надписи "Выбрать файл". При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный, но не подтверждённый "+", тоже сохраняется по общему "Сохранить". Фото в карточке события всегда обрезается под её размер. Золотистые акценты в светлой теме ярче. Переключение между разделами — с короткой анимацией. Добавлена система тем: светлая, тёмная, системная. Тап по фото в комментариях открывает его на весь экран с кнопкой "Сохранить". Найден и исправлен настоящий баг задвоенного текста "Сохранить"/"Успешно" на кнопке сохранения фото. Смена подписи "Сохранить"→"Успешно" теперь плавная. Отметка события выполненным больше не перерисовывает весь экран — соседние карточки с фото/вложениями не моргают, у отметки — та же анимация, что у чеклиста. Кнопка "..." снова появляется на карточках, где не хватило места именно фото. У карточки события — лёгкая тень. Долгое нажатие на комментарий больше не накладывает его текст сам на себя. Убрана плашка "Правка сообщения". Тап по центральной дате открывает календарь для перехода на любой день. Убрана подсказка про перетаскивание блоков в форме события.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Долгое нажатие на сообщение в комментариях теперь выделяет его на месте (как в Telegram) и показывает рядом меню "Скопировать / Редактировать / Скачать / Удалить" — экран деталей события никуда не переключается. Удаление — с 8-секундной отменой, как у событий/привычек. Круглые кнопки (в том числе на главном экране) на телефоне больше не съезжают от центра — добавлен явный нулевой отступ, которого не хватало одному сбросу нативного вида кнопки. Починен баг, из-за которого пустой блок прикреплённого к комментарию фото иногда оставался едва заметной белой полоской после отправки — та же причина, что и у кнопки "..." под событием, которая из-за неё была видна всегда, а не только когда реально нужна. Свои сообщения в комментариях — справа, как в обычных мессенджерах. Кнопка "..." больше не перекрывает чеклист/фото — сама уступает им место. Убраны системные надписи "Выбрать файл". При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный, но не подтверждённый "+", тоже сохраняется по общему "Сохранить". Фото в карточке события всегда обрезается под её размер. Золотистые акценты в светлой теме ярче. Переключение между разделами — с короткой анимацией. Добавлена система тем: светлая, тёмная, системная. Тап по фото в комментариях открывает его на весь экран с кнопкой "Сохранить". Найден и исправлен настоящий баг задвоенного текста "Сохранить"/"Успешно" на кнопке сохранения фото. Смена подписи "Сохранить"→"Успешно" теперь плавная. Отметка события выполненным больше не перерисовывает весь экран — соседние карточки с фото/вложениями не моргают, у отметки — та же анимация, что у чеклиста. Кнопка "..." снова появляется на карточках, где не хватило места именно фото. У карточки события — лёгкая тень. Долгое нажатие на комментарий больше не накладывает его текст сам на себя. Убрана плашка "Правка сообщения". Тап по центральной дате открывает календарь для перехода на любой день. Убрана подсказка про перетаскивание блоков в форме события. Убран выбор раздела и лишний кружок цвета в форме события. Кнопка "Другая дата" убрана — даты появляются сами, только если время окончания раньше начала. Пустое название события при сохранении трясётся красным. Панель свайп-действий и кнопка числового режима у привычек больше не чёрные в светлой теме, а графики (кольцо дисциплины, финансы) красятся актуальным цветом темы, а не всегда тёмным.</p></section>
     </div></section>`;
   }
 
