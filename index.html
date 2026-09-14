@@ -1071,6 +1071,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-swipe.shake-invalid{animation:habitShakeInvalid .5s cubic-bezier(.36,.07,.19,.97) both;}
 .habit-swipe.shake-invalid .habit-card{border-color:#c94a50;box-shadow:0 0 10px rgba(201,74,80,.3);}
 @media(prefers-reduced-motion:reduce){.habit-swipe.shake-invalid{animation:none;}}
+.field.shake-invalid{animation:habitShakeInvalid .5s cubic-bezier(.36,.07,.19,.97) both;border-color:#c94a50!important;box-shadow:0 0 0 2px rgba(201,74,80,.25);}
+@media(prefers-reduced-motion:reduce){.field.shake-invalid{animation:none;}}
 
 /* Drag reorder: floating insertion line instead of an outline on the target row. */
 .habit-swipe,.habit-swipe>.habit-card,.habit-swipe-actions,.habit-swipe-actions button{touch-action:pan-y pinch-zoom;}
@@ -1383,9 +1385,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-time-input-wrap>.icon{display:block;width:22px;height:22px;margin:0;color:var(--gold);pointer-events:none;}
 .pl-time-display{font-size:18px;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;color:var(--white);pointer-events:none;}
 .pl-time-input-wrap .pl-time-input{position:absolute;inset:0;width:100%;height:100%;min-width:0;opacity:0;margin:0;padding:0;border:0;font-size:16px;cursor:pointer;}
-.pl-color-swatch.pl-color-auto{background:var(--surface);border:2px solid rgba(var(--ink),.15);position:relative;}
-.pl-color-swatch.pl-color-auto::after{content:'';position:absolute;inset:8px;border-radius:50%;background:conic-gradient(var(--gold),#7fb8e0,#e08fa0,#8fd19e,#d6a8e8,var(--gold));}
-.pl-color-swatch.pl-color-auto.active{border-color:var(--white);}
 .pl-detail{padding:4px 4px 0;}
 .pl-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px;}
 .pl-detail-title{font-family:Georgia,'Times New Roman',serif;font-size:1.25rem;color:var(--white);margin:0;overflow-wrap:anywhere;flex:1;}
@@ -4132,7 +4131,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const multiDayDefault=dateVal!==endDateVal;
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${existing?'Редактировать задачу':'Новая задача'}</div>
       <div class="pl-form-row"><label>Название</label>${formField('pl-title','Что нужно сделать','text',existing?.title||'')}</div>
-      <div class="pl-toggle-row" id="pl-multiday-toggle-row"><label>Другая дата</label><button class="pl-switch ${multiDayDefault?'on':''}" id="pl-multiday-toggle" type="button" aria-pressed="${multiDayDefault}"></button></div>
       <div class="pl-form-row" id="pl-date-row" ${multiDayDefault?'':'style="display:none"'}><label>Дата начала</label><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>
       <div class="pl-toggle-row" id="pl-time-toggle-row"><label>Время</label><button class="pl-switch ${timeOnDefault?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${timeOnDefault}"></button></div>
       <div class="pl-form-row pl-time-range-row" id="pl-time-row" ${timeOnDefault?'':'style="display:none"'}>
@@ -4140,12 +4138,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <div class="pl-time-field"><label>Окончание</label><div class="pl-time-input-wrap">${icon('clock')}<span class="pl-time-display" aria-hidden="true">${esc(endVal)}</span><input class="field pl-time-input" aria-label="Время окончания" id="pl-time-end-value" type="time" value="${esc(endVal)}" ></div></div>
       </div>
       <div class="pl-form-row" id="pl-end-date-row" ${timeOnDefault&&multiDayDefault?'':'style="display:none"'}><label>Дата окончания</label><input class="field" id="pl-end-date-value" type="date" value="${endDateVal}"></div>
-      ${existing?`<div class="pl-form-row"><label>Раздел</label><div class="pl-section-picker" id="pl-section-picker">
-        <button type="button" class="pl-chip ${!existing?.sectionId?'active':''}" data-section="">Без раздела</button>
-        ${state.planner.sections.map(s=>`<button type="button" class="pl-chip ${existing?.sectionId===s.id?'active':''}" data-section="${esc(s.id)}" style="--pl-color:${s.color}">${esc(s.name)}</button>`).join('')}
-      </div></div>`:''}
       <div class="pl-form-row"><label>Цвет</label><div class="pl-color-picker" id="pl-event-color-picker">
-        <button type="button" class="pl-color-swatch pl-color-auto ${!evColor?'active':''}" data-color="" aria-label="Цвет раздела"></button>
         ${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${evColor===c?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}
         <span class="pl-color-swatch pl-color-custom ${evColor&&!PL_COLORS.includes(evColor)?'active':''}" style="${evColor&&!PL_COLORS.includes(evColor)?`--sw:${esc(evColor)};`:''}"><input type="color" id="pl-event-color-custom" aria-label="Выбрать свой цвет" value="${esc(evColor&&!PL_COLORS.includes(evColor)?evColor:'#c9a84c')}"></span>
       </div></div>
@@ -4310,25 +4303,19 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // следующий день.
     $$('.pl-time-input',ov).forEach(inp=>inp.addEventListener('click',()=>{try{inp.showPicker?.();}catch(_){}}));
     let endTouched=false,endDateTouched=false;
-    // Если пользователь сам явно указал, что конец раньше начала (переход через полночь) или
-    // вручную выставил другую дату окончания — многодневность уже и так очевидна из введённых
-    // значений, и кнопка-переключатель "Другая дата" в этом случае только путает (показывает
-    // "выкл", пока дата уже отображена) — прячем её и показываем даты напрямую, без ручного шага.
+    // Многодневность события — не ручной переключатель, а чистое следствие введённых значений:
+    // если время окончания раньше времени начала (переход через полночь) или дата окончания уже
+    // явно отличается от даты начала, поля дат появляются сами, без отдельной кнопки "Другая
+    // дата" (которая раньше висела всегда, даже когда событие однодневное и дата вообще не
+    // нужна).
     const syncMultiDayUI=()=>{
       const timeOn=$('#pl-time-toggle',ov).classList.contains('on');
       const start=plannerMinutesFromTime($('#pl-time-value',ov).value||timeVal);
       const end=plannerMinutesFromTime($('#pl-time-end-value',ov).value||endVal);
       const autoMultiDay=timeOn&&(end<start||$('#pl-end-date-value',ov).value!==$('#pl-date-value',ov).value);
-      const manualOn=$('#pl-multiday-toggle',ov).classList.contains('on');
-      $('#pl-multiday-toggle-row',ov).style.display=(autoMultiDay||manualOn)?'none':'';
       $$('.pl-time-input',ov).forEach(inp=>{inp.previousElementSibling.textContent=inp.value||'—:—';});
-      $('#pl-date-row',ov).style.display=(autoMultiDay||manualOn)?'':'none';
-      $('#pl-end-date-row',ov).style.display=(timeOn&&(autoMultiDay||manualOn))?'':'none';
-    };
-    $('#pl-multiday-toggle',ov).onclick=()=>{
-      const on=!$('#pl-multiday-toggle',ov).classList.contains('on');
-      $('#pl-multiday-toggle',ov).classList.toggle('on',on);$('#pl-multiday-toggle',ov).setAttribute('aria-pressed',String(on));
-      syncMultiDayUI();
+      $('#pl-date-row',ov).style.display=autoMultiDay?'':'none';
+      $('#pl-end-date-row',ov).style.display=(timeOn&&autoMultiDay)?'':'none';
     };
     $('#pl-time-toggle',ov).onclick=()=>{
       const on=!$('#pl-time-toggle',ov).classList.contains('on');
@@ -4364,7 +4351,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         const b=blocks.find(x=>x.id===inp.dataset.checklistNew);
         if(b)b.items.push({id:plannerId(),text,done:false});
       });
-      const title=$('#pl-title',ov).value.trim();if(!title)return;
+      const title=$('#pl-title',ov).value.trim();
+      if(!title){
+        const titleInput=$('#pl-title',ov);
+        $('.sheet',ov).scrollTo({top:0,behavior:reducedMotion()?'auto':'smooth'});
+        titleInput.focus();
+        titleInput.classList.remove('shake-invalid');void titleInput.offsetWidth;titleInput.classList.add('shake-invalid');
+        titleInput.addEventListener('animationend',()=>titleInput.classList.remove('shake-invalid'),{once:true});
+        return;
+      }
       const timeOn=$('#pl-time-toggle',ov).classList.contains('on');
       const date=$('#pl-date-value',ov).value||dateVal;
       const time=timeOn?$('#pl-time-value',ov).value:null;
