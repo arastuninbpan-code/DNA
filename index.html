@@ -586,7 +586,12 @@ select.field { appearance:none; }
 .sheet { width:100%; max-width:100%; min-width:0; overscroll-behavior-x:none; max-height:82dvh; overflow-x:hidden; overflow-y:auto; background:var(--surface); border-radius:28px 28px 0 0; padding:12px 24px calc(32px + var(--safe-bottom)); animation:sheetIn .28s cubic-bezier(.16,.84,.28,1) both; scrollbar-width:none; touch-action:pan-y; }
 .sheet::-webkit-scrollbar{display:none}
 .sheet input,.sheet select,.sheet textarea{min-width:0;max-width:100%;font-size:16px;}
-.sheet input[type="file"]{display:block;width:100%;}
+/* :not([hidden]) — иначе это правило перебивает атрибут hidden спецификой (0,2,0 против 0,1,0
+   у стандартного [hidden]{display:none}) и принудительно показывает "родной" input[type=file]
+   там, где он специально спрятан и открывается кастомной кнопкой (см. #pl-comment-image-input) —
+   собственно так и было: скрытый инпут комментария всё равно рисовался поверх с надписью
+   "Выбрать файл" и именем файла. */
+.sheet input[type="file"]:not([hidden]){display:block;width:100%;}
 .sheet .pl-block-row,.sheet .pl-block-content{min-width:0;max-width:100%;overflow-wrap:anywhere;}
 @keyframes sheetIn { from{transform:translateY(100%)} to{transform:none} }
 /* position:sticky — форма события выросла (несколько блоков вложений теперь помещаются),
@@ -1467,7 +1472,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.11.1';
+  const APP_VERSION = '0.11.2';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -3972,7 +3977,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <div>${b.options.map(o=>`<div class="pl-poll-option-row" data-id="${o.id}"><input class="field" placeholder="Вариант" value="${esc(o.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
         <button type="button" class="text-btn" data-poll-add-option="${b.id}">+ вариант</button>`;
       if(b.type==='image')return `<div class="pl-image-thumbs">${b.images.map((src,i)=>`<div class="pl-image-thumb"><img src="${src}"><button type="button" data-remove-image="${i}">${icon('close')}</button></div>`).join('')}</div>
-        ${b.images.length<4?`<input type="file" accept="image/*" data-image-input="${b.id}">`:'<p class="settings-note">Максимум 4 фото</p>'}`;
+        ${b.images.length<4?`<button type="button" class="text-btn" data-image-add="${b.id}">${icon('image')} Добавить фото</button><input type="file" accept="image/*" data-image-input="${b.id}" hidden>`:'<p class="settings-note">Максимум 4 фото</p>'}`;
       if(b.type==='location')return `<input class="field" data-location-label="${b.id}" placeholder="Название места" value="${esc(b.label||'')}" style="margin-bottom:8px">
         <button type="button" class="text-btn" data-location-geo="${b.id}">${icon('pin')} Определить моё местоположение</button>
         <div>${b.lat!=null?plannerLocationMapEmbed(b):''}</div>`;
@@ -4029,6 +4034,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           $(`[data-poll-add-option="${b.id}"]`,box).onclick=()=>{syncPoll();b.options.push({id:plannerId(),text:'',votes:0});renderBlocks();};
         } else if(b.type==='image'){
           $$('[data-remove-image]',box).forEach(btn=>btn.onclick=()=>{b.images.splice(+btn.dataset.removeImage,1);renderBlocks();});
+          $(`[data-image-add="${b.id}"]`,box)?.addEventListener('click',()=>$(`[data-image-input="${b.id}"]`,box)?.click());
           $(`[data-image-input="${b.id}"]`,box)?.addEventListener('change',async e=>{
             const file=e.target.files[0];if(!file)return;
             const dataUrl=await plannerDownscaleImage(file);
@@ -4262,7 +4268,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <div class="pl-comment-bar">
           <button type="button" class="pl-comment-bar-btn" id="pl-comment-image-btn" aria-label="Прикрепить вложение">${icon('paperclip')}</button>
           <input type="file" accept="image/*" id="pl-comment-image-input" hidden>
-          <input class="pl-comment-input" id="pl-comment-new" placeholder="Комментарий...">
+          <input class="pl-comment-input" id="pl-comment-new" placeholder="Написать комментарий">
           <button type="button" class="pl-comment-bar-btn pl-comment-send" id="pl-comment-send" aria-label="Отправить">${icon('send')}</button>
         </div>
       </div>
@@ -4392,7 +4398,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">При раскрытии короткого события кнопкой "..." соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в свои настоящие время — не только сама раскрытая карточка. В чеклисте формы события пункт, который набрали, но не подтвердили нажатием "+", теперь всё равно сохраняется при нажатии общей кнопки "Сохранить". Круглые кнопки (назад, настройки и другие) на телефоне больше не съезжают от центра — почищен нативный вид кнопок iOS, который перебивал вёрстку. Короткое событие с вложениями можно раскрыть кнопкой "..." под карточкой — время на ленте при этом не "растягивается", просто освобождается место. Фото в карточке всегда обрезается под её размер (не листается вместо ленты дня), а если места совсем нет — не показывается вовсе. Золотистые акценты в светлой теме стали заметно ярче. Переключение между разделами — с короткой ненавязчивой анимацией. Добавлена полноценная система тем: светлая, тёмная и системная, без перезагрузки, с запоминанием выбора. Свайп по событию работает из любой точки карточки. Все окна и шторки закрываются с анимацией. Повторный тап по своему варианту в опросе отменяет голос. Сохранение фото переделано (кнопка становится зелёной "Успешно"). Цветов для события стало больше, добавлен выбор произвольного цвета.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Убраны системные надписи "Выбрать файл" у прикрепления фото — в форме события теперь аккуратная кнопка "Добавить фото", а в комментариях фото прикрепляется скрепкой к большому овальному полю "Написать комментарий". При раскрытии короткого события кнопкой "..." соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный в форме события, но не подтверждённый нажатием "+", теперь тоже сохраняется по общей кнопке "Сохранить". Круглые кнопки (назад, настройки и другие) на телефоне больше не съезжают от центра. Фото в карточке события всегда обрезается под её размер, а если места совсем нет — не показывается вовсе. Золотистые акценты в светлой теме стали заметно ярче. Переключение между разделами — с короткой ненавязчивой анимацией. Добавлена полноценная система тем: светлая, тёмная и системная, без перезагрузки, с запоминанием выбора. Свайп по событию работает из любой точки карточки. Все окна и шторки закрываются с анимацией. Повторный тап по своему варианту в опросе отменяет голос. Цветов для события стало больше, добавлен выбор произвольного цвета.</p></section>
     </div></section>`;
   }
 
