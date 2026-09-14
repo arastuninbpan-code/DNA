@@ -68,6 +68,10 @@
   --swipe-panel-bg: #26251f;
   --swipe-panel-ink: #c2c5cb;
   --swipe-panel-ready-bg: #3a2f13;
+  /* Тень карточки события (см. .pl-event-wrap) в тёмной теме на тёмном фоне почти не видна —
+     обычная тёмная тень тут бесполезна. Вместо неё — золотое свечение, тот же приём, что и
+     остальные акценты приложения в тёмной теме. */
+  --event-shadow: 0 0 10px rgba(201,168,76,.35);
   --nav-h: 56px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   color-scheme: dark;
@@ -106,6 +110,7 @@
   --swipe-panel-bg: #ece4d0;
   --swipe-panel-ink: #6b5f4a;
   --swipe-panel-ready-bg: #f6e6b8;
+  --event-shadow: 0 2px 5px rgba(0,0,0,.16);
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]):not([data-theme="light"]) {
@@ -132,6 +137,7 @@
     --swipe-panel-bg: #ece4d0;
     --swipe-panel-ink: #6b5f4a;
     --swipe-panel-ready-bg: #f6e6b8;
+    --event-shadow: 0 2px 5px rgba(0,0,0,.16);
   }
 }
 /* Переключение темы — плавное, не мигающее: пока идёт смена (см. applyThemeMode в скрипте),
@@ -912,12 +918,12 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
 .hb-day {position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex:0 0 46px;height:62px;border:1px solid transparent;border-radius:12px;background:#11120f;color:#b9b4a7;padding:4px;transition:background .18s,border-color .18s,color .18s;}
 .hb-day>span {font-size:.75rem;line-height:1.2;}
 .hb-day strong {font-size:1rem;font-weight:400;line-height:1.3;}
-.hb-day.today {border-color:#c9a84c;}
-.hb-day.selected {background:#c9a84c;color:#14130f;border-color:#c9a84c;}
-.hb-day.selected.today {box-shadow:0 0 0 2px var(--bg),0 0 0 3px #8f773b;}
+.hb-day.today {border-color:var(--gold);}
+.hb-day.selected {background:var(--gold);color:#14130f;border-color:var(--gold);}
+.hb-day.selected.today {box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--gold);}
 .hb-day-mark {height:5px;width:5px;border-radius:50%;box-sizing:border-box;}
-.hb-day-mark.partial {background:#c9a84c;}
-.hb-day-mark.perfect {width:7px;height:7px;border:1px solid #c9a84c;}
+.hb-day-mark.partial {background:var(--gold);}
+.hb-day-mark.perfect {width:7px;height:7px;border:1px solid var(--gold);}
 .hb-day.selected .hb-day-mark {border-color:#14130f;}
 .hb-day.selected .hb-day-mark.partial {background:#14130f;}
 .hb-layout {display:grid;grid-template-columns:minmax(0,1fr);gap:24px;}
@@ -927,37 +933,41 @@ select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-s
 .hb-progress-ring>svg {display:block;width:100%;height:100%;transform:rotate(-90deg);overflow:visible;}
 .hb-progress-ring circle {fill:none;stroke-width:4;}
 .hb-ring-track {stroke:#29271d;}
-.hb-ring-value {stroke:#c9a84c;stroke-linecap:round;stroke-dasharray:100;transition:stroke-dashoffset .28s ease;}
-.hb-progress-ring strong {position:absolute;inset:0;display:grid;place-items:center;font-size:1.25rem;font-weight:400;color:#ddc171;font-variant-numeric:tabular-nums;}
+.hb-ring-value {stroke:var(--gold);stroke-linecap:round;stroke-dasharray:100;transition:stroke-dashoffset .28s ease;}
+.hb-progress-ring strong {position:absolute;inset:0;display:grid;place-items:center;font-size:1.25rem;font-weight:400;color:var(--gold2);font-variant-numeric:tabular-nums;}
 .hb-progress-row h2 {font-size:1rem;font-weight:400;margin:0;line-height:1.5;}
 .hb-progress-row p {font-size:.875rem;color:rgba(var(--ink),.65);line-height:1.5;margin:6px 0 0;}
 .hb-item {display:flex;gap:6px;align-items:center;border-bottom:1px solid #24241e;min-height:62px;}
 .hb-toggle {display:flex;align-items:center;gap:12px;min-height:60px;min-width:0;flex:1;text-align:left;border:0;background:none;padding:10px 0;}
-.hb-check {width:26px;height:26px;display:grid;place-items:center;flex:none;border:1px solid #65604b;border-radius:8px;color:#c9a84c;transition:background .18s,border-color .18s;}
+.hb-check {width:26px;height:26px;display:grid;place-items:center;flex:none;border:1px solid #65604b;border-radius:8px;color:var(--gold);transition:background .18s,border-color .18s;}
 .hb-check .icon {width:18px;height:18px;}
-.hb-item.done .hb-check {border-color:#c9a84c;background:#282415;}
-.hb-name {font-size:1rem;line-height:1.5;overflow-wrap:anywhere;min-width:0;transition:color .18s;}
+.hb-item.done .hb-check {border-color:var(--gold);background:#282415;}
+/* Раньше overflow-wrap:anywhere позволял длинному названию привычки переноситься посреди
+   слова, иногда буквально по одной букве на строку — читалось как баг. Вместо переноса —
+   одна строка с плавным затуханием по краю (а не резкое "..."), длинное название просто не
+   долистывается до конца, а не ломается посимвольно. */
+.hb-name {font-size:1rem;line-height:1.5;min-width:0;white-space:nowrap;overflow:hidden;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 22px),transparent 100%);mask-image:linear-gradient(to right,#000 calc(100% - 22px),transparent 100%);transition:color .18s;}
 .hb-item.done .hb-name {color:#8e8a7e;text-decoration:line-through;text-decoration-color:#726443;}
 .hb-toggle:disabled {opacity:.55;cursor:default;}
 .hb-delete {border:0;background:none;color:#827c6b;min-width:40px;min-height:44px;display:grid;place-items:center;}
 .hb-delete .icon {width:16px;height:16px;}
-.hb-add {display:block;width:100%;min-height:48px;margin:16px 0 0;border:1px solid #554727;border-radius:12px;background:#1a180f;color:#d5b963;font-size:.9375rem;padding:12px;}
+.hb-add {display:block;width:100%;min-height:48px;margin:16px 0 0;border:1px solid #554727;border-radius:12px;background:#1a180f;color:var(--gold2);font-size:.9375rem;padding:12px;}
 .hb-empty {font-size:.9375rem;line-height:1.6;color:rgba(var(--ink),.65);padding:20px 0;}
 .hb-stats {border-top:1px solid #24241e;padding-top:20px;}
 .hb-streaks {display:grid;grid-template-columns:1fr 1fr;margin-bottom:22px;}
 .hb-streaks button {background:none;border:0;padding:6px 12px;text-align:center;}
 .hb-streaks button+button {border-left:1px solid #24241e;}
-.hb-streaks strong {display:block;font-size:1.25rem;font-weight:400;color:#d5b963;}
+.hb-streaks strong {display:block;font-size:1.25rem;font-weight:400;color:var(--gold2);}
 .hb-streaks span {display:block;font-size:.8125rem;margin-top:6px;color:rgba(var(--ink),.65);}
 .hb-stats h2 {font-size:.9375rem;font-weight:400;margin:0 0 18px;}
 .hb-week {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;}
 .hb-week-day {border:0;background:none;padding:0;min-width:0;color:rgba(var(--ink),.65);text-align:center;}
 .hb-week-value {font-size:.75rem;display:block;font-variant-numeric:tabular-nums;margin-bottom:6px;}
 .hb-week-track {height:64px;display:flex;align-items:flex-end;background:#1d1d17;border-radius:4px;overflow:hidden;max-width:24px;margin:auto;}
-.hb-week-track i {display:block;width:100%;background:#bca04e;transition:height .28s ease;border-radius:4px;}
+.hb-week-track i {display:block;width:100%;background:var(--gold);transition:height .28s ease;border-radius:4px;}
 .hb-week-day small {font-size:.75rem;display:block;margin-top:8px;}
 .hb-week-note {font-size:.75rem;color:#8f897b;margin:14px 0 0;}
-.hb-screen button:focus-visible {outline:2px solid #c9a84c;outline-offset:3px;}
+.hb-screen button:focus-visible {outline:2px solid var(--gold);outline-offset:3px;}
 .hb-screen button:active {filter:brightness(1.15);}
 .toast-root {left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));}
 .toast {pointer-events:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#251b19;color:#e4c5bd;border:1px solid #675047;box-shadow:none;max-width:460px;padding:10px 14px;}
@@ -1137,7 +1147,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-color-swatch{width:30px;height:30px;border-radius:50%;background:var(--sw);border:2px solid transparent;padding:0;}
 .pl-color-swatch.active{border-color:var(--white);}
 .pl-daynav{display:flex;align-items:center;justify-content:center;padding:8px 20px 4px;flex-shrink:0;}
-.pl-daynav .pl-day-label{width:auto;height:auto;font-family:Georgia,'Times New Roman',serif;font-size:1rem;color:var(--white);text-align:center;text-transform:capitalize;border:0;background:transparent;padding:4px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pl-daynav .pl-day-label{position:relative;display:inline-block;width:auto;height:auto;font-family:Georgia,'Times New Roman',serif;font-size:1rem;color:var(--white);text-align:center;text-transform:capitalize;border:0;background:transparent;padding:4px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+/* Тот же приём, что у .calendar-button в привычках: настоящий <input type=date> лежит
+   прозрачным поверх всей плашки и открывает СИСТЕМНЫЙ пикер по тапу — единый календарь во
+   всём приложении, а не отдельный самодельный только здесь. */
+.pl-daynav .pl-day-label .ui-date{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0;}
 .pl-daynav .pl-day-label:active{opacity:.6;}
 .pl-scroll{flex:1;min-height:0;overflow-y:auto;padding:0 20px 100px;scrollbar-width:none;}
 .pl-scroll::-webkit-scrollbar{display:none;}
@@ -1224,7 +1238,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    был бы этим overflow обрезан начисто. drop-shadow — эффект уровня всей обёртки целиком,
    overflow тем же элементом его не клипует, поэтому небольшая тень видна поверх ленты и
    отделяет карточку от фона (особенно заметно в светлой теме, где они были близки по тону). */
-.pl-event-wrap{position:absolute;left:0;right:4px;overflow:hidden;border-radius:10px;isolation:isolate;pointer-events:auto;filter:drop-shadow(0 2px 5px rgba(0,0,0,.16));}
+.pl-event-wrap{position:absolute;left:0;right:4px;overflow:hidden;border-radius:10px;isolation:isolate;pointer-events:auto;filter:drop-shadow(var(--event-shadow));}
 /* Событие, перевалившее за полночь, раньше рисовалось с обрезанным краем на стыке (плоская
    грань там, где сегменты "продолжают" друг друга) — на практике выглядело как один овал и
    один незакруглённый обрубок, а не как два одинаковых события. Оба сегмента (carry-in на
@@ -1270,22 +1284,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 /* Тело события (панель под цветной "шапкой" — чекбоксом+названием) — затемняющая подложка
    на всю ширину карточки, визуально отделяющая цветную шапку раздела от вложений. Крупное
    изображение теперь занимает почти всю ширину тела со скруглёнными углами (как на рисунке
-   пользователя), а не мелкую иконку-превью вперемешку с чипами чеклиста/опроса/места. */
-.pl-event-extra{flex:1;min-height:0;min-width:0;width:100%;overflow-x:hidden;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin:0;padding:10px;}
+   пользователя), а не мелкую иконку-превью вперемешку с чипами чеклиста/опроса/места.
+   overflow:hidden, не auto — вложения статичные, свой скролл внутри карточки не нужен и
+   раньше давал двусмысленный жест (палец на вложении листал полоску вместо ленты дня); то,
+   что не помещается целиком, теперь просто скрывается (см. plannerFitEventCards), а не
+   становится доступным через отдельный скролл. */
+.pl-event-extra{flex:1;min-height:0;min-width:0;width:100%;overflow:hidden;display:flex;flex-direction:column;gap:10px;margin:0;padding:10px;}
 .pl-event-extra>*{flex-shrink:0;}
-/* Блок с фото — исключение из правила выше: он должен ЗАПОЛНЯТЬ, а не раздувать доступное
-   место (см. .pl-inline-block.pl-inline-block-image ниже) — иначе высокое фото создаёт внутри
-   .pl-event-extra собственный overflow, и жест, начатый пальцем на фото, листает эту полоску
-   вместо ленты дня. Составной селектор (а не просто .pl-inline-block-image) специально бьёт по
-   специфичности .pl-inline-block{flex:0 0 auto} ниже — иначе тот, идя позже по каскаду,
-   тихо перетирал бы это flex обратно.
-   */
-.pl-inline-block.pl-inline-block-image{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
-/* Фото, которому реально не досталось места (совсем короткое событие, особенно если рядом ещё
-   и чеклист/опрос забирают своё) или которое не загрузилось — прячем целиком, а не показываем
-   нечитаемую полоску-огрызок или, того хуже, сквозящий цвет события там, где должна быть
-   картинка (см. plannerFitImageBlocks). */
-.pl-inline-block-image.pl-inline-block-image-hidden{display:none;}
+/* Фото раньше было единственным блоком, который СЖИМАЛСЯ (flex:1 1 auto) под доступное место —
+   так вместо обрезки было видно ужатое, но целое изображение. Теперь любое вложение, которому
+   не хватает места, целиком прячется (см. plannerFitEventCards), а не ужимается и не
+   обрезается — фото получает обычную фиксированную высоту превью, как остальные блоки. */
+.pl-event-extra-image{height:140px;}
 .pl-event-actions,.pl-task-actions{touch-action:none;}
 /* touch-action:none — без этого свайп карточки, начатый пальцем прямо на интерактивной
    кнопке вложения (чеклист/опрос/фото — с v0.9.27 настоящие <button>), обрывается
@@ -1507,13 +1517,19 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-comment-select-backdrop.is-in{background:rgba(0,0,0,.5);}
 .pl-comment-select-clone{position:fixed;z-index:901;pointer-events:none;transform:scale(1);transition:transform .16s cubic-bezier(.34,1.2,.64,1);margin:0;box-shadow:0 12px 32px rgba(0,0,0,.4);}
 .pl-comment-select-clone.is-in{transform:scale(1.04);}
-.pl-comment-select-menu{position:fixed;z-index:901;min-width:190px;border-radius:14px;overflow:hidden;background:#1c1a15;box-shadow:0 12px 40px rgba(0,0,0,.5);opacity:0;transform:translateY(-6px);transition:opacity .16s ease,transform .16s ease;}
+/* Раньше меню было зашито в фиксированный тёмный фон (#1c1a15) — в светлой теме читалось как
+   чужеродный чёрный прямоугольник (та же проблема, что была у панели свайп-действий, см.
+   --swipe-panel-*). Тонкая граница между кнопками на 14% golden поверх ТЁМНОГО фона была едва
+   заметна, а на СВЕТЛОМ фоне того же цвета/непрозрачности читалась почти белой полосой —
+   отсюда и "белые полосы между кнопками". Теперь меню — обычная поверхность приложения
+   (var(--surface2)), как остальные всплывающие панели, и разделитель — от общего --ink темы. */
+.pl-comment-select-menu{position:fixed;z-index:901;min-width:190px;border-radius:14px;overflow:hidden;background:var(--surface2);box-shadow:0 12px 40px rgba(0,0,0,.35);opacity:0;transform:translateY(-6px);transition:opacity .16s ease,transform .16s ease;}
 .pl-comment-select-menu.is-in{opacity:1;transform:translateY(0);}
 .pl-comment-select-menu button{display:flex;align-items:center;gap:12px;width:100%;min-height:46px;padding:11px 16px;background:transparent;color:var(--gold);font-size:.9375rem;text-align:left;}
 .pl-comment-select-menu button .icon{width:18px;height:18px;flex:0 0 auto;}
-.pl-comment-select-menu button+button{border-top:1px solid rgba(201,168,76,.14);}
+.pl-comment-select-menu button+button{border-top:1px solid rgba(var(--ink),.12);}
 .pl-comment-select-menu button.danger-action{color:#de9090;}
-.pl-comment-select-menu button:active{background:rgba(201,168,76,.08);}
+.pl-comment-select-menu button:active{background:rgba(var(--ink),.08);}
 .pl-comment-image{display:block;max-width:220px;width:100%;border-radius:10px;margin-bottom:4px;cursor:pointer;}
 .pl-comment-date{font-size:.6875rem;color:rgba(var(--ink),.35);margin-top:3px;}
 /* Нижняя панель действий под лентой комментариев (сердце/пригласить/фото/ввод/эмодзи/отправить). */
@@ -1572,7 +1588,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.16.1';
+  const APP_VERSION = '0.17.0';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1732,6 +1748,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // сознательно не сохраняется между сессиями и сбрасывается при любой навигации по дням,
       // это чисто временное состояние просмотра, а не часть данных события.
       expandedEventId: null,
+      expandedExtraH: null,
     }
   };
   // Бэкофилленные id (withIds выше) существуют только в памяти, пока что-то их не пересохранит —
@@ -2445,6 +2462,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function formatPlannerDateTime(iso){const d=new Date(iso);return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+', '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
 
   function dayLabelFor(d){return d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});}
+  // Плашка даты по центру теперь <label> с текстом + СПРЯТАННЫМ нативным <input type=date>
+  // внутри (см. appDateField, тот же приём, что у привычек/финансов — единый календарь по
+  // всему приложению вместо отдельного самодельного). label.textContent=... затёр бы заодно
+  // и сам input — поэтому текст живёт в дочернем span (data-pl-today-text), а сюда же заодно
+  // синхронизируем value скрытого input, чтобы открытый пикер стартовал с реально видимой даты.
+  function plannerSyncDateLabel(text,date){
+    const t=$('[data-pl-today-text]');if(t)t.textContent=text;
+    const f=$('#pl-date-field');if(f&&date)f.value=isoDate(date);
+  }
   function nowMinutes(){const n=new Date();return n.getHours()*60+n.getMinutes();}
   function renderPlanner() {
     const zoom=state.planner.zoom;
@@ -2485,7 +2511,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const days=[];
     for(let i=-PL_WINDOW_RADIUS;i<=PL_WINDOW_RADIUS;i++)days.push(addDays(center,i));
     return `<div class="pl-daynav">
-        <button class="pl-day-label" data-pl-today type="button">${esc(dayLabelFor(center))}</button>
+        <label class="pl-day-label" data-pl-today><span data-pl-today-text>${esc(dayLabelFor(center))}</span>${appDateField('pl-date-field',isoDate(center),true)}</label>
       </div>
       <div class="pl-day-tasks" data-pl-day-tasks>${plannerEventsFor(isoDate(center)).filter(e=>!e.time).map(plannerTaskCard).join('')}</div>
       <div class="pl-scroll" data-pl-scroll data-pl-pinch data-pl-swipe>${days.map(d=>renderPlannerDayBlock(d,isoDate(days[0]))).join('')}</div>`;
@@ -2506,7 +2532,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const weeks=[];
     for(let i=-PL_WEEK_WINDOW_RADIUS;i<=PL_WEEK_WINDOW_RADIUS;i++)weeks.push(addDays(center,7*i));
     return `<div class="pl-daynav">
-        <button class="pl-day-label" data-pl-today type="button">${esc(weekLabelFor(center))}</button>
+        <label class="pl-day-label" data-pl-today><span data-pl-today-text>${esc(weekLabelFor(center))}</span>${appDateField('pl-date-field',isoDate(center),true)}</label>
       </div>
       <div class="pl-scroll pl-week-scroll" data-pl-scroll data-pl-pinch data-pl-swipe>${weeks.map(renderPlannerWeekBlock).join('')}</div>`;
   }
@@ -2553,7 +2579,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const months=[];
     for(let i=-PL_MONTH_WINDOW_RADIUS;i<=PL_MONTH_WINDOW_RADIUS;i++)months.push(new Date(centerMonth.getFullYear(),centerMonth.getMonth()+i,1));
     return `<div class="pl-daynav">
-        <button class="pl-day-label" data-pl-today type="button">${calMonthNames[centerMonth.getMonth()]} ${centerMonth.getFullYear()}</button>
+        <label class="pl-day-label" data-pl-today><span data-pl-today-text>${calMonthNames[centerMonth.getMonth()]} ${centerMonth.getFullYear()}</span>${appDateField('pl-date-field',isoDate(centerMonth),true)}</label>
       </div>
       <div class="pl-month-head">${PL_WEEKDAYS.map(x=>`<span>${x}</span>`).join('')}</div>
       <div class="pl-scroll pl-month-scroll" data-pl-scroll data-pl-pinch data-pl-swipe>${months.map(renderPlannerMonthBlock).join('')}</div>`;
@@ -2630,59 +2656,62 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       return `<div class="pl-inline-block ${b.type==='image'?'pl-inline-block-image':''}" data-inline-block="${esc(b.id)}"><div class="pl-inline-block-head"><span>${label}</span><button type="button" class="pl-inline-grip" data-pl-inline="reorder" aria-label="Переместить блок: ${label}" title="Потяни для перемещения. С клавиатуры: стрелки вверх и вниз.">${icon('grip')}</button></div>${content}</div>`;
     }).join('');
   }
-  // Фото в компактной карточке (см. plannerEventExtraHtml выше) прячем целиком, если ему
-  // реально не досталось внятной высоты (совсем короткое событие плюс ещё один блок, делящий
-  // те же несколько десятков пикселей) или если оно не загрузилось — иначе вместо фото видно
-  // либо нечитаемый обрезок в пару пикселей, либо (при ошибке загрузки) сквозящий насквозь
-  // прозрачную кнопку цвет самого события. Заодно решает, нужна ли кнопка "..." (раскрыть) —
-  // она нужна ровно тогда, когда контенту реально не хватило места (.pl-event-extra
-  // прокручивается сам по себе) — а не всегда, когда у события просто есть вложения. Высота —
-  // уже после раскладки (requestAnimationFrame), т.к. до неё offsetHeight/scrollHeight ещё не
-  // отражают реальное место, выделенное флексом.
-  const PL_IMAGE_MIN_VISIBLE_H=40;
+  // Вложения в компактной карточке (см. plannerEventExtraHtml выше) — статичные, без своего
+  // скролла: раньше .pl-event-extra был overflow-y:auto и контент, который не влезал, либо
+  // листался отдельным от ленты дня жестом (палец на вложении не должен был бы свайпать день),
+  // либо обрезался серединой блока. Теперь любой блок, который целиком не помещается в
+  // отведённое карточке место — прячется ПОЛНОСТЬЮ (а не наполовину), начиная с последнего,
+  // пока оставшееся содержимое не влезает без остатка; кнопка "..." нужна ровно тогда, когда
+  // что-то реально спрятано. Раскрытие ("..." — см. plannerMeasureExpansion) показывает все
+  // блоки и подгоняет высоту карточки ровно под них — не больше и не меньше фиксированного
+  // запаса, как было раньше.
   function plannerFitEventCards(wrap){
     const extra=$('.pl-event-extra',wrap),expandBtn=$('.pl-event-expand',wrap);
     if(!extra)return;
     const isExpanded=state.planner.expandedEventId===wrap.dataset.plEventId;
-    // Фото внутри .pl-event-extra нарочно СЖИМАЕТСЯ (flex:1 1 auto), а не переполняет контейнер
-    // — иначе жест на фото уводил бы скролл ленты дня внутрь карточки (см. комментарий у
-    // .pl-inline-block-image выше). Из-за этого extra.scrollHeight>extra.clientHeight никогда не
-    // срабатывает для карточек, где ЕДИНСТВЕННЫЙ "лишний" контент — само сжатое фото: кнопка
-    // "..." раньше в таком случае вообще не появлялась. imageShrunk ниже — отдельный сигнал:
-    // сравниваем реально отрисованную высоту фото с тем, сколько бы оно заняло без сжатия
-    // (по его собственному соотношению сторон) — если фото ощутимо ужато, контенту не хватило
-    // места точно так же, как при обычном overflow, и кнопка обязана появиться.
-    let imageShrunk=false;
-    const recheckOverflow=()=>{
-      if(!expandBtn)return;
-      // Кнопка "..." — обычный flex-элемент ПОСЛЕ .pl-event-extra (см. CSS), поэтому
-      // .pl-event-extra{flex:1} сама уступает ей место, как только она становится видимой —
-      // никакого ручного запаса/отступа под неё не нужно, перекрытия контента не бывает.
-      expandBtn.hidden=!(isExpanded||imageShrunk||extra.scrollHeight>extra.clientHeight+1);
+    const blocks=$$('.pl-inline-block',extra);
+    const images=$$('.pl-inline-block-image img',extra);
+    const settle=()=>{
+      if(!wrap.isConnected)return;
+      // Не загрузившееся фото прячем всегда, независимо от режима — показывать нечего, и место
+      // под него точно не считаем занятым.
+      const broken=new Set();
+      images.forEach(img=>{if(img.complete&&img.naturalWidth===0){const b=img.closest('.pl-inline-block-image');if(b)broken.add(b);}});
+      blocks.forEach(b=>{b.hidden=broken.has(b);});
+      if(isExpanded){
+        if(expandBtn)expandBtn.hidden=false;
+        plannerMeasureExpansion(wrap,extra);
+        return;
+      }
+      let hiddenAny=broken.size>0;
+      for(let i=blocks.length-1;i>=0;i--){
+        if(blocks[i].hidden)continue;
+        if(extra.scrollHeight<=extra.clientHeight+1)break;
+        blocks[i].hidden=true;hiddenAny=true;
+      }
+      if(expandBtn)expandBtn.hidden=!hiddenAny;
     };
-    extra.querySelectorAll('.pl-inline-block-image').forEach(block=>{
-      const img=block.querySelector('img');if(!img)return;
-      const check=()=>{
-        const broken=img.complete&&img.naturalWidth===0;
-        const rect=block.getBoundingClientRect();
-        const tooSmall=rect.height<PL_IMAGE_MIN_VISIBLE_H;
-        block.classList.toggle('pl-inline-block-image-hidden',broken||tooSmall);
-        // tooSmall (фото спрятано целиком — см. PL_IMAGE_MIN_VISIBLE_H) — тоже "не хватило
-        // места", причём даже более явно, чем просто ужатое фото: раскрытие даёт карточке
-        // реальный запас высоты (PL_EXPANDED_EXTRA_H), после чего это же фото снова помещается
-        // и .pl-inline-block-image-hidden при следующем перерасчёте с неё снимается.
-        if(!broken&&tooSmall)imageShrunk=true;
-        else if(!broken&&img.naturalWidth&&rect.width>0){
-          const desiredH=rect.width/img.naturalWidth*img.naturalHeight;
-          if(desiredH-rect.height>4)imageShrunk=true;
-        }
-        recheckOverflow();
-      };
-      img.addEventListener('error',check);
-      if(img.complete)requestAnimationFrame(check);
-      else img.addEventListener('load',()=>requestAnimationFrame(check),{once:true});
-    });
-    requestAnimationFrame(recheckOverflow);
+    const pending=images.filter(img=>!img.complete);
+    if(!pending.length){requestAnimationFrame(settle);return;}
+    let left=pending.length;
+    pending.forEach(img=>['load','error'].forEach(ev=>img.addEventListener(ev,()=>{if(--left<=0)requestAnimationFrame(settle);},{once:true})));
+  }
+  // Раскрытая ("...") карточка получает фиксированную добавку к высоте (PL_EXPANDED_EXTRA_H) для
+  // ПЕРВОГО кадра — иначе при самом открытии контент на миг мелькнул бы нулевой высотой. Сразу
+  // после раскладки меряем, сколько высоты реально нужно, чтобы .pl-event-extra показал все свои
+  // блоки без остатка (extra.scrollHeight) — если сохранённая добавка (state.planner.
+  // expandedExtraH) больше или меньше нужного, поправляем её и перерисовываем один раз; на
+  // следующий проход разница уже ~0, и повторной перерисовки не происходит (сходится за 1 шаг).
+  function plannerMeasureExpansion(wrap,extra){
+    const id=wrap.dataset.plEventId;
+    if(state.planner.expandedEventId!==id)return;
+    const diff=extra.scrollHeight-extra.clientHeight;
+    if(Math.abs(diff)<=1)return;
+    const current=state.planner.expandedExtraH??PL_EXPANDED_EXTRA_H;
+    const next=Math.max(0,current+diff);
+    if(Math.abs(next-current)<=1)return;
+    state.planner.expandedExtraH=next;
+    renderScreen();
   }
   function plannerMoveInlineBlock(ev,id,beforeId){
     const from=ev.blocks.findIndex(b=>b.id===id);
@@ -2840,7 +2869,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const startMin=plannerMinutesFromTime(ev.time||'00:00');
     const minH=plannerEventExtraHtml(ev)?96:38;
     const normalH=Math.max(minH,(ev.duration||0)/60*PL_HOUR_PX-2);
-    return {breakMin:startMin+normalH/PL_HOUR_PX*60,extraH:PL_EXPANDED_EXTRA_H,id:ev.id};
+    return {breakMin:startMin+normalH/PL_HOUR_PX*60,extraH:state.planner.expandedExtraH??PL_EXPANDED_EXTRA_H,id:ev.id};
   }
   function renderPlannerTimeline(items,isToday,dateIso){
     const curHour=isToday?new Date().getHours():-1;
@@ -2963,7 +2992,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       plannerEnterDayView(parseLocalDate(el.dataset.plWeekDaycol));
     }));
     $$('[data-pl-month-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plMonthDay)));
-    $('[data-pl-today]')?.addEventListener('click',plannerOpenCalendar);
+    // Плашка даты — не кастомный календарь, а тот же нативный <input type=date> (см.
+    // appDateField), что и everywhere в приложении (привычки/финансы) — один и тот же системный
+    // пикер, а не два разных на вид календаря в одном приложении.
+    $('#pl-date-field')?.addEventListener('change',e=>{
+      if(!validAppDate(e.target.value))return;
+      plannerJumpToDate(parseLocalDate(e.target.value));
+    });
     $('[data-pl-add]')?.addEventListener('click',()=>showPlannerEditSheet(null));
     $$('[data-pl-toggle]').forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);});
     $$('[data-pl-open]').forEach(b=>b.onclick=()=>showPlannerDetail(b.dataset.plOpen));
@@ -2977,6 +3012,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       e.stopPropagation();
       const id=b.dataset.plExpand;
       state.planner.expandedEventId=state.planner.expandedEventId===id?null:id;
+      // Запас высоты — не то же самое, что было измерено для ДРУГОГО события (см.
+      // plannerMeasureExpansion) — начинаем каждое новое раскрытие с чистого приближения.
+      state.planner.expandedExtraH=null;
       renderScreen();
     });
     $$('[data-pl-cluster]').forEach(b=>b.onclick=()=>plannerShowClusterSheet(b.dataset.plCluster.split(',')));
@@ -3706,7 +3744,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(top!=null){
         state.planner.viewDate=date;
         plannerRefreshDayTasks();
-        const label=$('[data-pl-today]');if(label)label.textContent=dayLabelFor(date);
+        plannerSyncDateLabel(dayLabelFor(date),date);
         sc.scrollTo({top:Math.max(0,top),behavior:reducedMotion()?'auto':'smooth'});
         return;
       }
@@ -3803,7 +3841,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(iso!==isoDate(state.planner.viewDate)){
       state.planner.viewDate=parseLocalDate(iso);
       plannerRefreshDayTasks();
-      const label=$('[data-pl-today]');if(label)label.textContent=dayLabelFor(state.planner.viewDate);
+      plannerSyncDateLabel(dayLabelFor(state.planner.viewDate),state.planner.viewDate);
     }
     const blocks=Array.from(sc.children),idx=blocks.indexOf(active);
     if(idx<2||idx>blocks.length-3){
@@ -3831,7 +3869,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(top!=null){
         state.planner.viewDate=date;
         plannerRefreshDayTasks();
-        const label=$('[data-pl-today]');if(label)label.textContent=weekLabelFor(start);
+        plannerSyncDateLabel(weekLabelFor(start),start);
         sc.scrollTo({top:Math.max(0,top),behavior:reducedMotion()?'auto':'smooth'});
         return;
       }
@@ -3857,7 +3895,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(iso!==isoDate(startOfWeek(state.planner.viewDate))){
       state.planner.viewDate=parseLocalDate(iso);
       plannerRefreshDayTasks();
-      const label=$('[data-pl-today]');if(label)label.textContent=weekLabelFor(parseLocalDate(iso));
+      plannerSyncDateLabel(weekLabelFor(parseLocalDate(iso)),parseLocalDate(iso));
     }
     const blocks=Array.from(sc.children),idx=blocks.indexOf(active);
     if(idx<2||idx>blocks.length-3){
@@ -3883,7 +3921,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const top=plannerMonthBlockTop(sc,key);
       if(top!=null){
         state.planner.calDisplay=display;
-        const label=$('[data-pl-today]');if(label)label.textContent=calMonthNames[display.getMonth()]+' '+display.getFullYear();
+        plannerSyncDateLabel(calMonthNames[display.getMonth()]+' '+display.getFullYear(),display);
         sc.scrollTo({top:Math.max(0,top),behavior:reducedMotion()?'auto':'smooth'});
         return;
       }
@@ -3892,23 +3930,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     pendingPlannerMonthScroll={type:'key',key};
     renderScreen();
   }
-  // Плашка даты по центру (data-pl-today) раньше по тапу сразу прыгала на сегодня — теперь
-  // открывает полноценный календарь (см. renderCalendarOverlay/calendarMarkup, ранее написанный,
-  // но нигде не подключённый компонент — выбор даты у привычек на деле идёт через нативный
-  // <input type=date>). "Сегодня" внутри календаря (data-cal-today) при заданном cal.onConfirm
-  // сразу закрывает лист и прыгает — тот же мгновенный переход одним тапом, что был раньше у
-  // самой плашки, просто теперь через один промежуточный экран. Выбор конкретного дня уважает
-  // текущий масштаб (день/неделя/месяц) — так же, как раньше вело себя "сегодня".
+  // Выбор конкретного дня из плашки-календаря уважает текущий масштаб (день/неделя/месяц) —
+  // так же, как раньше вело себя "сегодня".
   function plannerJumpToDate(date){
     const zoom=state.planner.zoom;
     if(zoom==='week')plannerJumpToWeek(date);
     else if(zoom==='month')plannerJumpToMonth(new Date(date.getFullYear(),date.getMonth(),1));
     else plannerJumpTo(date);
-  }
-  function plannerOpenCalendar(){
-    const base=state.planner.viewDate||dateOnly();
-    const cal={display:new Date(base.getFullYear(),base.getMonth(),1),selected:base,query:'',suggestions:[],onConfirm:d=>plannerJumpToDate(d)};
-    renderCalendarOverlay(cal);
   }
   function plannerActiveMonthBlock(sc){
     const scTop=sc.getBoundingClientRect().top;
@@ -3927,7 +3955,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(key!==monthKey(state.planner.calDisplay)){
       const [y,m]=key.split('-').map(Number);
       state.planner.calDisplay=new Date(y,m-1,1);
-      const label=$('[data-pl-today]');if(label)label.textContent=calMonthNames[m-1]+' '+y;
+      plannerSyncDateLabel(calMonthNames[m-1]+' '+y,new Date(y,m-1,1));
     }
     const blocks=Array.from(sc.children),idx=blocks.indexOf(active);
     if(idx<2||idx>blocks.length-3){
@@ -4791,7 +4819,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Долгое нажатие на сообщение в комментариях теперь выделяет его на месте (как в Telegram) и показывает рядом меню "Скопировать / Редактировать / Скачать / Удалить" — экран деталей события никуда не переключается. Удаление — с 8-секундной отменой, как у событий/привычек. Круглые кнопки (в том числе на главном экране) на телефоне больше не съезжают от центра — добавлен явный нулевой отступ, которого не хватало одному сбросу нативного вида кнопки. Починен баг, из-за которого пустой блок прикреплённого к комментарию фото иногда оставался едва заметной белой полоской после отправки — та же причина, что и у кнопки "..." под событием, которая из-за неё была видна всегда, а не только когда реально нужна. Свои сообщения в комментариях — справа, как в обычных мессенджерах. Кнопка "..." больше не перекрывает чеклист/фото — сама уступает им место. Убраны системные надписи "Выбрать файл". При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный, но не подтверждённый "+", тоже сохраняется по общему "Сохранить". Фото в карточке события всегда обрезается под её размер. Золотистые акценты в светлой теме ярче. Переключение между разделами — с короткой анимацией. Добавлена система тем: светлая, тёмная, системная. Тап по фото в комментариях открывает его на весь экран с кнопкой "Сохранить". Найден и исправлен настоящий баг задвоенного текста "Сохранить"/"Успешно" на кнопке сохранения фото. Смена подписи "Сохранить"→"Успешно" теперь плавная. Отметка события выполненным больше не перерисовывает весь экран — соседние карточки с фото/вложениями не моргают, у отметки — та же анимация, что у чеклиста. Кнопка "..." снова появляется на карточках, где не хватило места именно фото. У карточки события — лёгкая тень. Долгое нажатие на комментарий больше не накладывает его текст сам на себя. Убрана плашка "Правка сообщения". Тап по центральной дате открывает календарь для перехода на любой день. Убрана подсказка про перетаскивание блоков в форме события. Убран выбор раздела и лишний кружок цвета в форме события. Кнопка "Другая дата" убрана — даты появляются сами, только если время окончания раньше начала. Пустое название события при сохранении трясётся красным. Панель свайп-действий и кнопка числового режима у привычек больше не чёрные в светлой теме, а графики (кольцо дисциплины, финансы) красятся актуальным цветом темы, а не всегда тёмным. Блок "Локация" заменён на "Примечание" — простой текст к событию. Лист с "+N событий" теперь закрывается свайпом вниз прямо со списка. Блоки вложений внутри карточки события (чеклист, примечание и т.д.) теперь визуально выделены отдельными скруглёнными плашками, а не сливаются друг с другом. Чекбоксы чеклиста в форме события были почти невидимы в тёмной теме (тёмная рамка на тёмном фоне) — теперь видны. Отметка пункта чеклиста в форме — с анимацией, без перерисовки всей формы. Свайп по карточке события/задачи требовал слишком мало отклонения от вертикали, из-за чего обычный скролл ленты легко срывался в свайп — порог сделан заметно строже. Месячный вид грузит больше месяцев за раз, чтобы решительный скролл не спотыкался о перестройку окна виртуализации.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Долгое нажатие на сообщение в комментариях теперь выделяет его на месте (как в Telegram) и показывает рядом меню "Скопировать / Редактировать / Скачать / Удалить" — экран деталей события никуда не переключается. Удаление — с 8-секундной отменой, как у событий/привычек. Круглые кнопки (в том числе на главном экране) на телефоне больше не съезжают от центра — добавлен явный нулевой отступ, которого не хватало одному сбросу нативного вида кнопки. Починен баг, из-за которого пустой блок прикреплённого к комментарию фото иногда оставался едва заметной белой полоской после отправки — та же причина, что и у кнопки "..." под событием, которая из-за неё была видна всегда, а не только когда реально нужна. Свои сообщения в комментариях — справа, как в обычных мессенджерах. Кнопка "..." больше не перекрывает чеклист/фото — сама уступает им место. Убраны системные надписи "Выбрать файл". При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный, но не подтверждённый "+", тоже сохраняется по общему "Сохранить". Фото в карточке события всегда обрезается под её размер. Золотистые акценты в светлой теме ярче. Переключение между разделами — с короткой анимацией. Добавлена система тем: светлая, тёмная, системная. Тап по фото в комментариях открывает его на весь экран с кнопкой "Сохранить". Найден и исправлен настоящий баг задвоенного текста "Сохранить"/"Успешно" на кнопке сохранения фото. Смена подписи "Сохранить"→"Успешно" теперь плавная. Отметка события выполненным больше не перерисовывает весь экран — соседние карточки с фото/вложениями не моргают, у отметки — та же анимация, что у чеклиста. Кнопка "..." снова появляется на карточках, где не хватило места именно фото. У карточки события — лёгкая тень. Долгое нажатие на комментарий больше не накладывает его текст сам на себя. Убрана плашка "Правка сообщения". Тап по центральной дате открывает календарь для перехода на любой день. Убрана подсказка про перетаскивание блоков в форме события. Убран выбор раздела и лишний кружок цвета в форме события. Кнопка "Другая дата" убрана — даты появляются сами, только если время окончания раньше начала. Пустое название события при сохранении трясётся красным. Панель свайп-действий и кнопка числового режима у привычек больше не чёрные в светлой теме, а графики (кольцо дисциплины, финансы) красятся актуальным цветом темы, а не всегда тёмным. Блок "Локация" заменён на "Примечание" — простой текст к событию. Лист с "+N событий" теперь закрывается свайпом вниз прямо со списка. Блоки вложений внутри карточки события (чеклист, примечание и т.д.) теперь визуально выделены отдельными скруглёнными плашками, а не сливаются друг с другом. Чекбоксы чеклиста в форме события были почти невидимы в тёмной теме (тёмная рамка на тёмном фоне) — теперь видны. Отметка пункта чеклиста в форме — с анимацией, без перерисовки всей формы. Свайп по карточке события/задачи требовал слишком мало отклонения от вертикали, из-за чего обычный скролл ленты легко срывался в свайп — порог сделан заметно строже. Месячный вид грузит больше месяцев за раз, чтобы решительный скролл не спотыкался о перестройку окна виртуализации. Плашка даты теперь открывает тот же системный календарь, что и везде в приложении, а не отдельный самодельный. Меню действий комментария (редактировать/скачать/удалить) было зашито в тёмный цвет — теперь следует теме. Золотой цвет в привычках (кольцо дисциплины, график, календарь) обновлён везде, где раньше оставался тёмным. У карточки события в тёмной теме — золотое свечение вместо невидимой тени. Вложения в карточке события больше не скроллятся и не обрезаются серединой — то, что не помещается целиком, скрывается полностью, а раскрытие "..." подгоняет высоту карточки ровно под все вложения. Длинные названия привычек больше не переносятся по буквам — одна строка с плавным затуханием.</p></section>
     </div></section>`;
   }
 
@@ -6303,21 +6331,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if (progress > 0) {
       const arcR = r - 4;
       const sweep = Math.PI * 2 * clamp(progress, 0, 1);
+      // Стопы раньше были буквально зашитыми копиями --gold/--gold2/--gold3 ТЁМНОЙ темы —
+      // в светлой теме кольцо оставалось тускло-тёмным поверх остального яркого интерфейса.
+      // Берём токены динамически (themeVar, как и everywhere в canvas-отрисовке).
+      const gA=themeVar('--gold')||'#C9A84C',gB=themeVar('--gold2')||'#D4AF37',gC=themeVar('--gold3')||'#E8C84A';
       let gradient;
       if (ctx.createConicGradient) {
         gradient = ctx.createConicGradient(-Math.PI / 2, cx, cy);
-        gradient.addColorStop(0, '#C9A84C');
-        gradient.addColorStop(.25, '#D4AF37');
-        gradient.addColorStop(.5, '#E8C84A');
-        gradient.addColorStop(.75, '#D4AF37');
-        gradient.addColorStop(1, '#C9A84C');
+        gradient.addColorStop(0, gA);
+        gradient.addColorStop(.25, gB);
+        gradient.addColorStop(.5, gC);
+        gradient.addColorStop(.75, gB);
+        gradient.addColorStop(1, gA);
       } else {
         gradient = ctx.createLinearGradient(cx-r, cy-r, cx+r, cy+r);
-        gradient.addColorStop(0, '#C9A84C');
-        gradient.addColorStop(.25, '#D4AF37');
-        gradient.addColorStop(.5, '#E8C84A');
-        gradient.addColorStop(.75, '#D4AF37');
-        gradient.addColorStop(1, '#C9A84C');
+        gradient.addColorStop(0, gA);
+        gradient.addColorStop(.25, gB);
+        gradient.addColorStop(.5, gC);
+        gradient.addColorStop(.75, gB);
+        gradient.addColorStop(1, gA);
       }
       ctx.lineCap = 'round';
       ctx.lineWidth = 6;
