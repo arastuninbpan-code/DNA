@@ -1272,9 +1272,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-extra-image img{width:100%;height:100%;object-fit:cover;display:block;}
 .pl-event-extra-image-count{position:absolute;right:6px;bottom:6px;padding:2px 7px;border-radius:20px;background:rgba(0,0,0,.55);color:#fff;font-size:.6875rem;font-weight:700;line-height:1.4;pointer-events:none;}
 /* Кнопка "..." — раскрыть короткую карточку целиком (см. plannerFitEventCards/
-   plannerTimelineExpansion). Тёмная полупрозрачная плашка, как у счётчика фото выше — читается
-   поверх любого содержимого карточки (фото/цвет события/тема) одинаково, без привязки к теме. */
-.pl-event-expand{position:absolute;left:50%;bottom:5px;transform:translateX(-50%);width:28px;height:20px;border-radius:10px;border:0;background:rgba(0,0,0,.5);color:#fff;display:grid;place-items:center;padding:0;z-index:4;touch-action:none;transition:background-color .15s ease,color .15s ease;}
+   plannerTimelineExpansion). Обычный flex-элемент ПОСЛЕ .pl-event-extra (не absolute поверх
+   неё) — так flex:1 у .pl-event-extra сам уступает ей ровно столько места, сколько она реально
+   занимает, и кнопка гарантированно не перекрывает последнюю строку контента (чеклист/фото)
+   независимо от того, где именно тот заканчивается. Тёмная полупрозрачная плашка, как у
+   счётчика фото выше — читается поверх любого содержимого карточки одинаково, без привязки к
+   теме. */
+.pl-event-expand{flex:0 0 auto;align-self:center;margin-top:4px;width:28px;height:20px;border-radius:10px;border:0;background:rgba(0,0,0,.5);color:#fff;display:grid;place-items:center;padding:0;touch-action:none;transition:background-color .15s ease,color .15s ease;}
 .pl-event-expand .icon{width:15px;height:15px;}
 .pl-event-expand[aria-expanded="true"]{background:var(--gold-strong);color:#171410;}
 .pl-event-extra-list{display:flex;flex-direction:column;gap:5px;}
@@ -1421,12 +1425,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-comment-divider::before,.pl-comment-divider::after{content:'';flex:1;height:1px;background:rgba(var(--ink),.08);}
 .pl-comment-system{text-align:center;font-size:.75rem;color:rgba(var(--ink),.35);padding:4px 0 10px;}
 .pl-comment-item{display:flex;gap:10px;padding:5px 0;}
+/* "Мои" сообщения — как в обычных мессенджерах, справа: разворачиваем весь ряд (аватар
+   уезжает направо) и прижимаем содержимое .pl-comment-body к правому краю через
+   align-items:flex-end (сам пузырь — inline-block, поэтому не растягивается на всю ширину). */
+.pl-comment-item.mine{flex-direction:row-reverse;}
+.pl-comment-item.mine .pl-comment-body{display:flex;flex-direction:column;align-items:flex-end;}
 .pl-comment-avatar{width:28px;height:28px;border-radius:50%;background:var(--gold-strong);color:#1a1508;font-size:.75rem;font-weight:700;display:grid;place-items:center;flex:0 0 auto;}
 .pl-comment-item.theirs .pl-comment-avatar{background:rgba(var(--ink),.16);color:var(--white);}
 .pl-comment-body{flex:1;min-width:0;}
 .pl-comment-name{font-size:.8125rem;font-weight:700;color:var(--white);margin-right:6px;}
 .pl-comment-bubble{margin-top:3px;padding:8px 12px;border-radius:4px 14px 14px 14px;background:rgba(var(--ink),.08);display:inline-block;max-width:100%;}
-.pl-comment-item.mine .pl-comment-bubble{background:rgba(201,168,76,.2);}
+.pl-comment-item.mine .pl-comment-bubble{background:rgba(201,168,76,.2);border-radius:14px 4px 14px 14px;}
+.pl-comment-remove{flex:0 0 auto;align-self:center;width:26px;height:26px;border-radius:50%;background:transparent;color:rgba(var(--ink),.35);display:grid;place-items:center;padding:0;}
+.pl-comment-remove .icon{width:14px;height:14px;}
+.pl-comment-remove:active{color:var(--red);}
 .pl-comment-text{font-size:.875rem;color:#eee;white-space:pre-wrap;overflow-wrap:anywhere;}
 .pl-comment-image{display:block;max-width:220px;width:100%;border-radius:10px;margin-bottom:4px;}
 .pl-comment-date{font-size:.6875rem;color:rgba(var(--ink),.35);margin-top:3px;}
@@ -1472,7 +1484,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.11.2';
+  const APP_VERSION = '0.12.0';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2508,6 +2520,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const isExpanded=state.planner.expandedEventId===wrap.dataset.plEventId;
     const recheckOverflow=()=>{
       if(!expandBtn)return;
+      // Кнопка "..." — обычный flex-элемент ПОСЛЕ .pl-event-extra (см. CSS), поэтому
+      // .pl-event-extra{flex:1} сама уступает ей место, как только она становится видимой —
+      // никакого ручного запаса/отступа под неё не нужно, перекрытия контента не бывает.
       expandBtn.hidden=!(isExpanded||extra.scrollHeight>extra.clientHeight+1);
     };
     extra.querySelectorAll('.pl-inline-block-image').forEach(block=>{
@@ -2663,8 +2678,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           <span class="pl-event-title">${esc(e.title)}</span>
         </span>
         ${extraHtml?`<div class="pl-event-extra">${extraHtml}</div>`:''}
+        ${extraHtml?`<button type="button" class="pl-event-expand" data-pl-expand="${e.id}" aria-label="${expanded?'Свернуть':'Показать целиком'}" aria-expanded="${expanded}" ${expanded?'':'hidden'}>${icon('more')}</button>`:''}
       </div>
-      ${extraHtml?`<button type="button" class="pl-event-expand" data-pl-expand="${e.id}" aria-label="${expanded?'Свернуть':'Показать целиком'}" aria-expanded="${expanded}" ${expanded?'':'hidden'}>${icon('more')}</button>`:''}
     </div>`;
   }
   // Раскрытое кнопкой "..." событие (см. plannerRenderEventTile) получает вдобавок к своей
@@ -4247,6 +4262,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           <div class="pl-comment-bubble">${it.image?`<img class="pl-comment-image" src="${esc(it.image)}" alt="">`:''}${it.text?`<span class="pl-comment-text">${esc(it.text)}</span>`:''}</div>
           <div class="pl-comment-date">${plannerCommentTimeLabel(it.date)}</div>
         </div>
+        ${mine?`<button type="button" class="pl-comment-remove" data-comment-remove="${esc(it.id)}" aria-label="Удалить сообщение">${icon('close')}</button>`:''}
       </div>`;
     });
     return `<div class="pl-comment-thread">${rows.join('')}</div>`;
@@ -4349,6 +4365,19 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       box.innerHTML=stagedImage?`<img src="${esc(stagedImage)}" alt=""><button type="button" id="pl-comment-staged-remove" aria-label="Убрать фото">${icon('close')}</button>`:'';
       $('#pl-comment-staged-remove',ov)?.addEventListener('click',()=>{stagedImage=null;renderStaged();});
     };
+    // Удаление своего сообщения (крестик — см. .pl-comment-remove) целиком, вместе с
+    // прикреплённым фото, если оно было: отдельного способа стереть только фото у уже
+    // отправленного сообщения нет (как и в большинстве мессенджеров — правится всё сообщение
+    // целиком). Чужие сообщения (theirs) кнопки не получают вовсе — крестика в разметке нет.
+    const bindCommentRemove=()=>{
+      $$('[data-comment-remove]',ov).forEach(btn=>btn.onclick=()=>{
+        ev.comments=ev.comments.filter(c=>c.id!==btn.dataset.commentRemove);
+        savePlannerEvents();
+        $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
+        bindCommentRemove();
+      });
+    };
+    bindCommentRemove();
     const postComment=()=>{
       const input=$('#pl-comment-new',ov),text=input.value.trim();
       if(!text&&!stagedImage)return;
@@ -4356,6 +4385,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       input.value='';stagedImage=null;renderStaged();savePlannerEvents();
       $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
       $('#pl-comment-list',ov).scrollTop=$('#pl-comment-list',ov).scrollHeight;
+      bindCommentRemove();
     };
     $('#pl-comment-send',ov).onclick=postComment;
     $('#pl-comment-new',ov).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();postComment();}});
@@ -4398,7 +4428,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Убраны системные надписи "Выбрать файл" у прикрепления фото — в форме события теперь аккуратная кнопка "Добавить фото", а в комментариях фото прикрепляется скрепкой к большому овальному полю "Написать комментарий". При раскрытии короткого события кнопкой "..." соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный в форме события, но не подтверждённый нажатием "+", теперь тоже сохраняется по общей кнопке "Сохранить". Круглые кнопки (назад, настройки и другие) на телефоне больше не съезжают от центра. Фото в карточке события всегда обрезается под её размер, а если места совсем нет — не показывается вовсе. Золотистые акценты в светлой теме стали заметно ярче. Переключение между разделами — с короткой ненавязчивой анимацией. Добавлена полноценная система тем: светлая, тёмная и системная, без перезагрузки, с запоминанием выбора. Свайп по событию работает из любой точки карточки. Все окна и шторки закрываются с анимацией. Повторный тап по своему варианту в опросе отменяет голос. Цветов для события стало больше, добавлен выбор произвольного цвета.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Комментарии: свои сообщения теперь справа, как в обычных мессенджерах, и их можно удалить (вместе с прикреплённым фото, если оно было) кнопкой рядом с пузырём. Кнопка "..." под коротким событием больше не перекрывает чеклист/фото — сама уступает им место. Убраны системные надписи "Выбрать файл" у прикрепления фото — в форме события кнопка "Добавить фото", в комментариях фото прикрепляется скрепкой к полю "Написать комментарий". При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный в форме события, но не подтверждённый нажатием "+", теперь тоже сохраняется по общей кнопке "Сохранить". Круглые кнопки (назад, настройки и другие) на телефоне больше не съезжают от центра. Фото в карточке события всегда обрезается под её размер, а если места совсем нет — не показывается вовсе. Золотистые акценты в светлой теме стали заметно ярче. Переключение между разделами — с короткой ненавязчивой анимацией. Добавлена полноценная система тем: светлая, тёмная и системная. Цветов для события стало больше, добавлен выбор произвольного цвета.</p></section>
     </div></section>`;
   }
 
