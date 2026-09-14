@@ -1278,7 +1278,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    независимо от того, где именно тот заканчивается. Тёмная полупрозрачная плашка, как у
    счётчика фото выше — читается поверх любого содержимого карточки одинаково, без привязки к
    теме. */
-.pl-event-expand{flex:0 0 auto;align-self:center;margin-top:4px;width:28px;height:20px;border-radius:10px;border:0;background:rgba(0,0,0,.5);color:#fff;display:grid;place-items:center;padding:0;touch-action:none;transition:background-color .15s ease,color .15s ease;}
+/* :not([hidden]) — как и у .game-over-msg выше: класс задаёт display безусловно, а атрибут
+   hidden (которым реально управляет JS, см. plannerFitEventCards) сам по себе — это просто
+   [hidden]{display:none} в браузерном стиле, который наша ЖЕ более специфичная разметка тут
+   перебивала. Без этой оговорки кнопка "..." рисовалась ВСЕГДА, даже когда контент и без неё
+   помещался целиком — el.hidden корректно стоял true, но визуально это ни на что не влияло. */
+.pl-event-expand:not([hidden]){flex:0 0 auto;align-self:center;margin-top:4px;width:28px;height:20px;border-radius:10px;border:0;background:rgba(0,0,0,.5);color:#fff;display:grid;place-items:center;padding:0;touch-action:none;transition:background-color .15s ease,color .15s ease;}
 .pl-event-expand .icon{width:15px;height:15px;}
 .pl-event-expand[aria-expanded="true"]{background:var(--gold-strong);color:#171410;}
 .pl-event-extra-list{display:flex;flex-direction:column;gap:5px;}
@@ -1436,10 +1441,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-comment-name{font-size:.8125rem;font-weight:700;color:var(--white);margin-right:6px;}
 .pl-comment-bubble{margin-top:3px;padding:8px 12px;border-radius:4px 14px 14px 14px;background:rgba(var(--ink),.08);display:inline-block;max-width:100%;}
 .pl-comment-item.mine .pl-comment-bubble{background:rgba(201,168,76,.2);border-radius:14px 4px 14px 14px;}
-.pl-comment-remove{flex:0 0 auto;align-self:center;width:26px;height:26px;border-radius:50%;background:transparent;color:rgba(var(--ink),.35);display:grid;place-items:center;padding:0;}
-.pl-comment-remove .icon{width:14px;height:14px;}
-.pl-comment-remove:active{color:var(--red);}
 .pl-comment-text{font-size:.875rem;color:#eee;white-space:pre-wrap;overflow-wrap:anywhere;}
+/* Долгое нажатие на пузыре открывает лист-меню (см. showCommentActions) — тот же
+   "habit-quick-menu" язык, что и у долгого нажатия на привычке, ничего нового изобретать не
+   пришлось. Лёгкая подсветка при удержании — обратная связь, что жест распознан. */
+.pl-comment-bubble{touch-action:manipulation;}
+.pl-comment-bubble.is-pressed{filter:brightness(.85);}
+.pl-comment-editing{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 10px;border-radius:10px;background:rgba(201,168,76,.14);font-size:.75rem;color:var(--gold2);}
+.pl-comment-editing button{flex:0 0 auto;background:transparent;border:0;color:inherit;padding:2px;display:grid;place-items:center;}
+.pl-comment-editing button .icon{width:14px;height:14px;}
 .pl-comment-image{display:block;max-width:220px;width:100%;border-radius:10px;margin-bottom:4px;}
 .pl-comment-date{font-size:.6875rem;color:rgba(var(--ink),.35);margin-top:3px;}
 /* Нижняя панель действий под лентой комментариев (сердце/пригласить/фото/ввод/эмодзи/отправить). */
@@ -1447,7 +1457,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    пространство комментариев от инфы о событии выше (по просьбе — на референсе это два разных
    визуальных блока, а не один сплошной список на фоне шторки). */
 .pl-comment-panel{background:rgba(0,0,0,.22);border-radius:14px;padding:12px 12px 10px;}
-.pl-comment-staged{display:flex;align-items:center;gap:8px;margin-top:10px;padding:6px 8px;border-radius:10px;background:rgba(var(--ink),.06);}
+/* :not([hidden]) — то же самое, что и у .pl-event-expand выше: без этой оговорки блок с
+   превью прикреплённого к комментарию фото оставался видимым (пустой рамкой с еле заметным
+   фоном — это и был тот "белый просвечивающий" баг) даже после отправки, когда JS уже
+   корректно поставил hidden=true и стёр innerHTML. */
+.pl-comment-staged:not([hidden]){display:flex;align-items:center;gap:8px;margin-top:10px;padding:6px 8px;border-radius:10px;background:rgba(var(--ink),.06);}
 .pl-comment-staged img{width:36px;height:36px;border-radius:8px;object-fit:cover;}
 .pl-comment-staged button{margin-left:auto;background:transparent;border:0;color:rgba(var(--ink),.6);padding:4px;}
 .pl-comment-staged button .icon{width:16px;height:16px;}
@@ -1484,7 +1498,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.12.0';
+  const APP_VERSION = '0.13.0';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1641,6 +1655,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // сознательно не сохраняется между сессиями и сбрасывается при любой навигации по дням,
       // это чисто временное состояние просмотра, а не часть данных события.
       expandedEventId: null,
+      // Редактируемый комментарий (см. showCommentActions) — живёт здесь, а не в замыкании
+      // showPlannerDetail(), потому что меню действий над сообщением открывается через ту же
+      // единственную #overlay-root шторку (closeOverlay() полностью стирает предыдущую), и
+      // после выбора "Редактировать" деталь события переоткрывается заново — состояние должно
+      // это пережить.
+      editingCommentId: null,
     }
   };
   // Бэкофилленные id (withIds выше) существуют только в памяти, пока что-то их не пересохранит —
@@ -1712,6 +1732,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       'plus': '<path d="M12 5v14M5 12h14"/>',
       'receipt': '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/>',
       'edit': '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
+      'copy': '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
       'undo': '<path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 6 6v1"/>',
       'trash': '<path d="M4 7h16M9 7V4h6v3m-8 0 1 14h8l1-14M10 11v6m4-6v6"/>',
       'pdf': '<path d="M6 2h8l4 4v16H6V2Z"/><path d="M14 2v5h5M8 16h8M8 12h5"/>',
@@ -3776,6 +3797,54 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(!reducedMotion())notice.animate?.([{opacity:0,transform:'translateY(16px)'},{opacity:1,transform:'translateY(0)'}],{duration:220,easing:'ease-out'});
     timer=setTimeout(()=>finish(false),8000);
   }
+  let pendingCommentUndo=null;
+  // Удаление комментария (см. showCommentActions) — тот же undo-тост с кольцом, что и у
+  // событий/финансов/привычек выше, просто скопирован сюда напрямую: comments живут не в
+  // отдельном хранилище с общей savePlannerEvents-подобной функцией, а внутри самого события,
+  // так что переиспользовать один код 1-в-1 не выйдет — но узор (8с кольцо, клик — восстановить,
+  // любой другой ввод — сразу спрятать) тот же самый. Шторка деталей события к моменту клика по
+  // "отменить" могла уже закрыться или переоткрыться на другом событии — updateList всякий раз
+  // ищет её заново по data-pl-event-detail, а не держит ссылку на узел с момента удаления.
+  function plannerDeleteCommentWithUndo(eventId,commentId){
+    pendingCommentUndo?.finish(false,true);
+    const targetEv=state.planner.events.find(x=>x.id===eventId);if(!targetEv)return;
+    const removedIndex=targetEv.comments.findIndex(c=>c.id===commentId);if(removedIndex<0)return;
+    const removed=targetEv.comments[removedIndex];
+    targetEv.comments=targetEv.comments.filter(c=>c.id!==commentId);
+    savePlannerEvents();
+    const updateList=()=>{
+      const sheetEl=document.querySelector(`.sheet[data-pl-event-detail="${CSS.escape(eventId)}"]`);
+      const list=sheetEl?.querySelector('#pl-comment-list');
+      if(list)list.innerHTML=plannerCommentList(targetEv);
+    };
+    updateList();
+    const root=$('#toast-root'),notice=document.createElement('div');notice.className='habit-undo';notice.setAttribute('role','status');
+    const undo=document.createElement('button');undo.type='button';undo.className='habit-undo-circle';undo.setAttribute('aria-label','Сообщение удалено. Нажми, чтобы отменить.');
+    const svgNS='http://www.w3.org/2000/svg',ring=document.createElementNS(svgNS,'svg'),outlineRect=document.createElementNS(svgNS,'circle');
+    ring.setAttribute('class','habit-undo-ring');ring.setAttribute('viewBox','0 0 60 60');ring.setAttribute('aria-hidden','true');
+    outlineRect.setAttribute('cx','30');outlineRect.setAttribute('cy','30');outlineRect.setAttribute('r','28');outlineRect.setAttribute('pathLength','100');
+    ring.append(outlineRect);undo.append(ring);
+    const undoIcon=document.createElement('span');undoIcon.className='habit-undo-icon';undoIcon.innerHTML=icon('undo');undo.append(undoIcon);
+    notice.append(undo);root.append(notice);
+    let timer=0,ending=false;
+    const finish=(restore=false,immediate=false)=>{
+      if(ending)return;ending=true;clearTimeout(timer);
+      document.removeEventListener('pointerdown',interrupt,true);document.removeEventListener('wheel',interrupt,true);document.removeEventListener('touchmove',interrupt,true);document.removeEventListener('keydown',interrupt,true);window.removeEventListener('pagehide',interrupt);
+      if(pendingCommentUndo?.notice===notice)pendingCommentUndo=null;
+      if(restore&&!targetEv.comments.some(c=>c.id===removed.id)){
+        const arr=targetEv.comments.slice();arr.splice(Math.min(removedIndex,arr.length),0,removed);targetEv.comments=arr;savePlannerEvents();updateList();
+      }
+      notice.getAnimations?.().forEach(a=>a.cancel());outlineRect.getAnimations?.().forEach(a=>a.cancel());
+      if(immediate||reducedMotion()||!notice.animate)notice.remove();else{const out=notice.animate([{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(12px)'}],{duration:200,easing:'ease-out'});out.onfinish=()=>notice.remove();}
+    };
+    const interrupt=e=>{if(e?.target&&notice.contains?.(e.target))return;finish(false,true);};
+    pendingCommentUndo={notice,finish,render:()=>finish(false,true)};
+    undo.onclick=()=>finish(true,true);
+    window.addEventListener('pagehide',interrupt);
+    outlineRect.animate?.([{strokeDashoffset:100},{strokeDashoffset:0}],{duration:8000,easing:'linear',fill:'forwards'});
+    if(!reducedMotion())notice.animate?.([{opacity:0,transform:'translateY(16px)'},{opacity:1,transform:'translateY(0)'}],{duration:220,easing:'ease-out'});
+    timer=setTimeout(()=>finish(false),8000);
+  }
   function plannerAddSectionPrompt(){
     let color=PL_COLORS[state.planner.sections.length%PL_COLORS.length],isPublic=false;
     const ov=overlay(`<div class="modal"><div class="modal-title">Новый раздел</div><div class="modal-content">${formField('pl-section-name','Название раздела')}
@@ -4255,14 +4324,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       lastDay=dayLabel;
       if(it.system)return divider+`<div class="pl-comment-system">Событие создано</div>`;
       const mine=(it.authorId||my)===my,name=mine?'Я':'Собеседник';
-      return divider+`<div class="pl-comment-item ${mine?'mine':'theirs'}">
+      return divider+`<div class="pl-comment-item ${mine?'mine':'theirs'}" data-comment-id="${esc(it.id)}" data-comment-mine="${mine}">
         <div class="pl-comment-avatar">${mine?'Я':'С'}</div>
         <div class="pl-comment-body">
           <span class="pl-comment-name">${esc(name)}</span>
           <div class="pl-comment-bubble">${it.image?`<img class="pl-comment-image" src="${esc(it.image)}" alt="">`:''}${it.text?`<span class="pl-comment-text">${esc(it.text)}</span>`:''}</div>
           <div class="pl-comment-date">${plannerCommentTimeLabel(it.date)}</div>
         </div>
-        ${mine?`<button type="button" class="pl-comment-remove" data-comment-remove="${esc(it.id)}" aria-label="Удалить сообщение">${icon('close')}</button>`:''}
       </div>`;
     });
     return `<div class="pl-comment-thread">${rows.join('')}</div>`;
@@ -4270,7 +4338,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function showPlannerDetail(id){
     const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;
     const meta=[plannerSectionById(ev.sectionId)?.name,ev.date?formatPlannerDate(ev.date):null,ev.time].filter(Boolean).join(' · ');
-    const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="pl-detail">
+    const ov=overlay(`<div class="sheet" data-pl-event-detail="${esc(ev.id)}"><div class="sheet-handle"></div><div class="pl-detail">
       <div class="pl-detail-head"><h2 class="pl-detail-title">${esc(ev.title)}</h2><button class="text-btn" data-pl-edit aria-label="Редактировать">${icon('edit')}</button></div>
       <div class="pl-detail-meta">${esc(meta)}</div>
       ${plannerImagesView(ev)}
@@ -4281,6 +4349,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-comment-panel">
         <div id="pl-comment-list">${plannerCommentList(ev)}</div>
         <div class="pl-comment-staged" id="pl-comment-staged" hidden></div>
+        <div id="pl-comment-editing"></div>
         <div class="pl-comment-bar">
           <button type="button" class="pl-comment-bar-btn" id="pl-comment-image-btn" aria-label="Прикрепить вложение">${icon('paperclip')}</button>
           <input type="file" accept="image/*" id="pl-comment-image-input" hidden>
@@ -4365,27 +4434,44 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       box.innerHTML=stagedImage?`<img src="${esc(stagedImage)}" alt=""><button type="button" id="pl-comment-staged-remove" aria-label="Убрать фото">${icon('close')}</button>`:'';
       $('#pl-comment-staged-remove',ov)?.addEventListener('click',()=>{stagedImage=null;renderStaged();});
     };
-    // Удаление своего сообщения (крестик — см. .pl-comment-remove) целиком, вместе с
-    // прикреплённым фото, если оно было: отдельного способа стереть только фото у уже
-    // отправленного сообщения нет (как и в большинстве мессенджеров — правится всё сообщение
-    // целиком). Чужие сообщения (theirs) кнопки не получают вовсе — крестика в разметке нет.
-    const bindCommentRemove=()=>{
-      $$('[data-comment-remove]',ov).forEach(btn=>btn.onclick=()=>{
-        ev.comments=ev.comments.filter(c=>c.id!==btn.dataset.commentRemove);
-        savePlannerEvents();
-        $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
-        bindCommentRemove();
-      });
+    // Полоска "Правка сообщения" над полем ввода — единственная видимая подсказка, что
+    // отправка сейчас ОБНОВИТ существующее сообщение (см. postComment), а не создаст новое.
+    // state.planner.editingCommentId, а не локальная переменная — при выборе "Редактировать" в
+    // меню действий (showCommentActions) эта шторка целиком переоткрывается заново (единственная
+    // #overlay-root, см. её комментарий), состояние должно это пережить.
+    const renderEditing=()=>{
+      const box=$('#pl-comment-editing',ov);if(!box)return;
+      const editing=state.planner.editingCommentId&&ev.comments.some(c=>c.id===state.planner.editingCommentId);
+      box.hidden=!editing;
+      box.innerHTML=editing?`<span>Правка сообщения</span><button type="button" id="pl-comment-editing-cancel" aria-label="Отменить правку">${icon('close')}</button>`:'';
+      $('#pl-comment-editing-cancel',ov)?.addEventListener('click',()=>{state.planner.editingCommentId=null;$('#pl-comment-new',ov).value='';renderEditing();});
     };
-    bindCommentRemove();
+    renderEditing();
+    // Переоткрытие шторки после выбора "Редактировать" (см. showCommentActions) заново строит
+    // весь HTML с нуля — подставляем текущий текст редактируемого сообщения в поле здесь же,
+    // один раз при открытии, и сразу фокусируем.
+    if(state.planner.editingCommentId){
+      const editingComment=ev.comments.find(c=>c.id===state.planner.editingCommentId);
+      if(editingComment){$('#pl-comment-new',ov).value=editingComment.text||'';$('#pl-comment-new',ov).focus();}
+      else state.planner.editingCommentId=null;
+    }
     const postComment=()=>{
       const input=$('#pl-comment-new',ov),text=input.value.trim();
+      const editId=state.planner.editingCommentId;
+      if(editId){
+        const c=ev.comments.find(x=>x.id===editId);
+        if(c&&(text||c.image)){c.text=text;savePlannerEvents();}
+        state.planner.editingCommentId=null;input.value='';renderEditing();
+        $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
+        bindCommentLongPress();
+        return;
+      }
       if(!text&&!stagedImage)return;
       ev.comments.push({id:plannerId(),text,date:new Date().toISOString(),authorId:plannerUserId(),image:stagedImage||undefined});
       input.value='';stagedImage=null;renderStaged();savePlannerEvents();
       $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
       $('#pl-comment-list',ov).scrollTop=$('#pl-comment-list',ov).scrollHeight;
-      bindCommentRemove();
+      bindCommentLongPress();
     };
     $('#pl-comment-send',ov).onclick=postComment;
     $('#pl-comment-new',ov).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();postComment();}});
@@ -4394,6 +4480,55 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const file=e.target.files[0];if(!file)return;
       stagedImage=await plannerDownscaleImage(file);renderStaged();
     });
+    // Долгое нажатие на пузыре — тот же язык действий, что и у долгого нажатия на привычке
+    // (.habit-quick-menu): "Скопировать" (если есть текст), "Редактировать"/"Удалить" только
+    // для своих сообщений. Показать/скопировать/удалить/редактировать чужое сообщение целиком
+    // (без текста, просто фото) нечего — долгое нажатие тогда молча ничего не делает.
+    const showCommentActions=(commentId,mine)=>{
+      const c=ev.comments.find(x=>x.id===commentId);if(!c)return;
+      const hasText=!!c.text?.trim();
+      const rows=[];
+      if(hasText)rows.push(`<button type="button" class="habit-menu-action" data-comment-copy>${icon('copy')}<span>Скопировать</span></button>`);
+      if(mine)rows.push(`<button type="button" class="habit-menu-action" data-comment-edit>${icon('edit')}<span>Редактировать</span></button>`);
+      if(mine)rows.push(`<button type="button" class="habit-menu-action danger-action" data-comment-delete>${icon('trash')}<span>Удалить</span></button>`);
+      if(!rows.length)return;
+      const menuOv=overlay(`<div class="sheet habit-action-sheet habit-quick-menu" role="dialog" aria-modal="true">${rows.join('')}</div>`,{sheet:true});
+      $('[data-comment-copy]',menuOv)?.addEventListener('click',async()=>{
+        try{await navigator.clipboard.writeText(c.text);}catch(_){}
+        closeOverlay();showPlannerDetail(ev.id);
+      });
+      $('[data-comment-edit]',menuOv)?.addEventListener('click',()=>{
+        state.planner.editingCommentId=c.id;
+        closeOverlay();showPlannerDetail(ev.id);
+      });
+      $('[data-comment-delete]',menuOv)?.addEventListener('click',()=>{
+        closeOverlay();
+        plannerDeleteCommentWithUndo(ev.id,c.id);
+        showPlannerDetail(ev.id);
+      });
+    };
+    let commentPress=null;
+    const bindCommentLongPress=()=>{
+      $$('.pl-comment-item[data-comment-id]',ov).forEach(item=>{
+        const bubble=$('.pl-comment-bubble',item);if(!bubble||bubble.dataset.bound)return;
+        bubble.dataset.bound='1';
+        const cancel=()=>{clearTimeout(commentPress?.timer);bubble.classList.remove('is-pressed');commentPress=null;};
+        bubble.addEventListener('pointerdown',e=>{
+          if(e.isPrimary===false||e.button!==0)return;
+          const x=e.clientX,y=e.clientY;
+          commentPress={x,y,timer:setTimeout(()=>{
+            bubble.classList.add('is-pressed');
+            navigator.vibrate?.(10);
+            showCommentActions(item.dataset.commentId,item.dataset.commentMine==='true');
+            cancel();
+          },450)};
+        },{passive:true});
+        bubble.addEventListener('pointermove',e=>{if(commentPress&&Math.hypot(e.clientX-commentPress.x,e.clientY-commentPress.y)>10)cancel();},{passive:true});
+        bubble.addEventListener('pointerup',cancel,{passive:true});
+        bubble.addEventListener('pointercancel',cancel,{passive:true});
+      });
+    };
+    bindCommentLongPress();
     $$('[data-pl-image-open]',ov).forEach(b=>b.onclick=()=>{const blk=ev.blocks.find(x=>x.id===b.dataset.plImageOpen);if(blk)plannerShowImageViewer(blk.images,+b.dataset.plImageIndex);});
     $('[data-close]',ov).onclick=closeOverlay;
     $('#pl-detail-delete',ov).onclick=()=>{plannerDelete(ev.id);closeOverlay();};
@@ -4428,7 +4563,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Комментарии: свои сообщения теперь справа, как в обычных мессенджерах, и их можно удалить (вместе с прикреплённым фото, если оно было) кнопкой рядом с пузырём. Кнопка "..." под коротким событием больше не перекрывает чеклист/фото — сама уступает им место. Убраны системные надписи "Выбрать файл" у прикрепления фото — в форме события кнопка "Добавить фото", в комментариях фото прикрепляется скрепкой к полю "Написать комментарий". При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный в форме события, но не подтверждённый нажатием "+", теперь тоже сохраняется по общей кнопке "Сохранить". Круглые кнопки (назад, настройки и другие) на телефоне больше не съезжают от центра. Фото в карточке события всегда обрезается под её размер, а если места совсем нет — не показывается вовсе. Золотистые акценты в светлой теме стали заметно ярче. Переключение между разделами — с короткой ненавязчивой анимацией. Добавлена полноценная система тем: светлая, тёмная и системная. Цветов для события стало больше, добавлен выбор произвольного цвета.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Долгое нажатие на сообщение в комментариях теперь открывает меню "Скопировать / Редактировать / Удалить" (вместо крестика) — удаление с 8-секундной отменой, как и у событий/привычек. Починен баг, из-за которого пустой блок прикреплённого к комментарию фото иногда оставался едва заметной белой полоской после отправки. Свои сообщения — справа, как в обычных мессенджерах. Кнопка "..." под коротким событием больше не перекрывает чеклист/фото — сама уступает им место, а сама кнопка теперь и правда прячется, когда не нужна (была видна всегда из-за той же стилевой ошибки, просто незаметно). Убраны системные надписи "Выбрать файл" у прикрепления фото. При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный в форме события, но не подтверждённый нажатием "+", теперь тоже сохраняется по общей кнопке "Сохранить". Круглые кнопки на телефоне больше не съезжают от центра. Фото в карточке события всегда обрезается под её размер. Золотистые акценты в светлой теме стали заметно ярче. Переключение между разделами — с короткой ненавязчивой анимацией. Добавлена полноценная система тем: светлая, тёмная и системная.</p></section>
     </div></section>`;
   }
 
