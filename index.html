@@ -1452,7 +1452,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-time-input-wrap .pl-time-input{position:absolute;inset:0;width:100%;height:100%;min-width:0;opacity:0;margin:0;padding:0;border:0;font-size:16px;cursor:pointer;}
 .pl-detail{padding:4px 4px 0;}
 .pl-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px;touch-action:none;}
-.pl-detail-title{font-family:Georgia,'Times New Roman',serif;font-size:1.25rem;color:var(--white);margin:0;overflow-wrap:anywhere;flex:1;}
+.pl-detail-title{font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.15;color:var(--white);margin:0;flex:1;min-width:0;overflow:hidden;overflow-wrap:break-word;}
 .pl-detail-time{color:var(--gold);font-size:1.375rem;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;margin:0 0 2px;}
 .pl-detail-date{color:rgba(var(--ink),.5);font-size:.8125rem;text-align:center;margin:0 0 18px;}
 .pl-detail h3{font-size:.8125rem;text-transform:uppercase;letter-spacing:.05em;color:rgba(var(--ink),.4);margin:18px 0 10px;}
@@ -2498,6 +2498,23 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function plannerApplyFadeTruncation(el){
     if(!el)return;
     el.classList.toggle('is-truncated',el.scrollWidth>el.clientWidth+1);
+  }
+  // Заголовок карточки деталей события всегда занимает одну и ту же площадь (maxFs*lineHeight*
+  // lines) независимо от длины названия: короткое название рисуется по-настоящему крупным
+  // шрифтом, длинное — тем же блоком, но с уменьшенным шрифтом (перенос по словам, не по буквам —
+  // сокращаем именно размер текста, а не режем сами слова). Пересчитывается заново на каждое
+  // открытие карточки (шрифт всегда стартует с maxFs, чтобы короткие названия не унаследовали
+  // уменьшенный размер от предыдущего длинного).
+  function fitTitleToBox(el,{maxFs=26,minFs=15,lines=3}={}){
+    if(!el)return;
+    el.style.fontSize=maxFs+'px';
+    const lineHeight=1.15,maxHeight=Math.ceil(maxFs*lineHeight*lines)+2;
+    el.style.maxHeight=maxHeight+'px';
+    let fs=maxFs;
+    while(fs>minFs&&el.scrollHeight>maxHeight){
+      fs-=1;
+      el.style.fontSize=fs+'px';
+    }
   }
   // Плашка даты по центру теперь <label> с текстом + СПРЯТАННЫМ нативным <input type=date>
   // внутри (см. appDateField, тот же приём, что у привычек/финансов — единый календарь по
@@ -4643,6 +4660,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </div>
       <div class="modal-actions" style="margin-top:18px"><button class="text-btn" style="color:#ff5a5a" id="pl-detail-delete">Удалить событие</button><button class="text-btn" data-close>Закрыть</button></div>
     </div></div>`,{sheet:true});
+    fitTitleToBox($('.pl-detail-title',ov));
     // Замена #pl-checklist-section целиком (innerHTML) выше в дереве шторки сбрасывала бы
     // scrollTop .sheet на глазах у пользователя (или как минимум перекладку контента под
     // пальцем) — оборачиваем в сохранение/восстановление позиции, как и у bindVotes выше.
