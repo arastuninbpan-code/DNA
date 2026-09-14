@@ -130,13 +130,23 @@ html.theme-transition, html.theme-transition * {
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; width: 100%; height: 100%; background: var(--shell-bg); overflow: hidden; }
+* { -webkit-tap-highlight-color: transparent; }
 body {
   color: var(--white);
   font-family: Georgia, 'Times New Roman', serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  /* На телефоне долгие нажатия (зажатие комментария/карточки/ручки блока и т.п.) иногда
+     синим подсвечивали выделяемый текст под пальцем — обычное мобильное выделение текста/
+     callout-меню, которое нашим собственным долгим нажатиям (своё меню действий, драг) только
+     мешает. Отключаем выделение и вызов системного callout глобально, а не по месту у каждого
+     жеста — и возвращаем обратно только там, где реально нужен ввод/выделение текста. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
 button, input, select, textarea { font: inherit; }
 /* -webkit-appearance:none — без этого iOS Safari подмешивает СВОЙ нативный вид кнопки (внутренние
    отступы/скругления/смещения) поверх кастомных стилей даже при явном background/border/border-
@@ -1187,7 +1197,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    скруглён и без верхней границы — визуально продолжение прямоугольника с предыдущего дня,
    как у carry-in события. Без кнопок и без pointer-events — это только предпросмотр. */
 .pl-range-select-next{border-radius:0 0 10px 10px;border-top:none;padding:6px 12px;pointer-events:none;}
-.pl-event-wrap{position:absolute;left:0;right:4px;overflow:hidden;border-radius:10px;isolation:isolate;pointer-events:auto;}
+/* filter:drop-shadow, не box-shadow — сама карточка (.pl-event) сидит внутри overflow:hidden
+   обёртки (нужен для свайп-панели редактировать/удалить под ней), обычный box-shadow на ней
+   был бы этим overflow обрезан начисто. drop-shadow — эффект уровня всей обёртки целиком,
+   overflow тем же элементом его не клипует, поэтому небольшая тень видна поверх ленты и
+   отделяет карточку от фона (особенно заметно в светлой теме, где они были близки по тону). */
+.pl-event-wrap{position:absolute;left:0;right:4px;overflow:hidden;border-radius:10px;isolation:isolate;pointer-events:auto;filter:drop-shadow(0 2px 5px rgba(0,0,0,.16));}
 /* Событие, перевалившее за полночь, раньше рисовалось с обрезанным краем на стыке (плоская
    грань там, где сегменты "продолжают" друг друга) — на практике выглядело как один овал и
    один незакруглённый обрубок, а не как два одинаковых события. Оба сегмента (carry-in на
@@ -1419,9 +1434,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-image-viewer-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;}
 .pl-image-viewer-close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);right:16px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(var(--ink),.14);color:#fff;display:grid;place-items:center;padding:0;}
 .pl-image-viewer-close .icon{width:18px;height:18px;}
-.pl-image-viewer-save{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:24px;background:var(--gold-strong);color:#171410;font-weight:700;font-size:.875rem;text-decoration:none;border:0;font-family:inherit;transition:background-color .15s ease;}
-.pl-image-viewer-save.is-saved{background:#3fa85c;color:#fff;}
+.pl-image-viewer-save{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:24px;background:var(--gold-strong);color:#171410;font-weight:700;font-size:.875rem;text-decoration:none;border:0;font-family:inherit;transition:background-color .25s ease,transform .25s cubic-bezier(.34,1.56,.64,1);}
+.pl-image-viewer-save.is-saved{background:#3fa85c;color:#fff;transform:translateX(-50%) scale(1.05);}
 .pl-image-viewer-save .icon{width:16px;height:16px;}
+/* Плавная смена подписи/иконки "Сохранить"→"Успешно" (см. plannerSaveImageToDevice) — вместо
+   мгновенной подмены textContent текст и иконка коротко проседают/гаснут, меняются и всплывают
+   обратно, пока сама кнопка уже сменила цвет (transition выше). */
+.pl-image-viewer-save .icon,.pl-image-viewer-save span{transition:opacity .16s ease,transform .16s ease;}
+.pl-image-viewer-save.is-swapping .icon,.pl-image-viewer-save.is-swapping span{opacity:0;transform:translateY(-5px);}
 .pl-poll-view{margin-bottom:10px;}
 .pl-poll-question{font-size:.875rem;color:var(--white);font-weight:600;margin-bottom:8px;}
 .pl-poll-option{position:relative;padding:8px 12px;border-radius:10px;background:rgba(var(--ink),.06);margin-bottom:6px;overflow:hidden;border:0;width:100%;text-align:left;}
@@ -1450,9 +1470,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-comment-bubble{touch-action:manipulation;}
 /* :not([hidden]) — тот же паттерн, что и у .pl-event-expand/.pl-comment-staged выше: класс сам
    задаёт display, атрибут hidden (которым управляет JS) без этой оговорки был бы перебит. */
-.pl-comment-editing:not([hidden]){display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 10px;border-radius:10px;background:rgba(201,168,76,.14);font-size:.75rem;color:var(--gold2);}
-.pl-comment-editing button{flex:0 0 auto;background:transparent;border:0;color:inherit;padding:2px;display:grid;place-items:center;}
-.pl-comment-editing button .icon{width:14px;height:14px;}
+.pl-comment-heading{text-align:center;}
 /* Долгое нажатие на пузыре — выделение "на месте" в духе Telegram (см. showCommentActions):
    тёмный фон на весь экран, клон пузыря поверх него на ТОЧНО той же позиции (не сам оригинал —
    z-index не поднимет узел выше собственного предка со своим стэкингом, см. комментарий в JS),
@@ -1469,7 +1487,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-comment-select-menu button+button{border-top:1px solid rgba(201,168,76,.14);}
 .pl-comment-select-menu button.danger-action{color:#de9090;}
 .pl-comment-select-menu button:active{background:rgba(201,168,76,.08);}
-.pl-comment-image{display:block;max-width:220px;width:100%;border-radius:10px;margin-bottom:4px;}
+.pl-comment-image{display:block;max-width:220px;width:100%;border-radius:10px;margin-bottom:4px;cursor:pointer;}
 .pl-comment-date{font-size:.6875rem;color:rgba(var(--ink),.35);margin-top:3px;}
 /* Нижняя панель действий под лентой комментариев (сердце/пригласить/фото/ввод/эмодзи/отправить). */
 /* Панель комментариев — собственная (чуть темнее общего фона шторки) подложка, отделяющая
@@ -1488,6 +1506,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-comment-bar-btn{flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:0;background:transparent;color:rgba(var(--ink),.55);display:grid;place-items:center;padding:0;}
 .pl-comment-bar-btn .icon{width:18px;height:18px;}
 .pl-comment-bar-btn.pl-comment-send{background:var(--gold-strong);color:#171410;}
+/* Иконка "самолётика" геометрически по центру своего viewBox, но визуально — стрелка, чья
+   "масса" смещена к нижнему левому углу (толстый хвост) относительно тонкого носа сверху
+   справа — из-за этого в идеально центрированной круглой кнопке она читается как смещённая.
+   Небольшой сдвиг компенсирует именно оптический, а не геометрический центр. */
+.pl-comment-send .icon{transform:translate(1px,-1px);}
 .pl-comment-input{flex:1;min-width:0;height:36px;border-radius:18px;border:1px solid rgba(var(--ink),.12);background:rgba(var(--ink),.05);color:var(--white);padding:0 14px;font-size:.875rem;}
 .pl-comment-input::placeholder{color:rgba(var(--ink),.35);}
 @media(prefers-reduced-motion:reduce){.pl-switch::after{transition:none;}}
@@ -1517,7 +1540,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.14.0';
+  const APP_VERSION = '0.15.0';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2245,10 +2268,32 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // Успех — не всплывающий тост, а сама подпись кнопки на секунду становится зелёной
   // "Успешно" и возвращается обратно.
   async function plannerSaveImageToDevice(src,btn){
-    const label=$('span',btn);
-    const markSaved=()=>{
-      btn.classList.add('is-saved');if(label)label.textContent='Успешно';
-      setTimeout(()=>{btn.classList.remove('is-saved');if(label)label.textContent='Сохранить';},1800);
+    // $('span',btn) брал ПЕРВЫЙ span внутри кнопки — а это span САМОЙ ИКОНКИ (см. icon()),
+    // она тоже оборачивается в <span class="icon">, а не просто <svg>. Из-за этого
+    // textContent='Успешно' стирал иконку (уничтожая svg внутри её span) и вписывал туда текст,
+    // а РЯДОМ так и оставался нетронутым исходный span с "Сохранить" — итог: два текста
+    // ("Успешно" и "Сохранить") видны одновременно, внахлёст. Берём именно НЕ-иконочный span.
+    const label=$$('span',btn).find(s=>!s.classList.contains('icon'));
+    // Подпись/иконка меняются не мгновенно, а коротким крестфейдом (см. .is-swapping в CSS):
+    // сперва гасим текущий текст+иконку, подменяем текст ровно в момент их невидимости, затем
+    // даём им снова появиться — фон кнопки (.is-saved) при этом переключается сразу же, своим
+    // отдельным transition, так что смена цвета и смена текста происходят не рывком.
+    const swapLabel=text=>new Promise(resolve=>{
+      if(!label||reducedMotion()){if(label)label.textContent=text;resolve();return;}
+      btn.classList.add('is-swapping');
+      setTimeout(()=>{
+        label.textContent=text;
+        btn.classList.remove('is-swapping');
+        setTimeout(resolve,160);
+      },160);
+    });
+    const markSaved=async()=>{
+      btn.classList.add('is-saved');
+      await swapLabel('Успешно');
+      setTimeout(async()=>{
+        btn.classList.remove('is-saved');
+        await swapLabel('Сохранить');
+      },1800);
     };
     try{
       if(navigator.canShare){
@@ -2552,19 +2597,38 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const extra=$('.pl-event-extra',wrap),expandBtn=$('.pl-event-expand',wrap);
     if(!extra)return;
     const isExpanded=state.planner.expandedEventId===wrap.dataset.plEventId;
+    // Фото внутри .pl-event-extra нарочно СЖИМАЕТСЯ (flex:1 1 auto), а не переполняет контейнер
+    // — иначе жест на фото уводил бы скролл ленты дня внутрь карточки (см. комментарий у
+    // .pl-inline-block-image выше). Из-за этого extra.scrollHeight>extra.clientHeight никогда не
+    // срабатывает для карточек, где ЕДИНСТВЕННЫЙ "лишний" контент — само сжатое фото: кнопка
+    // "..." раньше в таком случае вообще не появлялась. imageShrunk ниже — отдельный сигнал:
+    // сравниваем реально отрисованную высоту фото с тем, сколько бы оно заняло без сжатия
+    // (по его собственному соотношению сторон) — если фото ощутимо ужато, контенту не хватило
+    // места точно так же, как при обычном overflow, и кнопка обязана появиться.
+    let imageShrunk=false;
     const recheckOverflow=()=>{
       if(!expandBtn)return;
       // Кнопка "..." — обычный flex-элемент ПОСЛЕ .pl-event-extra (см. CSS), поэтому
       // .pl-event-extra{flex:1} сама уступает ей место, как только она становится видимой —
       // никакого ручного запаса/отступа под неё не нужно, перекрытия контента не бывает.
-      expandBtn.hidden=!(isExpanded||extra.scrollHeight>extra.clientHeight+1);
+      expandBtn.hidden=!(isExpanded||imageShrunk||extra.scrollHeight>extra.clientHeight+1);
     };
     extra.querySelectorAll('.pl-inline-block-image').forEach(block=>{
       const img=block.querySelector('img');if(!img)return;
       const check=()=>{
         const broken=img.complete&&img.naturalWidth===0;
-        const tooSmall=block.getBoundingClientRect().height<PL_IMAGE_MIN_VISIBLE_H;
+        const rect=block.getBoundingClientRect();
+        const tooSmall=rect.height<PL_IMAGE_MIN_VISIBLE_H;
         block.classList.toggle('pl-inline-block-image-hidden',broken||tooSmall);
+        // tooSmall (фото спрятано целиком — см. PL_IMAGE_MIN_VISIBLE_H) — тоже "не хватило
+        // места", причём даже более явно, чем просто ужатое фото: раскрытие даёт карточке
+        // реальный запас высоты (PL_EXPANDED_EXTRA_H), после чего это же фото снова помещается
+        // и .pl-inline-block-image-hidden при следующем перерасчёте с неё снимается.
+        if(!broken&&tooSmall)imageShrunk=true;
+        else if(!broken&&img.naturalWidth&&rect.width>0){
+          const desiredH=rect.width/img.naturalWidth*img.naturalHeight;
+          if(desiredH-rect.height>4)imageShrunk=true;
+        }
         recheckOverflow();
       };
       img.addEventListener('error',check);
@@ -2818,12 +2882,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       plannerEnterDayView(parseLocalDate(el.dataset.plWeekDaycol));
     }));
     $$('[data-pl-month-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plMonthDay)));
-    $('[data-pl-today]')?.addEventListener('click',()=>{
-      const zoom=state.planner.zoom;
-      if(zoom==='day')plannerJumpTo(dateOnly());
-      else if(zoom==='week')plannerJumpToWeek(dateOnly());
-      else plannerJumpToMonth(new Date(dateOnly().getFullYear(),dateOnly().getMonth(),1));
-    });
+    $('[data-pl-today]')?.addEventListener('click',plannerOpenCalendar);
     $('[data-pl-add]')?.addEventListener('click',()=>showPlannerEditSheet(null));
     $$('[data-pl-toggle]').forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);});
     $$('[data-pl-open]').forEach(b=>b.onclick=()=>showPlannerDetail(b.dataset.plOpen));
@@ -3747,6 +3806,24 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     pendingPlannerMonthScroll={type:'key',key};
     renderScreen();
   }
+  // Плашка даты по центру (data-pl-today) раньше по тапу сразу прыгала на сегодня — теперь
+  // открывает полноценный календарь (см. renderCalendarOverlay/calendarMarkup, ранее написанный,
+  // но нигде не подключённый компонент — выбор даты у привычек на деле идёт через нативный
+  // <input type=date>). "Сегодня" внутри календаря (data-cal-today) при заданном cal.onConfirm
+  // сразу закрывает лист и прыгает — тот же мгновенный переход одним тапом, что был раньше у
+  // самой плашки, просто теперь через один промежуточный экран. Выбор конкретного дня уважает
+  // текущий масштаб (день/неделя/месяц) — так же, как раньше вело себя "сегодня".
+  function plannerJumpToDate(date){
+    const zoom=state.planner.zoom;
+    if(zoom==='week')plannerJumpToWeek(date);
+    else if(zoom==='month')plannerJumpToMonth(new Date(date.getFullYear(),date.getMonth(),1));
+    else plannerJumpTo(date);
+  }
+  function plannerOpenCalendar(){
+    const base=state.planner.viewDate||dateOnly();
+    const cal={display:new Date(base.getFullYear(),base.getMonth(),1),selected:base,query:'',suggestions:[],onConfirm:d=>plannerJumpToDate(d)};
+    renderCalendarOverlay(cal);
+  }
   function plannerActiveMonthBlock(sc){
     const scTop=sc.getBoundingClientRect().top;
     const blocks=Array.from(sc.children);
@@ -3774,7 +3851,27 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       plannerExtending=false;
     }
   }
-  function plannerToggleDone(id){const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;ev.done=!ev.done;savePlannerEvents();renderScreen();}
+  // Раньше отметка "выполнено" всегда дёргала полный renderScreen() — из-за этого простой тап
+  // по чекбоксу (или свайп вправо) на мгновение пересоздавал ВСЕ карточки дня разом, включая
+  // фото/вложения в СОСЕДНИХ событиях, которые к отмеченному событию отношения не имеют —
+  // воспринималось как их "моргание". Теперь точечно патчим DOM всех представлений этого
+  // события (карточка дня, задача, недельная плашка, кластерная карточка), не трогая остальные.
+  function plannerToggleDone(id){
+    const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;
+    ev.done=!ev.done;if(!savePlannerEvents())return;
+    plannerApplyDoneVisual(id,ev.done);
+  }
+  function plannerApplyDoneVisual(id,done){
+    $$(`[data-pl-toggle="${CSS.escape(id)}"]`).forEach(chk=>{
+      chk.classList.toggle('done',done);
+      chk.innerHTML=done?icon('check'):'';
+      if(!reducedMotion())chk.animate?.([{transform:'scale(.7)'},{transform:'scale(1.2)'},{transform:'scale(1)'}],{duration:220,easing:'cubic-bezier(.34,1.56,.64,1)'});
+    });
+    $$(`.pl-event-wrap[data-pl-event-id="${CSS.escape(id)}"] .pl-event`).forEach(el=>el.classList.toggle('done',done));
+    $$(`.pl-task-wrap[data-pl-task-id="${CSS.escape(id)}"] .pl-task`).forEach(el=>el.classList.toggle('done',done));
+    $$(`[data-pl-cluster-open="${CSS.escape(id)}"]`).forEach(el=>el.classList.toggle('done',done));
+    $$(`.pl-week-event[data-pl-open="${CSS.escape(id)}"]`).forEach(el=>el.classList.toggle('done',done));
+  }
   let pendingPlannerUndo=null;
   // Удаление события/задачи показывает тот же undo-тост с кольцом, что и у финансов/привычек —
   // так спутанное "исчезло сразу несколько событий" (телепорт ленты после рендера, а не
@@ -4054,7 +4151,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </div></div>
       <div class="pl-form-row"><label>Блоки</label>
         <div class="pl-attach-menu" id="pl-block-add-row"></div>
-        <p class="settings-note" id="pl-block-hint" hidden>Перетаскивайте блоки, чтобы менять порядок</p>
         <div id="pl-block-list"></div>
       </div>
       <div class="modal-actions">${existing?'<button class="text-btn" id="pl-form-delete" style="color:#ff5a5a">Удалить</button>':''}<button class="text-btn" data-close>Отмена</button><button class="gold-action" id="pl-form-save">Сохранить</button></div>
@@ -4081,7 +4177,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       return '';
     };
     const renderBlocks=()=>{
-      $('#pl-block-hint',ov).hidden=!blocks.length;
       $('#pl-block-add-row',ov).innerHTML=['checklist','poll','image','location'].map(t=>`<button type="button" data-attach-add="${t}">${icon(blockMeta[t].icon)}<span>${blockMeta[t].title}</span></button>`).join('');
       $$('#pl-block-add-row [data-attach-add]',ov).forEach(b=>b.onclick=()=>addBlock(b.dataset.attachAdd));
       $('#pl-block-list',ov).innerHTML=blocks.map(b=>`<div class="pl-block-row" data-block-id="${b.id}">
@@ -4358,11 +4453,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${plannerLocationView(ev)}
       <div id="pl-poll-section">${plannerPollView(ev)}</div>
       <div id="pl-checklist-section">${plannerChecklistView(ev)}</div>
-      <h3>Комментарии</h3>
+      <h3 class="pl-comment-heading">Комментарии</h3>
       <div class="pl-comment-panel">
         <div id="pl-comment-list">${plannerCommentList(ev)}</div>
         <div class="pl-comment-staged" id="pl-comment-staged" hidden></div>
-        <div class="pl-comment-editing" id="pl-comment-editing" hidden></div>
         <div class="pl-comment-bar">
           <button type="button" class="pl-comment-bar-btn" id="pl-comment-image-btn" aria-label="Прикрепить вложение">${icon('paperclip')}</button>
           <input type="file" accept="image/*" id="pl-comment-image-input" hidden>
@@ -4447,23 +4541,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       box.innerHTML=stagedImage?`<img src="${esc(stagedImage)}" alt=""><button type="button" id="pl-comment-staged-remove" aria-label="Убрать фото">${icon('close')}</button>`:'';
       $('#pl-comment-staged-remove',ov)?.addEventListener('click',()=>{stagedImage=null;renderStaged();});
     };
-    // Полоска "Правка сообщения" над полем ввода — единственная видимая подсказка, что
-    // отправка сейчас ОБНОВИТ существующее сообщение (см. postComment), а не создаст новое.
+    // Редактирование сообщения — без отдельной видимой плашки-подсказки над полем ввода (была
+    // "Правка сообщения", убрана по просьбе): поле ввода просто предзаполняется текстом
+    // сообщения (см. action==='edit' ниже), обычная отправка обновляет его на месте.
     let editingId=null;
-    const renderEditing=()=>{
-      const box=$('#pl-comment-editing',ov);if(!box)return;
-      const editing=editingId&&ev.comments.some(c=>c.id===editingId);
-      box.hidden=!editing;
-      box.innerHTML=editing?`<span>Правка сообщения</span><button type="button" id="pl-comment-editing-cancel" aria-label="Отменить правку">${icon('close')}</button>`:'';
-      $('#pl-comment-editing-cancel',ov)?.addEventListener('click',()=>{editingId=null;$('#pl-comment-new',ov).value='';renderEditing();});
-    };
-    renderEditing();
     const postComment=()=>{
       const input=$('#pl-comment-new',ov),text=input.value.trim();
       if(editingId){
         const c=ev.comments.find(x=>x.id===editingId);
         if(c&&(text||c.image)){c.text=text;savePlannerEvents();}
-        editingId=null;input.value='';renderEditing();
+        editingId=null;input.value='';
         $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
         bindCommentLongPress();
         return;
@@ -4509,6 +4596,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       clone.style.cssText=`top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;background:${cs.backgroundColor};border-radius:${cs.borderRadius};color:${cs.color};`;
       const menu=document.createElement('div');menu.className='pl-comment-select-menu';
       menu.innerHTML=actions.map(a=>`<button type="button" data-action="${a.key}" class="${a.danger?'danger-action':''}">${icon(a.ic)}<span>${a.label}</span></button>`).join('');
+      // Оригинальный пузырь остаётся в DOM ровно на том же месте, что и клон, а backdrop
+      // (полупрозрачный чёрный, z-index 900) его лишь ЗАТЕМНЯЕТ, но не скрывает целиком — его
+      // текст просвечивал сквозь backdrop и накладывался на текст клона (z-index 901) поверх,
+      // тот же текст в той же позиции дважды. Прячем оригинал на время выделения и возвращаем
+      // видимость в cleanup() — ровно так и работает "приподнятие" сообщения у Telegram.
+      bubble.style.visibility='hidden';
       document.body.append(backdrop,clone,menu);
       requestAnimationFrame(()=>{
         const menuH=menu.offsetHeight,menuW=menu.offsetWidth,spaceBelow=window.innerHeight-rect.bottom;
@@ -4518,20 +4611,33 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         menu.style.top=menuTop+'px';menu.style.left=menuLeft+'px';
         backdrop.classList.add('is-in');clone.classList.add('is-in');menu.classList.add('is-in');
       });
-      const cleanup=()=>{backdrop.remove();clone.remove();menu.remove();};
+      const cleanup=()=>{bubble.style.visibility='';backdrop.remove();clone.remove();menu.remove();};
       backdrop.addEventListener('click',cleanup);
       $$('button',menu).forEach(b=>b.addEventListener('click',async()=>{
         const action=b.dataset.action;cleanup();
         if(action==='copy'){try{await navigator.clipboard.writeText(c.text);}catch(_){}}
-        else if(action==='edit'){editingId=c.id;$('#pl-comment-new',ov).value=c.text||'';$('#pl-comment-new',ov).focus();renderEditing();}
-        else if(action==='download'){const fakeBtn=document.createElement('button');fakeBtn.innerHTML='<span></span>';plannerSaveImageToDevice(c.image,fakeBtn);}
+        else if(action==='edit'){editingId=c.id;$('#pl-comment-new',ov).value=c.text||'';$('#pl-comment-new',ov).focus();}
+        else if(action==='download'){plannerShowImageViewer([c.image],0);}
         else if(action==='delete'){plannerDeleteCommentWithUndo(ev.id,c.id);}
       }));
     };
     let commentPress=null;
     const bindCommentLongPress=()=>{
       $$('.pl-comment-item[data-comment-id]',ov).forEach(item=>{
-        const bubble=$('.pl-comment-bubble',item);if(!bubble||bubble.dataset.bound)return;
+        const bubble=$('.pl-comment-bubble',item);if(!bubble)return;
+        // Тап по фото комментария — во весь экран, тем же просмотрщиком и с той же кнопкой
+        // "Сохранить", что и у фото-вложений события (см. plannerShowImageViewer). Отдельный
+        // click, не завязанный на долгое нажатие ниже — короткий тап должен просто открыть фото.
+        const img=$('.pl-comment-image',bubble);
+        if(img&&!img.dataset.bound){
+          img.dataset.bound='1';
+          img.addEventListener('click',e=>{
+            e.stopPropagation();
+            const c=ev.comments.find(x=>x.id===item.dataset.commentId);
+            if(c?.image)plannerShowImageViewer([c.image],0);
+          });
+        }
+        if(bubble.dataset.bound)return;
         bubble.dataset.bound='1';
         const cancel=()=>{clearTimeout(commentPress?.timer);commentPress=null;};
         bubble.addEventListener('pointerdown',e=>{
@@ -4583,7 +4689,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Долгое нажатие на сообщение в комментариях теперь выделяет его на месте (как в Telegram) и показывает рядом меню "Скопировать / Редактировать / Скачать / Удалить" — экран деталей события никуда не переключается. Удаление — с 8-секундной отменой, как у событий/привычек. Круглые кнопки (в том числе на главном экране) на телефоне больше не съезжают от центра — добавлен явный нулевой отступ, которого не хватало одному сбросу нативного вида кнопки. Починен баг, из-за которого пустой блок прикреплённого к комментарию фото иногда оставался едва заметной белой полоской после отправки — та же причина, что и у кнопки "..." под событием, которая из-за неё была видна всегда, а не только когда реально нужна. Свои сообщения в комментариях — справа, как в обычных мессенджерах. Кнопка "..." больше не перекрывает чеклист/фото — сама уступает им место. Убраны системные надписи "Выбрать файл". При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный, но не подтверждённый "+", тоже сохраняется по общему "Сохранить". Фото в карточке события всегда обрезается под её размер. Золотистые акценты в светлой теме ярче. Переключение между разделами — с короткой анимацией. Добавлена система тем: светлая, тёмная, системная.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Долгое нажатие на сообщение в комментариях теперь выделяет его на месте (как в Telegram) и показывает рядом меню "Скопировать / Редактировать / Скачать / Удалить" — экран деталей события никуда не переключается. Удаление — с 8-секундной отменой, как у событий/привычек. Круглые кнопки (в том числе на главном экране) на телефоне больше не съезжают от центра — добавлен явный нулевой отступ, которого не хватало одному сбросу нативного вида кнопки. Починен баг, из-за которого пустой блок прикреплённого к комментарию фото иногда оставался едва заметной белой полоской после отправки — та же причина, что и у кнопки "..." под событием, которая из-за неё была видна всегда, а не только когда реально нужна. Свои сообщения в комментариях — справа, как в обычных мессенджерах. Кнопка "..." больше не перекрывает чеклист/фото — сама уступает им место. Убраны системные надписи "Выбрать файл". При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный, но не подтверждённый "+", тоже сохраняется по общему "Сохранить". Фото в карточке события всегда обрезается под её размер. Золотистые акценты в светлой теме ярче. Переключение между разделами — с короткой анимацией. Добавлена система тем: светлая, тёмная, системная. Тап по фото в комментариях открывает его на весь экран с кнопкой "Сохранить". Найден и исправлен настоящий баг задвоенного текста "Сохранить"/"Успешно" на кнопке сохранения фото. Смена подписи "Сохранить"→"Успешно" теперь плавная. Отметка события выполненным больше не перерисовывает весь экран — соседние карточки с фото/вложениями не моргают, у отметки — та же анимация, что у чеклиста. Кнопка "..." снова появляется на карточках, где не хватило места именно фото. У карточки события — лёгкая тень. Долгое нажатие на комментарий больше не накладывает его текст сам на себя. Убрана плашка "Правка сообщения". Тап по центральной дате открывает календарь для перехода на любой день. Убрана подсказка про перетаскивание блоков в форме события.</p></section>
     </div></section>`;
   }
 
@@ -6052,7 +6158,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="week-head">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(x=>`<span>${x}</span>`).join('')}</div><div class="calendar-grid">${calendarDays(cal).map(d=>`<button class="calendar-day ${d.getMonth()!==cal.display.getMonth()?'other':''} ${sameDay(d,state.habits.today)?'today':''} ${sameDay(d,cal.selected)?'selected':''}" data-cal-date="${isoDate(d)}">${d.getDate()}</button>`).join('')}</div>
       <div class="calendar-bottom"><div class="calendar-selected"><div class="calendar-selected-title">${formatCalendarSelected(cal.selected)}</div><div class="calendar-selected-sub">${calendarSelectedSub(cal.selected)}</div></div><button class="calendar-confirm" data-cal-confirm>Выбрать</button></div></div>`;}
   function calendarDays(cal){const first=new Date(cal.display.getFullYear(),cal.display.getMonth(),1),weekday=(first.getDay()+6)%7,prev=new Date(cal.display.getFullYear(),cal.display.getMonth()-1,1),daysPrev=new Date(prev.getFullYear(),prev.getMonth()+1,0).getDate(),daysCurr=new Date(cal.display.getFullYear(),cal.display.getMonth()+1,0).getDate(),next=new Date(cal.display.getFullYear(),cal.display.getMonth()+1,1),days=[];for(let i=weekday-1;i>=0;i--)days.push(new Date(prev.getFullYear(),prev.getMonth(),daysPrev-i));for(let i=1;i<=daysCurr;i++)days.push(new Date(cal.display.getFullYear(),cal.display.getMonth(),i));const rem=(7-(days.length%7))%7;for(let i=1;i<=rem;i++)days.push(new Date(next.getFullYear(),next.getMonth(),i));return days;}
-  function bindCalendarEvents(ov,cal){const rerender=(focus=false)=>{const root=$('#active-overlay');root.innerHTML=calendarMarkup(cal);bindCalendarEvents(root,cal);if(focus){const inp=$('#cal-search',root);inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}};$('[data-cal-close]',ov).onclick=closeOverlay;$('[data-cal-today]',ov).onclick=()=>{const t=dateOnly();cal.selected=t;cal.display=new Date(t.getFullYear(),t.getMonth(),1);rerender();};$$('[data-cal-month]',ov).forEach(b=>b.onclick=()=>{cal.display=new Date(cal.display.getFullYear(),cal.display.getMonth()+(+b.dataset.calMonth),1);rerender();});$$('[data-cal-year]',ov).forEach(b=>b.onclick=()=>{cal.display=new Date(cal.display.getFullYear()+(+b.dataset.calYear),cal.display.getMonth(),1);rerender();});$$('[data-cal-date]',ov).forEach(b=>b.onclick=()=>{cal.selected=parseLocalDate(b.dataset.calDate);rerender();});$('[data-cal-confirm]',ov).onclick=()=>{closeOverlay();selectHabitDate(cal.selected);};const input=$('#cal-search',ov);input.oninput=()=>{cal.query=input.value;cal.suggestions=calendarSuggestions(cal.query);rerender(true);};input.onkeydown=e=>{if(e.key==='Enter'){const d=parseCalendarDate(input.value);if(d){cal.selected=d;cal.display=new Date(d.getFullYear(),d.getMonth(),1);cal.query='';cal.suggestions=[];rerender();}}};$$('[data-suggestion]',ov).forEach(b=>b.onclick=()=>{const s=cal.suggestions[+b.dataset.suggestion],d=parseCalendarDate(s);if(d){cal.selected=d;cal.display=new Date(d.getFullYear(),d.getMonth(),1);cal.query='';cal.suggestions=[];rerender();}});}
+  function bindCalendarEvents(ov,cal){const rerender=(focus=false)=>{const root=$('#active-overlay');root.innerHTML=calendarMarkup(cal);bindCalendarEvents(root,cal);if(focus){const inp=$('#cal-search',root);inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}};$('[data-cal-close]',ov).onclick=closeOverlay;$('[data-cal-today]',ov).onclick=()=>{const t=dateOnly();if(cal.onConfirm){closeOverlay();cal.onConfirm(t);}else{cal.selected=t;cal.display=new Date(t.getFullYear(),t.getMonth(),1);rerender();}};$$('[data-cal-month]',ov).forEach(b=>b.onclick=()=>{cal.display=new Date(cal.display.getFullYear(),cal.display.getMonth()+(+b.dataset.calMonth),1);rerender();});$$('[data-cal-year]',ov).forEach(b=>b.onclick=()=>{cal.display=new Date(cal.display.getFullYear()+(+b.dataset.calYear),cal.display.getMonth(),1);rerender();});$$('[data-cal-date]',ov).forEach(b=>b.onclick=()=>{cal.selected=parseLocalDate(b.dataset.calDate);rerender();});$('[data-cal-confirm]',ov).onclick=()=>{closeOverlay();(cal.onConfirm||selectHabitDate)(cal.selected);};const input=$('#cal-search',ov);input.oninput=()=>{cal.query=input.value;cal.suggestions=calendarSuggestions(cal.query);rerender(true);};input.onkeydown=e=>{if(e.key==='Enter'){const d=parseCalendarDate(input.value);if(d){cal.selected=d;cal.display=new Date(d.getFullYear(),d.getMonth(),1);cal.query='';cal.suggestions=[];rerender();}}};$$('[data-suggestion]',ov).forEach(b=>b.onclick=()=>{const s=cal.suggestions[+b.dataset.suggestion],d=parseCalendarDate(s);if(d){cal.selected=d;cal.display=new Date(d.getFullYear(),d.getMonth(),1);cal.query='';cal.suggestions=[];rerender();}});}
   function formatCalendarSelected(d){return `${d.getDate()} ${calMonthNames[d.getMonth()]} ${d.getFullYear()}`;}
   function calendarSelectedSub(d){if(sameDay(d,state.habits.today))return'Сегодня';if(d<state.habits.today){const diff=Math.round((state.habits.today-d)/86400000);if(diff===1)return'Вчера';if(diff===2)return'Позавчера';return`${diff} дней назад`;}return'Будущий день';}
   function calendarSuggestions(q){q=String(q||'').trim().toLowerCase();if(!q)return[];const out=[],now=new Date();if('сегодня'.includes(q)||'сег'.includes(q))out.push('Сегодня');if('вчера'.includes(q)||'вчер'.includes(q))out.push('Вчера');if('позавчера'.includes(q)||'поза'.includes(q))out.push('Позавчера');if('завтра'.includes(q))out.push('Завтра');if('послезавтра'.includes(q))out.push('Послезавтра');const pd=parseCalendarDate(q);if(pd){const month=calMonthNames[pd.getMonth()];out.push(`${pd.getDate()} ${month} ${pd.getFullYear()}`,`${pd.getDate()}.${pd.getMonth()+1}.${pd.getFullYear()}`,`${pd.getDate()}/${pd.getMonth()+1}/${pd.getFullYear()}`);}const months=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];months.forEach(m=>{if(m.includes(q)||m.substring(0,3).includes(q))out.push(`${m} ${now.getFullYear()}`,`${m} ${now.getFullYear()-1}`,`${m} ${now.getFullYear()+1}`);});for(let y=now.getFullYear()-5;y<=now.getFullYear()+5;y++)if(String(y).includes(q))out.push(String(y));const dm=q.match(/^(\d{1,2})[.\/-](\d{1,2})$/);if(dm){const d=+dm[1],m=+dm[2];if(m>=1&&m<=12&&d>=1&&d<=31)out.push(`${d}.${m}.${now.getFullYear()}`,`${d}/${m}/${now.getFullYear()}`,`${d}-${m}-${now.getFullYear()}`);}months.forEach((m,i)=>{if(q.includes(m)||q.includes(m.substring(0,3))){const x=q.match(/(\d{1,2})/);if(x){const d=+x[1];if(d>=1&&d<=31)out.push(`${d} ${m} ${now.getFullYear()}`);}}});return [...new Set(out)].slice(0,8);}
