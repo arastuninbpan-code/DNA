@@ -1123,7 +1123,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 
 /* Undo-delete toast: contour outline instead of a bottom bar. */
 .habit-undo{pointer-events:none;display:flex;justify-content:center;}
-.habit-undo-circle{pointer-events:auto;position:relative;width:56px;height:56px;flex:0 0 56px;border-radius:50%;border:1px solid #4a4a46;background:#26251f;color:#d9cfa8;display:grid;place-items:center;padding:0;box-shadow:0 8px 22px rgba(0,0,0,.4);}
+.habit-undo-circle{pointer-events:auto;position:relative;width:56px;height:56px;flex:0 0 56px;border-radius:50%;border:1px solid rgba(var(--ink),.18);background:var(--surface2);color:var(--gold);display:grid;place-items:center;padding:0;box-shadow:0 8px 22px rgba(0,0,0,.28);}
 .habit-undo-circle:active{filter:brightness(1.15);}
 .habit-undo-icon{display:grid;place-items:center;}
 .habit-undo-icon .icon{width:22px;height:22px;}
@@ -4062,7 +4062,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const interrupt=e=>{if(e?.target&&notice.contains?.(e.target))return;finish(false,true);};
     pendingPlannerUndo={notice,finish,render:()=>finish(false,true)};
     undo.onclick=()=>finish(true,true);
-    window.addEventListener('pagehide',interrupt);
+    document.addEventListener('pointerdown',interrupt,true);document.addEventListener('wheel',interrupt,{capture:true,passive:true});document.addEventListener('touchmove',interrupt,{capture:true,passive:true});document.addEventListener('keydown',interrupt,true);window.addEventListener('pagehide',interrupt);
     outlineRect.animate?.([{strokeDashoffset:100},{strokeDashoffset:0}],{duration:8000,easing:'linear',fill:'forwards'});
     if(!reducedMotion())notice.animate?.([{opacity:0,transform:'translateY(16px)'},{opacity:1,transform:'translateY(0)'}],{duration:220,easing:'ease-out'});
     timer=setTimeout(()=>finish(false),8000);
@@ -4110,7 +4110,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const interrupt=e=>{if(e?.target&&notice.contains?.(e.target))return;finish(false,true);};
     pendingCommentUndo={notice,finish,render:()=>finish(false,true)};
     undo.onclick=()=>finish(true,true);
-    window.addEventListener('pagehide',interrupt);
+    document.addEventListener('pointerdown',interrupt,true);document.addEventListener('wheel',interrupt,{capture:true,passive:true});document.addEventListener('touchmove',interrupt,{capture:true,passive:true});document.addEventListener('keydown',interrupt,true);window.addEventListener('pagehide',interrupt);
     outlineRect.animate?.([{strokeDashoffset:100},{strokeDashoffset:0}],{duration:8000,easing:'linear',fill:'forwards'});
     if(!reducedMotion())notice.animate?.([{opacity:0,transform:'translateY(16px)'},{opacity:1,transform:'translateY(0)'}],{duration:220,easing:'ease-out'});
     timer=setTimeout(()=>finish(false),8000);
