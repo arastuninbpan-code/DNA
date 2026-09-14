@@ -141,9 +141,14 @@ button, input, select, textarea { font: inherit; }
 /* -webkit-appearance:none — без этого iOS Safari подмешивает СВОЙ нативный вид кнопки (внутренние
    отступы/скругления/смещения) поверх кастомных стилей даже при явном background/border/border-
    radius; на десктопном Chrome этого не происходит, отсюда и разница "на ПК ровно, на телефоне
-   иконка в круглой кнопке съезжает от центра". Только appearance — background/border у каждой
-   кнопки и так переопределены точечно, трогать их здесь незачем и рискованно. */
-button { color: inherit; -webkit-appearance: none; appearance: none; }
+   иконка в круглой кнопке съезжает от центра". Но одного appearance:none мало — Safari не всегда
+   сбрасывает вместе с ним и СОБСТВЕННЫЙ (несимметричный по вертикали) padding кнопки; у круглых
+   icon-button (display:grid;place-items:center) он не переопределён явно нигде, а просто
+   центрирует иконку внутри content-box, который из-за этого невидимого padding сам съезжает от
+   центра видимого круга. padding:0 в базовом сбросе — universal fix разом для всех них; кнопки,
+   которым нужны свои отступы (текстовые/gold-action и т.п.), задают их собственным классом с
+   более высокой специфичностью и это правило не трогает. */
+button { color: inherit; -webkit-appearance: none; appearance: none; padding: 0; }
 button, [role="button"], .tap { cursor: pointer; user-select: none; }
 .app-shell {
   position: relative;
@@ -1442,14 +1447,28 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-comment-bubble{margin-top:3px;padding:8px 12px;border-radius:4px 14px 14px 14px;background:rgba(var(--ink),.08);display:inline-block;max-width:100%;}
 .pl-comment-item.mine .pl-comment-bubble{background:rgba(201,168,76,.2);border-radius:14px 4px 14px 14px;}
 .pl-comment-text{font-size:.875rem;color:#eee;white-space:pre-wrap;overflow-wrap:anywhere;}
-/* Долгое нажатие на пузыре открывает лист-меню (см. showCommentActions) — тот же
-   "habit-quick-menu" язык, что и у долгого нажатия на привычке, ничего нового изобретать не
-   пришлось. Лёгкая подсветка при удержании — обратная связь, что жест распознан. */
 .pl-comment-bubble{touch-action:manipulation;}
-.pl-comment-bubble.is-pressed{filter:brightness(.85);}
-.pl-comment-editing{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 10px;border-radius:10px;background:rgba(201,168,76,.14);font-size:.75rem;color:var(--gold2);}
+/* :not([hidden]) — тот же паттерн, что и у .pl-event-expand/.pl-comment-staged выше: класс сам
+   задаёт display, атрибут hidden (которым управляет JS) без этой оговорки был бы перебит. */
+.pl-comment-editing:not([hidden]){display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 10px;border-radius:10px;background:rgba(201,168,76,.14);font-size:.75rem;color:var(--gold2);}
 .pl-comment-editing button{flex:0 0 auto;background:transparent;border:0;color:inherit;padding:2px;display:grid;place-items:center;}
 .pl-comment-editing button .icon{width:14px;height:14px;}
+/* Долгое нажатие на пузыре — выделение "на месте" в духе Telegram (см. showCommentActions):
+   тёмный фон на весь экран, клон пузыря поверх него на ТОЧНО той же позиции (не сам оригинал —
+   z-index не поднимет узел выше собственного предка со своим стэкингом, см. комментарий в JS),
+   и рядом — лист действий. Все три — прямые дети document.body, а не #overlay-root/.sheet,
+   поэтому шторка деталей события под ними остаётся как есть, не закрывается и не перерисовывается. */
+.pl-comment-select-backdrop{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,0);transition:background-color .16s ease;pointer-events:auto;}
+.pl-comment-select-backdrop.is-in{background:rgba(0,0,0,.5);}
+.pl-comment-select-clone{position:fixed;z-index:901;pointer-events:none;transform:scale(1);transition:transform .16s cubic-bezier(.34,1.2,.64,1);margin:0;box-shadow:0 12px 32px rgba(0,0,0,.4);}
+.pl-comment-select-clone.is-in{transform:scale(1.04);}
+.pl-comment-select-menu{position:fixed;z-index:901;min-width:190px;border-radius:14px;overflow:hidden;background:#1c1a15;box-shadow:0 12px 40px rgba(0,0,0,.5);opacity:0;transform:translateY(-6px);transition:opacity .16s ease,transform .16s ease;}
+.pl-comment-select-menu.is-in{opacity:1;transform:translateY(0);}
+.pl-comment-select-menu button{display:flex;align-items:center;gap:12px;width:100%;min-height:46px;padding:11px 16px;background:transparent;color:var(--gold);font-size:.9375rem;text-align:left;}
+.pl-comment-select-menu button .icon{width:18px;height:18px;flex:0 0 auto;}
+.pl-comment-select-menu button+button{border-top:1px solid rgba(201,168,76,.14);}
+.pl-comment-select-menu button.danger-action{color:#de9090;}
+.pl-comment-select-menu button:active{background:rgba(201,168,76,.08);}
 .pl-comment-image{display:block;max-width:220px;width:100%;border-radius:10px;margin-bottom:4px;}
 .pl-comment-date{font-size:.6875rem;color:rgba(var(--ink),.35);margin-top:3px;}
 /* Нижняя панель действий под лентой комментариев (сердце/пригласить/фото/ввод/эмодзи/отправить). */
@@ -1498,7 +1517,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   'use strict';
 
   const GOLD = '#c9a84c';
-  const APP_VERSION = '0.13.0';
+  const APP_VERSION = '0.14.0';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1655,12 +1674,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // сознательно не сохраняется между сессиями и сбрасывается при любой навигации по дням,
       // это чисто временное состояние просмотра, а не часть данных события.
       expandedEventId: null,
-      // Редактируемый комментарий (см. showCommentActions) — живёт здесь, а не в замыкании
-      // showPlannerDetail(), потому что меню действий над сообщением открывается через ту же
-      // единственную #overlay-root шторку (closeOverlay() полностью стирает предыдущую), и
-      // после выбора "Редактировать" деталь события переоткрывается заново — состояние должно
-      // это пережить.
-      editingCommentId: null,
     }
   };
   // Бэкофилленные id (withIds выше) существуют только в памяти, пока что-то их не пересохранит —
@@ -4349,7 +4362,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-comment-panel">
         <div id="pl-comment-list">${plannerCommentList(ev)}</div>
         <div class="pl-comment-staged" id="pl-comment-staged" hidden></div>
-        <div id="pl-comment-editing"></div>
+        <div class="pl-comment-editing" id="pl-comment-editing" hidden></div>
         <div class="pl-comment-bar">
           <button type="button" class="pl-comment-bar-btn" id="pl-comment-image-btn" aria-label="Прикрепить вложение">${icon('paperclip')}</button>
           <input type="file" accept="image/*" id="pl-comment-image-input" hidden>
@@ -4436,32 +4449,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     };
     // Полоска "Правка сообщения" над полем ввода — единственная видимая подсказка, что
     // отправка сейчас ОБНОВИТ существующее сообщение (см. postComment), а не создаст новое.
-    // state.planner.editingCommentId, а не локальная переменная — при выборе "Редактировать" в
-    // меню действий (showCommentActions) эта шторка целиком переоткрывается заново (единственная
-    // #overlay-root, см. её комментарий), состояние должно это пережить.
+    let editingId=null;
     const renderEditing=()=>{
       const box=$('#pl-comment-editing',ov);if(!box)return;
-      const editing=state.planner.editingCommentId&&ev.comments.some(c=>c.id===state.planner.editingCommentId);
+      const editing=editingId&&ev.comments.some(c=>c.id===editingId);
       box.hidden=!editing;
       box.innerHTML=editing?`<span>Правка сообщения</span><button type="button" id="pl-comment-editing-cancel" aria-label="Отменить правку">${icon('close')}</button>`:'';
-      $('#pl-comment-editing-cancel',ov)?.addEventListener('click',()=>{state.planner.editingCommentId=null;$('#pl-comment-new',ov).value='';renderEditing();});
+      $('#pl-comment-editing-cancel',ov)?.addEventListener('click',()=>{editingId=null;$('#pl-comment-new',ov).value='';renderEditing();});
     };
     renderEditing();
-    // Переоткрытие шторки после выбора "Редактировать" (см. showCommentActions) заново строит
-    // весь HTML с нуля — подставляем текущий текст редактируемого сообщения в поле здесь же,
-    // один раз при открытии, и сразу фокусируем.
-    if(state.planner.editingCommentId){
-      const editingComment=ev.comments.find(c=>c.id===state.planner.editingCommentId);
-      if(editingComment){$('#pl-comment-new',ov).value=editingComment.text||'';$('#pl-comment-new',ov).focus();}
-      else state.planner.editingCommentId=null;
-    }
     const postComment=()=>{
       const input=$('#pl-comment-new',ov),text=input.value.trim();
-      const editId=state.planner.editingCommentId;
-      if(editId){
-        const c=ev.comments.find(x=>x.id===editId);
+      if(editingId){
+        const c=ev.comments.find(x=>x.id===editingId);
         if(c&&(text||c.image)){c.text=text;savePlannerEvents();}
-        state.planner.editingCommentId=null;input.value='';renderEditing();
+        editingId=null;input.value='';renderEditing();
         $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
         bindCommentLongPress();
         return;
@@ -4480,46 +4482,64 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const file=e.target.files[0];if(!file)return;
       stagedImage=await plannerDownscaleImage(file);renderStaged();
     });
-    // Долгое нажатие на пузыре — тот же язык действий, что и у долгого нажатия на привычке
-    // (.habit-quick-menu): "Скопировать" (если есть текст), "Редактировать"/"Удалить" только
-    // для своих сообщений. Показать/скопировать/удалить/редактировать чужое сообщение целиком
-    // (без текста, просто фото) нечего — долгое нажатие тогда молча ничего не делает.
-    const showCommentActions=(commentId,mine)=>{
+    // Долгое нажатие на пузыре — выделение сообщения "на месте", как в Telegram: сам пузырь
+    // приподнимается над затемняющим фоном (клон, т.к. z-index бессилен поднять узел выше
+    // предка — фон и клон вместе сидят прямо в document.body, а не внутри #overlay-root/.sheet,
+    // которые их бы перекрыли своим собственным стэкингом), лист действий выезжает рядом с ним.
+    // Сама шторка деталей события НИКУДА не девается и не перерисовывается — только список
+    // "Скопировать"(если есть текст)/"Редактировать"+"Удалить"(только свои)/"Скачать"(если фото).
+    const showCommentActions=(item,bubble,commentId,mine)=>{
       const c=ev.comments.find(x=>x.id===commentId);if(!c)return;
       const hasText=!!c.text?.trim();
-      const rows=[];
-      if(hasText)rows.push(`<button type="button" class="habit-menu-action" data-comment-copy>${icon('copy')}<span>Скопировать</span></button>`);
-      if(mine)rows.push(`<button type="button" class="habit-menu-action" data-comment-edit>${icon('edit')}<span>Редактировать</span></button>`);
-      if(mine)rows.push(`<button type="button" class="habit-menu-action danger-action" data-comment-delete>${icon('trash')}<span>Удалить</span></button>`);
-      if(!rows.length)return;
-      const menuOv=overlay(`<div class="sheet habit-action-sheet habit-quick-menu" role="dialog" aria-modal="true">${rows.join('')}</div>`,{sheet:true});
-      $('[data-comment-copy]',menuOv)?.addEventListener('click',async()=>{
-        try{await navigator.clipboard.writeText(c.text);}catch(_){}
-        closeOverlay();showPlannerDetail(ev.id);
+      const actions=[];
+      if(hasText)actions.push({key:'copy',label:'Скопировать',ic:'copy'});
+      if(mine)actions.push({key:'edit',label:'Редактировать',ic:'edit'});
+      if(c.image)actions.push({key:'download',label:'Скачать',ic:'download'});
+      if(mine)actions.push({key:'delete',label:'Удалить',ic:'trash',danger:true});
+      if(!actions.length)return;
+      const rect=bubble.getBoundingClientRect();
+      const backdrop=document.createElement('div');backdrop.className='pl-comment-select-backdrop';
+      // .mine-фон пузыря задаётся селектором ОТ РОДИТЕЛЯ (.pl-comment-item.mine .pl-comment-
+      // bubble), которого у клона (только сам пузырь, без .pl-comment-item вокруг) нет — читаем
+      // уже посчитанный фон/цвет с оригинала и переносим их явно, иначе клон "своего" сообщения
+      // на миг мелькнёт с фоном "чужого".
+      const cs=getComputedStyle(bubble);
+      const clone=bubble.cloneNode(true);
+      clone.className='pl-comment-bubble pl-comment-select-clone';
+      clone.style.cssText=`top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;background:${cs.backgroundColor};border-radius:${cs.borderRadius};color:${cs.color};`;
+      const menu=document.createElement('div');menu.className='pl-comment-select-menu';
+      menu.innerHTML=actions.map(a=>`<button type="button" data-action="${a.key}" class="${a.danger?'danger-action':''}">${icon(a.ic)}<span>${a.label}</span></button>`).join('');
+      document.body.append(backdrop,clone,menu);
+      requestAnimationFrame(()=>{
+        const menuH=menu.offsetHeight,menuW=menu.offsetWidth,spaceBelow=window.innerHeight-rect.bottom;
+        const menuTop=spaceBelow>menuH+16?rect.bottom+8:Math.max(8,rect.top-menuH-8);
+        let menuLeft=mine?rect.right-menuW:rect.left;
+        menuLeft=Math.min(Math.max(8,menuLeft),window.innerWidth-menuW-8);
+        menu.style.top=menuTop+'px';menu.style.left=menuLeft+'px';
+        backdrop.classList.add('is-in');clone.classList.add('is-in');menu.classList.add('is-in');
       });
-      $('[data-comment-edit]',menuOv)?.addEventListener('click',()=>{
-        state.planner.editingCommentId=c.id;
-        closeOverlay();showPlannerDetail(ev.id);
-      });
-      $('[data-comment-delete]',menuOv)?.addEventListener('click',()=>{
-        closeOverlay();
-        plannerDeleteCommentWithUndo(ev.id,c.id);
-        showPlannerDetail(ev.id);
-      });
+      const cleanup=()=>{backdrop.remove();clone.remove();menu.remove();};
+      backdrop.addEventListener('click',cleanup);
+      $$('button',menu).forEach(b=>b.addEventListener('click',async()=>{
+        const action=b.dataset.action;cleanup();
+        if(action==='copy'){try{await navigator.clipboard.writeText(c.text);}catch(_){}}
+        else if(action==='edit'){editingId=c.id;$('#pl-comment-new',ov).value=c.text||'';$('#pl-comment-new',ov).focus();renderEditing();}
+        else if(action==='download'){const fakeBtn=document.createElement('button');fakeBtn.innerHTML='<span></span>';plannerSaveImageToDevice(c.image,fakeBtn);}
+        else if(action==='delete'){plannerDeleteCommentWithUndo(ev.id,c.id);}
+      }));
     };
     let commentPress=null;
     const bindCommentLongPress=()=>{
       $$('.pl-comment-item[data-comment-id]',ov).forEach(item=>{
         const bubble=$('.pl-comment-bubble',item);if(!bubble||bubble.dataset.bound)return;
         bubble.dataset.bound='1';
-        const cancel=()=>{clearTimeout(commentPress?.timer);bubble.classList.remove('is-pressed');commentPress=null;};
+        const cancel=()=>{clearTimeout(commentPress?.timer);commentPress=null;};
         bubble.addEventListener('pointerdown',e=>{
           if(e.isPrimary===false||e.button!==0)return;
           const x=e.clientX,y=e.clientY;
           commentPress={x,y,timer:setTimeout(()=>{
-            bubble.classList.add('is-pressed');
             navigator.vibrate?.(10);
-            showCommentActions(item.dataset.commentId,item.dataset.commentMine==='true');
+            showCommentActions(item,bubble,item.dataset.commentId,item.dataset.commentMine==='true');
             cancel();
           },450)};
         },{passive:true});
@@ -4563,7 +4583,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Долгое нажатие на сообщение в комментариях теперь открывает меню "Скопировать / Редактировать / Удалить" (вместо крестика) — удаление с 8-секундной отменой, как и у событий/привычек. Починен баг, из-за которого пустой блок прикреплённого к комментарию фото иногда оставался едва заметной белой полоской после отправки. Свои сообщения — справа, как в обычных мессенджерах. Кнопка "..." под коротким событием больше не перекрывает чеклист/фото — сама уступает им место, а сама кнопка теперь и правда прячется, когда не нужна (была видна всегда из-за той же стилевой ошибки, просто незаметно). Убраны системные надписи "Выбрать файл" у прикрепления фото. При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный в форме события, но не подтверждённый нажатием "+", теперь тоже сохраняется по общей кнопке "Сохранить". Круглые кнопки на телефоне больше не съезжают от центра. Фото в карточке события всегда обрезается под её размер. Золотистые акценты в светлой теме стали заметно ярче. Переключение между разделами — с короткой ненавязчивой анимацией. Добавлена полноценная система тем: светлая, тёмная и системная.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Долгое нажатие на сообщение в комментариях теперь выделяет его на месте (как в Telegram) и показывает рядом меню "Скопировать / Редактировать / Скачать / Удалить" — экран деталей события никуда не переключается. Удаление — с 8-секундной отменой, как у событий/привычек. Круглые кнопки (в том числе на главном экране) на телефоне больше не съезжают от центра — добавлен явный нулевой отступ, которого не хватало одному сбросу нативного вида кнопки. Починен баг, из-за которого пустой блок прикреплённого к комментарию фото иногда оставался едва заметной белой полоской после отправки — та же причина, что и у кнопки "..." под событием, которая из-за неё была видна всегда, а не только когда реально нужна. Свои сообщения в комментариях — справа, как в обычных мессенджерах. Кнопка "..." больше не перекрывает чеклист/фото — сама уступает им место. Убраны системные надписи "Выбрать файл". При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный, но не подтверждённый "+", тоже сохраняется по общему "Сохранить". Фото в карточке события всегда обрезается под её размер. Золотистые акценты в светлой теме ярче. Переключение между разделами — с короткой анимацией. Добавлена система тем: светлая, тёмная, системная.</p></section>
     </div></section>`;
   }
 
