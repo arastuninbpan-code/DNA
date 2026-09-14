@@ -1282,6 +1282,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    (--pl-body, по умолчанию тёмное, пока пользователь не выбрал свой цвет). Раньше оба слоя
    красились одним и тем же --pl-color, и выбор цвета события красил шапку, а не остальное. */
 .pl-event{position:absolute;inset:0;width:100%;height:100%;min-width:0;z-index:1;box-sizing:border-box;padding:0;border-radius:10px;background:var(--pl-body,var(--surface3));color:var(--pl-ink,var(--white));border:0;box-shadow:inset 0 0 0 2px var(--pl-outline,transparent);overflow:hidden;text-align:left;touch-action:none;display:flex;flex-direction:column;align-items:stretch;gap:0;}
+/* Событие, которое идёт ПРЯМО СЕЙЧАС (сегодня, текущее время внутри его интервала) — золотая
+   обводка+свечение поверх обычной тени/тени раздела, чтобы сразу бросалось в глаза среди
+   остальных карточек дня. Лёгкая пульсация — только если у пользователя нет prefers-reduced-
+   motion, статичное свечение и без неё прекрасно заметно. */
+.pl-event.is-current{box-shadow:inset 0 0 0 2px var(--pl-outline,transparent),0 0 0 2px var(--gold),0 0 14px 3px rgba(201,168,76,.55);}
+@media (prefers-reduced-motion:no-preference){
+  .pl-event.is-current{animation:pl-current-pulse 2.6s ease-in-out infinite;}
+}
+@keyframes pl-current-pulse{
+  0%,100%{box-shadow:inset 0 0 0 2px var(--pl-outline,transparent),0 0 0 2px var(--gold),0 0 12px 2px rgba(201,168,76,.45);}
+  50%{box-shadow:inset 0 0 0 2px var(--pl-outline,transparent),0 0 0 2px var(--gold),0 0 20px 5px rgba(201,168,76,.8);}
+}
 .pl-event-head{display:flex;align-items:center;align-self:stretch;width:100%;min-width:0;gap:6px;flex:0 0 auto;background:var(--pl-head,var(--gold-strong));margin:0;padding:8px 10px;border-radius:10px 10px 0 0;}
 .pl-event.done{filter:brightness(.6) saturate(.7);}
 .pl-event-wrap.is-revealing .pl-event-head,.pl-event-wrap.is-open .pl-event-head{border-radius:8px 0 0 0;}
@@ -1376,17 +1388,33 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-extra-check-box .icon{width:10px;height:10px;}
 .pl-event-extra-check.done{opacity:.6;}
 .pl-event-extra-note{font-size:.75rem;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere;}
+/* Маленькое (короткое по длительности) событие — вместо полного превью вложений просто ряд
+   квадратных значков (по типу вложения, см. plannerEventContentMode/PL_EVENT_ICONS_THRESHOLD_H) —
+   тот же визуальный язык, что у иконок в меню добавления блока формы. Тап открывает детали. */
+.pl-event-extra-icons{display:flex;flex-wrap:wrap;gap:5px;border:0;background:transparent;padding:0;margin-top:2px;}
+.pl-event-extra-icon{width:22px;height:22px;flex:0 0 auto;border-radius:6px;background:rgba(0,0,0,.16);display:grid;place-items:center;}
+.pl-event-extra-icon .icon{width:13px;height:13px;}
 .pl-event-extra-check.done span:last-child{text-decoration:line-through;}
 /* Плашка "+N" на месте карточек сверх PL_MAX_COLS в одном пересекающемся кластере (см.
    renderPlannerTimeline) — тап открывает лист со всеми событиями кластера вбок. */
-.pl-event-more{width:100%;height:100%;border:0;border-radius:10px;background:var(--gold);color:#171410;font-weight:700;font-size:.8125rem;font-variant-numeric:tabular-nums;display:grid;place-items:center;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.25);}
-.pl-event-more:active{filter:brightness(.92);}
-.pl-cluster-scroll{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 12px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;}
-.pl-cluster-card{flex:0 0 auto;width:150px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:12px;border-radius:14px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);scroll-snap-align:start;}
+.pl-event-more{width:100%;height:100%;border:0;border-radius:10px;background:var(--gold);color:#171410;font-weight:700;font-size:.8125rem;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center;gap:1px;padding:0;box-shadow:0 2px 8px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.35);}
+.pl-event-more .icon{width:13px;height:13px;flex:0 0 auto;}
+.pl-event-more:active{filter:brightness(.92);transform:scale(.97);}
+/* Развёрнутая плашка "+N" — тот же .pl-event-wrap, только на всю ширину ряда (все столбцы
+   кластера) и с горизонтально прокручиваемой полоской карточек внутри вместо обычного
+   содержимого события. Кнопка сворачивания (.pl-cluster-collapse) — отдельный circle поверх, в
+   правом верхнем углу, не участвует в горизонтальном скролле. */
+.pl-cluster-expanded{background:var(--surface2);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.25);}
+.pl-cluster-strip{display:flex;align-items:center;gap:8px;overflow-x:auto;overflow-y:hidden;height:100%;width:100%;padding:8px 40px 8px 8px;box-sizing:border-box;touch-action:pan-x;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;}
+.pl-cluster-card{flex:0 0 auto;width:150px;max-width:150px;display:flex;flex-direction:row;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:var(--pl-color,var(--gold));border:2px solid var(--pl-outline,transparent);scroll-snap-align:start;box-sizing:border-box;}
 .pl-cluster-card.done{filter:brightness(.6) saturate(.7);}
+.pl-cluster-card-body{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1;}
 .pl-cluster-card-time{font-size:.6875rem;font-weight:700;color:rgba(20,16,10,.6);font-variant-numeric:tabular-nums;}
-.pl-cluster-card-title{font-family:Georgia,'Times New Roman',serif;font-size:.875rem;color:#171410;font-weight:600;overflow-wrap:break-word;text-align:left;}
+.pl-cluster-card-title{font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;color:#171410;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;}
 .pl-cluster-card.done .pl-cluster-card-title{text-decoration:line-through;color:rgba(20,16,10,.55);}
+.pl-cluster-collapse{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;display:grid;place-items:center;padding:0;z-index:2;box-shadow:0 1px 4px rgba(0,0,0,.35);}
+.pl-cluster-collapse .icon{width:15px;height:15px;}
+.pl-cluster-collapse:active{filter:brightness(1.2);}
 .pl-empty{text-align:center;color:rgba(var(--ink),.35);padding:24px 12px;font-size:.875rem;}
 /* Зум пальцами: день -> неделя -> месяц (и обратно). */
 .pl-week-block{position:relative;}
@@ -1469,7 +1497,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-image-thumb button .icon{width:10px;height:10px;}
 /* Блоки вложений (изображение/чеклист/опрос/локация) в форме редактирования события — всегда
    развёрнутые карточки-ряды (не сворачиваемые чипы), с ручкой-перетаскиванием справа. */
-.pl-block-row{margin-top:10px;padding:12px;border-radius:12px;background:rgba(var(--ink),.04);border:1px solid rgba(var(--ink),.08);}
+.pl-block-row{margin-top:10px;padding:12px;border-radius:12px;background:rgba(var(--ink),.04);border:1px solid rgba(var(--ink),.08);transition:background-color .4s ease,border-color .4s ease;}
+/* Подсветка только что добавленного блока вложения — тап по значку в меню "чеклист/опрос/
+   фото/примечание" даёт видимый отклик не только на самой кнопке (см. её bounce-анимацию), но и
+   на итоговой строке блока, которая тут же появляется ниже в списке. */
+.pl-block-row.is-new{background:rgba(201,168,76,.24);border-color:var(--gold);}
 .pl-block-head{display:flex;align-items:center;gap:8px;}
 .pl-block-icon{width:32px;height:32px;border-radius:9px;background:rgba(201,168,76,.14);color:var(--gold);display:grid;place-items:center;flex:0 0 auto;}
 .pl-block-icon .icon{width:16px;height:16px;}
@@ -1611,7 +1643,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.18.1';
+  const APP_VERSION = '0.19.0';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1772,6 +1804,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // это чисто временное состояние просмотра, а не часть данных события.
       expandedEventId: null,
       expandedExtraH: null,
+      expandedClusterId: null,
     }
   };
   // Бэкофилленные id (withIds выше) существуют только в памяти, пока что-то их не пересохранит —
@@ -1876,6 +1909,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       'swap': '<path d="M7 7h12l-3-3m3 3-3 3M17 17H5l3 3m-3-3 3-3"/>',
       'phone': '<path d="M6 3h4l1 5-2 1a14 14 0 0 0 6 6l1-2 5 1v4c0 2-2 3-4 3C9 20 4 15 3 7c0-2 1-4 3-4Z"/>',
       'more': '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+      'chevron-right': '<path d="m9 6 6 6-6 6"/>',
       'inbox': '<path d="M4 4h16l2 9v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-6l2-9Z"/><path d="M2 13h6a2 2 0 0 0 4 0h6"/>',
       'message': '<path d="M4 5h16v11H8l-4 4V5Z"/>',
       'paperclip': '<path d="M8 12.5V7a4 4 0 0 1 8 0v9a2.5 2.5 0 0 1-5 0V8.5"/>',
@@ -2153,7 +2187,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // разом) прямо посреди инерции скролла — на слабом устройстве это читалось как "скролл
   // спотыкается/останавливается на месяце". Более широкое окно отодвигает этот триггер
   // настолько, что обычный свайп через несколько месяцев успевает докрутиться без пересборки.
-  const PL_START_HOUR=0,PL_END_HOUR=24,PL_HOUR_PX=56,PL_WINDOW_RADIUS=6,PL_WEEK_HOUR_PX=32,PL_OVERLAP_STEP=34,PL_WEEK_WINDOW_RADIUS=4,PL_MONTH_WINDOW_RADIUS=7,PL_RANGE_STEP=15,PL_EXPANDED_EXTRA_H=200;
+  const PL_START_HOUR=0,PL_END_HOUR=24,PL_HOUR_PX=56,PL_WINDOW_RADIUS=6,PL_WEEK_HOUR_PX=32,PL_OVERLAP_STEP=34,PL_WEEK_WINDOW_RADIUS=4,PL_MONTH_WINDOW_RADIUS=7,PL_RANGE_STEP=15,PL_EXPANDED_EXTRA_H=200,PL_CLUSTER_STRIP_MIN_H=64;
+  // Общий словарь блоков-вложений (тип -> заголовок/иконка) — используется и формой
+  // редактирования (меню добавления, заголовки блоков), и компактной карточкой события на
+  // ленте (иконки-значки на маленьких событиях, см. plannerEventExtraIconsHtml).
+  const PL_BLOCK_META={checklist:{title:'Чеклист',icon:'check'},poll:{title:'Опрос',icon:'poll'},image:{title:'Фото',icon:'image'},note:{title:'Примечание',icon:'article'},location:{title:'Локация',icon:'pin'}};
   const PL_WEEKDAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   let plannerExtending=false,pendingPlannerScroll=null,pendingPlannerWeekScroll=null,pendingPlannerMonthScroll=null,plannerLastZoom=null;
   // Долгое перетаскивание события/задачи (bindPlannerEventDrag/bindPlannerTaskDrag) тащит
@@ -2712,6 +2750,36 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       return `<div class="pl-inline-block ${b.type==='image'?'pl-inline-block-image':''}" data-inline-block="${esc(b.id)}"><div class="pl-inline-block-head"><span>${label}</span></div>${content}</div>`;
     }).join('');
   }
+  // Маленькое (по факту длительности) событие физически не может показать полноценный
+  // превью-контент вложений (текст чеклиста/опроса, фото) без того, чтобы карточка неестественно
+  // растягивалась на ленте намного выше своей настоящей длительности. Вместо этого — просто
+  // маленькие квадратные значки (по одному на КАЖДЫЙ присутствующий тип вложения), как в меню
+  // добавления блока в форме — компактно показывают "что внутри", тап по значку открывает
+  // карточку деталей события целиком.
+  function plannerEventExtraIconsHtml(e){
+    const present=new Set((e.blocks||[]).filter(b=>{
+      if(b.type==='image')return b.images?.length;
+      if(b.type==='checklist')return b.items?.length;
+      if(b.type==='poll')return b.question?.trim()||b.options?.some(o=>o.text?.trim());
+      if(b.type==='location')return b.label?.trim()||b.lat!=null;
+      if(b.type==='note')return b.text?.trim();
+      return false;
+    }).map(b=>b.type));
+    if(!present.size)return '';
+    return `<button type="button" class="pl-event-extra-icons" data-pl-inline="detail" aria-label="Открыть детали события">${[...present].map(t=>`<span class="pl-event-extra-icon" aria-label="${esc(PL_BLOCK_META[t]?.title||'')}">${icon(PL_BLOCK_META[t]?.icon||'more')}</span>`).join('')}</button>`;
+  }
+  const PL_EVENT_ICONS_THRESHOLD_H=70;
+  // Единая точка принятия решения "полный превью-контент вложений или только значки" — и подбор
+  // высоты события в renderPlannerTimeline (minH), и сама карточка в plannerRenderEventTile
+  // обязаны согласиться на одном и том же режиме, иначе карточка получит одну высоту, а контент
+  // внутри неё будет рассчитан на другую.
+  function plannerEventContentMode(e){
+    const naturalH=(Number(e.duration)||0)/60*PL_HOUR_PX-2;
+    const iconsHtml=plannerEventExtraIconsHtml(e);
+    if(!iconsHtml)return {mode:'none',minH:38,html:''};
+    if(naturalH<PL_EVENT_ICONS_THRESHOLD_H)return {mode:'icons',minH:54,html:iconsHtml};
+    return {mode:'full',minH:96,html:plannerEventExtraHtml(e)};
+  }
   // Вложения в компактной карточке (см. plannerEventExtraHtml выше) — статичные, без своего
   // скролла: раньше .pl-event-extra был overflow-y:auto и контент, который не влезал, либо
   // листался отдельным от ленты дня жестом (палец на вложении не должен был бы свайпать день),
@@ -2774,7 +2842,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const ev=state.planner.events.find(e=>e.id===id);if(!ev)return;
     $$('.pl-event-wrap[data-pl-event-id]').filter(w=>w.dataset.plEventId===id).forEach(w=>{
       const extra=$('.pl-event-extra',w);if(!extra)return;
-      const top=extra.scrollTop;extra.innerHTML=plannerEventExtraHtml(ev);extra.scrollTop=top;
+      const top=extra.scrollTop;extra.innerHTML=plannerEventContentMode(ev).html;extra.scrollTop=top;
       bindPlannerInline(w);
       plannerFitEventCards(w);
     });
@@ -2784,7 +2852,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $$('[data-pl-inline]',wrap).forEach(btn=>{
       btn.addEventListener('click',e=>{
         e.stopPropagation();
-        const ev=state.planner.events.find(x=>x.id===eventId),block=ev?.blocks.find(b=>b.id===btn.closest('[data-inline-block]').dataset.inlineBlock);
+        if(btn.dataset.plInline==='detail'){showPlannerDetail(eventId);return;}
+        const ev=state.planner.events.find(x=>x.id===eventId),block=ev?.blocks.find(b=>b.id===btn.closest('[data-inline-block]')?.dataset.inlineBlock);
         if(!block)return;
         if(btn.dataset.plInline==='check'){
           const item=block.items?.find(i=>i.id===btn.dataset.itemId);if(!item)return;
@@ -2813,8 +2882,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     });
   }
   const PL_MAX_COLS=3;
-  function plannerRenderEventTile(e,top,height,leftPct,widthPct,col,totalCols){
-    const extraHtml=plannerEventExtraHtml(e);
+  function plannerRenderEventTile(e,top,height,leftPct,widthPct,col,totalCols,isCurrent){
+    const {mode:contentMode,html:extraHtml}=plannerEventContentMode(e);
     const expanded=state.planner.expandedEventId===e.id;
     // Шапка (чекбокс+название на фоне цвета события/раздела) теперь двухцветная карточка
     // ВСЕГДА, а не только у достаточно высоких событий с вложениями — раньше большинство
@@ -2828,13 +2897,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `<div class="pl-event-wrap" data-pl-event-id="${e.id}" data-pl-col="${col}" data-pl-total-cols="${totalCols}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px)">
       <div class="pl-swipe-complete" aria-hidden="true">${icon('check')}</div>
       <div class="pl-event-actions"><button type="button" data-pl-event-edit aria-label="Редактировать">${icon('edit')}</button><button type="button" data-pl-event-delete aria-label="Удалить">${icon('trash')}</button></div>
-      <div role="button" tabindex="0" class="pl-event ${e.done?'done':''}" style="--pl-head:${plannerSectionColor(e.sectionId)};${e.color?`--pl-body:${e.color};--pl-ink:#171410;`:''}${plannerOutlineStyle(e)}">
+      <div role="button" tabindex="0" class="pl-event ${e.done?'done':''} ${isCurrent&&!e.done?'is-current':''}" style="--pl-head:${plannerSectionColor(e.sectionId)};${e.color?`--pl-body:${e.color};--pl-ink:#171410;`:''}${plannerOutlineStyle(e)}">
         <span class="pl-event-head">
           <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
           <span class="pl-event-title">${esc(e.title)}</span>
         </span>
         ${extraHtml?`<div class="pl-event-extra">${extraHtml}</div>`:''}
-        ${extraHtml?`<button type="button" class="pl-event-expand" data-pl-expand="${e.id}" aria-label="${expanded?'Свернуть':'Показать целиком'}" aria-expanded="${expanded}" ${expanded?'':'hidden'}>${icon('more')}</button>`:''}
+        ${contentMode==='full'?`<button type="button" class="pl-event-expand" data-pl-expand="${e.id}" aria-label="${expanded?'Свернуть':'Показать целиком'}" aria-expanded="${expanded}" ${expanded?'':'hidden'}>${icon('more')}</button>`:''}
       </div>
     </div>`;
   }
@@ -2845,17 +2914,34 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // часовые строки и карточки на этой ленте сдвигаются вниз на ту же величину. Часовые строки
   // сдвигаются сами собой (обычный поток документа, без absolute), карточкам сдвиг добавляется
   // явно через pxFor. Одновременно на день может быть раскрыто только одно событие.
-  function plannerTimelineExpansion(dateIso){
+  function plannerTimelineExpansion(dateIso,items){
     const ev=state.planner.expandedEventId?state.planner.events.find(x=>x.id===state.planner.expandedEventId):null;
-    if(!ev||ev.date!==dateIso)return null;
-    const startMin=plannerMinutesFromTime(ev.time||'00:00');
-    const minH=plannerEventExtraHtml(ev)?96:38;
-    const normalH=Math.max(minH,(ev.duration||0)/60*PL_HOUR_PX-2);
-    return {breakMin:startMin+normalH/PL_HOUR_PX*60,extraH:state.planner.expandedExtraH??PL_EXPANDED_EXTRA_H,id:ev.id};
+    if(ev&&ev.date===dateIso){
+      const startMin=plannerMinutesFromTime(ev.time||'00:00');
+      const minH=plannerEventExtraHtml(ev)?96:38;
+      const normalH=Math.max(minH,(ev.duration||0)/60*PL_HOUR_PX-2);
+      return {breakMin:startMin+normalH/PL_HOUR_PX*60,extraH:state.planner.expandedExtraH??PL_EXPANDED_EXTRA_H,id:ev.id};
+    }
+    // Развёрнутая плашка "+N" (см. renderPlannerTimeline/PL_CLUSTER_STRIP_MIN_H) тоже может
+    // требовать больше высоты, чем занимает кластер по факту своих коротких событий — тем же
+    // приёмом раздвигаем последующие часовые строки, чтобы полоска карточек не наезжала на то,
+    // что идёт ниже по времени.
+    if(state.planner.expandedClusterId&&items){
+      const cluster=items.find(it=>it.cluster&&it.cluster.map(x=>x.e.id).join(',')===state.planner.expandedClusterId)?.cluster;
+      if(cluster){
+        const minStart=Math.min(...cluster.map(it=>it.startMin)),maxEnd=Math.max(...cluster.map(it=>it.endMin));
+        const naturalH=(maxEnd-minStart)/60*PL_HOUR_PX-2;
+        const extraH=Math.max(0,PL_CLUSTER_STRIP_MIN_H-naturalH);
+        if(extraH>0)return {breakMin:maxEnd,extraH,id:null};
+      }
+    }
+    return null;
   }
   function renderPlannerTimeline(items,isToday,dateIso){
-    const curHour=isToday?new Date().getHours():-1;
-    const expansion=plannerTimelineExpansion(dateIso);
+    const now=new Date();
+    const curHour=isToday?now.getHours():-1;
+    const curMin=isToday?curHour*60+now.getMinutes():-1;
+    const expansion=plannerTimelineExpansion(dateIso,items);
     const pxFor=min=>min/60*PL_HOUR_PX+(expansion&&min>expansion.breakMin?expansion.extraH:0);
     const rows=[];
     for(let h=PL_START_HOUR;h<PL_END_HOUR;h++){
@@ -2876,7 +2962,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // (например, чеклист технически рендерится в DOM, но сжат до 1-2px и не виден). Карточка
       // в этом случае визуально выходит за границы своего временного отрезка на ленте — кнопка
       // "..." (см. plannerFitEventCards) даёт раскрыть её целиком без этого искажения.
-      const minH=plannerEventExtraHtml(e)?96:38;
+      const minH=plannerEventContentMode(e).minH;
       const top=pxFor(startMin);
       // Высота через pxFor(endMin)-top, а не через сырую длительность — иначе у события,
       // которое просто идёт рядом/после раскрытого (даже без вложений и кнопки "..." самого)
@@ -2887,80 +2973,54 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       let height;
       if(expansion&&e.id===expansion.id)height=Math.max(minH,(endMin-startMin)/60*PL_HOUR_PX-2)+expansion.extraH;
       else height=Math.max(minH,pxFor(endMin)-top-2);
+      const isCurrent=isToday&&curMin>=startMin&&curMin<endMin;
       if(totalCols<=PL_MAX_COLS){
-        parts.push(plannerRenderEventTile(e,top,height,col/totalCols*100,100/totalCols,col,totalCols));
+        parts.push(plannerRenderEventTile(e,top,height,col/totalCols*100,100/totalCols,col,totalCols,isCurrent));
         return;
       }
       const cols=PL_MAX_COLS+1;
-      if(col<PL_MAX_COLS){parts.push(plannerRenderEventTile(e,top,height,col/cols*100,100/cols,col,cols-1));return;}
+      const clusterKey=cluster.map(it=>it.e.id).join(',');
+      const isClusterExpanded=state.planner.expandedClusterId===clusterKey;
       if(drawnOverflow.has(cluster))return;
+      if(!isClusterExpanded&&col<PL_MAX_COLS){parts.push(plannerRenderEventTile(e,top,height,col/cols*100,100/cols,col,cols-1,isCurrent));return;}
       drawnOverflow.add(cluster);
+      if(isClusterExpanded){
+        const oTop=pxFor(Math.min(...cluster.map(it=>it.startMin)));
+        const oHeight=Math.max(PL_CLUSTER_STRIP_MIN_H,pxFor(Math.max(...cluster.map(it=>it.endMin)))-oTop-2);
+        const cardsHtml=cluster.slice().sort((a,b)=>a.startMin-b.startMin).map(it=>plannerClusterStripCard(it.e)).join('');
+        parts.push(`<div class="pl-event-wrap pl-cluster-expanded" style="top:${oTop}px;height:${oHeight}px;left:0;width:calc(100% - 4px)">
+          <div class="pl-cluster-strip" data-pl-cluster-strip>${cardsHtml}</div>
+          <button type="button" class="pl-cluster-collapse" data-pl-cluster-collapse="${esc(clusterKey)}" aria-label="Свернуть">${icon('close')}</button>
+        </div>`);
+        return;
+      }
       const hidden=cluster.filter(it=>it.col>=PL_MAX_COLS);
       const oTop=pxFor(Math.min(...hidden.map(it=>it.startMin)));
       const oHeight=Math.max(38,pxFor(Math.max(...hidden.map(it=>it.endMin)))-oTop-2);
-      const ids=cluster.map(it=>it.e.id).join(',');
       parts.push(`<div class="pl-event-wrap" style="top:${oTop}px;height:${oHeight}px;left:calc(${PL_MAX_COLS/cols*100}% + 2px);width:calc(${100/cols}% - 4px)">
-        <button type="button" class="pl-event-more" data-pl-cluster="${esc(ids)}" data-pl-date="${esc(dateIso)}" aria-label="Ещё ${hidden.length} событий">+${hidden.length}</button>
+        <button type="button" class="pl-event-more" data-pl-cluster="${esc(clusterKey)}" data-pl-date="${esc(dateIso)}" aria-label="Ещё ${hidden.length} событий"><span>+${hidden.length}</span>${icon('chevron-right')}</button>
       </div>`);
     });
     return `<div class="pl-timeline">${rows.join('')}<div class="pl-timeline-events">${parts.join('')}</div></div>`;
   }
-  // Плашка "+N" открывает лист с ГОРИЗОНТАЛЬНОЙ прокруткой по всем событиям кластера (включая
-  // уже видимые PL_MAX_COLS — так со всеми ими можно работать единообразно, не запоминая,
-  // какие уже были видны на ленте). Отдельный лист (не встроенный в саму ленту
-  // горизонтальный скролл) — сознательный выбор: пробовать делать сам таймлайн одновременно
-  // вертикально (по времени) и горизонтально (по кластеру) скроллящимся означало бы городить
-  // ещё один слой конкурирующих touch-action зон поверх уже непростой пары
-  // range-select/drag-to-retime — источник большинства свайп-багов в этом файле. Отдельный
-  // лист с обычным overflow-x:auto (нативный скролл, без единой строчки жестового JS) даёт
-  // ту же возможность "полистать вбок" надёжно и почти бесплатно.
-  function plannerShowClusterSheet(ids){
-    const events=ids.map(id=>state.planner.events.find(x=>x.id===id)).filter(Boolean).sort((a,b)=>plannerMinutesFromTime(a.time)-plannerMinutesFromTime(b.time));
-    if(!events.length)return;
-    const cards=events.map(e=>`<button type="button" class="pl-cluster-card ${e.done?'done':''}" data-pl-cluster-open="${e.id}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
+  // Плашка "+N" разворачивает кластер прямо на ленте (в тот же прямоугольник, что занимали 4
+  // столбца, только теперь на всю ширину) в виде горизонтально прокручиваемой полоски карточек —
+  // видно вообще все события кластера, не только "скрытые" сверх PL_MAX_COLS. Раньше это был
+  // отдельный модальный лист (сознательно, чтобы не городить второй слой скролла поверх и без
+  // того непростой пары range-select/drag-to-retime) — по прямой просьбе пользователя вернули
+  // это прямо в ленту: обычный overflow-x:auto с touch-action:pan-x внутри вертикально
+  // скроллящегося родителя — устоявшийся, надёжный браузерный паттерн (как горизонтальная
+  // карусель внутри вертикальной ленты), никакого самодельного жестового JS для самой прокрутки
+  // не требуется, так что риск конфликта тот же, что и у любого другого overflow-x:auto блока
+  // на странице.
+  function plannerClusterStripCard(e){
+    return `<button type="button" class="pl-cluster-card ${e.done?'done':''}" data-pl-cluster-open="${e.id}" style="--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}">
       <span class="pl-event-check ${e.done?'done':''}" data-pl-toggle="${e.id}">${e.done?icon('check'):''}</span>
-      <span class="pl-cluster-card-time">${esc(e.time)}</span>
-      <span class="pl-cluster-card-title">${esc(e.title)}</span>
-    </button>`).join('');
-    const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${events.length} событий</div>
-      <div class="pl-cluster-scroll">${cards}</div>
-    </div>`,{sheet:true});
-    $$('[data-pl-toggle]',ov).forEach(b=>b.onclick=e=>{e.stopPropagation();plannerToggleDone(b.dataset.plToggle);b.closest('.pl-cluster-card')?.classList.toggle('done',b.classList.contains('done'));});
-    $$('[data-pl-cluster-open]',ov).forEach(b=>b.onclick=()=>{closeOverlay();showPlannerDetail(b.dataset.plClusterOpen);});
-    // bindSheetDismiss (см. её комментарий) намеренно тянет только за ручку/заголовок — не за
-    // всю шторку, чтобы не конфликтовать с внутренним скроллом. Здесь это можно расширить
-    // безопасно: .pl-cluster-scroll скроллится ТОЛЬКО по горизонтали, так что вертикальный
-    // свайп внутри нег��о никогда не борется за жест с горизонтальной прокруткой карточек —
-    // достаточно определить ось движения перед тем, как решить, что это именно закрытие.
-    const scrollZone=$('.pl-cluster-scroll',ov),sheetEl=$('.sheet',ov);
-    if(scrollZone&&sheetEl){
-      let sy=0,sx=0,pid=null,axis=null;
-      scrollZone.addEventListener('pointerdown',e=>{pid=e.pointerId;sy=e.clientY;sx=e.clientX;axis=null;scrollZone.setPointerCapture?.(pid);},{passive:true});
-      scrollZone.addEventListener('pointermove',e=>{
-        if(e.pointerId!==pid)return;
-        const dy=e.clientY-sy,dx=e.clientX-sx;
-        if(axis===null){
-          if(Math.abs(dy)<8&&Math.abs(dx)<8)return;
-          axis=Math.abs(dy)>Math.abs(dx)?'y':'x';
-          if(axis==='y')sheetEl.style.transition='';
-        }
-        if(axis!=='y'||dy<0)return;
-        e.preventDefault();
-        sheetEl.style.transform='translate3d(0,'+dy+'px,0)';
-      },{passive:false});
-      const finishScroll=e=>{
-        if(e.pointerId!==pid)return;
-        pid=null;
-        if(axis==='y'){
-          const dy=Math.max(0,e.clientY-sy);
-          if(dy>80){closeOverlay();return;}
-          sheetEl.style.transition='transform .2s ease';sheetEl.style.transform='';
-        }
-        axis=null;
-      };
-      scrollZone.addEventListener('pointerup',finishScroll,{passive:true});
-      scrollZone.addEventListener('pointercancel',finishScroll,{passive:true});
-    }
+      <span class="pl-cluster-card-body">
+        <span class="pl-cluster-card-time">${esc(e.time)}</span>
+        <span class="pl-cluster-card-title">${esc(e.title)}</span>
+      </span>
+    </button>`;
   }
   function bindPlannerEvents(){
     $$('[data-pl-section]').forEach(b=>{b.onclick=()=>{state.planner.activeSection=b.dataset.plSection||null;renderScreen();};bindPlannerSectionDrag(b);});
@@ -2999,7 +3059,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       state.planner.expandedExtraH=null;
       renderScreen();
     });
-    $$('[data-pl-cluster]').forEach(b=>b.onclick=()=>plannerShowClusterSheet(b.dataset.plCluster.split(',')));
+    $$('[data-pl-cluster]').forEach(b=>b.onclick=()=>{state.planner.expandedClusterId=b.dataset.plCluster;renderScreen();});
+    $$('[data-pl-cluster-collapse]').forEach(b=>b.onclick=e=>{e.stopPropagation();state.planner.expandedClusterId=null;renderScreen();});
+    $$('[data-pl-cluster-open]').forEach(b=>b.onclick=()=>showPlannerDetail(b.dataset.plClusterOpen));
     $$('.pl-timeline').forEach(tl=>bindPlannerRangeSelect(tl));
     bindPlannerScroll();
     bindPlannerPinch();
@@ -4260,11 +4322,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // есть — клик всегда дописывает НОВЫЙ блок в конец списка. Фото сжимаются в data URL
     // (макс. 4 на блок), локация — lat/lng + встроенный OSM-превью без ключа.
     let blocks=(existing?.blocks||[]).map(b=>b.type==='checklist'?{...b,items:b.items.map(i=>({...i}))}:b.type==='poll'?{...b,options:b.options.map(o=>({...o}))}:b.type==='image'?{...b,images:b.images.slice()}:{...b});
-    // location оставлен в blockMeta только чтобы СТАРЫЕ события с уже сохранённым блоком
+    // location оставлен в PL_BLOCK_META только чтобы СТАРЫЕ события с уже сохранённым блоком
     // локации по-прежнему открывались и редактировались нормально (см. миграцию e.location →
     // blocks в normalizePlannerEvent) — в меню добавления блока (renderBlocks ниже) его больше
     // нет, вместо него теперь "Примечание" (note) — простое текстовое описание.
-    const blockMeta={checklist:{title:'Чеклист',icon:'check'},poll:{title:'Опрос',icon:'poll'},image:{title:'Фото',icon:'image'},note:{title:'Примечание',icon:'article'},location:{title:'Локация',icon:'pin'}};
+    const blockMeta=PL_BLOCK_META;
     const blockContentHtml=b=>{
       if(b.type==='checklist')return `<div>${b.items.map(s=>`<div class="pl-checklist-row" data-id="${s.id}"><span class="pl-task-check ${s.done?'done':''}" data-checklist-toggle="${s.id}">${s.done?icon('check'):''}</span><input class="field" value="${esc(s.text)}"><button type="button" class="pl-attach-remove" data-remove>${icon('close')}</button></div>`).join('')}</div>
         <div class="pl-attach-add-row"><input class="field" data-checklist-new="${b.id}" placeholder="Новый пункт"><button type="button" class="gold-action" data-checklist-add="${b.id}" style="flex:0 0 auto">+</button></div>`;
@@ -4281,7 +4343,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     };
     const renderBlocks=()=>{
       $('#pl-block-add-row',ov).innerHTML=['checklist','poll','image','note'].map(t=>`<button type="button" data-attach-add="${t}">${icon(blockMeta[t].icon)}<span>${blockMeta[t].title}</span></button>`).join('');
-      $$('#pl-block-add-row [data-attach-add]',ov).forEach(b=>b.onclick=()=>addBlock(b.dataset.attachAdd));
+      $$('#pl-block-add-row [data-attach-add]',ov).forEach(b=>b.onclick=()=>{
+        if(!reducedMotion())b.animate?.([{transform:'scale(1)'},{transform:'scale(.86)'},{transform:'scale(1)'}],{duration:220,easing:'cubic-bezier(.34,1.56,.64,1)'});
+        addBlock(b.dataset.attachAdd);
+      });
       $('#pl-block-list',ov).innerHTML=blocks.map(b=>`<div class="pl-block-row" data-block-id="${b.id}">
         <div class="pl-block-head">
           <span class="pl-block-icon">${icon(blockMeta[b.type].icon)}</span>
@@ -4305,6 +4370,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(type==='note')b.text='';
       blocks.push(b);
       renderBlocks();
+      const row=$(`[data-block-id="${b.id}"]`,ov);
+      if(row){
+        row.scrollIntoView({block:'nearest',behavior:reducedMotion()?'auto':'smooth'});
+        if(!reducedMotion()){row.classList.add('is-new');setTimeout(()=>row.classList.remove('is-new'),700);}
+      }
     };
     const removeBlock=id=>{blocks=blocks.filter(b=>b.id!==id);renderBlocks();};
     const bindBlockContent=()=>{
@@ -4806,7 +4876,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Долгое нажатие на сообщение в комментариях теперь выделяет его на месте (как в Telegram) и показывает рядом меню "Скопировать / Редактировать / Скачать / Удалить" — экран деталей события никуда не переключается. Удаление — с 8-секундной отменой, как у событий/привычек. Круглые кнопки (в том числе на главном экране) на телефоне больше не съезжают от центра — добавлен явный нулевой отступ, которого не хватало одному сбросу нативного вида кнопки. Починен баг, из-за которого пустой блок прикреплённого к комментарию фото иногда оставался едва заметной белой полоской после отправки — та же причина, что и у кнопки "..." под событием, которая из-за неё была видна всегда, а не только когда реально нужна. Свои сообщения в комментариях — справа, как в обычных мессенджерах. Кнопка "..." больше не перекрывает чеклист/фото — сама уступает им место. Убраны системные надписи "Выбрать файл". При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный, но не подтверждённый "+", тоже сохраняется по общему "Сохранить". Фото в карточке события всегда обрезается под её размер. Золотистые акценты в светлой теме ярче. Переключение между разделами — с короткой анимацией. Добавлена система тем: светлая, тёмная, системная. Тап по фото в комментариях открывает его на весь экран с кнопкой "Сохранить". Найден и исправлен настоящий баг задвоенного текста "Сохранить"/"Успешно" на кнопке сохранения фото. Смена подписи "Сохранить"→"Успешно" теперь плавная. Отметка события выполненным больше не перерисовывает весь экран — соседние карточки с фото/вложениями не моргают, у отметки — та же анимация, что у чеклиста. Кнопка "..." снова появляется на карточках, где не хватило места именно фото. У карточки события — лёгкая тень. Долгое нажатие на комментарий больше не накладывает его текст сам на себя. Убрана плашка "Правка сообщения". Тап по центральной дате открывает календарь для перехода на любой день. Убрана подсказка про перетаскивание блоков в форме события. Убран выбор раздела и лишний кружок цвета в форме события. Кнопка "Другая дата" убрана — даты появляются сами, только если время окончания раньше начала. Пустое название события при сохранении трясётся красным. Панель свайп-действий и кнопка числового режима у привычек больше не чёрные в светлой теме, а графики (кольцо дисциплины, финансы) красятся актуальным цветом темы, а не всегда тёмным. Блок "Локация" заменён на "Примечание" — простой текст к событию. Лист с "+N событий" теперь закрывается свайпом вниз прямо со списка. Блоки вложений внутри карточки события (чеклист, примечание и т.д.) теперь визуально выделены отдельными скруглёнными плашками, а не сливаются друг с другом. Чекбоксы чеклиста в форме события были почти невидимы в тёмной теме (тёмная рамка на тёмном фоне) — теперь видны. Отметка пункта чеклиста в форме — с анимацией, без перерисовки всей формы. Свайп по карточке события/задачи требовал слишком мало отклонения от вертикали, из-за чего обычный скролл ленты легко срывался в свайп — порог сделан заметно строже. Месячный вид грузит больше месяцев за раз, чтобы решительный скролл не спотыкался о перестройку окна виртуализации. Плашка даты теперь открывает тот же системный календарь, что и везде в приложении, а не отдельный самодельный. Меню действий комментария (редактировать/скачать/удалить) было зашито в тёмный цвет — теперь следует теме. Золотой цвет в привычках (кольцо дисциплины, график, календарь) обновлён везде, где раньше оставался тёмным. У карточки события в тёмной теме — золотое свечение вместо невидимой тени. Вложения в карточке события больше не скроллятся и не обрезаются серединой — то, что не помещается целиком, скрывается полностью, а раскрытие "..." подгоняет высоту карточки ровно под все вложения. Длинные названия привычек, а также название события, пункты чеклиста и варианты опроса на карточке события больше не переносятся по буквам — аккуратно обрезаются или затухают по краю. Свечение карточки события в тёмной теме сделано красивее (двухслойное, тоньше и ярче у края). Кнопки редактировать/удалить при свайпе события всегда делят панель строго поровну. Карточка деталей события переработана: заголовок, затем время, затем дата, затем крупное фото по центру — без мелких квадратиков. Добавлять новые пункты чеклиста из карточки деталей больше нельзя (только через редактирование) — отмечать выполненные можно как раньше. Карточку деталей можно свернуть свайпом вниз не только за узкую ручку, но и за всю верхнюю область с заголовком. Затухание длинных названий привычек, а также текста в чеклисте/опросе события, срабатывает только когда текст правда не помещается — раньше могло чуть подрезать и то, что помещалось целиком. На узких карточках (3-4 события рядом) кнопки редактировать/удалить при свайпе теперь занимают всю карточку пополам, а не только часть у края. Золотое свечение карточки события в тёмной теме усилено (три слоя вместо одного). В карточке деталей теперь виден весь диапазон времени (начало–конец), а не только начало. Заголовок карточки деталей стал крупнее и умеет уменьшаться под длинные названия, но всегда занимает одну и ту же площадь. Найдена и исправлена настоящая причина, по которой кнопка "+N" (когда событий больше 3 в одно время) не появлялась — она рисовалась, но улетала далеко за пределы экрана из-за ошибки в расчёте позиции; теперь видна и хорошо заметна (золотая, а не почти прозрачная). Убрана ручка "перетащить" (шесть точек) с вложений на самой карточке события в ленте — она была лишней (порядок вложений меняется в форме редактирования) и на узких карточках выглядела криво. Названия задач и карточек в списке "+N событий" больше не переносятся по буквам.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Долгое нажатие на сообщение в комментариях теперь выделяет его на месте (как в Telegram) и показывает рядом меню "Скопировать / Редактировать / Скачать / Удалить" — экран деталей события никуда не переключается. Удаление — с 8-секундной отменой, как у событий/привычек. Круглые кнопки (в том числе на главном экране) на телефоне больше не съезжают от центра — добавлен явный нулевой отступ, которого не хватало одному сбросу нативного вида кнопки. Починен баг, из-за которого пустой блок прикреплённого к комментарию фото иногда оставался едва заметной белой полоской после отправки — та же причина, что и у кнопки "..." под событием, которая из-за неё была видна всегда, а не только когда реально нужна. Свои сообщения в комментариях — справа, как в обычных мессенджерах. Кнопка "..." больше не перекрывает чеклист/фото — сама уступает им место. Убраны системные надписи "Выбрать файл". При раскрытии короткого события соседние и следующие по времени события тоже сдвигаются и вытягиваются, чтобы заканчиваться в своё настоящее время. Пункт чеклиста, набранный, но не подтверждённый "+", тоже сохраняется по общему "Сохранить". Фото в карточке события всегда обрезается под её размер. Золотистые акценты в светлой теме ярче. Переключение между разделами — с короткой анимацией. Добавлена система тем: светлая, тёмная, системная. Тап по фото в комментариях открывает его на весь экран с кнопкой "Сохранить". Найден и исправлен настоящий баг задвоенного текста "Сохранить"/"Успешно" на кнопке сохранения фото. Смена подписи "Сохранить"→"Успешно" теперь плавная. Отметка события выполненным больше не перерисовывает весь экран — соседние карточки с фото/вложениями не моргают, у отметки — та же анимация, что у чеклиста. Кнопка "..." снова появляется на карточках, где не хватило места именно фото. У карточки события — лёгкая тень. Долгое нажатие на комментарий больше не накладывает его текст сам на себя. Убрана плашка "Правка сообщения". Тап по центральной дате открывает календарь для перехода на любой день. Убрана подсказка про перетаскивание блоков в форме события. Убран выбор раздела и лишний кружок цвета в форме события. Кнопка "Другая дата" убрана — даты появляются сами, только если время окончания раньше начала. Пустое название события при сохранении трясётся красным. Панель свайп-действий и кнопка числового режима у привычек больше не чёрные в светлой теме, а графики (кольцо дисциплины, финансы) красятся актуальным цветом темы, а не всегда тёмным. Блок "Локация" заменён на "Примечание" — простой текст к событию. Лист с "+N событий" теперь закрывается свайпом вниз прямо со списка. Блоки вложений внутри карточки события (чеклист, примечание и т.д.) теперь визуально выделены отдельными скруглёнными плашками, а не сливаются друг с другом. Чекбоксы чеклиста в форме события были почти невидимы в тёмной теме (тёмная рамка на тёмном фоне) — теперь видны. Отметка пункта чеклиста в форме — с анимацией, без перерисовки всей формы. Свайп по карточке события/задачи требовал слишком мало отклонения от вертикали, из-за чего обычный скролл ленты легко срывался в свайп — порог сделан заметно строже. Месячный вид грузит больше месяцев за раз, чтобы решительный скролл не спотыкался о перестройку окна виртуализации. Плашка даты теперь открывает тот же системный календарь, что и везде в приложении, а не отдельный самодельный. Меню действий комментария (редактировать/скачать/удалить) было зашито в тёмный цвет — теперь следует теме. Золотой цвет в привычках (кольцо дисциплины, график, календарь) обновлён везде, где раньше оставался тёмным. У карточки события в тёмной теме — золотое свечение вместо невидимой тени. Вложения в карточке события больше не скроллятся и не обрезаются серединой — то, что не помещается целиком, скрывается полностью, а раскрытие "..." подгоняет высоту карточки ровно под все вложения. Длинные названия привычек, а также название события, пункты чеклиста и варианты опроса на карточке события больше не переносятся по буквам — аккуратно обрезаются или затухают по краю. Свечение карточки события в тёмной теме сделано красивее (двухслойное, тоньше и ярче у края). Кнопки редактировать/удалить при свайпе события всегда делят панель строго поровну. Карточка деталей события переработана: заголовок, затем время, затем дата, затем крупное фото по центру — без мелких квадратиков. Добавлять новые пункты чеклиста из карточки деталей больше нельзя (только через редактирование) — отмечать выполненные можно как раньше. Карточку деталей можно свернуть свайпом вниз не только за узкую ручку, но и за всю верхнюю область с заголовком. Затухание длинных названий привычек, а также текста в чеклисте/опросе события, срабатывает только когда текст правда не помещается — раньше могло чуть подрезать и то, что помещалось целиком. На узких карточках (3-4 события рядом) кнопки редактировать/удалить при свайпе теперь занимают всю карточку пополам, а не только часть у края. Золотое свечение карточки события в тёмной теме усилено (три слоя вместо одного). В карточке деталей теперь виден весь диапазон времени (начало–конец), а не только начало. Заголовок карточки деталей стал крупнее и умеет уменьшаться под длинные названия, но всегда занимает одну и ту же площадь. Найдена и исправлена настоящая причина, по которой кнопка "+N" (когда событий больше 3 в одно время) не появлялась — она рисовалась, но улетала далеко за пределы экрана из-за ошибки в расчёте позиции; теперь видна и хорошо заметна (золотая, а не почти прозрачная). Убрана ручка "перетащить" (шесть точек) с вложений на самой карточке события в ленте — она была лишней (порядок вложений меняется в форме редактирования) и на узких карточках выглядела криво. Названия задач и карточек в списке "+N событий" больше не переносятся по буквам. Кнопка "+N" переработана: теперь она разворачивается прямо в ленте (не отдельным окном) в горизонтально прокручиваемую полоску со всеми событиями кластера и кнопкой свернуть. Короткие события с вложениями показывают не полный текст (который физически не помещается), а маленькие квадратные значки по типу вложения — как в меню добавления в форме; тап по ним открывает детали события. Событие, которое идёт прямо сейчас — с золотой обводкой и лёгким свечением. Найден и исправлен настоящий баг, из-за которого свайп-закрытие шторок (и вниз пальцем, и через кнопку/фон/Escape) не анимировалось, а просто пропадало разом — CSS-анимация открытия конфликтовала с JS-анимацией закрытия. Добавление вложения в форме события — с откликом: кнопка подпрыгивает, а новый блок ненадолго подсвечивается золотым и в него автоматически прокручивается.</p></section>
     </div></section>`;
   }
 
@@ -5587,6 +5657,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const grabZone=$('.sheet-title',ov)||$('.pl-detail-head',ov);
     const onPointerDown=e=>{
       pointerId=e.pointerId;startY=e.clientY;dragging=true;
+      // .sheet открывается через CSS animation:sheetIn ... both — fill-mode "both" держит
+      // transform:none (конечный кадр анимации) поверх ЛЮБОГО inline transform, который мы
+      // выставим ниже через JS, пока анимация не снята явно. Без этой строки палец тянет
+      // sheetEl.style.transform, а реально применённый (computed) transform остаётся identity —
+      // шторка визуально не следует за пальцем и на закрытии не едет вниз, а просто исчезает
+      // разом, когда истекает таймер в closeOverlay(). Снимаем анимацию один раз при первом же
+      // касании ручки — дальше это уже обычный inline-transform без конкурентов.
+      sheetEl.style.animation='none';
       sheetEl.style.transition='';
       (e.currentTarget).setPointerCapture?.(pointerId);
     };
@@ -5641,8 +5719,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     ov.style.transition='background-color .18s ease';
     ov.style.pointerEvents='none';
     requestAnimationFrame(()=>{ov.style.backgroundColor='transparent';});
-    if(sheetEl){sheetEl.style.transition='transform .18s cubic-bezier(.4,0,1,1)';sheetEl.style.transform='translate3d(0,100%,0)';}
-    else if(modalEl){modalEl.style.transition='transform .18s ease,opacity .18s ease';modalEl.style.transform='scale(.94)';modalEl.style.opacity='0';}
+    // sheetEl.style.animation='none' — та же причина, что и в bindSheetDismiss.onPointerDown
+    // (см. её комментарий): без снятия анимации sheetIn (fill-mode "both") строка ниже просто
+    // не подействует — шторка молча просидит на месте (transform:none) все 180мс, а не уедет
+    // вниз, и в итоге "исчезнет" разом по таймеру вместо плавной анимации закрытия.
+    if(sheetEl){sheetEl.style.animation='none';sheetEl.style.transition='transform .18s cubic-bezier(.4,0,1,1)';sheetEl.style.transform='translate3d(0,100%,0)';}
+    else if(modalEl){modalEl.style.animation='none';modalEl.style.transition='transform .18s ease,opacity .18s ease';modalEl.style.transform='scale(.94)';modalEl.style.opacity='0';}
     setTimeout(()=>{ov.remove();},180);
   }
   function showToast(text,ok=false){
