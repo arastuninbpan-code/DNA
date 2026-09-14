@@ -4623,7 +4623,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const ev=state.planner.events.find(x=>x.id===id);if(!ev)return;
     const ov=overlay(`<div class="sheet" data-pl-event-detail="${esc(ev.id)}"><div class="sheet-handle"></div><div class="pl-detail">
       <div class="pl-detail-head"><h2 class="pl-detail-title">${esc(ev.title)}</h2><button class="text-btn" data-pl-edit aria-label="Редактировать">${icon('edit')}</button></div>
-      ${ev.time?`<div class="pl-detail-time">${esc(ev.time)}</div>`:''}
+      ${ev.time?`<div class="pl-detail-time">${esc(ev.duration?ev.time+'–'+plannerMinutesToTime(plannerMinutesFromTime(ev.time)+ev.duration):ev.time)}</div>`:''}
       ${ev.date?`<div class="pl-detail-date">${esc(formatPlannerDate(ev.date))}</div>`:''}
       ${plannerImagesView(ev)}
       ${plannerLocationView(ev)}
