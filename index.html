@@ -1679,9 +1679,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-extra{box-sizing:border-box;gap:8px;padding:8px;}
 .pl-event-extra-option>span:not(.pl-event-extra-option-fill){min-width:0;}
 .pl-event-extra-option>span:last-child{flex-shrink:0;}
+.pl-event-extra-option{display:grid;grid-template-columns:minmax(0,1fr) auto;text-align:left;}
+.pl-event-extra-option>.pl-event-extra-option-fill{position:absolute;pointer-events:none;}
+:root[data-theme="light"] .pl-chip.active{color:var(--white);}
 .pl-inline-block[hidden],.pl-event-extra-tile[hidden]{display:none!important;}
 .pl-inline-block-image .pl-event-extra-image+.pl-event-extra-image{margin-top:8px;}
 .pl-event-extra-icons{overflow:hidden;min-height:0;}
+.pl-event:has(.pl-event-extra-icons) .pl-event-head{padding:4px 6px;}
+.pl-event:has(.pl-event-extra-icons) .pl-event-extra{padding:4px;}
+.pl-event:has(.pl-event-extra-icons) .pl-event-expand{margin:2px 0;}
 .pl-event-extra-tile{min-width:28px;min-height:28px;}
 .pl-event-expand:not([hidden]){width:auto;min-width:34px;padding:0 7px;font-size:11px;}
 .pl-chip:not(.pl-chip-add){max-width:min(260px,75vw);white-space:normal;word-break:normal;overflow-wrap:normal;}
@@ -1731,7 +1737,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.24.0';
+  const APP_VERSION = '0.24.1';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -4543,7 +4549,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       clearTimeout(draftTimer);if(finished||!dirty)return true;
       syncPending();
       try{
-        localStorage.setItem(draftKey,JSON.stringify({eventId,title:$('#pl-title',ov).value,date:$('#pl-date-value',ov).value,time:$('#pl-time-value',ov).value,endTime:$('#pl-time-end-value',ov).value,endDate:$('#pl-end-date-value',ov).value,timeOn:$('#pl-time-toggle',ov).classList.contains('on'),sectionId,color,blocks}));
+        localStorage.setItem(draftKey,JSON.stringify({eventId,title:$('#pl-title',ov).value,date:$('#pl-date-value',ov).value,time:$('#pl-time-value',ov).value,endTime:$('#pl-time-end-value',ov).value,endDate:$('#pl-end-date-value',ov).value,timeOn:$('#pl-time-toggle',ov).classList.contains('on'),endTouched,endDateTouched,sectionId,color,blocks}));
         $('#pl-draft-status',ov).textContent='Черновик сохранён';return true;
       }catch(_){$('#pl-draft-status',ov).textContent='Не удалось сохранить: проверь свободное место';return false;}
     };
@@ -4732,7 +4738,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // значением и на сохранении читается как "конец раньше начала", ошибочно уезжая на
     // следующий день.
     $$('.pl-time-input',ov).forEach(inp=>inp.addEventListener('click',()=>{try{inp.showPicker?.();}catch(_){}}));
-    let endTouched=!!draft,endDateTouched=!!draft;
+    let endTouched=!!draft?.endTouched,endDateTouched=!!draft?.endDateTouched;
     // Многодневность события — не ручной переключатель, а чистое следствие введённых значений:
     // если время окончания раньше времени начала (переход через полночь) или дата окончания уже
     // явно отличается от даты начала, поля дат появляются сами, без отдельной кнопки "Другая
