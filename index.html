@@ -1442,7 +1442,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    же JS-жест (см. bindPlannerRangeSelect — та же "быстрая прокрутка пустого места", что и у
    обычного, нераскрытого дня, только тут дополнительно двигает ещё и scrollLeft) — из одного
    касания получается настоящая диагональ, а не переключение между осями. */
-.pl-timeline-hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;touch-action:none;}
+.pl-timeline-hscroll{overflow:visible;touch-action:none;}
+.pl-scroll.pl-pan-canvas{overflow:auto;}
+.pl-scroll.pl-pan-canvas .pl-day-block{width:var(--pl-canvas-width);min-width:100%;}
 .pl-timeline-hscroll .pl-timeline-events{overflow:visible;}
 /* Карточки внутри развёрнутого кластера НЕ теряют свой обычный touch-action:none и остаются
    полностью функциональными — свайп-влево редактировать/удалить и долгое нажатие для
@@ -1689,9 +1691,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-wrap .pl-swipe-complete{visibility:hidden;}
 .pl-event-wrap.is-completing .pl-swipe-complete{visibility:visible;}
 :root[data-theme="light"] .pl-chip.active{color:var(--white);}
+@media(prefers-color-scheme:light){:root:not([data-theme]) .pl-chip.active{color:var(--white);}}
 .pl-inline-block[hidden],.pl-event-extra-tile[hidden]{display:none!important;}
 .pl-inline-block-image .pl-event-extra-image+.pl-event-extra-image{margin-top:8px;}
-.pl-event-extra-icons{overflow:hidden;min-height:0;}
+.pl-event-extra-icons{overflow:hidden;min-height:0;flex-direction:column;}
+.pl-event-extra-icons>.pl-event-extra-tile{width:100%;height:auto;min-height:0;flex:1 1 0;}
 .pl-event:has(.pl-event-extra-icons) .pl-event-head{padding:4px 6px;}
 .pl-event:has(.pl-event-extra-icons) .pl-event-extra{padding:4px;}
 .pl-event:has(.pl-event-extra-icons) .pl-event-expand{margin:2px 0;}
@@ -1703,6 +1707,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-date-range-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;}
 .pl-date-range-row .pl-form-row{min-width:0;}
 .pl-date-range-row input{min-width:0;width:100%;box-sizing:border-box;}
+.pl-time-field>label,.pl-date-range-row .pl-form-row>label{display:block;text-align:center;}
+.pl-date-range-row .pl-form-row{display:flex;flex-direction:column;gap:6px;}
+.pl-date-range-row .pl-form-row>label{margin:0;}
+.pl-time-input-wrap .pl-date-input{position:absolute;inset:0;width:100%;height:100%;min-width:0;opacity:0;margin:0;padding:0;border:0;font-size:16px;cursor:pointer;}
+.pl-date-display{font-size:14px;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;color:var(--white);pointer-events:none;}
+.pl-time-input-wrap .pl-date-input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;}
 .pl-time-input-wrap .pl-time-input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;}
 .pl-draft-status{min-height:18px;font-size:12px;color:var(--muted);margin:8px 0;}
 .sheet-handle,.sheet-title,.pl-detail-head{touch-action:none;}
@@ -1752,7 +1762,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.24.2';
+  const APP_VERSION = '0.24.3';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1822,8 +1832,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       applyThemeMode._t=setTimeout(()=>root.classList.remove('theme-transition'),260);
     }
     const resolved=resolvedTheme(mode);
-    root.dataset.theme=resolved;
-    root.style.colorScheme=resolved;
+    if(mode==='system'){delete root.dataset.theme;root.style.colorScheme='light dark';}
+    else{root.dataset.theme=resolved;root.style.colorScheme=resolved;}
+    applyThemeMode.resolved=resolved;
     const metaTheme=document.querySelector('meta[name="theme-color"]');
     if(metaTheme)metaTheme.content=resolved==='light'?'#F7F4ED':'#0A0A0A';
     // Canvas-графики (привычки/финансы) сами не подписаны на CSS var — перерисовываем их поверх
@@ -1850,11 +1861,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // ровно поэтому "системная" тема визуально не успевала подхватить живое переключение ОС,
     // хотя applyThemeMode технически отрабатывал (canvas/GOLD/meta обновлялись, а всё остальное
     // — нет, до следующего непричастного к теме рендера).
-    const onSystemChange=()=>{if(themeMode==='system'&&document.documentElement.dataset.theme!==resolvedTheme('system')){applyThemeMode('system',true);renderScreen();}};
+    const onSystemChange=()=>{if(themeMode==='system'&&applyThemeMode.resolved!==resolvedTheme('system')){applyThemeMode('system',true);renderScreen();}};
+    const resumeTheme=()=>{onSystemChange();requestAnimationFrame(onSystemChange);setTimeout(onSystemChange,250);};
     sysDarkQuery.addEventListener?sysDarkQuery.addEventListener('change',onSystemChange):sysDarkQuery.addListener?.(onSystemChange);
-    window.addEventListener('pageshow',onSystemChange);
-    window.addEventListener('focus',onSystemChange);
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden)onSystemChange();});
+    window.addEventListener('pageshow',resumeTheme);
+    window.addEventListener('focus',resumeTheme);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeTheme();});
+    setInterval(()=>{if(!document.hidden&&themeMode==='system')onSystemChange();},1500);
   }
   // Миграция: старые записи (транзакции/цели/активы) хранились по индексу массива, не по id —
   // после удаления/сортировки индексы «плывут» и легко зацепить не ту запись. Добиваем id всем,
@@ -2981,7 +2994,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(expandBtn)expandBtn.hidden=compact;
         $('.pl-event-extra-more',icons)?.remove();
         const tiles=$$('.pl-event-extra-tile',icons);
-        const capacity=icons.clientHeight>=24?Math.max(0,Math.floor((icons.clientWidth+3)/19)):0;
+        const capacity=icons.clientWidth>=16?Math.max(0,Math.floor((icons.clientHeight+3)/27)):0;
         const visible=tiles.length>capacity?Math.max(0,capacity-1):tiles.length;
         tiles.forEach((tile,i)=>{tile.hidden=i>=visible;});
         const omitted=tiles.length-visible;
@@ -3382,7 +3395,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // всегда лента дня, даже если .pl-event-extra технически имеет overflow (напр. из-за
       // чеклиста под фото в том же событии). См. выбор scroller в pointermove ниже.
       press={id:e.pointerId,x:e.clientX,y:e.clientY,lastY:e.clientY,from:offset,wasOpen:open,extra:e.target.closest('.pl-event-extra'),isImage:!!e.target.closest('.pl-event-extra-image'),axis:null,samples:[{x:e.clientX,t:performance.now()}],maxRightSafe};
-      press.ribbon=wrap.closest('.pl-timeline-hscroll')||wrap.closest('.pl-scroll')?.querySelector('.pl-timeline-hscroll');
+      const panRoot=wrap.closest('.pl-scroll');
+      press.ribbon=panRoot?.classList.contains('pl-pan-canvas')?panRoot:null;
       press.lastX=e.clientX;
       press.collapse=state.planner.expandedEventId===wrap.dataset.plEventId&&!!e.target.closest('.pl-event-head')&&!e.target.closest('button');
     },{passive:true});
@@ -3989,7 +4003,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         // Развёрнутая лента кластера (см. .pl-timeline-hscroll) — тот же самый жест ведёт ещё и
         // горизонталь тем же самым касанием, не дожидаясь отдельного жеста: тянешь по диагонали —
         // едут оба скролла сразу, а не только вертикальный, как у обычного (нераскрытого) дня.
-        const ribbon=tl.classList.contains('pl-timeline-hscroll')?tl:scroller?.querySelector('.pl-timeline-hscroll');
+        const ribbon=scroller?.classList.contains('pl-pan-canvas')?scroller:null;
         if(forwarder&&ribbon){ribbon.scrollLeft-=e.clientX-press.lastX;plannerRibbonScrollLeft=ribbon.scrollLeft;}
         press.lastY=e.clientY;press.lastX=e.clientX;
         return;
@@ -4072,9 +4086,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // приём, что у graphScrollLeft в привычках) и накатываем её сразу после рендера.
       const ribbon=$('.pl-timeline-hscroll');
       if(ribbon){
-        ribbon.scrollLeft=plannerRibbonScrollLeft;
-        ribbon.addEventListener('scroll',()=>{plannerRibbonScrollLeft=ribbon.scrollLeft;},{passive:true});
-        ribbon.addEventListener('wheel',e=>{if(e.ctrlKey)return;e.preventDefault();sc.scrollTop+=e.deltaY;ribbon.scrollLeft+=e.deltaX;},{passive:false});
+        // Единственный скроллер для всех дней: overflow на одном дне обрезал события
+        // ровно в полночь и создавал отдельную прокручиваемую область внутри экрана.
+        const right=Math.max(0,...$$('.pl-timeline-hscroll .pl-event-wrap',sc).map(w=>w.style.left.endsWith('px')?(parseFloat(w.style.left)||0)+(parseFloat(w.style.width)||0):0));
+        sc.classList.add('pl-pan-canvas');
+        sc.style.setProperty('--pl-canvas-width',Math.max(sc.clientWidth-40,52+right+4)+'px');
+        sc.scrollLeft=plannerRibbonScrollLeft;
+        sc.addEventListener('scroll',()=>{plannerRibbonScrollLeft=sc.scrollLeft;},{passive:true});
       }
     } else if(zoom==='week'){
       if(freshEntry&&!pendingPlannerWeekScroll)pendingPlannerWeekScroll={type:'now'};
@@ -4541,16 +4559,19 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // !== endDateVal). Событие на несколько дней по-прежнему можно создать — просто через
     // явно раскрытый переключатель, а не постоянно видимыми полями.
     const multiDayDefault=dateVal!==endDateVal;
+    let dateOn=draft?.dateOn??(!!existing||multiDayDefault);
+    const dateText=value=>value?value.split('-').reverse().join('.'):'—';
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${existing?'Редактировать задачу':'Новая задача'}</div>
       <div class="pl-form-row"><label>Название</label>${formField('pl-title','Что нужно сделать','text',draft?.title??existing?.title??'')}</div>
       <div class="pl-toggle-row" id="pl-time-toggle-row"><label>Время</label><button class="pl-switch ${timeOnDefault?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${timeOnDefault}"></button></div>
       <div class="pl-form-row pl-time-range-row" id="pl-time-row" ${timeOnDefault?'':'style="display:none"'}>
-        <div class="pl-time-field"><label>Начало</label><div class="pl-time-input-wrap">${icon('clock')}<span class="pl-time-display" aria-hidden="true">${esc(timeVal)}</span><input class="field pl-time-input" aria-label="Время начала" id="pl-time-value" type="time" value="${esc(timeVal)}" ></div></div>
-        <div class="pl-time-field"><label>Окончание</label><div class="pl-time-input-wrap">${icon('clock')}<span class="pl-time-display" aria-hidden="true">${esc(endVal)}</span><input class="field pl-time-input" aria-label="Время окончания" id="pl-time-end-value" type="time" value="${esc(endVal)}" ></div></div>
+        <div class="pl-time-field"><label for="pl-time-value">Время начала</label><div class="pl-time-input-wrap">${icon('clock')}<span class="pl-time-display" aria-hidden="true">${esc(timeVal)}</span><input class="field pl-time-input" aria-label="Время начала" id="pl-time-value" type="time" value="${esc(timeVal)}" ></div></div>
+        <div class="pl-time-field"><label for="pl-time-end-value">Время окончания</label><div class="pl-time-input-wrap">${icon('clock')}<span class="pl-time-display" aria-hidden="true">${esc(endVal)}</span><input class="field pl-time-input" aria-label="Время окончания" id="pl-time-end-value" type="time" value="${esc(endVal)}" ></div></div>
       </div>
-      <div class="pl-date-range-row">
-        <div class="pl-form-row" id="pl-date-row"><label for="pl-date-value">Дата начала</label><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>
-        <div class="pl-form-row" id="pl-end-date-row" ${timeOnDefault?'':'style="display:none"'}><label for="pl-end-date-value">Дата окончания</label><input class="field" id="pl-end-date-value" type="date" value="${endDateVal}"></div>
+      <div class="pl-toggle-row"><label for="pl-date-toggle">Дата</label><button class="pl-switch ${dateOn?'on':''}" id="pl-date-toggle" type="button" aria-label="Дата" aria-pressed="${dateOn}"></button></div>
+      <div class="pl-date-range-row" id="pl-date-fields" ${dateOn?'':'style="display:none"'}>
+        <div class="pl-form-row" id="pl-date-row"><label for="pl-date-value">Дата начала</label><div class="pl-time-input-wrap">${icon('calendar-month')}<span class="pl-date-display" aria-hidden="true">${dateText(dateVal)}</span><input class="field pl-date-input" id="pl-date-value" type="date" value="${esc(dateVal)}"></div></div>
+        <div class="pl-form-row" id="pl-end-date-row"><label for="pl-end-date-value">Дата окончания</label><div class="pl-time-input-wrap">${icon('calendar-month')}<span class="pl-date-display" aria-hidden="true">${dateText(endDateVal)}</span><input class="field pl-date-input" id="pl-end-date-value" type="date" value="${endDateVal}"></div></div>
       </div>
       <div class="pl-form-row"><label>Цвет</label><div class="pl-color-picker" id="pl-event-color-picker">
         ${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${evColor===c?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}
@@ -4577,7 +4598,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       clearTimeout(draftTimer);if(finished||!dirty)return true;
       syncPending();
       try{
-        localStorage.setItem(draftKey,JSON.stringify({eventId,title:$('#pl-title',ov).value,date:$('#pl-date-value',ov).value,time:$('#pl-time-value',ov).value,endTime:$('#pl-time-end-value',ov).value,endDate:$('#pl-end-date-value',ov).value,timeOn:$('#pl-time-toggle',ov).classList.contains('on'),endTouched,endDateTouched,sectionId,color,blocks}));
+        localStorage.setItem(draftKey,JSON.stringify({eventId,title:$('#pl-title',ov).value,date:$('#pl-date-value',ov).value,time:$('#pl-time-value',ov).value,endTime:$('#pl-time-end-value',ov).value,endDate:$('#pl-end-date-value',ov).value,timeOn:$('#pl-time-toggle',ov).classList.contains('on'),dateOn,endTouched,endDateTouched,sectionId,color,blocks}));
         $('#pl-draft-status',ov).textContent='Черновик сохранён';return true;
       }catch(_){$('#pl-draft-status',ov).textContent='Не удалось сохранить: проверь свободное место';return false;}
     };
@@ -4772,20 +4793,23 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // явно отличается от даты начала, поля дат появляются сами, без отдельной кнопки "Другая
     // дата" (которая раньше висела всегда, даже когда событие однодневное и дата вообще не
     // нужна).
-    const syncMultiDayUI=()=>{
+    const syncMultiDayUI=(autoReveal=false)=>{
       const timeOn=$('#pl-time-toggle',ov).classList.contains('on');
       const start=plannerMinutesFromTime($('#pl-time-value',ov).value||timeVal);
       const end=plannerMinutesFromTime($('#pl-time-end-value',ov).value||endVal);
       const autoMultiDay=timeOn&&(end<start||$('#pl-end-date-value',ov).value!==$('#pl-date-value',ov).value);
       $$('.pl-time-input',ov).forEach(inp=>{inp.previousElementSibling.textContent=inp.value||'—:—';});
-      $('#pl-date-row',ov).style.display='';
-      $('#pl-end-date-row',ov).style.display=timeOn?'':'none';
+      $$('.pl-date-input',ov).forEach(inp=>{inp.previousElementSibling.textContent=dateText(inp.value);});
+      if(autoReveal&&autoMultiDay)dateOn=true;
+      $('#pl-date-toggle',ov).classList.toggle('on',dateOn);$('#pl-date-toggle',ov).setAttribute('aria-pressed',String(dateOn));
+      $('#pl-date-fields',ov).style.display=dateOn?'':'none';
     };
+    $('#pl-date-toggle',ov).onclick=()=>{dateOn=!dateOn;syncMultiDayUI();};
     $('#pl-time-toggle',ov).onclick=()=>{
       const on=!$('#pl-time-toggle',ov).classList.contains('on');
       $('#pl-time-toggle',ov).classList.toggle('on',on);$('#pl-time-toggle',ov).setAttribute('aria-pressed',String(on));
       $('#pl-time-row',ov).style.display=on?'':'none';
-      syncMultiDayUI();
+      syncMultiDayUI(true);
     };
     const updateEnd=()=>{
       const date=$('#pl-date-value',ov).value||dateVal;
@@ -4796,10 +4820,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         const days=endTouched?(end<start?1:0):Math.floor((start+initialDuration)/1440);
         $('#pl-end-date-value',ov).value=plannerShiftDate(date,days);
       }
-      syncMultiDayUI();
+      syncMultiDayUI(true);
     };
     $('#pl-time-end-value',ov).addEventListener('input',()=>{endTouched=true;updateEnd();});
-    $('#pl-end-date-value',ov).addEventListener('input',()=>{endDateTouched=true;syncMultiDayUI();});
+    $('#pl-end-date-value',ov).addEventListener('input',()=>{endDateTouched=true;syncMultiDayUI(true);});
     $('#pl-time-value',ov).addEventListener('input',updateEnd);
     $('#pl-date-value',ov).addEventListener('input',updateEnd);
     // Невидимый <input type="time"> лежит поверх всей плашки (position:absolute;inset:0, см.
@@ -4809,7 +4833,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // тапу на всю плашку, showPicker() с фолбэком на focus() там, где showPicker недоступен.
     $$('.pl-time-input-wrap',ov).forEach(wrap=>{
       wrap.addEventListener('click',e=>{
-        const input=$('.pl-time-input',wrap);
+        const input=$('.pl-time-input,.pl-date-input',wrap);
         if(!input)return;
         input.focus({preventScroll:true});
         try{if(input.showPicker)input.showPicker();else if(e.target!==input)input.click();}catch(_){}
@@ -4841,6 +4865,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const date=$('#pl-date-value',ov).value||dateVal;
       const time=timeOn?$('#pl-time-value',ov).value:null;
       let duration=60;
+      if(!timeOn){
+        const days=plannerDayNumber($('#pl-end-date-value',ov).value||date)-plannerDayNumber(date);
+        if(days<0||days>31){if(explicit)showToast('Проверь даты: окончание не раньше начала, не более 31 дня');return explicit?false:draftSaved;}
+        duration=days*1440+60;
+      }
       if(timeOn){
         if(!time||!$('#pl-time-end-value',ov).value){if(explicit)showToast('Укажи время начала и окончания');return explicit?false:draftSaved;}
         const startMin=plannerMinutesFromTime(time);
@@ -5166,7 +5195,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">В раскрытой ленте снова доступны свайпы редактирования, удаления и выполнения: горизонтальный жест открывает действия, вертикальный и диагональный прокручивают ленту. В узких карточках — равные плитки с фото и значками вложений без интерактивных списков. Кнопки добавления вложений кратко вспыхивают при каждом нажатии. Даты начала и окончания расположены рядом, область открытия выбора времени увеличена на всю плашку. Кнопки сохранения имеют ровную заливку; яркий жёлтый оставлен в привычках.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая лента прокручивается целиком: события больше не обрезаются на границе дня. Свайпы действий сохранены. В узких карточках вложения делят высоту и идут друг под другом. Дата включается отдельным переключателем; поля начала и окончания одинаковые, подписи расположены по центру. Системная тема следует настройкам устройства, в том числе после возвращения в приложение.</p></section>
     </div></section>`;
   }
 
