@@ -1346,7 +1346,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-extra-item{display:inline-flex;align-items:center;gap:3px;font-size:.6875rem;line-height:1;color:rgba(20,16,10,.75);background:rgba(var(--ink),.28);border-radius:6px;padding:3px 5px;white-space:nowrap;}
 .pl-event-extra-item .icon{width:11px;height:11px;flex:0 0 auto;}
 .pl-event-extra-image{display:block;position:relative;width:100%;min-height:0;flex:1;border-radius:10px;overflow:hidden;}
-.pl-event-extra-image img{width:100%;height:100%;object-fit:cover;display:block;}
+.pl-event-extra-image img{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;object-fit:cover;object-position:center;display:block;}
 .pl-event-extra-image-count{position:absolute;right:6px;bottom:6px;padding:2px 7px;border-radius:20px;background:rgba(0,0,0,.55);color:#fff;font-size:.6875rem;font-weight:700;line-height:1.4;pointer-events:none;}
 /* Кнопка "..." — раскрыть короткую карточку целиком (см. plannerFitEventCards/
    plannerTimelineExpansion). Обычный flex-элемент ПОСЛЕ .pl-event-extra (не absolute поверх
@@ -1413,7 +1413,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    фона — не спорит с цветом карточки. */
 .pl-event-extra-tile{flex:1 1 0;min-width:0;height:100%;border-radius:7px;background:rgba(255,255,255,.22);display:grid;place-items:center;overflow:hidden;}
 .pl-event-extra-tile .icon{width:16px;height:16px;flex:0 0 auto;}
-.pl-event-extra-tile-image img{width:100%;height:100%;object-fit:cover;display:block;}
+.pl-event-extra-tile-image{position:relative;background:transparent;}
+.pl-event-extra-tile-image img{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;object-fit:cover;object-position:center;display:block;}
 .pl-event-extra-check.done span:last-child{text-decoration:line-through;}
 /* Плашка "+N" на месте карточек сверх PL_MAX_COLS в одном пересекающемся кластере (см.
    renderPlannerTimeline) — тап открывает лист со всеми событиями кластера вбок. */
@@ -1581,6 +1582,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    обратно, пока сама кнопка уже сменила цвет (transition выше). */
 .pl-image-viewer-save .icon,.pl-image-viewer-save span{transition:opacity .16s ease,transform .16s ease;}
 .pl-image-viewer-save.is-swapping .icon,.pl-image-viewer-save.is-swapping span{opacity:0;transform:translateY(-5px);}
+.pl-image-viewer{overflow:hidden;}
+.pl-image-viewer-stage{position:absolute;inset:calc(env(safe-area-inset-top,0px) + 62px) 8px calc(env(safe-area-inset-bottom,0px) + 82px);display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;}
+.pl-image-viewer-img{flex:none;user-select:none;-webkit-user-select:none;touch-action:none;transform-origin:center;}
+.pl-image-viewer-toolbar{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);left:12px;right:12px;display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;}
+.pl-image-viewer-toolbar button{min-height:40px;border:0;border-radius:20px;padding:8px 12px;background:#292929;color:#fff;font-family:inherit;font-size:14px;touch-action:manipulation;}
+.pl-image-viewer-toolbar .pl-image-viewer-save{position:static;transform:none;background:var(--gold-strong);color:#171410;}
+.pl-image-viewer-toolbar .pl-image-viewer-delete{color:#ff8585;}
+.pl-image-viewer-close{z-index:1;background:#292929;}
 .pl-poll-view{margin-bottom:10px;}
 .pl-poll-question{font-size:.875rem;color:var(--white);font-weight:600;margin-bottom:8px;}
 .pl-poll-option{position:relative;padding:8px 12px;border-radius:10px;background:rgba(var(--ink),.06);margin-bottom:6px;overflow:hidden;border:0;width:100%;text-align:left;}
@@ -1758,7 +1767,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.24.4';
+  const APP_VERSION = '0.24.5';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1819,7 +1828,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return (window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
   }
   let themeMode=loadThemeMode();
-  function applyThemeMode(mode,animate){
+  function applyThemeMode(mode,animate,systemTheme){
     themeMode=mode;
     const root=document.documentElement;
     if(animate&&!reducedMotion()){
@@ -1827,7 +1836,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       clearTimeout(applyThemeMode._t);
       applyThemeMode._t=setTimeout(()=>root.classList.remove('theme-transition'),260);
     }
-    const resolved=resolvedTheme(mode);
+    const resolved=mode==='system'&&systemTheme?systemTheme:resolvedTheme(mode);
     if(mode==='system'){delete root.dataset.theme;root.style.colorScheme='light dark';}
     else{root.dataset.theme=resolved;root.style.colorScheme=resolved;}
     applyThemeMode.resolved=resolved;
@@ -1857,9 +1866,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // ровно поэтому "системная" тема визуально не успевала подхватить живое переключение ОС,
     // хотя applyThemeMode технически отрабатывал (canvas/GOLD/meta обновлялись, а всё остальное
     // — нет, до следующего непричастного к теме рендера).
-    const onSystemChange=()=>{if(themeMode==='system'&&applyThemeMode.resolved!==resolvedTheme('system')){applyThemeMode('system',true);renderScreen();}};
+    const onSystemChange=event=>{
+      const next=typeof event?.matches==='boolean'?(event.media.includes('dark')?(event.matches?'dark':'light'):(event.matches?'light':'dark')):resolvedTheme('system');
+      if(themeMode==='system'&&applyThemeMode.resolved!==next){applyThemeMode('system',true,next);renderScreen();}
+    };
     const resumeTheme=()=>{onSystemChange();requestAnimationFrame(onSystemChange);setTimeout(onSystemChange,250);};
     sysDarkQuery.addEventListener?sysDarkQuery.addEventListener('change',onSystemChange):sysDarkQuery.addListener?.(onSystemChange);
+    const sysLightQuery=window.matchMedia('(prefers-color-scheme: light)');
+    sysLightQuery.addEventListener?sysLightQuery.addEventListener('change',onSystemChange):sysLightQuery.addListener?.(onSystemChange);
     window.addEventListener('pageshow',resumeTheme);
     window.addEventListener('focus',resumeTheme);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeTheme();});
@@ -2562,23 +2576,85 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     document.body.appendChild(a);a.click();a.remove();
     markSaved();
   }
-  function plannerShowImageViewer(images,index){
+  function plannerDeleteEventImage(eventId,blockId,index,src){
+    const ev=state.planner.events.find(e=>e.id===eventId),block=ev?.blocks.find(b=>b.id===blockId);
+    if(!block||block.images?.[index]!==src)return false;
+    block.images.splice(index,1);
+    if(!savePlannerEvents())return false;
+    plannerRefreshInline(eventId);
+    const detail=$('[data-pl-event-detail]');
+    if(detail?.dataset.plEventDetail===eventId){const section=$('#pl-images-section',detail);if(section)section.innerHTML=plannerImagesView(ev);}
+    return true;
+  }
+  function plannerShowImageViewer(images,index,source){
+    const src=images?.[index];if(!src)return;
     const root=$('#overlay-root');
     const wrap=document.createElement('div');wrap.className='pl-image-viewer';
     wrap.innerHTML=`<button type="button" class="pl-image-viewer-close" aria-label="Закрыть">${icon('close')}</button>
-      <img class="pl-image-viewer-img" src="${esc(images[index])}" alt="Фото">
-      <button type="button" class="pl-image-viewer-save" aria-label="Сохранить фото">${icon('download')}<span>Сохранить</span></button>`;
+      <div class="pl-image-viewer-stage"><img class="pl-image-viewer-img" src="${esc(src)}" alt="Фото" draggable="false"></div>
+      <div class="pl-image-viewer-toolbar">
+        <button type="button" data-image-zoom="out" aria-label="Уменьшить фото">−</button>
+        <button type="button" data-image-zoom="reset" aria-label="Сбросить масштаб">100%</button>
+        <button type="button" data-image-zoom="in" aria-label="Приблизить фото">+</button>
+        <button type="button" class="pl-image-viewer-save" aria-label="Сохранить фото">${icon('download')}<span>Сохранить</span></button>
+        ${source?'<button type="button" class="pl-image-viewer-delete" aria-label="Удалить фото">Удалить</button>':''}
+      </div>`;
     root.appendChild(wrap);
-    const close=()=>wrap.remove();
+    const stage=$('.pl-image-viewer-stage',wrap),img=$('img',stage),zoomLabel=$('[data-image-zoom="reset"]',wrap);
+    let scale=1,x=0,y=0,gesture=null,lastTap=0,closed=false;
+    const points=new Map();
+    const paint=()=>{
+      const maxX=Math.max(0,(img.offsetWidth*scale-stage.clientWidth)/2),maxY=Math.max(0,(img.offsetHeight*scale-stage.clientHeight)/2);
+      x=Math.max(-maxX,Math.min(maxX,x));y=Math.max(-maxY,Math.min(maxY,y));
+      img.style.transform=`translate(${x}px,${y}px) scale(${scale})`;zoomLabel.textContent=Math.round(scale*100)+'%';
+    };
+    const zoom=value=>{scale=Math.max(1,Math.min(5,value));if(scale===1)x=y=0;paint();};
+    const close=()=>{if(closed)return;closed=true;document.removeEventListener('keydown',escHandler);window.removeEventListener('resize',paint);wrap.remove();};
     $('.pl-image-viewer-close',wrap).onclick=close;
     const saveBtn=$('.pl-image-viewer-save',wrap);
-    saveBtn.onclick=()=>plannerSaveImageToDevice(images[index],saveBtn);
+    saveBtn.onclick=()=>plannerSaveImageToDevice(src,saveBtn);
+    $$('[data-image-zoom]',wrap).forEach(b=>b.onclick=()=>zoom(b.dataset.imageZoom==='reset'?1:scale*(b.dataset.imageZoom==='in'?1.5:1/1.5)));
+    const deleteBtn=$('.pl-image-viewer-delete',wrap);
+    if(deleteBtn)deleteBtn.onclick=()=>{
+      if(deleteBtn.dataset.confirm!=='yes'){deleteBtn.dataset.confirm='yes';deleteBtn.textContent='Удалить фото?';return;}
+      if(plannerDeleteEventImage(source.eventId,source.blockId,index,src)){close();showToast('Фото удалено');}
+      else{deleteBtn.dataset.confirm='';deleteBtn.textContent='Удалить';showToast('Не удалось удалить фото');}
+    };
     wrap.addEventListener('click',e=>{if(e.target===wrap)close();});
-    let startY=null;
-    wrap.addEventListener('pointerdown',e=>{if(e.target.closest('.pl-image-viewer-save,.pl-image-viewer-close'))return;startY=e.clientY;});
-    wrap.addEventListener('pointerup',e=>{if(startY!=null&&e.clientY-startY>70)close();startY=null;});
-    const escHandler=e=>{if(e.key==='Escape'){close();document.removeEventListener('keydown',escHandler);}};
+    const begin=()=>{
+      const p=[...points.values()];if(!p.length){gesture=null;return;}
+      const a=p[0],b=p[1];
+      gesture={scale,x,y,startX:a.x,startY:a.y,moved:false,multi:!!b,distance:b?Math.hypot(b.x-a.x,b.y-a.y):0,cx:b?(a.x+b.x)/2:a.x,cy:b?(a.y+b.y)/2:a.y};
+    };
+    stage.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;e.preventDefault();points.set(e.pointerId,{x:e.clientX,y:e.clientY});stage.setPointerCapture(e.pointerId);begin();});
+    stage.addEventListener('pointermove',e=>{
+      if(!points.has(e.pointerId)||!gesture)return;e.preventDefault();points.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      const p=[...points.values()],a=p[0],b=p[1],g=gesture;
+      if(b){
+        scale=Math.max(1,Math.min(5,g.scale*Math.hypot(b.x-a.x,b.y-a.y)/Math.max(1,g.distance)));
+        const rect=stage.getBoundingClientRect(),ratio=scale/g.scale;
+        x=(a.x+b.x)/2-(rect.left+rect.width/2)-(g.cx-(rect.left+rect.width/2)-g.x)*ratio;
+        y=(a.y+b.y)/2-(rect.top+rect.height/2)-(g.cy-(rect.top+rect.height/2)-g.y)*ratio;g.moved=true;
+      }else{const dx=a.x-g.startX,dy=a.y-g.startY;if(Math.hypot(dx,dy)>8)g.moved=true;if(scale>1){x=g.x+dx;y=g.y+dy;}}
+      paint();
+    });
+    const end=(e,cancelled=false)=>{
+      if(!points.has(e.pointerId))return;
+      const g=gesture;points.delete(e.pointerId);
+      if(g&&!g.multi&&!cancelled&&points.size===0){
+        const dx=e.clientX-g.startX,dy=e.clientY-g.startY;
+        if(scale===1&&dy>70&&dy>Math.abs(dx)*1.5){close();return;}
+        if(!g.moved&&Math.hypot(dx,dy)<8){const now=performance.now();if(lastTap&&now-lastTap<320){zoom(scale>1?1:2.5);lastTap=0;}else lastTap=now;}
+      }
+      // После pinch оставшийся палец только перемещает фото, без закрытия/двойного тапа.
+      begin();if(gesture){gesture.multi=true;gesture.moved=true;}
+    };
+    stage.addEventListener('pointerup',e=>end(e));stage.addEventListener('pointercancel',e=>end(e,true));
+    stage.addEventListener('wheel',e=>{e.preventDefault();zoom(scale*Math.exp(-e.deltaY*.002));},{passive:false});
+    img.addEventListener('load',paint);window.addEventListener('resize',paint);
+    const escHandler=e=>{if(e.key==='Escape')close();};
     document.addEventListener('keydown',escHandler);
+    paint();
   }
   function plannerLocationView(ev){
     const blocks=(ev.blocks||[]).filter(b=>b.type==='location'&&(b.label?.trim()||b.lat!=null));
@@ -3080,7 +3156,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
             const picked=wrap.querySelector('[data-option-id="'+CSS.escape(optionId)+'"]');
             picked?.animate?.([{transform:'scale(1)'},{transform:'scale(1.04)'},{transform:'scale(1)'}],{duration:200,easing:'ease-out'});
           }
-        }else if(btn.dataset.plInline==='image')plannerShowImageViewer(block.images,Number(btn.dataset.imageIndex));
+        }else if(btn.dataset.plInline==='image')plannerShowImageViewer(block.images,Number(btn.dataset.imageIndex),{eventId,blockId:block.id});
         else if(btn.dataset.plInline==='location')showPlannerDetail(eventId);
       });
     });
@@ -4954,7 +5030,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-detail-head"><h2 class="pl-detail-title">${esc(ev.title)}</h2><button class="text-btn" data-pl-edit aria-label="Редактировать">${icon('edit')}</button></div>
       ${ev.time?`<div class="pl-detail-time">${esc(ev.duration?ev.time+'–'+plannerMinutesToTime(plannerMinutesFromTime(ev.time)+ev.duration):ev.time)}</div>`:''}
       ${ev.date?`<div class="pl-detail-date">${esc(formatPlannerDate(ev.date))}</div>`:''}
-      ${plannerImagesView(ev)}
+      <div id="pl-images-section">${plannerImagesView(ev)}</div>
       ${plannerLocationView(ev)}
       ${plannerNoteView(ev)}
       <div id="pl-poll-section">${plannerPollView(ev)}</div>
@@ -5160,7 +5236,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       });
     };
     bindCommentLongPress();
-    $$('[data-pl-image-open]',ov).forEach(b=>b.onclick=()=>{const blk=ev.blocks.find(x=>x.id===b.dataset.plImageOpen);if(blk)plannerShowImageViewer(blk.images,+b.dataset.plImageIndex);});
+    $('#pl-images-section',ov).addEventListener('click',e=>{const b=e.target.closest('[data-pl-image-open]');if(!b)return;const blk=ev.blocks.find(x=>x.id===b.dataset.plImageOpen);if(blk)plannerShowImageViewer(blk.images,+b.dataset.plImageIndex,{eventId:id,blockId:blk.id});});
     $('[data-close]',ov).onclick=closeOverlay;
     $('#pl-detail-delete',ov).onclick=()=>{plannerDelete(ev.id);closeOverlay();};
     $('[data-pl-edit]',ov).onclick=()=>{closeOverlay();showPlannerEditSheet(ev.id);};
@@ -5194,7 +5270,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Галочки и выполненные пункты чек-листа хорошо видны в тёмной теме. У подписей дней убрана затемняющая подложка. Изменения чек-листа и голоса в открытом событии сразу отображаются на его карточке.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Системная тема реагирует на смену оформления устройства без перезагрузки. Фото заполняют область превью без фоновых полос. В полноэкранном просмотре доступны масштабирование двумя пальцами, двойным тапом и кнопками, перемещение увеличенного фото и удаление снимка из события.</p></section>
     </div></section>`;
   }
 
