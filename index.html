@@ -1668,7 +1668,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-comment-input::placeholder{color:rgba(var(--ink),.35);}
 @media(prefers-reduced-motion:reduce){.pl-switch::after{transition:none;}}
 /* 0.24: единая сетка и перенос целых слов, без масок поверх текста. */
-:root,:root[data-theme="light"]{--gold:#f2cf36;--gold2:#f6dc65;--gold3:#ffe77c;--gold-strong:#f2cf36;}
+:root{--habit-yellow:#f2cf36;}
+.habits-screen{--gold:var(--habit-yellow);--gold2:#f6dc65;--gold3:#ffe77c;--gold-strong:var(--habit-yellow);}
+.gold-action,.primary-button{background:var(--gold-strong);}
 .habit-name,.hb-name,.pl-event-title,.pl-detail-title,.pl-event-extra-check>span:last-child,.pl-event-extra-option>span:not(.pl-event-extra-option-fill),.pl-event-extra-note,.pl-event-extra-question,.pl-subtask-text{white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;-webkit-mask-image:none!important;mask-image:none!important;}
 .habit-name,.hb-name{overflow:visible;line-height:1.35;}
 .pl-event-wrap{container-type:inline-size;}
@@ -1681,6 +1683,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event-extra-option>span:last-child{flex-shrink:0;}
 .pl-event-extra-option{display:grid;grid-template-columns:minmax(0,1fr) auto;text-align:left;}
 .pl-event-extra-option>.pl-event-extra-option-fill{position:absolute;pointer-events:none;}
+.pl-event-extra-option>span:last-child{justify-self:end;white-space:nowrap;}
+.pl-inline-block-head{min-width:0;white-space:normal;}
+.pl-inline-block-head>span{min-width:0;}
+.pl-event-wrap .pl-swipe-complete{visibility:hidden;}
+.pl-event-wrap.is-completing .pl-swipe-complete{visibility:visible;}
 :root[data-theme="light"] .pl-chip.active{color:var(--white);}
 .pl-inline-block[hidden],.pl-event-extra-tile[hidden]{display:none!important;}
 .pl-inline-block-image .pl-event-extra-image+.pl-event-extra-image{margin-top:8px;}
@@ -1688,14 +1695,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-event:has(.pl-event-extra-icons) .pl-event-head{padding:4px 6px;}
 .pl-event:has(.pl-event-extra-icons) .pl-event-extra{padding:4px;}
 .pl-event:has(.pl-event-extra-icons) .pl-event-expand{margin:2px 0;}
-.pl-event-extra-tile{min-width:28px;min-height:28px;}
+.pl-event-extra-tile{min-width:16px;min-height:24px;}
+.pl-event-extra-tile .icon{width:14px;height:14px;}
 .pl-event-expand:not([hidden]){width:auto;min-width:34px;padding:0 7px;font-size:11px;}
 .pl-chip:not(.pl-chip-add){max-width:min(260px,75vw);white-space:normal;word-break:normal;overflow-wrap:normal;}
 .pl-detail-title{max-height:none!important;overflow:visible;}
-.pl-attach-menu button.is-selected{border-color:var(--gold);background:rgba(242,207,54,.10);}
+.pl-date-range-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;}
+.pl-date-range-row .pl-form-row{min-width:0;}
+.pl-date-range-row input{min-width:0;width:100%;box-sizing:border-box;}
+.pl-time-input-wrap .pl-time-input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;}
 .pl-draft-status{min-height:18px;font-size:12px;color:var(--muted);margin:8px 0;}
 .sheet-handle,.sheet-title,.pl-detail-head{touch-action:none;}
 @container(max-width:130px){
+  .pl-inline-block:not(.pl-inline-block-image){padding:6px;}
+  .pl-inline-block-head{font-size:9px;}
+  .pl-event-extra-option{grid-template-columns:minmax(0,1fr);gap:3px;padding:5px;}
+  .pl-event-extra-option>span:last-child{font-size:10px;}
   .pl-event-head{padding:5px;gap:4px;grid-template-columns:18px minmax(0,1fr);}
   .pl-event-check{width:18px;height:18px;border-radius:5px;}
   .pl-event-title{font-size:11px;}
@@ -1737,7 +1752,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.24.1';
+  const APP_VERSION = '0.24.2';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2922,7 +2937,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // Раскрытая кнопкой "..." карточка — исключение из значкового режима, даже если по
     // длительности/ширине событие всё ещё короткое/узкое: раскрытие — это явный запрос
     // пользователя посмотреть содержимое целиком прямо в ленте, не открывая детали события.
-    if(state.planner.expandedEventId!==e.id&&(naturalH<PL_EVENT_ICONS_THRESHOLD_H||totalCols>=PL_EVENT_ICONS_THRESHOLD_COLS))return {mode:'icons',minH:90,html:iconsHtml};
+    const narrow=totalCols>1&&(document.documentElement.clientWidth-76)/totalCols<180;
+    if(narrow||totalCols>=PL_EVENT_ICONS_THRESHOLD_COLS||state.planner.expandedEventId!==e.id&&naturalH<PL_EVENT_ICONS_THRESHOLD_H)return {mode:'icons',minH:90,html:iconsHtml};
     return {mode:'full',minH:96,html:plannerEventExtraHtml(e)};
   }
   // Вложения в компактной карточке (см. plannerEventExtraHtml выше) — статичные, без своего
@@ -2947,7 +2963,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const broken=new Set();
       images.forEach(img=>{if(img.complete&&img.naturalWidth===0){const b=img.closest('.pl-inline-block-image');if(b)broken.add(b);}});
       blocks.forEach(b=>{b.hidden=broken.has(b);});
-      if(isExpanded){
+      if(isExpanded&&!$('.pl-event-extra-icons',extra)){
         $$('.pl-event-extra-check>span:last-child,.pl-event-extra-option>span:nth-child(2),.pl-event-extra-note,.pl-event-extra-question',extra).forEach(plannerApplyFadeTruncation);
         if(expandBtn)expandBtn.hidden=false;
         plannerMeasureExpansion(wrap,extra);
@@ -2961,12 +2977,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // детали события (см. plannerEventContentMode: expandedEventId переключает на 'full').
       const icons=$('.pl-event-extra-icons',extra);
       if(icons){
-        if(expandBtn)expandBtn.hidden=false;
+        const compact=(+wrap.dataset.plTotalCols||1)>1;
+        if(expandBtn)expandBtn.hidden=compact;
+        $('.pl-event-extra-more',icons)?.remove();
         const tiles=$$('.pl-event-extra-tile',icons);
-        const capacity=icons.clientHeight>=28?Math.max(0,Math.floor((icons.clientWidth+3)/31)):0;
-        tiles.forEach((tile,i)=>{tile.hidden=i>=capacity;});
-        const omitted=tiles.length-Math.min(capacity,tiles.length);
-        if(expandBtn){expandBtn.innerHTML=omitted?'+'+omitted:icon('chevron-right');expandBtn.setAttribute('aria-label',omitted?`Ещё ${omitted} вложений. Показать целиком`:'Показать целиком');}
+        const capacity=icons.clientHeight>=24?Math.max(0,Math.floor((icons.clientWidth+3)/19)):0;
+        const visible=tiles.length>capacity?Math.max(0,capacity-1):tiles.length;
+        tiles.forEach((tile,i)=>{tile.hidden=i>=visible;});
+        const omitted=tiles.length-visible;
+        if(omitted&&capacity){const more=document.createElement('span');more.className='pl-event-extra-tile pl-event-extra-more';more.textContent='+'+omitted;more.setAttribute('aria-label',`Ещё ${omitted} вложений`);icons.appendChild(more);}
+        if(expandBtn&&!compact){expandBtn.innerHTML=omitted&&!capacity?'+'+omitted:icon('chevron-right');expandBtn.setAttribute('aria-label','Показать целиком');}
         return;
       }
       $$('.pl-event-extra-check>span:last-child,.pl-event-extra-option>span:nth-child(2),.pl-event-extra-note,.pl-event-extra-question',extra).forEach(plannerApplyFadeTruncation);
@@ -3139,6 +3159,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       let height;
       if(expansion&&e.id===expansion.id)height=Math.max(minH,(endMin-startMin)/60*PL_HOUR_PX-2)+expansion.extraH;
       else height=Math.max(minH,pxFor(endMin)-top-2);
+      if(isClusterExpanded){
+        parts.push(plannerRenderEventTile(e,top,height,`${col*PL_COL_PX+2}px`,`${PL_COL_PX-4}px`,col,1));
+        return;
+      }
       if(totalCols<=PL_MAX_COLS){
         parts.push(plannerRenderEventTile(e,top,height,`calc(${col/totalCols*100}% + 2px)`,`calc(${100/totalCols}% - 4px)`,col,totalCols));
         return;
@@ -3152,10 +3176,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // упорядочен по времени внутри кластера (см. plannerLayoutColumns), так что его можно
       // использовать как есть для номера колонки. totalCols тут — 1 (см. effectiveCols выше):
       // карточка теперь полной колонки шириной (PL_COL_PX), значки вложений ей уже не нужны.
-      if(isClusterExpanded){
-        parts.push(plannerRenderEventTile(e,top,height,`${col*PL_COL_PX+2}px`,`${PL_COL_PX-4}px`,col,1));
-        return;
-      }
       if(col<PL_MAX_COLS){parts.push(plannerRenderEventTile(e,top,height,`calc(${col/cols*100}% + 2px)`,`calc(${100/cols}% - 4px)`,col,cols-1));return;}
       if(drawnOverflow.has(cluster))return;
       drawnOverflow.add(cluster);
@@ -3225,7 +3245,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       }
     });
     $$('[data-pl-cluster]').forEach(b=>b.onclick=()=>{state.planner.expandedClusterId=b.dataset.plCluster;plannerRibbonScrollLeft=0;renderScreen();});
-    $('[data-pl-cluster-collapse-all]')?.addEventListener('click',()=>{state.planner.expandedClusterId=null;plannerRibbonScrollLeft=0;renderScreen();});
+    $('[data-pl-cluster-collapse-all]')?.addEventListener('click',()=>{state.planner.expandedClusterId=null;state.planner.expandedEventId=null;state.planner.expandedExtraH=null;plannerRibbonScrollLeft=0;renderScreen();});
     $$('.pl-timeline').forEach(tl=>bindPlannerRangeSelect(tl));
     bindPlannerScroll();
     bindPlannerPinch();
@@ -3295,6 +3315,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let offset=0,open=false,press=null,suppressUntil=0,scroller=null,forwarder=null,lastMerge=-1,lastCompleteReveal=-1,allowActionClick=false;
     const paint=(v,animate,rawValue)=>{
       offset=v;
+      wrap.classList.toggle('is-completing',v>0);
       card.style.transition=animate?'transform .24s cubic-bezier(.22,.8,.25,1)':'none';
       card.style.transform='translate3d('+offset+'px,0,0)';
       if(completeEl){
@@ -3361,7 +3382,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // всегда лента дня, даже если .pl-event-extra технически имеет overflow (напр. из-за
       // чеклиста под фото в том же событии). См. выбор scroller в pointermove ниже.
       press={id:e.pointerId,x:e.clientX,y:e.clientY,lastY:e.clientY,from:offset,wasOpen:open,extra:e.target.closest('.pl-event-extra'),isImage:!!e.target.closest('.pl-event-extra-image'),axis:null,samples:[{x:e.clientX,t:performance.now()}],maxRightSafe};
-      press.ribbon=wrap.closest('.pl-timeline-hscroll');
+      press.ribbon=wrap.closest('.pl-timeline-hscroll')||wrap.closest('.pl-scroll')?.querySelector('.pl-timeline-hscroll');
       press.lastX=e.clientX;
       press.collapse=state.planner.expandedEventId===wrap.dataset.plEventId&&!!e.target.closest('.pl-event-head')&&!e.target.closest('button');
     },{passive:true});
@@ -3379,7 +3400,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         // отдаём заметно строже к свайпу (нужен явный перевес по X, а не просто "чуть больше
         // Y"), сохраняя разумный допуск на неидеально диагональный жест.
         if(Math.max(Math.abs(dx),Math.abs(dy))<10)return;
-        press.axis=press.collapse&&dy>0&&Math.abs(dy)>Math.abs(dx)*1.5?'collapse':press.ribbon?'pan':Math.abs(dx)>Math.abs(dy)*1.7?'x':'y';
+        // Решение принимается один раз: горизонталь — действия, диагональ/вертикаль — скролл.
+        const horizontal=Math.abs(dx)>=18&&Math.abs(dy)<=Math.abs(dx)*.3;
+        if(Math.abs(dy)<10&&!horizontal)return;
+        press.axis=press.collapse&&dy>0&&Math.abs(dy)>Math.abs(dx)*2?'collapse':horizontal?'x':press.ribbon?'pan':'y';
         wrap.cancelLongPress?.();
         wrap.setPointerCapture?.(e.pointerId);
         suppressUntil=performance.now()+500;
@@ -3820,7 +3844,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(dt>0){const v=-dy/dt;vy=vy===undefined?v:vy*.75+v*.25;}
         lastT=now;
       },
-      stop(){running=false;if(rafId)cancelAnimationFrame(rafId);},
+      stop(){running=false;if(rafId)cancelAnimationFrame(rafId);if(scroller&&pendingDy){scroller.scrollTop+=pendingDy;pendingDy=0;}},
       velocity(){return vy||0;}
     };
   }
@@ -3965,7 +3989,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         // Развёрнутая лента кластера (см. .pl-timeline-hscroll) — тот же самый жест ведёт ещё и
         // горизонталь тем же самым касанием, не дожидаясь отдельного жеста: тянешь по диагонали —
         // едут оба скролла сразу, а не только вертикальный, как у обычного (нераскрытого) дня.
-        if(tl.classList.contains('pl-timeline-hscroll'))tl.scrollLeft-=e.clientX-press.lastX;
+        const ribbon=tl.classList.contains('pl-timeline-hscroll')?tl:scroller?.querySelector('.pl-timeline-hscroll');
+        if(forwarder&&ribbon){ribbon.scrollLeft-=e.clientX-press.lastX;plannerRibbonScrollLeft=ribbon.scrollLeft;}
         press.lastY=e.clientY;press.lastX=e.clientX;
         return;
       }
@@ -4049,6 +4074,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(ribbon){
         ribbon.scrollLeft=plannerRibbonScrollLeft;
         ribbon.addEventListener('scroll',()=>{plannerRibbonScrollLeft=ribbon.scrollLeft;},{passive:true});
+        ribbon.addEventListener('wheel',e=>{if(e.ctrlKey)return;e.preventDefault();sc.scrollTop+=e.deltaY;ribbon.scrollLeft+=e.deltaX;},{passive:false});
       }
     } else if(zoom==='week'){
       if(freshEntry&&!pendingPlannerWeekScroll)pendingPlannerWeekScroll={type:'now'};
@@ -4522,8 +4548,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <div class="pl-time-field"><label>Начало</label><div class="pl-time-input-wrap">${icon('clock')}<span class="pl-time-display" aria-hidden="true">${esc(timeVal)}</span><input class="field pl-time-input" aria-label="Время начала" id="pl-time-value" type="time" value="${esc(timeVal)}" ></div></div>
         <div class="pl-time-field"><label>Окончание</label><div class="pl-time-input-wrap">${icon('clock')}<span class="pl-time-display" aria-hidden="true">${esc(endVal)}</span><input class="field pl-time-input" aria-label="Время окончания" id="pl-time-end-value" type="time" value="${esc(endVal)}" ></div></div>
       </div>
-      <div class="pl-form-row" id="pl-date-row"><label>Дата начала</label><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>
-      <div class="pl-form-row" id="pl-end-date-row" ${timeOnDefault&&multiDayDefault?'':'style="display:none"'}><label>Дата окончания</label><input class="field" id="pl-end-date-value" type="date" value="${endDateVal}"></div>
+      <div class="pl-date-range-row">
+        <div class="pl-form-row" id="pl-date-row"><label for="pl-date-value">Дата начала</label><input class="field" id="pl-date-value" type="date" value="${esc(dateVal)}"></div>
+        <div class="pl-form-row" id="pl-end-date-row" ${timeOnDefault?'':'style="display:none"'}><label for="pl-end-date-value">Дата окончания</label><input class="field" id="pl-end-date-value" type="date" value="${endDateVal}"></div>
+      </div>
       <div class="pl-form-row"><label>Цвет</label><div class="pl-color-picker" id="pl-event-color-picker">
         ${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${evColor===c?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}
         <span class="pl-color-swatch pl-color-custom ${evColor&&!PL_COLORS.includes(evColor)?'active':''}" style="${evColor&&!PL_COLORS.includes(evColor)?`--sw:${esc(evColor)};`:''}"><input type="color" id="pl-event-color-custom" aria-label="Выбрать свой цвет" value="${esc(evColor&&!PL_COLORS.includes(evColor)?evColor:'#c9a84c')}"></span>
@@ -4584,9 +4612,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const renderBlocks=()=>{
       syncPending();
       if(!$('#pl-block-add-row',ov).children.length)$('#pl-block-add-row',ov).innerHTML=['checklist','poll','image','note'].map(t=>`<button type="button" data-attach-add="${t}">${icon(blockMeta[t].icon)}<span>${blockMeta[t].title}</span></button>`).join('');
-      $$('#pl-block-add-row [data-attach-add]',ov).forEach(b=>{const selected=blocks.some(x=>x.type===b.dataset.attachAdd);b.classList.toggle('is-selected',selected);b.setAttribute('aria-label',`Добавить: ${blockMeta[b.dataset.attachAdd].title}${selected?' (уже есть в задаче)':''}`);});
+      $$('#pl-block-add-row [data-attach-add]',ov).forEach(b=>b.setAttribute('aria-label',`Добавить: ${blockMeta[b.dataset.attachAdd].title}`));
       $$('#pl-block-add-row [data-attach-add]',ov).forEach(b=>b.onclick=()=>{
-        if(!reducedMotion())b.animate?.([{transform:'scale(1)'},{transform:'scale(.86)'},{transform:'scale(1)'}],{duration:220,easing:'cubic-bezier(.34,1.56,.64,1)'});
+        b.getAnimations?.().forEach(a=>a.cancel());
+        b.animate?.([{backgroundColor:'rgba(201,168,76,0)',borderColor:getComputedStyle(b).borderColor},{backgroundColor:'rgba(201,168,76,.24)',borderColor:themeVar('--gold')},{backgroundColor:'rgba(201,168,76,0)',borderColor:getComputedStyle(b).borderColor}],{duration:reducedMotion()?120:320,easing:'ease-out'});
         addBlock(b.dataset.attachAdd);
       });
       $('#pl-block-list',ov).innerHTML=blocks.map(b=>`<div class="pl-block-row" data-block-id="${b.id}">
@@ -4737,7 +4766,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // (держит исходную длительность) — иначе при переносе начала конец остаётся старым
     // значением и на сохранении читается как "конец раньше начала", ошибочно уезжая на
     // следующий день.
-    $$('.pl-time-input',ov).forEach(inp=>inp.addEventListener('click',()=>{try{inp.showPicker?.();}catch(_){}}));
     let endTouched=!!draft?.endTouched,endDateTouched=!!draft?.endDateTouched;
     // Многодневность события — не ручной переключатель, а чистое следствие введённых значений:
     // если время окончания раньше времени начала (переход через полночь) или дата окончания уже
@@ -4751,7 +4779,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const autoMultiDay=timeOn&&(end<start||$('#pl-end-date-value',ov).value!==$('#pl-date-value',ov).value);
       $$('.pl-time-input',ov).forEach(inp=>{inp.previousElementSibling.textContent=inp.value||'—:—';});
       $('#pl-date-row',ov).style.display='';
-      $('#pl-end-date-row',ov).style.display=(timeOn&&autoMultiDay)?'':'none';
+      $('#pl-end-date-row',ov).style.display=timeOn?'':'none';
     };
     $('#pl-time-toggle',ov).onclick=()=>{
       const on=!$('#pl-time-toggle',ov).classList.contains('on');
@@ -4782,8 +4810,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $$('.pl-time-input-wrap',ov).forEach(wrap=>{
       wrap.addEventListener('click',e=>{
         const input=$('.pl-time-input',wrap);
-        if(!input||e.target===input)return;
-        try{input.showPicker?input.showPicker():input.focus();}catch(_){input.focus();}
+        if(!input)return;
+        input.focus({preventScroll:true});
+        try{if(input.showPicker)input.showPicker();else if(e.target!==input)input.click();}catch(_){}
       });
     });
     syncMultiDayUI();
@@ -5137,7 +5166,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Улучшены прокрутка по карточкам и разделение тапа и свайпа. Заголовки событий выровнены слева у галочки; текст переносится целыми словами. Вложения укладываются в границы карточки, скрытые отмечены +N; раскрытие показывает все фото и блоки. Шторка сохраняет введённые данные при закрытии, незавершённая задача остаётся черновиком. Под временем появилась дата, кнопки вложений показывают выбранное состояние. Закрытие формы больше не перерисовывает фон во время анимации. Жёлтые акценты стали ярче, системная тема обновляется также при возвращении в приложение.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">В раскрытой ленте снова доступны свайпы редактирования, удаления и выполнения: горизонтальный жест открывает действия, вертикальный и диагональный прокручивают ленту. В узких карточках — равные плитки с фото и значками вложений без интерактивных списков. Кнопки добавления вложений кратко вспыхивают при каждом нажатии. Даты начала и окончания расположены рядом, область открытия выбора времени увеличена на всю плашку. Кнопки сохранения имеют ровную заливку; яркий жёлтый оставлен в привычках.</p></section>
     </div></section>`;
   }
 
@@ -6710,6 +6739,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function animateFinanceNumbers(){$$('[data-animate-number]').forEach(el=>{const end=Number(el.dataset.animateNumber)||0,prefix=el.dataset.prefix||'',start=performance.now(),dur=600;function f(now){const t=clamp((now-start)/dur,0,1),v=end*easeOutCubic(t);el.textContent=prefix+formatNum(v);if(t<1)requestAnimationFrame(f);}requestAnimationFrame(f);});}
   function drawHabitsVisuals(){drawDiscipline(state.habits.animatingDate?state.habits.circleDisplay:progressForDate(state.habits.selectedDate));drawHabitsChart(state.habits.animatingDate?0:1);animateCounts();}
   function drawDiscipline(progress) {
+    const GOLD=themeVar('--habit-yellow')||'#f2cf36';
     const canvas = $('.discipline-canvas');
     if (!canvas) return;
     const {ctx,w,h} = setupCanvas(canvas);
@@ -6736,7 +6766,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // Стопы раньше были буквально зашитыми копиями --gold/--gold2/--gold3 ТЁМНОЙ темы —
       // в светлой теме кольцо оставалось тускло-тёмным поверх остального яркого интерфейса.
       // Берём токены динамически (themeVar, как и everywhere в canvas-отрисовке).
-      const gA=themeVar('--gold')||'#C9A84C',gB=themeVar('--gold2')||'#D4AF37',gC=themeVar('--gold3')||'#E8C84A';
+      const gA=GOLD,gB='#f6dc65',gC='#ffe77c';
       let gradient;
       if (ctx.createConicGradient) {
         gradient = ctx.createConicGradient(-Math.PI / 2, cx, cy);
@@ -6809,6 +6839,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
 
   function drawHabitsChart(animationValue=1) {
+    const GOLD=themeVar('--habit-yellow')||'#f2cf36';
     const canvas = $('.habits-chart');
     if (!canvas) return;
     const {ctx,w,h} = setupCanvas(canvas), dates = allDates();
