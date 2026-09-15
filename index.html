@@ -1736,6 +1736,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   .pl-event-title{font-size:10px;}
   .pl-event-extra{padding:3px;}
 }
+:root{--system-theme:dark;}
+@media(prefers-color-scheme:light){:root{--system-theme:light;}}
 </style>
 </head>
 <body>
@@ -1767,7 +1769,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.24.5';
+  const APP_VERSION = '0.24.6';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -1823,9 +1825,17 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   const THEME_MODES=['light','dark','system'];
   const THEME_STORAGE_KEY='dna_theme_mode';
   function loadThemeMode(){const m=localStorage.getItem(THEME_STORAGE_KEY);return THEME_MODES.includes(m)?m:'system';}
+  let systemThemeSample=null;
+  function readSystemTheme(forced){
+    const query=window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light';
+    const css=getComputedStyle(document.documentElement).getPropertyValue('--system-theme').trim()||query;
+    const old=systemThemeSample;
+    const value=forced||(old?(query!==old.query?query:css!==old.css?css:old.value):query);
+    systemThemeSample={query,css,value};return value;
+  }
   function resolvedTheme(mode){
     if(mode==='light'||mode==='dark')return mode;
-    return (window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+    return readSystemTheme();
   }
   let themeMode=loadThemeMode();
   function applyThemeMode(mode,animate,systemTheme){
@@ -1836,9 +1846,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       clearTimeout(applyThemeMode._t);
       applyThemeMode._t=setTimeout(()=>root.classList.remove('theme-transition'),260);
     }
-    const resolved=mode==='system'&&systemTheme?systemTheme:resolvedTheme(mode);
-    if(mode==='system'){delete root.dataset.theme;root.style.colorScheme='light dark';}
-    else{root.dataset.theme=resolved;root.style.colorScheme=resolved;}
+    const resolved=mode==='system'&&systemTheme?readSystemTheme(systemTheme):resolvedTheme(mode);
+    // Применяем обнаруженную палитру явно: не ждём, пока WebKit перекрасит @media.
+    // Режим system сохраняется отдельно, поэтому подписки на ОС продолжают работать.
+    root.dataset.theme=resolved;root.style.colorScheme=mode==='system'?'light dark':resolved;
     applyThemeMode.resolved=resolved;
     const metaTheme=document.querySelector('meta[name="theme-color"]');
     if(metaTheme)metaTheme.content=resolved==='light'?'#F7F4ED':'#0A0A0A';
@@ -1867,7 +1878,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // хотя applyThemeMode технически отрабатывал (canvas/GOLD/meta обновлялись, а всё остальное
     // — нет, до следующего непричастного к теме рендера).
     const onSystemChange=event=>{
-      const next=typeof event?.matches==='boolean'?(event.media.includes('dark')?(event.matches?'dark':'light'):(event.matches?'light':'dark')):resolvedTheme('system');
+      const next=typeof event?.matches==='boolean'?readSystemTheme((event.media||'dark').includes('dark')?(event.matches?'dark':'light'):(event.matches?'light':'dark')):resolvedTheme('system');
       if(themeMode==='system'&&applyThemeMode.resolved!==next){applyThemeMode('system',true,next);renderScreen();}
     };
     const resumeTheme=()=>{onSystemChange();requestAnimationFrame(onSystemChange);setTimeout(onSystemChange,250);};
@@ -1877,7 +1888,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     window.addEventListener('pageshow',resumeTheme);
     window.addEventListener('focus',resumeTheme);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeTheme();});
-    setInterval(()=>{if(!document.hidden&&themeMode==='system')onSystemChange();},1500);
+    document.addEventListener('pointerdown',()=>{if(themeMode==='system')onSystemChange();},{passive:true});
+    setInterval(()=>{if(!document.hidden&&themeMode==='system')onSystemChange();},500);
   }
   // Миграция: старые записи (транзакции/цели/активы) хранились по индексу массива, не по id —
   // после удаления/сортировки индексы «плывут» и легко зацепить не ту запись. Добиваем id всем,
@@ -2778,6 +2790,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function nowMinutes(){const n=new Date();return n.getHours()*60+n.getMinutes();}
   function renderPlanner() {
+    plannerNormalizeExpansion();
     const zoom=state.planner.zoom;
     return `<section class="screen pl-screen" aria-label="Планер">
       <header class="pl-header"><h1>Планер</h1></header>
@@ -2797,13 +2810,35 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const lo=Math.min(start,end),hi=Math.max(start,end);
     return {date:plannerShiftDate(date,Math.floor(lo/1440)),time:plannerMinutesToTime(lo),endDate:plannerShiftDate(date,Math.floor(hi/1440)),endTime:plannerMinutesToTime(hi),duration:Math.max(PL_RANGE_STEP,hi-lo)};
   }
-  function plannerDayItems(dateIso,firstIso){
-    const day=plannerDayNumber(dateIso)*1440;
+  function plannerAllTimedItems(){
     const items=state.planner.events.filter(e=>e.time&&e.date&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection)).map(e=>{
       const startMin=plannerDayNumber(e.date)*1440+plannerMinutesFromTime(e.time);
       return {e,startMin,endMin:startMin+Math.max(5,Number(e.duration)||60)};
     });
     plannerLayoutColumns(items);
+    return items;
+  }
+  function plannerNormalizeExpansion(){
+    const p=state.planner;
+    if(!p.expandedClusterId&&!p.expandedEventId)return;
+    const first=plannerDayNumber(isoDate(addDays(p.viewDate,-PL_WINDOW_RADIUS)))*1440;
+    const last=plannerDayNumber(isoDate(addDays(p.viewDate,PL_WINDOW_RADIUS+1)))*1440;
+    const visible=it=>it.startMin<last&&it.endMin>first;
+    const items=p.zoom==='day'?plannerAllTimedItems():[];
+    if(p.expandedClusterId){
+      const ids=new Set(p.expandedClusterId.split(','));
+      const groups=[...new Set(items.map(it=>it.cluster))];
+      const candidates=groups.filter(g=>g.length>PL_MAX_COLS&&g.some(visible)&&g.some(it=>ids.has(it.e.id)));
+      candidates.sort((a,b)=>b.filter(it=>ids.has(it.e.id)).length-a.filter(it=>ids.has(it.e.id)).length);
+      const group=candidates[0];
+      if(group)p.expandedClusterId=group.map(it=>it.e.id).join(',');
+      else{p.expandedClusterId=null;p.expandedEventId=null;p.expandedExtraH=null;plannerRibbonScrollLeft=0;}
+    }
+    if(p.expandedEventId&&!items.some(it=>it.e.id===p.expandedEventId&&visible(it))){p.expandedEventId=null;p.expandedExtraH=null;}
+  }
+  function plannerDayItems(dateIso,firstIso){
+    const day=plannerDayNumber(dateIso)*1440;
+    const items=plannerAllTimedItems();
     // Раньше день-относительные startMin/endMin считались в НОВЫХ объектах через .map({...it,...}) —
     // но it.cluster (см. plannerLayoutColumns) ссылается на ИСХОДНЫЕ объекты items, у которых
     // startMin/endMin так и оставались абсолютными (день*1440+минуты). Плашка "+N" в
@@ -2877,7 +2912,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const events=items.map(({e,startMin,endMin,col,totalCols})=>{
         const top=startMin/60*PL_WEEK_HOUR_PX,height=Math.max(5,(endMin-startMin)/60*PL_WEEK_HOUR_PX-1);
         const leftPct=col/totalCols*100,widthPct=100/totalCols;
-        return `<button class="pl-week-event ${e.done?'done':''}" data-pl-open="${e.id}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 1px);width:calc(${widthPct}% - 2px);--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}" aria-label="${esc(e.time+' '+e.title)}"></button>`;
+        return `<button type="button" class="pl-week-event ${e.done?'done':''}" data-pl-week-day="${iso}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 1px);width:calc(${widthPct}% - 2px);--pl-color:${plannerEventColor(e)};${plannerOutlineStyle(e)}" aria-label="${esc('Открыть день '+dayLabelFor(d)+': '+e.time+' '+e.title)}"></button>`;
       }).join('');
       return `<div class="pl-week-daycol ${isToday?'is-today':''}" data-pl-week-daycol="${iso}" style="height:${24*PL_WEEK_HOUR_PX}px">${events}</div>`;
     }).join('');
@@ -3284,14 +3319,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function bindPlannerEvents(){
     $$('[data-pl-section]').forEach(b=>{b.onclick=()=>{state.planner.activeSection=b.dataset.plSection||null;renderScreen();};bindPlannerSectionDrag(b);});
     $('[data-pl-add-section]')?.addEventListener('click',plannerAddSectionPrompt);
-    $$('[data-pl-week-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plWeekDay)));
-    // Тап по пустому месту колонки дня в недельной сетке тоже открывает день (не только
-    // заголовок) — но не когда попали по самому событию (у него свой обработчик, открывает
-    // деталь события).
-    $$('[data-pl-week-daycol]').forEach(el=>el.addEventListener('click',e=>{
-      if(e.target.closest('[data-pl-open]'))return;
-      plannerEnterDayView(parseLocalDate(el.dataset.plWeekDaycol));
-    }));
+    $$('[data-pl-week-day]').forEach(b=>b.onclick=e=>{e.stopPropagation();plannerEnterDayView(parseLocalDate(b.dataset.plWeekDay));});
+    // В неделе вся колонка, включая миниатюры событий, открывает только день.
+    $$('[data-pl-week-daycol]').forEach(el=>{
+      let press=null,moved=false;
+      el.addEventListener('pointerdown',e=>{press={x:e.clientX,y:e.clientY};moved=false;},{passive:true});
+      el.addEventListener('pointermove',e=>{if(press&&Math.hypot(e.clientX-press.x,e.clientY-press.y)>10)moved=true;},{passive:true});
+      el.addEventListener('pointercancel',()=>{moved=true;press=null;},{passive:true});
+      el.addEventListener('click',e=>{if(moved&&e.detail!==0){e.stopImmediatePropagation();e.preventDefault();}},true);
+      el.addEventListener('click',()=>plannerEnterDayView(parseLocalDate(el.dataset.plWeekDaycol)));
+    });
     $$('[data-pl-month-day]').forEach(b=>b.onclick=()=>plannerEnterDayView(parseLocalDate(b.dataset.plMonthDay)));
     // Плашка даты — не кастомный календарь, а тот же нативный <input type=date> (см.
     // appDateField), что и everywhere в приложении (привычки/финансы) — один и тот же системный
@@ -3396,10 +3433,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // выполнение одним "флик"-движением, без второго этапа — completeThreshold ощутимо короче
     // deleteThreshold, потому что это разовое обратимое действие (тап по чекбоксу снова снимет
     // отметку), а не необратимое удаление, которому нужна защита от случайного срабатывания.
-    const completeEl=wrap.querySelector('.pl-swipe-complete'),completeThreshold=28,completeCap=completeThreshold+20;
+    const completeEl=wrap.querySelector('.pl-swipe-complete'),completeThreshold=28,completeCap=btnW;
     let offset=0,open=false,press=null,suppressUntil=0,scroller=null,forwarder=null,lastMerge=-1,lastCompleteReveal=-1,allowActionClick=false;
     const paint=(v,animate,rawValue)=>{
       offset=v;
+      actions.style.visibility=v<0?'visible':'hidden';
       wrap.classList.toggle('is-completing',v>0);
       card.style.transition=animate?'transform .24s cubic-bezier(.22,.8,.25,1)':'none';
       card.style.transform='translate3d('+offset+'px,0,0)';
@@ -3462,7 +3500,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // насколько сдвинулась, и при достаточном сдвиге её правый видимый край проезжает мимо
       // левой границы actions-панели). Меряем реальную ширину один раз на старте жеста (не на
       // каждый кадр) и капаем к безопасному пределу.
-      const maxRightSafe=Math.max(16,wrap.getBoundingClientRect().width-actionsWidth-4);
+      const maxRightSafe=Math.max(16,wrap.getBoundingClientRect().width-4);
       // isImage: жест, начатый прямо на фото, никогда не должен листать фото/полоску вложений —
       // всегда лента дня, даже если .pl-event-extra технически имеет overflow (напр. из-за
       // чеклиста под фото в том же событии). См. выбор scroller в pointermove ниже.
@@ -3669,12 +3707,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function bindPlannerEventSwipe(wrap){
     const id=wrap.dataset.plEventId,card=$('.pl-event',wrap),actions=$('.pl-event-actions',wrap);
     card.addEventListener('keydown',e=>{if(e.target===card&&(e.key==='Enter'||e.key===' ')){e.preventDefault();card.click();}});
-    // На узкой (кластерной, 3-4 колонки) карточке фиксированные 72px панели редактировать/
-    // удалить не заполняют её целиком — остаётся видна полоска самой карточки сбоку, и вся
-    // композиция читается как "кнопки неровные". На такой карточке панель растягиваем на всю
-    // её ширину — редактировать/удалить тогда делят карточку строго пополам, без остатка.
-    // Порог 160px — примерно ширина двух-трёх колонок кластера; у обычной (широкой) карточки
-    // ничего не меняется, остаётся привычные 72px.
+    // В узкой карточке две кнопки делят её ширину пополам; в широкой — по 36px.
     const cardWidth=wrap.getBoundingClientRect().width;
     const actionsWidth=cardWidth>0&&cardWidth<160?Math.round(cardWidth):72;
     bindSwipeReveal(wrap,card,actions,actionsWidth,()=>showPlannerDetail(id),true,()=>plannerToggleDone(id));
@@ -5270,7 +5303,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Системная тема реагирует на смену оформления устройства без перезагрузки. Фото заполняют область превью без фоновых полос. В полноэкранном просмотре доступны масштабирование двумя пальцами, двойным тапом и кнопками, перемещение увеличенного фото и удаление снимка из события.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки.</p></section>
     </div></section>`;
   }
 
