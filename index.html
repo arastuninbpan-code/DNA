@@ -1719,7 +1719,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-date-display{font-size:14px;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;color:var(--white);pointer-events:none;}
 .pl-time-input-wrap .pl-date-input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;}
 .pl-time-input-wrap .pl-time-input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;}
-.pl-draft-status{min-height:18px;font-size:12px;color:var(--muted);margin:8px 0;}
+.pl-repeat-options{display:flex;flex-wrap:wrap;gap:8px;}
+.pl-repeat-chip{flex:0 0 auto;padding:7px 14px;border-radius:14px;border:1.5px solid rgba(var(--ink),.12);background:var(--surface);color:rgba(var(--ink),.7);font-family:inherit;font-size:.8125rem;}
+.pl-repeat-chip.active{border-color:var(--gold);background:rgba(201,168,76,.18);color:var(--gold);font-weight:700;}
+.pl-repeat-days{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.pl-repeat-day{flex:0 0 auto;width:42px;height:38px;border-radius:10px;border:1.5px solid rgba(var(--ink),.12);background:var(--surface);color:rgba(var(--ink),.7);font-family:inherit;font-size:.75rem;font-weight:600;}
+.pl-repeat-day.active{border-color:var(--gold);background:rgba(201,168,76,.18);color:var(--gold);}
 .sheet-handle,.sheet-title,.pl-detail-head{touch-action:none;}
 @container(max-width:130px){
   .pl-inline-block:not(.pl-inline-block-image){padding:6px;}
@@ -1769,7 +1774,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.24.6';
+  const APP_VERSION = '0.25.0';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2736,7 +2741,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     });
     return sorted;
   }
-  function plannerEventsFor(dateIso){return state.planner.events.filter(e=>e.date===dateIso&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection));}
+  // Повторяемость (см. форму — "Повторять": каждый день/по будням/по выходным/другое). Событие
+  // хранится ОДНИМ объектом с якорной датой e.date — repeat лишь решает, на каких ЕЩЁ днях
+  // (не раньше e.date) оно тоже должно появиться. Разовое редактирование/отметка "выполнено"
+  // при этом действует на всю серию сразу — отдельных исключений по конкретному дню серии нет,
+  // это сознательное упрощение.
+  function plannerEventRepeatsOn(e,dateIso){
+    if(!e.repeat||dateIso<e.date)return false;
+    const day=parseLocalDate(dateIso).getDay();
+    if(e.repeat.type==='daily')return true;
+    if(e.repeat.type==='weekdays')return day>=1&&day<=5;
+    if(e.repeat.type==='weekends')return day===0||day===6;
+    if(e.repeat.type==='custom')return (e.repeat.days||[]).includes(day);
+    return false;
+  }
+  function plannerEventOccursOn(e,dateIso){return e.date===dateIso||plannerEventRepeatsOn(e,dateIso);}
+  function plannerEventsFor(dateIso){return state.planner.events.filter(e=>plannerEventOccursOn(e,dateIso)&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection));}
   function plannerMinutesFromTime(t){const p=t.split(':').map(Number);return p[0]*60+p[1];}
   function formatPlannerDate(iso){return parseLocalDate(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});}
   function formatPlannerDateTime(iso){const d=new Date(iso);return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+', '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
@@ -2811,9 +2831,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return {date:plannerShiftDate(date,Math.floor(lo/1440)),time:plannerMinutesToTime(lo),endDate:plannerShiftDate(date,Math.floor(hi/1440)),endTime:plannerMinutesToTime(hi),duration:Math.max(PL_RANGE_STEP,hi-lo)};
   }
   function plannerAllTimedItems(){
-    const items=state.planner.events.filter(e=>e.time&&e.date&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection)).map(e=>{
-      const startMin=plannerDayNumber(e.date)*1440+plannerMinutesFromTime(e.time);
-      return {e,startMin,endMin:startMin+Math.max(5,Number(e.duration)||60)};
+    // Повторяющееся событие рисуется на КАЖДОМ дне окна дневного вида (viewDate±PL_WINDOW_RADIUS,
+    // тот же радиус, что и у остальной дневной прокрутки/расширения кластеров), не только на
+    // своей якорной дате — каждое совпадение даёт отдельный "item" с occurrence-датой, но все
+    // они ссылаются на один и тот же объект события e (общий id, редактирование/отметка задевают
+    // всю серию сразу, см. plannerEventRepeatsOn).
+    const items=[];
+    state.planner.events.forEach(e=>{
+      if(!e.time||!e.date)return;
+      if(state.planner.activeSection&&e.sectionId!==state.planner.activeSection)return;
+      const dur=Math.max(5,Number(e.duration)||60);
+      const anchorStart=plannerDayNumber(e.date)*1440+plannerMinutesFromTime(e.time);
+      items.push({e,startMin:anchorStart,endMin:anchorStart+dur});
+      if(!e.repeat)return;
+      for(let i=-PL_WINDOW_RADIUS;i<=PL_WINDOW_RADIUS;i++){
+        const iso=isoDate(addDays(state.planner.viewDate,i));
+        if(iso===e.date||!plannerEventRepeatsOn(e,iso))continue;
+        const startMin=plannerDayNumber(iso)*1440+plannerMinutesFromTime(e.time);
+        items.push({e,startMin,endMin:startMin+dur,occurrence:iso});
+      }
     });
     plannerLayoutColumns(items);
     return items;
@@ -2847,7 +2883,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // технически в DOM, но далеко за пределами видимой ленты. Правим startMin/endMin НА МЕСТЕ (не
     // копируя объекты), чтобы cluster-ссылки сразу видели уже день-относительные значения.
     items.forEach(it=>{it.startMin-=day;it.endMin-=day;});
-    return items.filter(it=>it.e.date===dateIso||(dateIso===firstIso&&it.startMin<0&&it.endMin>0));
+    // it.occurrence (см. plannerAllTimedItems) — реальная дата ЭТОГО конкретного вхождения
+    // повторяющегося события, а не якорная e.date (общая для всех вхождений серии).
+    return items.filter(it=>(it.occurrence||it.e.date)===dateIso||(dateIso===firstIso&&it.startMin<0&&it.endMin>0));
   }
   function plannerRefreshDayTasks(){
     const box=$('[data-pl-day-tasks]');if(!box)return;
@@ -4010,7 +4048,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let press=null,pointerId=null,forwarder=null;
     el.addEventListener('pointerdown',e=>{
       if(e.isPrimary===false||e.button!==0||e.target.closest('button'))return;
-      press={y:e.clientY,lastY:e.clientY};pointerId=e.pointerId;
+      press={y:e.clientY,lastY:e.clientY,lastX:e.clientX};pointerId=e.pointerId;
     },{passive:true});
     el.addEventListener('pointermove',e=>{
       if(!press||e.pointerId!==pointerId)return;
@@ -4018,6 +4056,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       e.preventDefault();
       forwarder.move(e.clientY-press.lastY,performance.now());
       press.lastY=e.clientY;
+      // Тот же диагональный жест, что и на пустом месте ленты (см. bindPlannerRangeSelect) —
+      // опершись прямо на уже нарисованный прямоугольник выделения, раньше можно было двигаться
+      // только вертикально (сам прямоугольник специально исключён из bindPlannerRangeSelect,
+      // чтобы не мешать растягиванию диапазона), горизонталь ленты кластера при этом не ехала
+      // вообще, хотя из любого другого места та же лента уже листается по диагонали.
+      if(scroller?.classList.contains('pl-pan-canvas')){scroller.scrollLeft-=e.clientX-press.lastX;plannerRibbonScrollLeft=scroller.scrollLeft;}
+      press.lastX=e.clientX;
     },{passive:false});
     const end=e=>{
       if(!press||e.pointerId!==pointerId){press=null;return;}
@@ -4666,6 +4711,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const multiDayDefault=dateVal!==endDateVal;
     let dateOn=draft?.dateOn??(!!existing||multiDayDefault);
     const dateText=value=>value?value.split('-').reverse().join('.'):'—';
+    const evRepeat=draft?draft.repeat:existing?.repeat||null;
+    const repeatOnDefault=!!evRepeat;
+    const repeatTypeDefault=evRepeat?.type||'daily';
+    const repeatDaysDefault=evRepeat?.days||[];
+    const PL_REPEAT_PRESETS=[{type:'daily',label:'Каждый день'},{type:'weekdays',label:'По будням'},{type:'weekends',label:'По выходным'},{type:'custom',label:'Другое'}];
+    const PL_REPEAT_DAY_LABELS=[{dow:1,label:'Пн'},{dow:2,label:'Вт'},{dow:3,label:'Ср'},{dow:4,label:'Чт'},{dow:5,label:'Пт'},{dow:6,label:'Сб'},{dow:0,label:'Вс'}];
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${existing?'Редактировать задачу':'Новая задача'}</div>
       <div class="pl-form-row"><label>Название</label>${formField('pl-title','Что нужно сделать','text',draft?.title??existing?.title??'')}</div>
       <div class="pl-toggle-row" id="pl-time-toggle-row"><label>Время</label><button class="pl-switch ${timeOnDefault?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${timeOnDefault}"></button></div>
@@ -4678,6 +4729,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <div class="pl-form-row" id="pl-date-row"><label for="pl-date-value">Дата начала</label><div class="pl-time-input-wrap">${icon('calendar-month')}<span class="pl-date-display" aria-hidden="true">${dateText(dateVal)}</span><input class="field pl-date-input" id="pl-date-value" type="date" value="${esc(dateVal)}"></div></div>
         <div class="pl-form-row" id="pl-end-date-row"><label for="pl-end-date-value">Дата окончания</label><div class="pl-time-input-wrap">${icon('calendar-month')}<span class="pl-date-display" aria-hidden="true">${dateText(endDateVal)}</span><input class="field pl-date-input" id="pl-end-date-value" type="date" value="${endDateVal}"></div></div>
       </div>
+      <div class="pl-toggle-row" id="pl-repeat-toggle-row"><label for="pl-repeat-toggle">Повторять</label><button class="pl-switch ${repeatOnDefault?'on':''}" id="pl-repeat-toggle" type="button" aria-label="Повторять" aria-pressed="${repeatOnDefault}"></button></div>
+      <div class="pl-form-row" id="pl-repeat-row" ${repeatOnDefault?'':'style="display:none"'}>
+        <div class="pl-repeat-options" id="pl-repeat-options">
+          ${PL_REPEAT_PRESETS.map(p=>`<button type="button" class="pl-repeat-chip ${repeatTypeDefault===p.type?'active':''}" data-repeat-type="${p.type}">${p.label}</button>`).join('')}
+        </div>
+        <div class="pl-repeat-days" id="pl-repeat-days" ${repeatTypeDefault==='custom'?'':'style="display:none"'}>
+          ${PL_REPEAT_DAY_LABELS.map(d=>`<button type="button" class="pl-repeat-day ${repeatDaysDefault.includes(d.dow)?'active':''}" data-repeat-day="${d.dow}" aria-pressed="${repeatDaysDefault.includes(d.dow)}">${d.label}</button>`).join('')}
+        </div>
+      </div>
       <div class="pl-form-row"><label>Цвет</label><div class="pl-color-picker" id="pl-event-color-picker">
         ${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${evColor===c?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}
         <span class="pl-color-swatch pl-color-custom ${evColor&&!PL_COLORS.includes(evColor)?'active':''}" style="${evColor&&!PL_COLORS.includes(evColor)?`--sw:${esc(evColor)};`:''}"><input type="color" id="pl-event-color-custom" aria-label="Выбрать свой цвет" value="${esc(evColor&&!PL_COLORS.includes(evColor)?evColor:'#c9a84c')}"></span>
@@ -4686,7 +4746,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <div class="pl-attach-menu" id="pl-block-add-row"></div>
         <div id="pl-block-list"></div>
       </div>
-      <p class="pl-draft-status" id="pl-draft-status" role="status">${draft?'Черновик восстановлен':'Данные сохраняются автоматически'}</p>
       <div class="modal-actions">${existing?'<button class="text-btn" id="pl-form-delete" style="color:#ff5a5a">Удалить</button>':''}<button class="text-btn" data-close>Закрыть</button><button class="gold-action" id="pl-form-save">Сохранить</button></div>
     </div>`,{sheet:true});
     ov.dataset.plEditor='1';
@@ -4703,9 +4762,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       clearTimeout(draftTimer);if(finished||!dirty)return true;
       syncPending();
       try{
-        localStorage.setItem(draftKey,JSON.stringify({eventId,title:$('#pl-title',ov).value,date:$('#pl-date-value',ov).value,time:$('#pl-time-value',ov).value,endTime:$('#pl-time-end-value',ov).value,endDate:$('#pl-end-date-value',ov).value,timeOn:$('#pl-time-toggle',ov).classList.contains('on'),dateOn,endTouched,endDateTouched,sectionId,color,blocks}));
-        $('#pl-draft-status',ov).textContent='Черновик сохранён';return true;
-      }catch(_){$('#pl-draft-status',ov).textContent='Не удалось сохранить: проверь свободное место';return false;}
+        const draftRepeatOn=$('#pl-repeat-toggle',ov).classList.contains('on');
+        const draftRepeat=draftRepeatOn?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[]}:null;
+        localStorage.setItem(draftKey,JSON.stringify({eventId,title:$('#pl-title',ov).value,date:$('#pl-date-value',ov).value,time:$('#pl-time-value',ov).value,endTime:$('#pl-time-end-value',ov).value,endDate:$('#pl-end-date-value',ov).value,timeOn:$('#pl-time-toggle',ov).classList.contains('on'),dateOn,endTouched,endDateTouched,sectionId,color,blocks,repeat:draftRepeat}));
+        return true;
+      }catch(_){showToast('Не удалось сохранить черновик: проверь свободное место');return false;}
     };
     const scheduleDraft=()=>{if(finished)return;dirty=true;clearTimeout(draftTimer);draftTimer=setTimeout(persistDraft,250);};
     ov.addEventListener('input',scheduleDraft);
@@ -4910,6 +4971,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       $('#pl-date-fields',ov).style.display=dateOn?'':'none';
     };
     $('#pl-date-toggle',ov).onclick=()=>{dateOn=!dateOn;syncMultiDayUI();};
+    let repeatType=repeatTypeDefault,repeatDays=repeatDaysDefault.slice();
+    $('#pl-repeat-toggle',ov).onclick=()=>{
+      const on=!$('#pl-repeat-toggle',ov).classList.contains('on');
+      $('#pl-repeat-toggle',ov).classList.toggle('on',on);$('#pl-repeat-toggle',ov).setAttribute('aria-pressed',String(on));
+      $('#pl-repeat-row',ov).style.display=on?'':'none';
+    };
+    $$('#pl-repeat-options [data-repeat-type]',ov).forEach(b=>b.onclick=()=>{
+      repeatType=b.dataset.repeatType;
+      $$('#pl-repeat-options [data-repeat-type]',ov).forEach(x=>x.classList.toggle('active',x===b));
+      $('#pl-repeat-days',ov).style.display=repeatType==='custom'?'':'none';
+    });
+    $$('#pl-repeat-days [data-repeat-day]',ov).forEach(b=>b.onclick=()=>{
+      const dow=+b.dataset.repeatDay,on=!b.classList.contains('active');
+      b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));
+      repeatDays=on?[...repeatDays,dow]:repeatDays.filter(d=>d!==dow);
+    });
     $('#pl-time-toggle',ov).onclick=()=>{
       const on=!$('#pl-time-toggle',ov).classList.contains('on');
       $('#pl-time-toggle',ov).classList.toggle('on',on);$('#pl-time-toggle',ov).setAttribute('aria-pressed',String(on));
@@ -4994,10 +5071,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(b.type==='note')return b.text?.trim();
         return true;
       }).map(b=>{if(b.type!=='checklist')return b;const {pendingText,...rest}=b;return {...rest,items:pendingText?.trim()?[...b.items,{id:plannerId(),text:pendingText.trim(),done:false}]:b.items};});
+      const repeatOn=$('#pl-repeat-toggle',ov).classList.contains('on');
+      const repeat=repeatOn&&(repeatType!=='custom'||repeatDays.length)?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[]}:null;
       const previous=state.planner.events.slice();
       const index=state.planner.events.findIndex(e=>e.id===eventId);
       if(existing&&index<0){showToast('Событие уже удалено. Данные оставлены в черновике.');return draftSaved;}
-      const saved={...(index>=0?state.planner.events[index]:{id:eventId,comments:[],done:false,createdAt:new Date().toISOString()}),title,date,time,duration,sectionId,color,blocks:cleanBlocks};
+      const saved={...(index>=0?state.planner.events[index]:{id:eventId,comments:[],done:false,createdAt:new Date().toISOString()}),title,date,time,duration,sectionId,color,blocks:cleanBlocks,repeat};
       if(index>=0)state.planner.events[index]=saved;else state.planner.events.push(saved);
       if(!savePlannerEvents()){state.planner.events=previous;return false;}
       finished=true;clearTimeout(draftTimer);localStorage.removeItem(draftKey);return true;
@@ -5303,7 +5382,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки. Панорамирование прямо по уже созданному окну выделения диапазона (при создании события вручную) теперь двигает ленту кластера в обе стороны, а не только вертикально. Убрана надпись "Черновик сохранён" под формой события — кнопки "Сохранить"/"Закрыть" поднялись на её место. Добавлена повторяемость события: каждый день, по будням, по выходным или свои дни недели.</p></section>
     </div></section>`;
   }
 
