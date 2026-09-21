@@ -1719,12 +1719,23 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-date-display{font-size:14px;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;color:var(--white);pointer-events:none;}
 .pl-time-input-wrap .pl-date-input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;}
 .pl-time-input-wrap .pl-time-input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;}
-.pl-repeat-options{display:flex;flex-wrap:wrap;gap:8px;}
-.pl-repeat-chip{flex:0 0 auto;padding:7px 14px;border-radius:14px;border:1.5px solid rgba(var(--ink),.12);background:var(--surface);color:rgba(var(--ink),.7);font-family:inherit;font-size:.8125rem;}
+.pl-repeat-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.pl-repeat-chip{flex:0 0 auto;width:100%;padding:7px 14px;border-radius:14px;border:1.5px solid rgba(var(--ink),.12);background:var(--surface);color:rgba(var(--ink),.7);font-family:inherit;font-size:.8125rem;text-align:center;}
 .pl-repeat-chip.active{border-color:var(--gold);background:rgba(201,168,76,.18);color:var(--gold);font-weight:700;}
 .pl-repeat-days{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
 .pl-repeat-day{flex:0 0 auto;width:42px;height:38px;border-radius:10px;border:1.5px solid rgba(var(--ink),.12);background:var(--surface);color:rgba(var(--ink),.7);font-family:inherit;font-size:.75rem;font-weight:600;}
 .pl-repeat-day.active{border-color:var(--gold);background:rgba(201,168,76,.18);color:var(--gold);}
+.pl-repeat-other{margin-top:10px;}
+.pl-repeat-suboptions{display:flex;gap:8px;}
+.pl-repeat-chip.small{flex:1 1 0;width:auto;padding:6px 10px;font-size:.75rem;border-radius:12px;}
+.pl-repeat-phrase{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font-size:.875rem;color:rgba(var(--ink),.75);}
+.pl-wheel{position:relative;height:96px;width:64px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;background:var(--surface);border-radius:10px;}
+.pl-wheel::-webkit-scrollbar{display:none;}
+.pl-wheel::before,.pl-wheel::after{content:'';position:absolute;left:0;right:0;height:32px;pointer-events:none;z-index:1;}
+.pl-wheel::before{top:0;background:linear-gradient(var(--surface),transparent);}
+.pl-wheel::after{bottom:0;background:linear-gradient(transparent,var(--surface));}
+.pl-wheel-item{scroll-snap-align:center;text-align:center;color:rgba(var(--ink),.4);font-variant-numeric:tabular-nums;font-size:.875rem;}
+.pl-wheel-item.active{color:var(--gold);font-weight:700;font-size:1rem;}
 .sheet-handle,.sheet-title,.pl-detail-head{touch-action:none;}
 @container(max-width:130px){
   .pl-inline-block:not(.pl-inline-block-image){padding:6px;}
@@ -1774,7 +1785,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.0';
+  const APP_VERSION = '0.25.1';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2753,6 +2764,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(e.repeat.type==='weekdays')return day>=1&&day<=5;
     if(e.repeat.type==='weekends')return day===0||day===6;
     if(e.repeat.type==='custom')return (e.repeat.days||[]).includes(day);
+    if(e.repeat.type==='monthday')return parseLocalDate(dateIso).getDate()===e.repeat.day;
     return false;
   }
   function plannerEventOccursOn(e,dateIso){return e.date===dateIso||plannerEventRepeatsOn(e,dateIso);}
@@ -4715,8 +4727,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const repeatOnDefault=!!evRepeat;
     const repeatTypeDefault=evRepeat?.type||'daily';
     const repeatDaysDefault=evRepeat?.days||[];
-    const PL_REPEAT_PRESETS=[{type:'daily',label:'Каждый день'},{type:'weekdays',label:'По будням'},{type:'weekends',label:'По выходным'},{type:'custom',label:'Другое'}];
+    // "Другое" — не отдельный тип повтора сам по себе, а зонтик над двумя подрежимами: свои дни
+    // недели (уже был, тип 'custom') и число месяца (новый, тип 'monthday', выбирается колесом
+    // как в системном будильнике). Верхний чип "Другое" активен для обоих подтипов сразу.
+    const repeatSubModeDefault=repeatTypeDefault==='monthday'?'monthday':'custom';
+    const repeatMonthDayDefault=evRepeat?.type==='monthday'&&evRepeat.day?evRepeat.day:Math.min(31,+dateVal.slice(8,10));
+    const PL_REPEAT_PRESETS=[{type:'daily',label:'Каждый день'},{type:'weekdays',label:'По будням'},{type:'weekends',label:'По выходным'},{type:'other',label:'Другое'}];
     const PL_REPEAT_DAY_LABELS=[{dow:1,label:'Пн'},{dow:2,label:'Вт'},{dow:3,label:'Ср'},{dow:4,label:'Чт'},{dow:5,label:'Пт'},{dow:6,label:'Сб'},{dow:0,label:'Вс'}];
+    const PL_REPEAT_WHEEL_ITEM_H=32;
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${existing?'Редактировать задачу':'Новая задача'}</div>
       <div class="pl-form-row"><label>Название</label>${formField('pl-title','Что нужно сделать','text',draft?.title??existing?.title??'')}</div>
       <div class="pl-toggle-row" id="pl-time-toggle-row"><label>Время</label><button class="pl-switch ${timeOnDefault?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${timeOnDefault}"></button></div>
@@ -4732,10 +4750,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-toggle-row" id="pl-repeat-toggle-row"><label for="pl-repeat-toggle">Повторять</label><button class="pl-switch ${repeatOnDefault?'on':''}" id="pl-repeat-toggle" type="button" aria-label="Повторять" aria-pressed="${repeatOnDefault}"></button></div>
       <div class="pl-form-row" id="pl-repeat-row" ${repeatOnDefault?'':'style="display:none"'}>
         <div class="pl-repeat-options" id="pl-repeat-options">
-          ${PL_REPEAT_PRESETS.map(p=>`<button type="button" class="pl-repeat-chip ${repeatTypeDefault===p.type?'active':''}" data-repeat-type="${p.type}">${p.label}</button>`).join('')}
+          ${PL_REPEAT_PRESETS.map(p=>`<button type="button" class="pl-repeat-chip ${(p.type==='other'?['custom','monthday'].includes(repeatTypeDefault):repeatTypeDefault===p.type)?'active':''}" data-repeat-type="${p.type}">${p.label}</button>`).join('')}
         </div>
-        <div class="pl-repeat-days" id="pl-repeat-days" ${repeatTypeDefault==='custom'?'':'style="display:none"'}>
-          ${PL_REPEAT_DAY_LABELS.map(d=>`<button type="button" class="pl-repeat-day ${repeatDaysDefault.includes(d.dow)?'active':''}" data-repeat-day="${d.dow}" aria-pressed="${repeatDaysDefault.includes(d.dow)}">${d.label}</button>`).join('')}
+        <div class="pl-repeat-other" id="pl-repeat-other" ${['custom','monthday'].includes(repeatTypeDefault)?'':'style="display:none"'}>
+          <div class="pl-repeat-suboptions" id="pl-repeat-suboptions">
+            <button type="button" class="pl-repeat-chip small ${repeatSubModeDefault==='custom'?'active':''}" data-repeat-sub="custom">Дни недели</button>
+            <button type="button" class="pl-repeat-chip small ${repeatSubModeDefault==='monthday'?'active':''}" data-repeat-sub="monthday">Число месяца</button>
+          </div>
+          <div class="pl-repeat-days" id="pl-repeat-days" ${repeatSubModeDefault==='custom'?'':'style="display:none"'}>
+            ${PL_REPEAT_DAY_LABELS.map(d=>`<button type="button" class="pl-repeat-day ${repeatDaysDefault.includes(d.dow)?'active':''}" data-repeat-day="${d.dow}" aria-pressed="${repeatDaysDefault.includes(d.dow)}">${d.label}</button>`).join('')}
+          </div>
+          <div class="pl-repeat-phrase" id="pl-repeat-monthday" ${repeatSubModeDefault==='monthday'?'':'style="display:none"'}>
+            <span>Каждое</span>
+            <div class="pl-wheel" id="pl-repeat-day-wheel">
+              <div class="pl-wheel-track" id="pl-repeat-day-wheel-track" style="padding:${(96-PL_REPEAT_WHEEL_ITEM_H)/2}px 0">
+                ${Array.from({length:31},(_,i)=>i+1).map(n=>`<div class="pl-wheel-item ${n===repeatMonthDayDefault?'active':''}" data-value="${n}" style="height:${PL_REPEAT_WHEEL_ITEM_H}px;line-height:${PL_REPEAT_WHEEL_ITEM_H}px">${n}</div>`).join('')}
+              </div>
+            </div>
+            <span>число</span>
+          </div>
         </div>
       </div>
       <div class="pl-form-row"><label>Цвет</label><div class="pl-color-picker" id="pl-event-color-picker">
@@ -4763,7 +4796,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       syncPending();
       try{
         const draftRepeatOn=$('#pl-repeat-toggle',ov).classList.contains('on');
-        const draftRepeat=draftRepeatOn?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[]}:null;
+        const draftRepeat=draftRepeatOn?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[],...(repeatType==='monthday'?{day:repeatMonthDay}:{})}:null;
         localStorage.setItem(draftKey,JSON.stringify({eventId,title:$('#pl-title',ov).value,date:$('#pl-date-value',ov).value,time:$('#pl-time-value',ov).value,endTime:$('#pl-time-end-value',ov).value,endDate:$('#pl-end-date-value',ov).value,timeOn:$('#pl-time-toggle',ov).classList.contains('on'),dateOn,endTouched,endDateTouched,sectionId,color,blocks,repeat:draftRepeat}));
         return true;
       }catch(_){showToast('Не удалось сохранить черновик: проверь свободное место');return false;}
@@ -4971,22 +5004,50 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       $('#pl-date-fields',ov).style.display=dateOn?'':'none';
     };
     $('#pl-date-toggle',ov).onclick=()=>{dateOn=!dateOn;syncMultiDayUI();};
-    let repeatType=repeatTypeDefault,repeatDays=repeatDaysDefault.slice();
+    let repeatType=repeatTypeDefault==='other'?repeatSubModeDefault:repeatTypeDefault,repeatDays=repeatDaysDefault.slice();
+    let repeatSubMode=repeatSubModeDefault,repeatMonthDay=repeatMonthDayDefault;
     $('#pl-repeat-toggle',ov).onclick=()=>{
       const on=!$('#pl-repeat-toggle',ov).classList.contains('on');
       $('#pl-repeat-toggle',ov).classList.toggle('on',on);$('#pl-repeat-toggle',ov).setAttribute('aria-pressed',String(on));
       $('#pl-repeat-row',ov).style.display=on?'':'none';
     };
     $$('#pl-repeat-options [data-repeat-type]',ov).forEach(b=>b.onclick=()=>{
-      repeatType=b.dataset.repeatType;
+      const type=b.dataset.repeatType;
       $$('#pl-repeat-options [data-repeat-type]',ov).forEach(x=>x.classList.toggle('active',x===b));
-      $('#pl-repeat-days',ov).style.display=repeatType==='custom'?'':'none';
+      if(type==='other'){
+        $('#pl-repeat-other',ov).style.display='';
+        repeatType=repeatSubMode;
+      }else{
+        $('#pl-repeat-other',ov).style.display='none';
+        repeatType=type;
+      }
+    });
+    $$('#pl-repeat-suboptions [data-repeat-sub]',ov).forEach(b=>b.onclick=()=>{
+      repeatSubMode=b.dataset.repeatSub;
+      repeatType=repeatSubMode;
+      $$('#pl-repeat-suboptions [data-repeat-sub]',ov).forEach(x=>x.classList.toggle('active',x===b));
+      $('#pl-repeat-days',ov).style.display=repeatSubMode==='custom'?'':'none';
+      $('#pl-repeat-monthday',ov).style.display=repeatSubMode==='monthday'?'':'none';
     });
     $$('#pl-repeat-days [data-repeat-day]',ov).forEach(b=>b.onclick=()=>{
       const dow=+b.dataset.repeatDay,on=!b.classList.contains('active');
       b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));
       repeatDays=on?[...repeatDays,dow]:repeatDays.filter(d=>d!==dow);
     });
+    {
+      const wheelEl=$('#pl-repeat-day-wheel',ov);
+      wheelEl.scrollTop=(repeatMonthDayDefault-1)*PL_REPEAT_WHEEL_ITEM_H;
+      let wheelSettleTimer=null;
+      wheelEl.addEventListener('scroll',()=>{
+        clearTimeout(wheelSettleTimer);
+        wheelSettleTimer=setTimeout(()=>{
+          const idx=Math.round(wheelEl.scrollTop/PL_REPEAT_WHEEL_ITEM_H);
+          const val=Math.min(31,Math.max(1,idx+1));
+          repeatMonthDay=val;
+          $$('#pl-repeat-day-wheel .pl-wheel-item',ov).forEach(x=>x.classList.toggle('active',+x.dataset.value===val));
+        },120);
+      });
+    }
     $('#pl-time-toggle',ov).onclick=()=>{
       const on=!$('#pl-time-toggle',ov).classList.contains('on');
       $('#pl-time-toggle',ov).classList.toggle('on',on);$('#pl-time-toggle',ov).setAttribute('aria-pressed',String(on));
@@ -5072,7 +5133,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         return true;
       }).map(b=>{if(b.type!=='checklist')return b;const {pendingText,...rest}=b;return {...rest,items:pendingText?.trim()?[...b.items,{id:plannerId(),text:pendingText.trim(),done:false}]:b.items};});
       const repeatOn=$('#pl-repeat-toggle',ov).classList.contains('on');
-      const repeat=repeatOn&&(repeatType!=='custom'||repeatDays.length)?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[]}:null;
+      const repeat=repeatOn&&(repeatType!=='custom'||repeatDays.length)?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[],...(repeatType==='monthday'?{day:repeatMonthDay}:{})}:null;
       const previous=state.planner.events.slice();
       const index=state.planner.events.findIndex(e=>e.id===eventId);
       if(existing&&index<0){showToast('Событие уже удалено. Данные оставлены в черновике.');return draftSaved;}
@@ -5382,7 +5443,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки. Панорамирование прямо по уже созданному окну выделения диапазона (при создании события вручную) теперь двигает ленту кластера в обе стороны, а не только вертикально. Убрана надпись "Черновик сохранён" под формой события — кнопки "Сохранить"/"Закрыть" поднялись на её место. Добавлена повторяемость события: каждый день, по будням, по выходным или свои дни недели.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки. Панорамирование прямо по уже созданному окну выделения диапазона (при создании события вручную) теперь двигает ленту кластера в обе стороны, а не только вертикально. Убрана надпись "Черновик сохранён" под формой события — кнопки "Сохранить"/"Закрыть" поднялись на её место. Добавлена повторяемость события: каждый день, по будням, по выходным или свои дни недели. Кнопки повтора выровнены в симметричную сетку, а вариант "Другое" теперь разворачивается в выбор: свои дни недели или число месяца — последнее выбирается прокруткой колеса, как на будильнике.</p></section>
     </div></section>`;
   }
 
