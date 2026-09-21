@@ -1728,8 +1728,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-repeat-other{margin-top:10px;}
 .pl-repeat-suboptions{display:flex;gap:8px;}
 .pl-repeat-chip.small{flex:1 1 0;width:auto;padding:6px 10px;font-size:.75rem;border-radius:12px;}
-.pl-repeat-phrase{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font-size:.875rem;color:rgba(var(--ink),.75);}
+.pl-repeat-period{margin-top:12px;}
+.pl-repeat-period-preview{text-align:center;font-size:.9375rem;font-weight:700;color:var(--gold);margin-bottom:8px;}
+.pl-repeat-period-wheels{display:flex;align-items:center;justify-content:center;gap:8px;}
 .pl-wheel{position:relative;height:96px;width:64px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;background:var(--surface);border-radius:10px;}
+.pl-wheel-unit{width:96px;}
 .pl-wheel::-webkit-scrollbar{display:none;}
 .pl-wheel::before,.pl-wheel::after{content:'';position:absolute;left:0;right:0;height:32px;pointer-events:none;z-index:1;}
 .pl-wheel::before{top:0;background:linear-gradient(var(--surface),transparent);}
@@ -1785,7 +1788,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.1';
+  const APP_VERSION = '0.25.2';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2764,7 +2767,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(e.repeat.type==='weekdays')return day>=1&&day<=5;
     if(e.repeat.type==='weekends')return day===0||day===6;
     if(e.repeat.type==='custom')return (e.repeat.days||[]).includes(day);
+    // 'monthday' — устаревший формат (свободное число месяца 1-31, до конструктора периода),
+    // читаем его и дальше, чтобы уже сохранённые старые события не переставали повторяться.
     if(e.repeat.type==='monthday')return parseLocalDate(dateIso).getDate()===e.repeat.day;
+    if(e.repeat.type==='interval'){
+      const anchor=parseLocalDate(e.date),target=parseLocalDate(dateIso),n=Math.max(1,e.repeat.n||1);
+      const diffDays=Math.round((target-anchor)/86400000);
+      if(e.repeat.unit==='day')return diffDays%n===0;
+      if(e.repeat.unit==='week')return diffDays%(7*n)===0;
+      if(e.repeat.unit==='month'){
+        if(target.getDate()!==anchor.getDate())return false;
+        const monthDiff=(target.getFullYear()-anchor.getFullYear())*12+(target.getMonth()-anchor.getMonth());
+        return monthDiff%n===0;
+      }
+      if(e.repeat.unit==='year'){
+        if(target.getDate()!==anchor.getDate()||target.getMonth()!==anchor.getMonth())return false;
+        return (target.getFullYear()-anchor.getFullYear())%n===0;
+      }
+      return false;
+    }
     return false;
   }
   function plannerEventOccursOn(e,dateIso){return e.date===dateIso||plannerEventRepeatsOn(e,dateIso);}
@@ -4725,15 +4746,33 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const dateText=value=>value?value.split('-').reverse().join('.'):'—';
     const evRepeat=draft?draft.repeat:existing?.repeat||null;
     const repeatOnDefault=!!evRepeat;
-    const repeatTypeDefault=evRepeat?.type||'daily';
+    // Старый repeat.type==='monthday' (свободно выбираемое число месяца 1-31, независимое от
+    // даты события) больше не редактируется как таковой — конструктор "Другое" теперь строит
+    // общий интервал (тип 'interval': раз в N дней/недель/месяцев/лет от даты события). При
+    // открытии такого старого события на редактирование он просто подхватывается в подрежим
+    // "Период" со значением по умолчанию (раз в 1 месяц) — plannerEventRepeatsOn при этом
+    // по-прежнему понимает и старый формат, так что уже сохранённые события не ломаются, пока
+    // их не пересохранят через новый конструктор.
+    const repeatTypeDefault=evRepeat?.type==='monthday'?'interval':(evRepeat?.type||'daily');
     const repeatDaysDefault=evRepeat?.days||[];
     // "Другое" — не отдельный тип повтора сам по себе, а зонтик над двумя подрежимами: свои дни
-    // недели (уже был, тип 'custom') и число месяца (новый, тип 'monthday', выбирается колесом
-    // как в системном будильнике). Верхний чип "Другое" активен для обоих подтипов сразу.
-    const repeatSubModeDefault=repeatTypeDefault==='monthday'?'monthday':'custom';
-    const repeatMonthDayDefault=evRepeat?.type==='monthday'&&evRepeat.day?evRepeat.day:Math.min(31,+dateVal.slice(8,10));
+    // недели (тип 'custom') и период (тип 'interval', конструируется двумя колёсами — число и
+    // единица — как в системном будильнике). Верхний чип "Другое" активен для обоих сразу.
+    const repeatSubModeDefault=repeatTypeDefault==='interval'?'interval':'custom';
+    const repeatIntervalNDefault=evRepeat?.type==='interval'&&evRepeat.n?evRepeat.n:1;
+    const repeatIntervalUnitDefault=evRepeat?.type==='interval'&&evRepeat.unit?evRepeat.unit:'month';
     const PL_REPEAT_PRESETS=[{type:'daily',label:'Каждый день'},{type:'weekdays',label:'По будням'},{type:'weekends',label:'По выходным'},{type:'other',label:'Другое'}];
     const PL_REPEAT_DAY_LABELS=[{dow:1,label:'Пн'},{dow:2,label:'Вт'},{dow:3,label:'Ср'},{dow:4,label:'Чт'},{dow:5,label:'Пт'},{dow:6,label:'Сб'},{dow:0,label:'Вс'}];
+    const PL_REPEAT_UNITS=[{unit:'day',label:'дни'},{unit:'week',label:'недели'},{unit:'month',label:'месяцы'},{unit:'year',label:'годы'}];
+    const PL_REPEAT_UNIT_META={
+      day:{forms:['день','дня','дней'],one:'Каждый день'},
+      week:{forms:['неделя','недели','недель'],one:'Каждую неделю'},
+      month:{forms:['месяц','месяца','месяцев'],one:'Каждый месяц'},
+      year:{forms:['год','года','лет'],one:'Каждый год'},
+    };
+    // Стандартное русское согласование числительного с существительным (1 день / 2 дня / 5 дней).
+    const plRuCount=(n,forms)=>{const m10=n%10,m100=n%100;if(m10===1&&m100!==11)return forms[0];if(m10>=2&&m10<=4&&!(m100>=12&&m100<=14))return forms[1];return forms[2];};
+    const plRepeatPeriodPhrase=(unit,n)=>{const meta=PL_REPEAT_UNIT_META[unit]||PL_REPEAT_UNIT_META.month;return n===1?meta.one:`Каждые ${n} ${plRuCount(n,meta.forms)}`;};
     const PL_REPEAT_WHEEL_ITEM_H=32;
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${existing?'Редактировать задачу':'Новая задача'}</div>
       <div class="pl-form-row"><label>Название</label>${formField('pl-title','Что нужно сделать','text',draft?.title??existing?.title??'')}</div>
@@ -4750,24 +4789,30 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="pl-toggle-row" id="pl-repeat-toggle-row"><label for="pl-repeat-toggle">Повторять</label><button class="pl-switch ${repeatOnDefault?'on':''}" id="pl-repeat-toggle" type="button" aria-label="Повторять" aria-pressed="${repeatOnDefault}"></button></div>
       <div class="pl-form-row" id="pl-repeat-row" ${repeatOnDefault?'':'style="display:none"'}>
         <div class="pl-repeat-options" id="pl-repeat-options">
-          ${PL_REPEAT_PRESETS.map(p=>`<button type="button" class="pl-repeat-chip ${(p.type==='other'?['custom','monthday'].includes(repeatTypeDefault):repeatTypeDefault===p.type)?'active':''}" data-repeat-type="${p.type}">${p.label}</button>`).join('')}
+          ${PL_REPEAT_PRESETS.map(p=>`<button type="button" class="pl-repeat-chip ${(p.type==='other'?['custom','interval'].includes(repeatTypeDefault):repeatTypeDefault===p.type)?'active':''}" data-repeat-type="${p.type}">${p.label}</button>`).join('')}
         </div>
-        <div class="pl-repeat-other" id="pl-repeat-other" ${['custom','monthday'].includes(repeatTypeDefault)?'':'style="display:none"'}>
+        <div class="pl-repeat-other" id="pl-repeat-other" ${['custom','interval'].includes(repeatTypeDefault)?'':'style="display:none"'}>
           <div class="pl-repeat-suboptions" id="pl-repeat-suboptions">
             <button type="button" class="pl-repeat-chip small ${repeatSubModeDefault==='custom'?'active':''}" data-repeat-sub="custom">Дни недели</button>
-            <button type="button" class="pl-repeat-chip small ${repeatSubModeDefault==='monthday'?'active':''}" data-repeat-sub="monthday">Число месяца</button>
+            <button type="button" class="pl-repeat-chip small ${repeatSubModeDefault==='interval'?'active':''}" data-repeat-sub="interval">Период</button>
           </div>
           <div class="pl-repeat-days" id="pl-repeat-days" ${repeatSubModeDefault==='custom'?'':'style="display:none"'}>
             ${PL_REPEAT_DAY_LABELS.map(d=>`<button type="button" class="pl-repeat-day ${repeatDaysDefault.includes(d.dow)?'active':''}" data-repeat-day="${d.dow}" aria-pressed="${repeatDaysDefault.includes(d.dow)}">${d.label}</button>`).join('')}
           </div>
-          <div class="pl-repeat-phrase" id="pl-repeat-monthday" ${repeatSubModeDefault==='monthday'?'':'style="display:none"'}>
-            <span>Каждое</span>
-            <div class="pl-wheel" id="pl-repeat-day-wheel">
-              <div class="pl-wheel-track" id="pl-repeat-day-wheel-track" style="padding:${(96-PL_REPEAT_WHEEL_ITEM_H)/2}px 0">
-                ${Array.from({length:31},(_,i)=>i+1).map(n=>`<div class="pl-wheel-item ${n===repeatMonthDayDefault?'active':''}" data-value="${n}" style="height:${PL_REPEAT_WHEEL_ITEM_H}px;line-height:${PL_REPEAT_WHEEL_ITEM_H}px">${n}</div>`).join('')}
+          <div class="pl-repeat-period" id="pl-repeat-period" ${repeatSubModeDefault==='interval'?'':'style="display:none"'}>
+            <div class="pl-repeat-period-preview" id="pl-repeat-period-preview">${esc(plRepeatPeriodPhrase(repeatIntervalUnitDefault,repeatIntervalNDefault))}</div>
+            <div class="pl-repeat-period-wheels">
+              <div class="pl-wheel" id="pl-repeat-n-wheel">
+                <div class="pl-wheel-track" style="padding:${(96-PL_REPEAT_WHEEL_ITEM_H)/2}px 0">
+                  ${Array.from({length:31},(_,i)=>i+1).map(n=>`<div class="pl-wheel-item ${n===repeatIntervalNDefault?'active':''}" data-value="${n}" style="height:${PL_REPEAT_WHEEL_ITEM_H}px;line-height:${PL_REPEAT_WHEEL_ITEM_H}px">${n}</div>`).join('')}
+                </div>
+              </div>
+              <div class="pl-wheel pl-wheel-unit" id="pl-repeat-unit-wheel">
+                <div class="pl-wheel-track" style="padding:${(96-PL_REPEAT_WHEEL_ITEM_H)/2}px 0">
+                  ${PL_REPEAT_UNITS.map(u=>`<div class="pl-wheel-item ${u.unit===repeatIntervalUnitDefault?'active':''}" data-value="${u.unit}" style="height:${PL_REPEAT_WHEEL_ITEM_H}px;line-height:${PL_REPEAT_WHEEL_ITEM_H}px">${u.label}</div>`).join('')}
+                </div>
               </div>
             </div>
-            <span>число</span>
           </div>
         </div>
       </div>
@@ -4796,7 +4841,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       syncPending();
       try{
         const draftRepeatOn=$('#pl-repeat-toggle',ov).classList.contains('on');
-        const draftRepeat=draftRepeatOn?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[],...(repeatType==='monthday'?{day:repeatMonthDay}:{})}:null;
+        const draftRepeat=draftRepeatOn?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[],...(repeatType==='interval'?{unit:repeatIntervalUnit,n:repeatIntervalN}:{})}:null;
         localStorage.setItem(draftKey,JSON.stringify({eventId,title:$('#pl-title',ov).value,date:$('#pl-date-value',ov).value,time:$('#pl-time-value',ov).value,endTime:$('#pl-time-end-value',ov).value,endDate:$('#pl-end-date-value',ov).value,timeOn:$('#pl-time-toggle',ov).classList.contains('on'),dateOn,endTouched,endDateTouched,sectionId,color,blocks,repeat:draftRepeat}));
         return true;
       }catch(_){showToast('Не удалось сохранить черновик: проверь свободное место');return false;}
@@ -5005,7 +5050,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     };
     $('#pl-date-toggle',ov).onclick=()=>{dateOn=!dateOn;syncMultiDayUI();};
     let repeatType=repeatTypeDefault==='other'?repeatSubModeDefault:repeatTypeDefault,repeatDays=repeatDaysDefault.slice();
-    let repeatSubMode=repeatSubModeDefault,repeatMonthDay=repeatMonthDayDefault;
+    let repeatSubMode=repeatSubModeDefault,repeatIntervalN=repeatIntervalNDefault,repeatIntervalUnit=repeatIntervalUnitDefault;
     $('#pl-repeat-toggle',ov).onclick=()=>{
       const on=!$('#pl-repeat-toggle',ov).classList.contains('on');
       $('#pl-repeat-toggle',ov).classList.toggle('on',on);$('#pl-repeat-toggle',ov).setAttribute('aria-pressed',String(on));
@@ -5027,7 +5072,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       repeatType=repeatSubMode;
       $$('#pl-repeat-suboptions [data-repeat-sub]',ov).forEach(x=>x.classList.toggle('active',x===b));
       $('#pl-repeat-days',ov).style.display=repeatSubMode==='custom'?'':'none';
-      $('#pl-repeat-monthday',ov).style.display=repeatSubMode==='monthday'?'':'none';
+      $('#pl-repeat-period',ov).style.display=repeatSubMode==='interval'?'':'none';
     });
     $$('#pl-repeat-days [data-repeat-day]',ov).forEach(b=>b.onclick=()=>{
       const dow=+b.dataset.repeatDay,on=!b.classList.contains('active');
@@ -5035,16 +5080,32 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       repeatDays=on?[...repeatDays,dow]:repeatDays.filter(d=>d!==dow);
     });
     {
-      const wheelEl=$('#pl-repeat-day-wheel',ov);
-      wheelEl.scrollTop=(repeatMonthDayDefault-1)*PL_REPEAT_WHEEL_ITEM_H;
-      let wheelSettleTimer=null;
-      wheelEl.addEventListener('scroll',()=>{
-        clearTimeout(wheelSettleTimer);
-        wheelSettleTimer=setTimeout(()=>{
-          const idx=Math.round(wheelEl.scrollTop/PL_REPEAT_WHEEL_ITEM_H);
+      const updatePeriodPreview=()=>{$('#pl-repeat-period-preview',ov).textContent=plRepeatPeriodPhrase(repeatIntervalUnit,repeatIntervalN);};
+      const nWheelEl=$('#pl-repeat-n-wheel',ov);
+      nWheelEl.scrollTop=(repeatIntervalNDefault-1)*PL_REPEAT_WHEEL_ITEM_H;
+      let nWheelSettleTimer=null;
+      nWheelEl.addEventListener('scroll',()=>{
+        clearTimeout(nWheelSettleTimer);
+        nWheelSettleTimer=setTimeout(()=>{
+          const idx=Math.round(nWheelEl.scrollTop/PL_REPEAT_WHEEL_ITEM_H);
           const val=Math.min(31,Math.max(1,idx+1));
-          repeatMonthDay=val;
-          $$('#pl-repeat-day-wheel .pl-wheel-item',ov).forEach(x=>x.classList.toggle('active',+x.dataset.value===val));
+          repeatIntervalN=val;
+          $$('#pl-repeat-n-wheel .pl-wheel-item',ov).forEach(x=>x.classList.toggle('active',+x.dataset.value===val));
+          updatePeriodPreview();
+        },120);
+      });
+      const unitWheelEl=$('#pl-repeat-unit-wheel',ov);
+      const unitDefaultIdx=Math.max(0,PL_REPEAT_UNITS.findIndex(u=>u.unit===repeatIntervalUnitDefault));
+      unitWheelEl.scrollTop=unitDefaultIdx*PL_REPEAT_WHEEL_ITEM_H;
+      let unitWheelSettleTimer=null;
+      unitWheelEl.addEventListener('scroll',()=>{
+        clearTimeout(unitWheelSettleTimer);
+        unitWheelSettleTimer=setTimeout(()=>{
+          const idx=Math.min(PL_REPEAT_UNITS.length-1,Math.max(0,Math.round(unitWheelEl.scrollTop/PL_REPEAT_WHEEL_ITEM_H)));
+          const val=PL_REPEAT_UNITS[idx].unit;
+          repeatIntervalUnit=val;
+          $$('#pl-repeat-unit-wheel .pl-wheel-item',ov).forEach(x=>x.classList.toggle('active',x.dataset.value===val));
+          updatePeriodPreview();
         },120);
       });
     }
@@ -5133,7 +5194,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         return true;
       }).map(b=>{if(b.type!=='checklist')return b;const {pendingText,...rest}=b;return {...rest,items:pendingText?.trim()?[...b.items,{id:plannerId(),text:pendingText.trim(),done:false}]:b.items};});
       const repeatOn=$('#pl-repeat-toggle',ov).classList.contains('on');
-      const repeat=repeatOn&&(repeatType!=='custom'||repeatDays.length)?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[],...(repeatType==='monthday'?{day:repeatMonthDay}:{})}:null;
+      const repeat=repeatOn&&(repeatType!=='custom'||repeatDays.length)?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[],...(repeatType==='interval'?{unit:repeatIntervalUnit,n:repeatIntervalN}:{})}:null;
       const previous=state.planner.events.slice();
       const index=state.planner.events.findIndex(e=>e.id===eventId);
       if(existing&&index<0){showToast('Событие уже удалено. Данные оставлены в черновике.');return draftSaved;}
@@ -5443,7 +5504,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки. Панорамирование прямо по уже созданному окну выделения диапазона (при создании события вручную) теперь двигает ленту кластера в обе стороны, а не только вертикально. Убрана надпись "Черновик сохранён" под формой события — кнопки "Сохранить"/"Закрыть" поднялись на её место. Добавлена повторяемость события: каждый день, по будням, по выходным или свои дни недели. Кнопки повтора выровнены в симметричную сетку, а вариант "Другое" теперь разворачивается в выбор: свои дни недели или число месяца — последнее выбирается прокруткой колеса, как на будильнике.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки. Панорамирование прямо по уже созданному окну выделения диапазона (при создании события вручную) теперь двигает ленту кластера в обе стороны, а не только вертикально. Убрана надпись "Черновик сохранён" под формой события — кнопки "Сохранить"/"Закрыть" поднялись на её место. Добавлена повторяемость события: каждый день, по будням, по выходным или свои дни недели. Кнопки повтора выровнены в симметричную сетку, а вариант "Другое" теперь разворачивается в выбор: свои дни недели или период — "Каждые N дней/недель/месяцев/лет" собирается двумя колёсами, как на будильнике, с живым грамматически согласованным превью фразы.</p></section>
     </div></section>`;
   }
 
