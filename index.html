@@ -1056,7 +1056,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-swipe.is-open .habit-swipe-actions {pointer-events:auto;}
 .habit-swipe-actions button {width:44px;height:44px;flex:0 0 44px;min-width:0;display:grid;place-items:center;border:1px solid #74777e;border-radius:50%;background:#111214;color:#c2c5cb;padding:0;box-shadow:0 0 8px rgba(180,186,196,.12),inset 0 0 5px rgba(180,186,196,.04);touch-action:none;}
 .habit-swipe-actions [data-swipe-delete] {background:#1b1011;color:#ff696d;border-color:#c94a50;box-shadow:0 0 6px rgba(230,64,76,.12);}
-.habit-swipe-actions .icon {width:20px;height:20px;}
+.habit-swipe-actions .icon {width:14px;height:14px;}
 .habit-swipe-actions button>span:not(.icon) {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
 .habit-swipe-actions button:active {filter:brightness(1.2);}
 .habit-swipe-actions button:focus-visible {outline:2px solid var(--gold);outline-offset:3px;}
@@ -1738,7 +1738,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-wheel::before{top:0;background:linear-gradient(var(--surface),transparent);}
 .pl-wheel::after{bottom:0;background:linear-gradient(transparent,var(--surface));}
 .pl-wheel-item{scroll-snap-align:center;text-align:center;color:rgba(var(--ink),.55);font-variant-numeric:tabular-nums;font-size:.875rem;}
-.pl-wheel-item.active{color:var(--gold);font-weight:700;font-size:1rem;}
+.pl-wheel-item.active{color:var(--gold3);font-weight:700;font-size:1rem;}
 .sheet-handle,.sheet-title,.pl-detail-head{touch-action:none;}
 @container(max-width:130px){
   .pl-inline-block:not(.pl-inline-block-image){padding:6px;}
@@ -1788,7 +1788,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.3';
+  const APP_VERSION = '0.25.4';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -5072,12 +5072,29 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         repeatType=type;
       }
     });
+    const updatePeriodPreview=()=>{$('#pl-repeat-period-preview',ov).textContent=plRepeatPeriodPhrase(repeatIntervalUnit,repeatIntervalN);};
+    const nWheelEl=$('#pl-repeat-n-wheel',ov),unitWheelEl=$('#pl-repeat-unit-wheel',ov);
+    // Установка scrollTop на элементе с display:none — молчаливый no-op в браузере (высота/скролл
+    // не посчитаны, пока элемент скрыт). Подрежим "Период" у НОВОГО события изначально спрятан
+    // (по умолчанию активен подрежим "Дни недели") — если выставить позиции колёс только один раз,
+    // сразу при создании листа, то к моменту, когда пользователь впервые переключится на "Период",
+    // колёса физически останутся в исходном scrollTop:0, хотя текстовое превью и класс .active
+    // уже (корректно) указывают на нужное значение — расхождение "превью говорит одно, колесо
+    // показывает другое". Поэтому позиционируем колёса не только один раз при открытии формы, но
+    // и заново при каждом переключении на подрежим "Период" — тогда он уже видим и раскладка
+    // посчитана.
+    const syncPeriodWheels=()=>{
+      nWheelEl.scrollTop=(repeatIntervalN-1)*PL_REPEAT_WHEEL_ITEM_H;
+      const unitIdx=Math.max(0,PL_REPEAT_UNITS.findIndex(u=>u.unit===repeatIntervalUnit));
+      unitWheelEl.scrollTop=unitIdx*PL_REPEAT_WHEEL_ITEM_H;
+    };
     $$('#pl-repeat-suboptions [data-repeat-sub]',ov).forEach(b=>b.onclick=()=>{
       repeatSubMode=b.dataset.repeatSub;
       repeatType=repeatSubMode;
       $$('#pl-repeat-suboptions [data-repeat-sub]',ov).forEach(x=>x.classList.toggle('active',x===b));
       $('#pl-repeat-days',ov).style.display=repeatSubMode==='custom'?'':'none';
       $('#pl-repeat-period',ov).style.display=repeatSubMode==='interval'?'':'none';
+      if(repeatSubMode==='interval')syncPeriodWheels();
     });
     $$('#pl-repeat-days [data-repeat-day]',ov).forEach(b=>b.onclick=()=>{
       const dow=+b.dataset.repeatDay,on=!b.classList.contains('active');
@@ -5085,9 +5102,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       repeatDays=on?[...repeatDays,dow]:repeatDays.filter(d=>d!==dow);
     });
     {
-      const updatePeriodPreview=()=>{$('#pl-repeat-period-preview',ov).textContent=plRepeatPeriodPhrase(repeatIntervalUnit,repeatIntervalN);};
-      const nWheelEl=$('#pl-repeat-n-wheel',ov);
-      nWheelEl.scrollTop=(repeatIntervalNDefault-1)*PL_REPEAT_WHEEL_ITEM_H;
+      syncPeriodWheels();
       let nWheelSettleTimer=null;
       nWheelEl.addEventListener('scroll',()=>{
         clearTimeout(nWheelSettleTimer);
@@ -5099,9 +5114,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           updatePeriodPreview();
         },120);
       });
-      const unitWheelEl=$('#pl-repeat-unit-wheel',ov);
-      const unitDefaultIdx=Math.max(0,PL_REPEAT_UNITS.findIndex(u=>u.unit===repeatIntervalUnitDefault));
-      unitWheelEl.scrollTop=unitDefaultIdx*PL_REPEAT_WHEEL_ITEM_H;
       let unitWheelSettleTimer=null;
       unitWheelEl.addEventListener('scroll',()=>{
         clearTimeout(unitWheelSettleTimer);
@@ -5509,7 +5521,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки. Панорамирование прямо по уже созданному окну выделения диапазона (при создании события вручную) теперь двигает ленту кластера в обе стороны, а не только вертикально. Убрана надпись "Черновик сохранён" под формой события — кнопки "Сохранить"/"Закрыть" поднялись на её место. Добавлена повторяемость события: каждый день, по будням, по выходным или свои дни недели. Кнопки повтора выровнены в симметричную сетку, а вариант "Другое" теперь разворачивается в выбор: свои дни недели или период — "Каждые N дней/недель/месяцев/лет" собирается двумя колёсами, как на будильнике, с живым грамматически согласованным превью фразы. Дни недели в повторе больше не переносятся на вторую строку. Кнопки редактировать/удалить у событий планера теперь всегда одного размера (36px), независимо от ширины карточки. Свайпы в привычках переведены на ту же механику, что и у событий/задач планера (без гонки с системным скроллом), а кнопки действий уменьшены до общего с событиями размера.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки. Панорамирование прямо по уже созданному окну выделения диапазона (при создании события вручную) теперь двигает ленту кластера в обе стороны, а не только вертикально. Убрана надпись "Черновик сохранён" под формой события — кнопки "Сохранить"/"Закрыть" поднялись на её место. Добавлена повторяемость события: каждый день, по будням, по выходным или свои дни недели. Кнопки повтора выровнены в симметричную сетку, а вариант "Другое" теперь разворачивается в выбор: свои дни недели или период — "Каждые N дней/недель/месяцев/лет" собирается двумя колёсами, как на будильнике, с живым грамматически согласованным превью фразы. Дни недели в повторе больше не переносятся на вторую строку. Кнопки редактировать/удалить у событий планера теперь всегда одного размера (36px), независимо от ширины карточки. Свайпы в привычках переведены на ту же механику, что и у событий/задач планера (без гонки с системным скроллом, без "резины" — жёсткая стенка вместо неё), кнопки действий уменьшены до общего с событиями размера и значка. Активное значение в колесе периода теперь ярче. Колесо периода больше не расходится с текстом превью при первом открытии у нового события.</p></section>
     </div></section>`;
   }
 
@@ -6011,27 +6023,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const neededReveal=buttons.length*BTN_W;
       revealWidth=Math.min(neededReveal,Math.max(64,width-8));
       rightThreshold=Math.min(52,width*.38);
-      // rightCap — отдельно от rightThreshold: раньше резина начиналась ровно в точке активации,
-      // и палец «упирался в стену» сразу же, как только жест срабатывал — правый свайп ощущался
-      // рывком на фоне левого (где резина далеко за revealWidth). Даём такой же запас хода.
+      // rightCap — отдельно от rightThreshold, с запасом хода: жёсткая стенка правого свайпа не
+      // должна стоять ровно в точке активации, иначе он ощущается рывком на фоне более длинного
+      // левого (см. revealWidth).
       rightCap=Math.max(rightThreshold*1.8,90);
       // Порог для второго свайпа считается в физической (недемпфированной) дистанции пальца
-      // сверх уже открытой позиции, а не в визуальном offset — иначе резина делает его недостижимым.
-      // Снижен с 60 до 40 — 60 ощущалось как слишком долгая протяжка для действия, которое и так
-      // требует отдельного (второго) свайпа ради защиты от случайного удаления.
+      // сверх уже открытой позиции, а не в визуальном offset — иначе жёсткая стенка на revealWidth
+      // делает его недостижимым. Как и у событий (deleteThreshold=40 там же) — не слишком долгая
+      // протяжка для действия, которое и так требует отдельного (второго) свайпа ради защиты от
+      // случайного удаления.
       deleteThreshold=revealWidth+40;
-    };
-    // Первый свайп (из закрытого состояния) только раскрывает обе кнопки — дальше revealWidth
-    // упругая "стенка" с небольшим запасом (как у правого свайпа), тянуть больше некуда, удалять
-    // одним движением нельзя. Второй свайп (когда уже открыто) резину не ограничивает потолком —
-    // туда нужно дотянуть до deleteThreshold, чтобы удалить одним движением, как «свайп ещё раз».
-    const rubberBand=(raw,wasOpen)=>{
-      if(raw<-revealWidth){
-        const over=-revealWidth-raw;
-        return wasOpen?-(revealWidth+over*.25):-(revealWidth+Math.min(over*.25,24));
-      }
-      if(raw>rightCap)return rightCap+Math.min((raw-rightCap)*.25,30);
-      return raw;
     };
     const paint=(value,animate,rawValue)=>{
       offset=value;
@@ -6114,7 +6115,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       e.preventDefault();suppressUntil=performance.now()+500;
       let raw=press.from+dx;if(press.wasOpen)raw=Math.min(0,raw);
       press.lastRaw=raw;
-      paint(rubberBand(raw,press.wasOpen),false,raw);
+      // Жёсткая стенка вместо резины (как у событий/задач в bindSwipeReveal) — смещение карточки
+      // никогда не превышает revealWidth/rightCap ни на первом, ни на втором свайпе. Порог/скорость
+      // срабатывания удаления вторым свайпом по-прежнему считаются по НЕДЕМПФИРОВАННОЙ дистанции
+      // пальца (press.lastRaw выше), так что тянуть "ещё дальше" всё так же ощущается вторым
+      // свайпом — просто карточка при этом визуально стоит у стенки, а не тянется резиной дальше.
+      if(raw<0)paint(Math.max(raw,-revealWidth),false,raw);
+      else paint(Math.min(raw,rightCap),false);
       const now=performance.now();press.direction=Math.sign(e.clientX-press.samples[press.samples.length-1].x);press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
     },{passive:false});
     row.addEventListener('pointerup',e=>{
@@ -6136,12 +6143,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         }
       }
       if(!g.wasOpen&&offset>0&&(offset>=rightThreshold*.4||v>.3)){holdFeedback(card);settle(false);enableHabitNumbers(+card.dataset.habitIndex);return;}
-      // Snap: небольшой, но намеренный сдвиг (прошедший axis-lock) — не "передумал", а "хочу
-      // открыть". Порог низкий (не половина revealWidth, как раньше — от него панель то и дело
-      // "отскакивала" обратно при некрупном, но осознанном свайпе): если палец вообще что-то
-      // потянул влево, доводим до полностью открытого; назад в закрытое — только совсем крошечный
-      // сдвиг без скорости, который скорее шум/дрожание, чем жест.
-      const shouldOpen=offset<0&&(offset<=-14||v<-.25);
+      // Порог открытия — тот же, что у событий/задач (bindSwipeReveal): 40% revealWidth протяжки,
+      // либо короткий уверенный флик (только на первом свайпе, из закрытого состояния).
+      const shouldOpen=offset<-revealWidth*.4||(!g.wasOpen&&(g.lastRaw??0)<-14&&v<-.35);
       settle(g.wasOpen&&dx>12?false:shouldOpen);
     },{passive:true});
     row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;forwarder?.stop();forwarder=null;if(!row.habitLiftActive)settle(open);},{passive:true});
