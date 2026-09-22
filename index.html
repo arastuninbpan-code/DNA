@@ -321,6 +321,14 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .settings-meta dt { font-size: 1rem; color: rgba(var(--ink),.65); }
 .settings-meta dd { margin: 0; font-size: 1.125rem; color: var(--gold2); font-variant-numeric: tabular-nums; }
 .settings-card .settings-note { font-size: .875rem; color: rgba(var(--ink),.65); }
+/* Раньше все версии дописывались в один нарастающий абзац — было не видно, что именно
+   изменилось В ЭТОЙ версии, только сплошное полотно текста. Теперь список по версиям, новее
+   сверху, у каждой — свой заголовок с номером и короткое описание только её изменений. */
+.changelog { margin-top: 10px; }
+.changelog-entry { padding-top: 10px; margin-top: 10px; border-top: 1px solid rgba(var(--ink),.08); }
+.changelog-entry:first-child { padding-top: 0; margin-top: 0; border-top: 0; }
+.changelog-version { font-size: .8125rem; font-weight: 600; color: var(--gold2); font-variant-numeric: tabular-nums; }
+.changelog-entry .settings-note { margin-top: 4px; }
 /* Переключатель темы — тот же язык сегмент-контрола, что и у остального приложения (мягкие
    скругления, золотая обводка активного пункта), три равные доли на всю ширину карточки. */
 .theme-picker { display:flex; gap:8px; margin-top:14px; }
@@ -1034,11 +1042,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .habit-swipe {position:relative;overflow:hidden;border-radius:12px;margin-bottom:8px;isolation:isolate;touch-action:none;}
 .habit-swipe>.habit-card {position:relative;z-index:1;margin:0;min-height:52px;background:var(--surface);touch-action:none;transition:border-color .2s;}
 .habit-swipe.is-dragging>.habit-card {will-change:transform;}
-/* Тень по краю карточки, пока она сдвинута — создаёт эффект "приподнятости" над раскрытыми
-   кнопками/цифровой панелью, будто они лежат чуть ПОД карточкой, а не встык вровень с ней.
-   Родитель .habit-swipe обрезает всё лишнее overflow:hidden, так что видна только та половина
-   тени, что реально попадает в раскрытую (не закрытую карточкой) область. */
-.habit-swipe.is-dragging>.habit-card,.habit-swipe.is-open>.habit-card {box-shadow:-6px 0 12px -6px rgba(0,0,0,.5),6px 0 12px -6px rgba(0,0,0,.5);}
+/* Раньше здесь была тень по обоим краям карточки, пока она сдвинута — создавала эффект
+   "приподнятости" над кнопками, будто они отдельный элемент ПОД карточкой, а не прикреплены
+   к ней. У событий (.pl-event) такой тени нет — карточка и раскрытые кнопки образуют один
+   цельный скруглённый силуэт (клип по .pl-event-wrap/.habit-swipe), и именно квадратизация
+   угла карточки со стороны раскрытой панели (как у .pl-event-wrap.is-open .pl-event) даёт
+   этот эффект "прикреплённости" — а не тень. Скругление считается в JS (см. paint() в
+   bindHabitSwipe) по знаку offset, т.к. у привычки, в отличие от события, два направления
+   раскрытия (влево — edit/delete справа, вправо — числовой режим слева). */
 .habit-swipe-actions {position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:12px;pointer-events:none;background:var(--bg);touch-action:none;}
 .habit-swipe.is-open .habit-swipe-actions {pointer-events:auto;}
 .habit-swipe-actions button {width:44px;height:44px;flex:0 0 44px;min-width:0;display:grid;place-items:center;border:1px solid #74777e;border-radius:50%;background:#111214;color:#c2c5cb;padding:0;box-shadow:0 0 8px rgba(180,186,196,.12),inset 0 0 5px rgba(180,186,196,.04);touch-action:none;}
@@ -1059,10 +1070,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 @media(prefers-reduced-motion:reduce){.habit-swipe>.habit-card,.habit-swipe-actions{transition:none}}
 
 /* Habits 0.3.17: transform-driven swipe, insertion line, contour undo, completion ring for all habits. */
-/* Кнопки чуть меньше высоты строки (top/bottom инсет) и со скруглённым внутренним краем —
-   когда карточка отъезжает, видна не прямая обрубленная грань, а закруглённая панель,
-   будто кнопки лежат чуть ПОД карточкой, а не встык вровень с ней. */
-.habit-swipe-actions{left:auto;right:0;top:5px;bottom:5px;gap:0;padding:0;align-items:stretch;justify-content:flex-end;border-radius:10px 0 0 10px;overflow:hidden;box-shadow:inset 5px 0 8px -5px rgba(0,0,0,.65);}
+/* Панель кнопок теперь встык вровень с карточкой (top:0/bottom:0, без своего border-radius и
+   тени) — как .pl-event-actions у событий. Раньше кнопки были чуть меньше высоты строки
+   (top/bottom инсет) и со своей скруглённой панелью — из-за этого они читались как отдельный
+   "плавающий" элемент, лежащий ПОД карточкой, а не прикреплённый к ней. Клип по скруглённым
+   углам всей строки (.habit-swipe{overflow:hidden;border-radius:12px}) даёт нужное скругление
+   сам, без отдельного border-radius здесь — ровно как у .pl-event-wrap/.pl-event-actions. */
+.habit-swipe-actions{left:auto;right:0;top:0;bottom:0;gap:0;padding:0;align-items:stretch;justify-content:flex-end;border-radius:0;background:transparent;}
 .habit-swipe.delete-ready [data-swipe-delete]{background:#e0464f;}
 .habit-body{flex:1;min-width:0;}.habit-body .habit-name{line-height:1.35;}
 .habit-card{gap:6px;}.habit-card .habit-check{margin-right:0;}
@@ -1083,11 +1097,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 @media(prefers-reduced-motion:reduce){.habit-outline rect{transition:none;}}
 
 /* Right swipe: numeric-goal toggle reveal (Telegram mark-read style). */
-/* Та же слегка утопленная панель, что у edit/delete, для единообразия. */
+/* Встык вровень с карточкой (top:0/bottom:0, без своего border-radius/тени) — та же правка,
+   что и у edit/delete выше: панель не должна выглядеть отдельным "плавающим" элементом. */
 /* width:0 в разметке, а не фиксированные 70px — JS растит ширину вместе с пальцем (см. paint() в
    bindHabitSwipe), как у события .pl-swipe-complete, вместо того чтобы просто появляться/
    исчезать через opacity при любом offset>0 без промежуточной обратной связи по факту протяжки. */
-.habit-number-reveal{position:absolute;inset:5px auto 5px 0;width:0;display:grid;place-items:center;pointer-events:none;background:#26251f;color:#c2c5cb;border-radius:0 10px 10px 0;overflow:hidden;box-shadow:inset -5px 0 8px -5px rgba(0,0,0,.65);transition:background-color .15s ease,color .15s ease;}
+.habit-number-reveal{position:absolute;inset:0 auto 0 0;width:0;display:grid;place-items:center;pointer-events:none;background:#26251f;color:#c2c5cb;border-radius:0;overflow:hidden;transition:background-color .15s ease,color .15s ease;}
 .habit-number-badge{display:grid;place-items:center;}
 .habit-number-badge .icon{width:18px;height:18px;flex:0 0 auto;}
 .habit-number-reveal.ready{background:#3a2f13;color:var(--gold);}
@@ -1788,7 +1803,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.9';
+  const APP_VERSION = '0.25.10';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -5521,7 +5536,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки. Панорамирование прямо по уже созданному окну выделения диапазона (при создании события вручную) теперь двигает ленту кластера в обе стороны, а не только вертикально. Убрана надпись "Черновик сохранён" под формой события — кнопки "Сохранить"/"Закрыть" поднялись на её место. Добавлена повторяемость события: каждый день, по будням, по выходным или свои дни недели. Кнопки повтора выровнены в симметричную сетку, а вариант "Другое" теперь разворачивается в выбор: свои дни недели или период — "Каждые N дней/недель/месяцев/лет" собирается двумя колёсами, как на будильнике, с живым грамматически согласованным превью фразы. Дни недели в повторе больше не переносятся на вторую строку. Кнопки редактировать/удалить у событий планера теперь всегда одного размера (36px), независимо от ширины карточки. Свайпы в привычках переведены на ту же механику, что и у событий/задач планера (без гонки с системным скроллом, без "резины" — жёсткая стенка вместо неё), кнопки действий уменьшены до общего с событиями размера и значка. Активное значение в колесе периода теперь ярче. Колесо периода больше не расходится с текстом превью при первом открытии у нового события. Найдена настоящая причина, почему свайп в привычках ощущался иначе, чем в событиях: долгое нажатие для перетаскивания (сортировки) привычек срабатывало через 420мс — заметно быстрее, чем в планере (550мс), и обычный свайп с небольшой паузой перед движением палец случайно засчитывался за начало перетаскивания. Порог выровнен с планером. Сужен затемняющий фейд по краям колеса периода — раньше по высоте он совпадал с целым пунктом и полностью гасил соседний (например "недели", когда по умолчанию выбран "месяц" прямо под ним) почти до фона. Правый свайп привычки (переход в числовой режим) тоже приведён к механике событий: панель теперь растёт шириной вместе с пальцем, а не просто появляется через прозрачность, а её иконка уменьшена до 18px (как у иконки "выполнить" на событии). Найден и исправлен реальный баг свайпа привычек: на узкой колонке списка свайп вправо для закрытия уже открытой панели, начатый у самого правого края строки (там, где лежит кнопка "Удалить"), мог физически вынести палец за границы строки в соседнюю панель графика и жест повисал — панель оставалась открытой навсегда. Слежение за свайпом переведено на уровень всего документа, чтобы жест не терялся, а тап по чекбоксу/кнопкам без движения по-прежнему проходит как обычный клик. Найдена настоящая причина, почему кнопки свайпа привычек всё ещё визуально отличались от событий: их цвет был завязан на переменную темы (в светлой/системной теме — светлый кремовый фон вместо тёмно-графитового), тогда как у событий цвет панели зашит намертво и не меняется по теме. Цвет панели редактировать/удалить и панели числового режима у привычек теперь тоже зашит намертво (тот же графитовый/красный, что у событий) — независимо от текущей темы приложения.</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.25.10</div><p class="settings-note">Кнопки свайпа привычек (редактировать/удалить и переход в числовой режим) теперь визуально прикреплены к карточке — единый скруглённый силуэт вместе с ней, как у событий, без собственной "плавающей" панели с отдельной тенью и отступом от края строки.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.9</div><p class="settings-note">Цвет панели свайпа привычек зашит намертво, как у событий, а не завязан на текущую тему — раньше в светлой/системной теме кнопки становились светло-кремовыми вместо тёмно-графитовых и заметно отличались от событий.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.8</div><p class="settings-note">Исправлен баг зависания свайпа привычек: закрытие уже открытой панели свайпом вправо у самого края узкой строки списка могло "терять" жест (палец физически уходил в соседнюю панель графика), и панель оставалась открытой навсегда.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.7</div><p class="settings-note">Правый свайп привычки (переход в числовой режим) приведён к механике событий: панель растёт шириной вместе с пальцем, а не просто появляется через прозрачность, иконка уменьшена до 18px.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.6</div><p class="settings-note">Сужен затемняющий фейд по краям колеса периода повтора — раньше он полностью гасил соседний пункт (например "недели") почти до фона.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.5</div><p class="settings-note">Найдена и исправлена реальная причина, почему свайп привычек ощущался иначе, чем у событий: долгое нажатие для перетаскивания (сортировки) срабатывало через 420мс вместо 550мс у планера и перехватывало обычный свайп.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.4</div><p class="settings-note">Свайп привычек приведён к механике событий: убрана "резина" (жёсткая стенка вместо неё), кнопки уменьшены до общего с событиями размера. Активное значение в колесе периода стало ярче, исправлена рассинхронизация колеса с текстом превью при первом открытии.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.3</div><p class="settings-note">Кнопки редактировать/удалить у событий планера теперь всегда одного размера (36px), независимо от ширины карточки. Кнопки повтора события выровнены в симметричную сетку.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.2</div><p class="settings-note">Добавлена повторяемость события: каждый день, по будням, по выходным, свои дни недели или период — "Каждые N дней/недель/месяцев/лет" двумя колёсами с живым грамматически согласованным превью фразы.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">Более ранние версии</div><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки. Панорамирование прямо по уже созданному окну выделения диапазона (при создании события вручную) теперь двигает ленту кластера в обе стороны, а не только вертикально. Убрана надпись "Черновик сохранён" под формой события — кнопки "Сохранить"/"Закрыть" поднялись на её место.</p></div>
+      </div></section>
     </div></section>`;
   }
 
@@ -6015,7 +6041,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // 36px — тот же размер, что у кнопок редактировать/удалить в событиях планера
     // (.pl-event-actions button), вместо прежних отдельных 52px только у привычек.
     const BTN_W=36;
-    let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,rightCap=0,deleteThreshold=0,suppressUntil=0,busy=false,lastMerge=-1,lastNumberReveal=-1,scroller=null,forwarder=null;
+    let press=null,offset=0,open=false,width=0,revealWidth=0,rightThreshold=0,rightCap=0,deleteThreshold=0,suppressUntil=0,busy=false,lastMerge=-1,lastNumberReveal=-1,lastCorner=0,scroller=null,forwarder=null;
     const measure=()=>{
       width=row.getBoundingClientRect().width;
       // Кнопки теперь заполняют раскрытую область впритык (без зазоров и padding, как в iOS) —
@@ -6037,8 +6063,19 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const paint=(value,animate,rawValue)=>{
       offset=value;
       const pull=rawValue==null?value:rawValue;
-      card.style.transition=(animate?'transform .22s cubic-bezier(.2,.8,.2,1),':'')+'border-color .2s ease';
+      card.style.transition=(animate?'transform .22s cubic-bezier(.2,.8,.2,1),border-radius .22s cubic-bezier(.2,.8,.2,1),':'')+'border-color .2s ease';
       card.style.transform='translate3d('+offset+'px,0,0)';
+      // Угол карточки со стороны раскрытой панели квадратируется (как .pl-event-wrap.is-open
+      // .pl-event{border-radius:10px 0 0 10px} у событий) — иначе собственное скругление
+      // карточки создаёт видимый зазор/шов на стыке с панелью кнопок, и та читается как отдельный
+      // элемент, а не прикреплённый к карточке. У привычки, в отличие от события, два направления
+      // раскрытия: offset<0 — едет влево, справа открывается edit/delete (квадратируем правые
+      // углы); offset>0 — едет вправо, слева открывается числовой режим (квадратируем левые).
+      const corner=offset<0?-1:offset>0?1:0;
+      if(corner!==lastCorner){
+        lastCorner=corner;
+        card.style.borderRadius=corner<0?'12px 0 0 12px':corner>0?'0 12px 12px 0':'';
+      }
       // Явный gate по знаку offset — помимо геометрического перекрытия карточкой. Один и тот же
       // скаляр offset не может одновременно означать "открыто влево" и "открыто вправо", но это
       // подстраховка на случай рассинхрона (двойная защита, а не только расчёт на перекрытие).
