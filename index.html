@@ -1796,7 +1796,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.7';
+  const APP_VERSION = '0.25.8';
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -5529,7 +5529,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
-      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки. Панорамирование прямо по уже созданному окну выделения диапазона (при создании события вручную) теперь двигает ленту кластера в обе стороны, а не только вертикально. Убрана надпись "Черновик сохранён" под формой события — кнопки "Сохранить"/"Закрыть" поднялись на её место. Добавлена повторяемость события: каждый день, по будням, по выходным или свои дни недели. Кнопки повтора выровнены в симметричную сетку, а вариант "Другое" теперь разворачивается в выбор: свои дни недели или период — "Каждые N дней/недель/месяцев/лет" собирается двумя колёсами, как на будильнике, с живым грамматически согласованным превью фразы. Дни недели в повторе больше не переносятся на вторую строку. Кнопки редактировать/удалить у событий планера теперь всегда одного размера (36px), независимо от ширины карточки. Свайпы в привычках переведены на ту же механику, что и у событий/задач планера (без гонки с системным скроллом, без "резины" — жёсткая стенка вместо неё), кнопки действий уменьшены до общего с событиями размера и значка. Активное значение в колесе периода теперь ярче. Колесо периода больше не расходится с текстом превью при первом открытии у нового события. Найдена настоящая причина, почему свайп в привычках ощущался иначе, чем в событиях: долгое нажатие для перетаскивания (сортировки) привычек срабатывало через 420мс — заметно быстрее, чем в планере (550мс), и обычный свайп с небольшой паузой перед движением палец случайно засчитывался за начало перетаскивания. Порог выровнен с планером. Сужен затемняющий фейд по краям колеса периода — раньше по высоте он совпадал с целым пунктом и полностью гасил соседний (например "недели", когда по умолчанию выбран "месяц" прямо под ним) почти до фона. Правый свайп привычки (переход в числовой режим) тоже приведён к механике событий: панель теперь растёт шириной вместе с пальцем, а не просто появляется через прозрачность, а её иконка уменьшена до 18px (как у иконки "выполнить" на событии).</p></section>
+      <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><p class="settings-note">Раскрытая группа автоматически сворачивается, если осталось не больше трёх событий. Её состояние проверяется после переноса, редактирования и смены раздела. В недельном режиме нажатие на событие открывает день. Полоса «Выполнить» в узких карточках раскрывается на ширину кнопки действий. Системная палитра применяется явно и повторно проверяется без перезагрузки. Панорамирование прямо по уже созданному окну выделения диапазона (при создании события вручную) теперь двигает ленту кластера в обе стороны, а не только вертикально. Убрана надпись "Черновик сохранён" под формой события — кнопки "Сохранить"/"Закрыть" поднялись на её место. Добавлена повторяемость события: каждый день, по будням, по выходным или свои дни недели. Кнопки повтора выровнены в симметричную сетку, а вариант "Другое" теперь разворачивается в выбор: свои дни недели или период — "Каждые N дней/недель/месяцев/лет" собирается двумя колёсами, как на будильнике, с живым грамматически согласованным превью фразы. Дни недели в повторе больше не переносятся на вторую строку. Кнопки редактировать/удалить у событий планера теперь всегда одного размера (36px), независимо от ширины карточки. Свайпы в привычках переведены на ту же механику, что и у событий/задач планера (без гонки с системным скроллом, без "резины" — жёсткая стенка вместо неё), кнопки действий уменьшены до общего с событиями размера и значка. Активное значение в колесе периода теперь ярче. Колесо периода больше не расходится с текстом превью при первом открытии у нового события. Найдена настоящая причина, почему свайп в привычках ощущался иначе, чем в событиях: долгое нажатие для перетаскивания (сортировки) привычек срабатывало через 420мс — заметно быстрее, чем в планере (550мс), и обычный свайп с небольшой паузой перед движением палец случайно засчитывался за начало перетаскивания. Порог выровнен с планером. Сужен затемняющий фейд по краям колеса периода — раньше по высоте он совпадал с целым пунктом и полностью гасил соседний (например "недели", когда по умолчанию выбран "месяц" прямо под ним) почти до фона. Правый свайп привычки (переход в числовой режим) тоже приведён к механике событий: панель теперь растёт шириной вместе с пальцем, а не просто появляется через прозрачность, а её иконка уменьшена до 18px (как у иконки "выполнить" на событии). Найден и исправлен реальный баг свайпа привычек: на узкой колонке списка свайп вправо для закрытия уже открытой панели, начатый у самого правого края строки (там, где лежит кнопка "Удалить"), мог физически вынести палец за границы строки в соседнюю панель графика и жест повисал — панель оставалась открытой навсегда. Слежение за свайпом переведено на уровень всего документа, чтобы жест не терялся, а тап по чекбоксу/кнопкам без движения по-прежнему проходит как обычный клик.</p></section>
     </div></section>`;
   }
 
@@ -6104,13 +6104,28 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // поэтому вертикальный скролл списка теперь прокручиваем сюда же вручную (как в bindSwipeReveal
     // у планера), а порог распознавания оси можно сделать спокойнее и надёжнее, а не судорожно
     // ранним и агрессивно смещённым в сторону "горизонталь".
-    row.addEventListener('pointerdown',e=>{
-      if(busy||e.isPrimary===false||e.button!==0)return;
-      measure();closeHabitSwipes(row);
-      forwarder?.stop();forwarder=null;scroller=null;
-      press={id:e.pointerId,x:e.clientX,y:e.clientY,lastY:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}]};
-    },{passive:true});
-    row.addEventListener('pointermove',e=>{
+    // Слежение за pointermove/pointerup идёт на document (а не через row.setPointerCapture) —
+    // на узкой (40%-width) колонке привычек свайп ВПРАВО ради закрытия уже открытой панели,
+    // начатый у самого правого края строки (естественно — там и лежит открытая кнопка
+    // "Удалить"), за первые же ~10-18px движения физически выносил палец за границы row (в
+    // соседнюю панель графика справа) — обычные (не захваченные) слушатели на row такие события
+    // вообще не получают, потому что их исходная цель (canvas графика) им не потомок: жест
+    // повисал, ни один pointerup у row не срабатывал, settle() не вызывался, панель оставалась
+    // открытой навсегда. setPointerCapture решает эту проблему, но ценой худшей — пока указатель
+    // захвачен, синтезированные mouseup/click ПОСЛЕ отпускания тоже ретаргетятся в row вместо
+    // реального элемента под пальцем, и это не лечится вызовом releasePointerCapture из
+    // обработчика pointerup (ретаргет уже решён браузером к этому моменту) — чекбокс выполнения
+    // и кнопки Редактировать/Удалить переставали получать click по обычному тапу без движения.
+    // document-слушатели с capture:true получают событие независимо от того, куда физически
+    // уехал курсор (хоть на canvas графика), и никак не влияют на цель клика — click всегда идёт
+    // на настоящий элемент под пальцем, как и было изначально.
+    let docMove=null,docUp=null,docCancel=null;
+    const detachDocTracking=()=>{
+      if(docMove){document.removeEventListener('pointermove',docMove,true);docMove=null;}
+      if(docUp){document.removeEventListener('pointerup',docUp,true);docUp=null;}
+      if(docCancel){document.removeEventListener('pointercancel',docCancel,true);docCancel=null;}
+    };
+    const onPointerMove=e=>{
       if(!press||press.id!==e.pointerId||row.habitLiftActive)return;
       const dx=e.clientX-press.x,dy=e.clientY-press.y;
       if(!press.axis){
@@ -6119,7 +6134,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(Math.abs(dy)<10&&!horizontal)return;
         press.axis=horizontal?'x':'y';
         card.cancelLongPress?.();
-        if(press.axis==='x'){row.setPointerCapture?.(e.pointerId);row.classList.add('is-dragging');}
+        if(press.axis==='x')row.classList.add('is-dragging');
       }
       if(press.axis!=='x'){
         if(!scroller){scroller=row.closest('.habits-list');plannerStopMomentum(scroller);}
@@ -6139,9 +6154,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(raw<0)paint(Math.max(raw,-revealWidth),false,raw);
       else paint(Math.min(raw,rightCap),false);
       const now=performance.now();press.direction=Math.sign(e.clientX-press.samples[press.samples.length-1].x);press.samples.push({x:e.clientX,t:now});press.samples=press.samples.filter(p=>now-p.t<100);
-    },{passive:false});
-    row.addEventListener('pointerup',e=>{
-      if(!press||press.id!==e.pointerId)return;const g=press;press=null;if(row.habitLiftActive){suppressUntil=performance.now()+500;return;}
+    };
+    const onPointerUp=e=>{
+      if(!press||press.id!==e.pointerId)return;const g=press;press=null;detachDocTracking();
+      if(row.habitLiftActive){suppressUntil=performance.now()+500;return;}
       if(g.axis==null)return;
       if(g.axis!=='x'){
         if(forwarder){suppressUntil=performance.now()+400;forwarder.stop();if(scroller)plannerMomentumScroll(scroller,forwarder.velocity());forwarder=null;}
@@ -6163,11 +6179,27 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // либо короткий уверенный флик (только на первом свайпе, из закрытого состояния).
       const shouldOpen=offset<-revealWidth*.4||(!g.wasOpen&&(g.lastRaw??0)<-14&&v<-.35);
       settle(g.wasOpen&&dx>12?false:shouldOpen);
+    };
+    const onPointerCancel=e=>{if(!press||press.id!==e.pointerId)return;press=null;detachDocTracking();suppressUntil=performance.now()+400;forwarder?.stop();forwarder=null;if(!row.habitLiftActive)settle(open);};
+    row.addEventListener('pointerdown',e=>{
+      if(busy||e.isPrimary===false||e.button!==0)return;
+      measure();closeHabitSwipes(row);
+      forwarder?.stop();forwarder=null;scroller=null;
+      press={id:e.pointerId,x:e.clientX,y:e.clientY,lastY:e.clientY,from:offset,wasOpen:open,axis:null,samples:[{x:e.clientX,t:performance.now()}]};
+      detachDocTracking();
+      docMove=onPointerMove;docUp=onPointerUp;docCancel=onPointerCancel;
+      document.addEventListener('pointermove',docMove,{capture:true,passive:false});
+      document.addEventListener('pointerup',docUp,{capture:true,passive:true});
+      document.addEventListener('pointercancel',docCancel,{capture:true,passive:true});
     },{passive:true});
-    row.addEventListener('pointercancel',()=>{press=null;suppressUntil=performance.now()+400;forwarder?.stop();forwarder=null;if(!row.habitLiftActive)settle(open);},{passive:true});
-    // Подавление клика после драга — только для самой карточки (чтобы отпускание свайпа не засчиталось
-    // как тап-тогл выполнения); кнопки в открывшейся панели должны быть кликабельны сразу, без этой паузы.
-    row.addEventListener('click',e=>{if(e.target.closest('.habit-swipe-actions'))return;if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();return;}if(open&&e.target.closest('.habit-card')){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
+    // Подавление клика после драга проверяется ПЕРВЫМ, безусловно (как у событий/задач в
+    // bindSwipeReveal) — раньше кнопки в панели были заранее исключены из этой проверки
+    // (return до неё), поэтому свайп ВПРАВО ради закрытия панели, начатый пальцем прямо на
+    // уже открытой кнопке "Удалить" (естественный жест — рука и так на этой кнопке), мог
+    // синтезировать нативный click по ней после отпускания и удалить привычку без намерения
+    // пользователя. suppressUntil выставляется только настоящим осевым драгом (axis==='x'
+    // в pointerup), поэтому обычный тап по кнопке без движения по-прежнему проходит сразу.
+    row.addEventListener('click',e=>{if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();return;}if(e.target.closest('.habit-swipe-actions'))return;if(open&&e.target.closest('.habit-card')){e.preventDefault();e.stopImmediatePropagation();settle(false);}},{capture:true});
     row.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();settle(false);}});
   }
   function updateHabitUI() {
