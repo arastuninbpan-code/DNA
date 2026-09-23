@@ -37,7 +37,7 @@ npm install
 npm run deploy
 ```
 
-После первого деплоя Wrangler покажет URL вида `https://dna-telegram-bot.<subdomain>.workers.dev`.
+После первого деплоя Wrangler покажет URL вида `https://dna.<subdomain>.workers.dev`.
 Дальше нужно:
 
 1. Обновить `TELEGRAM_AUTH_VERIFY_URL` / `TELEGRAM_LINK_AUTH_URL` в `index.html` (сейчас там
