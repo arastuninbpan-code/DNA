@@ -19,7 +19,7 @@ import {
   markPlannerDone, reschedulePlannerEvent, markHabitDoneByName,
 } from './reminders.js';
 import { computeHabitStreaks } from './streaks.js';
-import { sendMessage, editMessageText, pinChatMessage, getChat } from './telegram.js';
+import { sendMessage, editMessageText, pinChatMessage, getChat, unpinAllChatMessages } from './telegram.js';
 
 const EVENT_LIST_CAP = 8;
 const HABIT_LIST_CAP = 12;
@@ -31,6 +31,32 @@ const CATEGORY_EMOJI = {
   'Образование':'📚','Одежда':'👕','Дом':'🏠','Подарки':'🎁','Переводы':'🔁',
   'Пополнение':'➕','Инвестиции':'📈','Связь':'📱','Другое':'💳',
 };
+
+// Разделы — свободный текст (пользователь сам вводит имя при создании), не фиксированный
+// список как у категорий финансов выше, поэтому точного совпадения по словарю часто не будет.
+// Сначала пробуем узнать смысл по ключевым словам в названии, а для всего остального —
+// детерминированный (стабильный между показами) фолбэк по id раздела, а не случайный смайлик.
+const SECTION_EMOJI_KEYWORDS = [
+  [/работ|проект|офис|карьер/i, '💼'],
+  [/учеб|учёб|универ|школ|курс|экзамен/i, '📚'],
+  [/спорт|трениров|зал|фитнес|бег/i, '🏋️'],
+  [/здоров|врач|медиц/i, '💊'],
+  [/дом|быт|уборк|ремонт/i, '🏠'],
+  [/сем[ьяи]|дет[ие]/i, '👨‍👩‍👧'],
+  [/путешеств|отпуск|поездк/i, '✈️'],
+  [/финанс|деньг|бюджет/i, '💰'],
+  [/хобби|творч|музык|рисован/i, '🎨'],
+  [/покупк|шопинг|магазин/i, '🛒'],
+  [/друз|встреч|личн/i, '🧑‍🤝‍🧑'],
+];
+const SECTION_EMOJI_FALLBACK = ['🏷️', '📌', '🔖', '📁', '🧩', '⭐'];
+function sectionEmoji(section) {
+  const name = String(section?.name || '');
+  for (const [re, emoji] of SECTION_EMOJI_KEYWORDS) if (re.test(name)) return emoji;
+  let hash = 0;
+  for (const ch of String(section?.id || name)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return SECTION_EMOJI_FALLBACK[hash % SECTION_EMOJI_FALLBACK.length];
+}
 
 function dayLabel(dateKey, todayKeyStr) {
   if (dateKey === todayKeyStr) return 'Сегодня';
@@ -46,11 +72,16 @@ function habitCallbackName(name) {
   return String(name).slice(0, 24);
 }
 
-function eventLine(e) {
-  return `${e.done ? '✅' : '⬜'} ${e.time ? e.time + ' — ' : ''}${escapeHtml(e.title)}`;
+// dateKey — день, на который сейчас рисуется список; если он не совпадает с якорной датой
+// события (e.date), значит это продолжение многодневного события (см. eventCoversDate в
+// reminders.js) — помечаем отдельно, иначе время начала выглядело бы как время НА этот день.
+function eventLine(e, dateKey) {
+  const continuing = dateKey && e.date !== dateKey;
+  return `${e.done ? '✅' : '⬜'} ${e.time && !continuing ? e.time + ' — ' : ''}${escapeHtml(e.title)}${continuing ? ' (продолжается)' : ''}`;
 }
-function eventButtonText(e) {
-  return `${e.done ? '✅' : '⬜'} ${e.time ? e.time + ' ' : ''}${e.title}`.slice(0, 64);
+function eventButtonText(e, dateKey) {
+  const continuing = dateKey && e.date !== dateKey;
+  return `${e.done ? '✅' : '⬜'} ${e.time && !continuing ? e.time + ' ' : ''}${e.title}${continuing ? ' (продолжается)' : ''}`.slice(0, 64);
 }
 
 function pickBestActiveStreak(streaks, list, key) {
@@ -79,30 +110,50 @@ export function renderHome() {
 }
 
 // -------- События --------
-async function renderEventsScreen(env, firestore, uid, kind) {
+// Открыв "📅 События", сначала выбираешь раздел (как в самом приложении — те же
+// plannerDoc.sections, что и чипы "Все/Работа/Учёба/..." над лентой), и только после выбора
+// видишь сам список на день — а не всё вперемешку сразу.
+function renderEventsSectionPicker(plannerDoc) {
+  const sections = Array.isArray(plannerDoc.sections) ? plannerDoc.sections : [];
+  const rows = [[{ text: '📋 Все', callback_data: 's:events:all' }]];
+  for (const s of sections) {
+    if (s && s.id) rows.push([{ text: `${sectionEmoji(s)} ${s.name || 'Без названия'}`.slice(0, 64), callback_data: `s:events:${s.id}` }]);
+  }
+  rows.push([{ text: '🏠 Главное', callback_data: 's:home' }]);
+  return { text: '📅 <b>События</b>\n\nВыбери раздел:', reply_markup: { inline_keyboard: rows } };
+}
+
+// sectionKey — 'all' либо id раздела (см. renderEventsSectionPicker); kind — 'today'|'tomorrow'.
+// Оба параметра зашиты в callback_data и строк переключения дня, и кнопок-тогглов ниже — чтобы
+// после отметки события или смены дня пользователь оставался в том же разделе, а не улетал
+// обратно к общему списку.
+async function renderEventsScreen(env, firestore, uid, kind, sectionKey) {
   const base = todayKey(DEFAULT_TZ);
   const dateKey = kind === 'tomorrow' ? dateKeyAddDays(base, 1) : base;
   const plannerDoc = await getPlannerDoc(firestore, uid);
-  const list = plannerOn(plannerDoc, dateKey);
+  const sections = Array.isArray(plannerDoc.sections) ? plannerDoc.sections : [];
+  const section = sectionKey && sectionKey !== 'all' ? sections.find((s) => s && s.id === sectionKey) : null;
+  const key = section ? section.id : 'all';
+  let list = plannerOn(plannerDoc, dateKey);
+  if (section) list = list.filter((e) => e && e.sectionId === section.id);
   const label = kind === 'tomorrow' ? 'завтра' : 'сегодня';
+  const scr = (targetKind) => `s:events:${key}${targetKind === 'tomorrow' ? ':tomorrow' : ''}`;
 
-  const lines = [`📅 <b>События на ${label}</b>`, ''];
+  const lines = [`📅 <b>События на ${label}${section ? ` · ${sectionEmoji(section)} ${escapeHtml(section.name)}` : ''}</b>`, ''];
   const rows = [];
   if (!list.length) {
     lines.push('На этот день пока ничего не запланировано.');
   } else {
     const shown = list.slice(0, EVENT_LIST_CAP);
-    lines.push(...shown.map(eventLine));
+    lines.push(...shown.map((e) => eventLine(e, dateKey)));
     lines.push('', `Выполнено: ${list.filter((e) => e.done).length} из ${list.length}`);
     if (list.length > EVENT_LIST_CAP) lines.push(`…и ещё ${list.length - EVENT_LIST_CAP}`);
     // Тап по самой строке — мгновенный тоггл готово/не готово, значок слева от названия
     // (см. просьбу пользователя: один ряд — одна кнопка, без второй "детальной" сбоку).
-    rows.push(...shown.map((e) => [{ text: eventButtonText(e), callback_data: `a:eventtoggle:${e.id}` }]));
+    rows.push(...shown.map((e) => [{ text: eventButtonText(e, dateKey), callback_data: `a:eventtoggle:${e.id}:${key}:${kind}` }]));
   }
-  rows.push(kind === 'tomorrow'
-    ? [{ text: '📅 Сегодня', callback_data: 's:events' }]
-    : [{ text: '📅 Завтра', callback_data: 's:events:tomorrow' }]);
-  rows.push([{ text: '🏠 Главное', callback_data: 's:home' }]);
+  rows.push(kind === 'tomorrow' ? [{ text: '📅 Сегодня', callback_data: scr('today') }] : [{ text: '📅 Завтра', callback_data: scr('tomorrow') }]);
+  rows.push([{ text: '← Разделы', callback_data: 's:events' }, { text: '🏠 Главное', callback_data: 's:home' }]);
   return { text: lines.join('\n'), reply_markup: { inline_keyboard: rows } };
 }
 
@@ -295,11 +346,15 @@ async function renderTodayScreen(env, firestore, uid) {
 }
 
 // -------- Маршрутизация --------
-// screen — то, что приходит после "s:" в callback_data (см. index.js), например 'home',
-// 'events', 'events:tomorrow', 'event:<id>', 'habits', 'habit:<name>', 'finance', 'news', 'today'.
+// screen — то, что приходит после "s:" в callback_data (см. index.js), например 'home', 'events'
+// (пикер раздела), 'events:<sectionKey>' / 'events:<sectionKey>:tomorrow' (список дня, sectionKey —
+// 'all' либо id раздела), 'event:<id>', 'habits', 'habit:<name>', 'finance', 'news', 'today'.
 export async function renderScreen(env, firestore, uid, screen) {
-  if (screen === 'events') return renderEventsScreen(env, firestore, uid, 'today');
-  if (screen === 'events:tomorrow') return renderEventsScreen(env, firestore, uid, 'tomorrow');
+  if (screen === 'events') return renderEventsSectionPicker(await getPlannerDoc(firestore, uid));
+  if (screen.startsWith('events:')) {
+    const [sectionKey, dayPart] = screen.slice('events:'.length).split(':');
+    return renderEventsScreen(env, firestore, uid, dayPart === 'tomorrow' ? 'tomorrow' : 'today', sectionKey);
+  }
   if (screen.startsWith('event:')) return renderEventDetail(env, firestore, uid, screen.slice('event:'.length));
   if (screen === 'habits') return renderHabitsScreen(env, firestore, uid);
   if (screen.startsWith('habit:')) return renderHabitDetail(env, firestore, uid, screen.slice('habit:'.length));
@@ -314,15 +369,16 @@ export async function runAction(firestore, uid, action) {
   if (action.startsWith('eventtoggle:')) {
     // Тап по самой строке в списке событий (см. renderEventsScreen) — переключает готово/не
     // готово в обе стороны, а не только отмечает выполненным (в отличие от eventdone ниже,
-    // которым по-прежнему пользуется кнопка "✅ Выполнить" в карточке события).
-    const id = action.slice('eventtoggle:'.length);
+    // которым по-прежнему пользуется кнопка "✅ Выполнить" в карточке события). sectionKey/kind
+    // зашиты в саму callback_data строки (см. renderEventsScreen) — так после тоггла человек
+    // возвращается в тот же раздел и день, а не в общий список.
+    const [id, sectionKey, kind] = action.slice('eventtoggle:'.length).split(':');
     const plannerDoc = await getPlannerDoc(firestore, uid);
     const events = Array.isArray(plannerDoc.events) ? plannerDoc.events : [];
     const e = events.find((x) => x && x.id === id);
-    if (!e) return { toast: 'Не нашёл это событие', nextScreen: 'events' };
+    const screen = `events:${sectionKey || 'all'}${kind === 'tomorrow' ? ':tomorrow' : ''}`;
+    if (!e) return { toast: 'Не нашёл это событие', nextScreen: screen };
     const updated = await markPlannerDone(firestore, uid, id, !e.done);
-    const today = todayKey(DEFAULT_TZ);
-    const screen = updated.date === dateKeyAddDays(today, 1) ? 'events:tomorrow' : 'events';
     return { toast: updated.done ? `Готово: ${updated.title}` : `Отменено: ${updated.title}`, nextScreen: screen };
   }
   if (action.startsWith('eventdone:')) {
@@ -366,7 +422,14 @@ export async function runAction(firestore, uid, action) {
 // это признаком потери пина, а просто пробуем редактировать как обычно; если и редактирование
 // не удалось — тоже пересоздаём. Так эта же функция закрывает и первый /start (сообщения ещё
 // нет), и обычную навигацию, и восстановление после потери пина — везде один и тот же путь.
-export async function renderToMainMenu(env, firestore, token, uid, chatId, payload) {
+//
+// Перед КАЖДЫМ новым pinChatMessage сначала открепляем всё через unpinAllChatMessages: Telegram
+// не заменяет предыдущий пин новым сам по себе, а копит их один за другим, а chat.pinned_message
+// в getChat выше показывает только самый свежий — так что после нескольких пересозданий (сбой
+// сети, очистка истории и т.п.) в чате незаметно копится несколько закреплённых "Главных меню"
+// сразу. opts.repair форсирует эту же чистку и в "штатной" ветке (просто правки текста) — её
+// включает команда /menu, которую пользователь и так использует как "почини мне меню".
+export async function renderToMainMenu(env, firestore, token, uid, chatId, payload, opts = {}) {
   const userPath = `users/${uid}`;
   const user = await firestore.getDoc(userPath);
   const options = payload.reply_markup ? { reply_markup: payload.reply_markup } : {};
@@ -382,6 +445,14 @@ export async function renderToMainMenu(env, firestore, token, uid, chatId, paylo
     if (stillPinned) {
       try {
         await editMessageText(token, chatId, user.mainMenuMessageId, payload.text, options);
+        if (opts.repair) {
+          try {
+            await unpinAllChatMessages(token, chatId);
+            await pinChatMessage(token, chatId, user.mainMenuMessageId);
+          } catch (err) {
+            console.error('repair re-pin failed', err);
+          }
+        }
         return;
       } catch (err) {
         console.error('editMessageText on main menu failed, recreating it', err);
@@ -391,6 +462,7 @@ export async function renderToMainMenu(env, firestore, token, uid, chatId, paylo
 
   const sent = await sendMessage(token, chatId, payload.text, options);
   try {
+    await unpinAllChatMessages(token, chatId);
     await pinChatMessage(token, chatId, sent.message_id);
   } catch (err) {
     console.error('pinChatMessage failed', err);

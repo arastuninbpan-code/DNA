@@ -79,9 +79,19 @@ export function pinChatMessage(token, chatId, messageId) {
 
 // Текущее состояние чата, в частности chat.pinned_message — источник истины о том, что сейчас
 // реально закреплено (см. bot.js#renderToMainMenu): наша копия message_id в Firestore может
-// устареть, если пользователь открепил сообщение сам или очистил историю чата.
+// устареть, если пользователь открепил сообщение сам или очистил историю чата. ВАЖНО: это поле
+// отдаёт только САМЫЙ СВЕЖИЙ пин — Telegram допускает несколько закреплённых сообщений сразу
+// (pinChatMessage не открепляет предыдущее автоматически), так что по одному getChat нельзя
+// узнать, не накопились ли позади ещё старые — см. unpinAllChatMessages ниже.
 export function getChat(token, chatId) {
   return callTelegram(token, 'getChat', { chat_id: chatId });
+}
+
+// Открепить ВСЕ закреплённые сообщения чата разом — вызываем перед каждым (пере)закреплением
+// главного меню, чтобы гарантированно оставалось ровно одно закреплённое сообщение, а не
+// накапливался стек из прошлых пересозданий (см. renderToMainMenu в bot.js).
+export function unpinAllChatMessages(token, chatId) {
+  return callTelegram(token, 'unpinAllChatMessages', { chat_id: chatId });
 }
 
 // Возвращает file_path (не URL!) самого маленького варианта фото профиля — этого достаточно

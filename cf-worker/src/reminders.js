@@ -105,10 +105,34 @@ export async function getPlannerDoc(firestore, uid) {
   return (await firestore.getDoc(`users/${uid}/appData/planner`)) || {};
 }
 
+// Разница в днях между двумя dateKey (b - a) — нужна ниже, чтобы понять, попадает ли dateKey
+// внутрь многодневного события, не таская отдельную библиотеку дат.
+function dateKeyDiffDays(a, b) {
+  const [ay, am, ad] = a.split('-').map(Number);
+  const [by, bm, bd] = b.split('-').map(Number);
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
+}
+
+// Модель данных события — не date+endDate, а date+time+duration в минутах (форма редактирования
+// сама переводит выбранную дату/время окончания в duration при сохранении, см. commitForm в
+// index.html); duration может быть больше 1440 — тогда событие растягивается на несколько дней.
+// dateKey входит в событие, если это его якорная дата (как раньше) ИЛИ dateKey попадает в
+// открытый интервал [start, start+duration) относительно якорной даты. Для события без времени
+// отсчитываем от начала суток (00:00) якорной даты — так же, как duration вычисляется в форме.
+function eventCoversDate(e, dateKey) {
+  if (e.date === dateKey) return true;
+  if (!e.duration || e.duration <= 1440) return false;
+  const dayDiff = dateKeyDiffDays(e.date, dateKey);
+  if (dayDiff <= 0) return false;
+  const startMin = timeToMinutes(e.time) ?? 0;
+  const dayStart = dayDiff * 1440;
+  return startMin + e.duration > dayStart;
+}
+
 export function plannerOn(plannerDoc, dateKey) {
   const events = Array.isArray(plannerDoc.events) ? plannerDoc.events : [];
   return events
-    .filter((e) => e && e.date === dateKey)
+    .filter((e) => e && eventCoversDate(e, dateKey))
     .sort((a, b) => (timeToMinutes(a.time) ?? 9999) - (timeToMinutes(b.time) ?? 9999));
 }
 

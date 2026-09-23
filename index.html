@@ -335,22 +335,6 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .settings-meta dt { font-size: 1rem; color: rgba(var(--ink),.65); }
 .settings-meta dd { margin: 0; font-size: 1.125rem; color: var(--gold2); font-variant-numeric: tabular-nums; }
 .settings-card .settings-note { font-size: .875rem; color: rgba(var(--ink),.65); }
-.settings-switch-row, .settings-select-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
-.settings-switch-row:first-of-type { margin-top: 0; }
-.settings-select-row.disabled { opacity: .45; pointer-events: none; }
-.settings-select-row select {
-  border-radius: 10px; border: 1px solid rgba(201,168,76,.3); background: var(--bg-deep); color: inherit;
-  padding: 8px 10px; font-family: inherit; font-size: .9375rem;
-}
-.settings-switch { position: relative; display: inline-block; width: 44px; height: 26px; flex: 0 0 auto; }
-.settings-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
-.settings-switch-track { position: absolute; inset: 0; background: rgba(var(--ink),.15); border-radius: 999px; transition: background-color .18s ease; }
-.settings-switch-track::before {
-  content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
-  background: #fff; transition: transform .18s ease; box-shadow: 0 1px 3px rgba(0,0,0,.25);
-}
-.settings-switch input:checked + .settings-switch-track { background: var(--gold-strong); }
-.settings-switch input:checked + .settings-switch-track::before { transform: translateX(18px); }
 /* Раньше все версии дописывались в один нарастающий абзац — было не видно, что именно
    изменилось В ЭТОЙ версии, только сплошное полотно текста. Теперь список по версиям, новее
    сверху, у каждой — свой заголовок с номером и короткое описание только её изменений. */
@@ -1737,6 +1721,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 /* 0.24: единая сетка и перенос целых слов, без масок поверх текста. */
 :root{--habit-yellow:#f2cf36;}
 .habits-screen{--gold:var(--habit-yellow);--gold2:#f6dc65;--gold3:#ffe77c;--gold-strong:var(--habit-yellow);}
+/* В светлой теме привычки используют тот же --gold/--gold-strong, что и остальной интерфейс —
+   например, кнопку "+" в событиях (.pl-add-fab, background:var(--gold-strong)) — а не отдельный
+   более яркий --habit-yellow: рядом с обычным --gold на других экранах он выглядел рассинхроном,
+   а не осознанным акцентом. Тот яркий тон нужен только в тёмной теме (см. комментарий у
+   --habit-yellow выше — там он и появился, для читаемости кольца/графика на тёмном фоне).
+   Специфичность (атрибут+класс) естественно перекрывает голый .habits-screen выше без !important. */
+:root[data-theme="light"] .habits-screen{--gold:#e3ad35;--gold2:#ecbd52;--gold3:#f3cb6c;--gold-strong:#e3ad35;}
+@media(prefers-color-scheme:light){:root:not([data-theme="dark"]):not([data-theme="light"]) .habits-screen{--gold:#e3ad35;--gold2:#ecbd52;--gold3:#f3cb6c;--gold-strong:#e3ad35;}}
 .gold-action,.primary-button{background:var(--gold-strong);}
 .habit-name,.hb-name,.pl-event-title,.pl-detail-title,.pl-event-extra-check>span:last-child,.pl-event-extra-option>span:not(.pl-event-extra-option-fill),.pl-event-extra-note,.pl-event-extra-question,.pl-subtask-text{white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;-webkit-mask-image:none!important;mask-image:none!important;}
 .habit-name,.hb-name{overflow:visible;line-height:1.35;}
@@ -5667,7 +5659,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         </div>
       </section>
       <section class="settings-card">${renderAccountCard()}</section>
-      ${telegramProfile?renderReminderSettingsCard():''}
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
         <div class="changelog-entry"><div class="changelog-version">v0.25.19</div><p class="settings-note">В боте — закреплённое «Главное меню» (Финансы/События/Привычки/Новости/Сегодня), навигация по разделам и карточкам событий/привычек редактирует одно сообщение, не засоряя чат; команда /menu открывает меню в любой момент. Поле «Повторять» у события/задачи теперь свободный текст («каждый день», «по вторникам и четвергам», «раз в 2 недели») вместо набора кнопок — понимает и опечатки, а при непонятном тексте поле трясётся красным, как при пустом названии.</p></div>
@@ -5697,27 +5688,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `<h2>Аккаунт</h2><p>Локальный режим</p>
       <button type="button" class="telegram-button" style="margin-top:24px" data-telegram-login>${telegramLogoIcon()} Войти через Telegram</button>
       <p class="settings-note">Вход подтягивает привычки в облако — бот @${TELEGRAM_BOT_USERNAME} сможет напоминать о них и отмечать выполненные. Проще всего написать боту команду /start и открыть присланную им ссылку — вход произойдёт сразу, без этой кнопки.</p>`;
-  }
-
-  // Настройки напоминаний от бота — вкл/выкл целиком и час вечернего напоминания по привычкам
-  // (событиям в планере отдельное время не нужно: бот предупреждает за 30 минут до начала
-  // каждого, см. handlePlannerReminders в cf-worker). Пишем прямо в users/{uid} в Firestore —
-  // это разрешено правилами безопасности самому владельцу документа, отдельный сервер не нужен.
-  function renderReminderSettingsCard(){
-    const enabled=telegramProfile.remindersEnabled!==false;
-    const hour=Number.isInteger(telegramProfile.reminderHourLocal)?telegramProfile.reminderHourLocal:20;
-    const hourOptions=Array.from({length:24},(_,h)=>`<option value="${h}" ${h===hour?'selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('');
-    return `<section class="settings-card"><h2>Напоминания в Telegram</h2>
-      <label class="settings-switch-row">
-        <span>Присылать напоминания</span>
-        <span class="settings-switch"><input type="checkbox" data-reminders-enabled ${enabled?'checked':''}><span class="settings-switch-track"></span></span>
-      </label>
-      <label class="settings-select-row ${enabled?'':'disabled'}">
-        <span>Время вечернего напоминания</span>
-        <select data-reminder-hour ${enabled?'':'disabled'}>${hourOptions}</select>
-      </label>
-      <p class="settings-note">Утром бот коротко расскажет, что сегодня в планах; к этому часу вечером — что осталось незакрытым и не под угрозой ли стрик; вечером позже подведёт итог дня и покажет план на завтра. О событии с указанным временем предупредит отдельно, за полчаса до начала. Сообщений немного — бот старается объединять всё важное, а не присылать по одному на каждую мелочь.</p>
-    </section>`;
   }
 
   // Крупная круглая аватарка + "Имя Фамилия" (без ника из Telegram) над всеми настройками —
@@ -5750,23 +5720,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       try{localStorage.setItem('dna_telegram_prompt_dismissed','1');}catch(_){}
       $('[data-telegram-prompt]')?.remove();
     });
-    $('[data-reminders-enabled]')?.addEventListener('change',e=>{
-      updateReminderPrefs({remindersEnabled:e.target.checked});
-      $('.settings-select-row')?.classList.toggle('disabled',!e.target.checked);
-      const select=$('[data-reminder-hour]');if(select)select.disabled=!e.target.checked;
-    });
-    $('[data-reminder-hour]')?.addEventListener('change',e=>updateReminderPrefs({reminderHourLocal:Number(e.target.value)}));
-  }
-  // Настройки напоминаний пишутся сразу в users/{uid} в Firestore (правила это разрешают
-  // владельцу документа) — отдельного эндпоинта на Worker'е не нужно, бот сам читает эти поля
-  // при следующем срабатывании крона (см. cf-worker/src/index.js#handleScheduledReminders).
-  async function updateReminderPrefs(patch){
-    const uid=window.DNAFirebase?.currentUid;
-    if(!uid)return;
-    telegramProfile={...telegramProfile,...patch};
-    saveJSON('dna_telegram_profile_cache',telegramProfile);
-    try{await window.DNAFirebase.updateUserPrefs(uid,patch);}
-    catch(err){console.error('[DNA] ошибка сохранения настроек напоминаний:',err);showToast('Не удалось сохранить настройки напоминаний');}
   }
   // Скрытая игра: 5 тапов по плашке версии за 1.6с открывают Змейку.
   let versionTapTimes=[];

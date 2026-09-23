@@ -169,7 +169,10 @@ async function handleTelegramWebhook(req, env, firestore) {
       // /menu просто обновляет то же закреплённое сообщение до "Главного меню" — не шлёт
       // отдельную свежую копию (см. просьбу пользователя не плодить сообщения; закреплённое
       // всегда доступно через шапку чата Telegram, прокручивать вверх вручную не нужно).
-      await renderToMainMenu(env, firestore, token, uidForTelegramId(from.id), from.id, renderHome());
+      // repair:true — форсирует unpinAll+pin даже если правка текста прошла успешно: если из-за
+      // прошлых сбоев/пересозданий в чате незаметно накопилось несколько пинов сразу (Telegram
+      // их не заменяет автоматически), /menu как раз естественная команда "почини мне меню".
+      await renderToMainMenu(env, firestore, token, uidForTelegramId(from.id), from.id, renderHome(), { repair: true });
     } else if (update.callback_query && String(update.callback_query.data).startsWith('s:')) {
       const cq = update.callback_query;
       const uid = uidForTelegramId(cq.from.id);
