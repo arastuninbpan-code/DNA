@@ -1810,7 +1810,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.12';
+  const APP_VERSION = '0.25.13';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -5570,7 +5570,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <section class="settings-card">${renderAccountCard()}</section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v0.25.12</div><p class="settings-note">Привязка аккаунта к Telegram: вход через официальный виджет, привычки синхронизируются с ботом (напоминания вечером + отметка «Готово» прямо в чате).</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.13</div><p class="settings-note">Более простой вход через Telegram: команда /start у бота сразу присылает ссылку, по которой открывается вход в аккаунт — без кнопки в настройках и без ошибки «bot domain invalid».</p></div>
       </div></section>
     </div></section>`;
   }
@@ -5586,7 +5586,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     }
     return `<h2>Аккаунт</h2><p>Локальный режим</p>
       <button type="button" class="primary-button" data-telegram-login>${icon('send')} Войти через Telegram</button>
-      <p class="settings-note">Вход подтягивает привычки в облако — бот @${TELEGRAM_BOT_USERNAME} сможет напоминать о них и отмечать выполненные.</p>`;
+      <p class="settings-note">Вход подтягивает привычки в облако — бот @${TELEGRAM_BOT_USERNAME} сможет напоминать о них и отмечать выполненные. Проще всего написать боту команду /start и открыть присланную им ссылку — вход произойдёт сразу, без этой кнопки.</p>`;
   }
 
   function bindHomeEvents() {
@@ -7518,6 +7518,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(window.DNAFirebase)bind();else window.addEventListener('dna-firebase-ready',bind,{once:true});
   })();
 
+  // Вход по ссылке из бота: /start в Telegram присылает кнопку со ссылкой вида
+  // ?telegram_login=<одноразовый токен> — открыв её, сразу входим, без отдельного нажатия
+  // кнопки в настройках и без привязки к домену (в отличие от виджета).
+  (function initTelegramDeepLink(){
+    const loginToken=new URLSearchParams(location.search).get('telegram_login');
+    if(!loginToken)return;
+    history.replaceState(null,'',location.pathname+location.hash); // токен одноразовый — сразу убираем из адресной строки
+    const run=async()=>{
+      try{await window.DNAFirebase.signInWithTelegramLinkToken(loginToken);showToast('Вход выполнен');}
+      catch(err){console.error('[DNA] ошибка входа по ссылке из Telegram:',err);showToast('Ссылка уже использована или устарела — открой её из бота ещё раз');}
+    };
+    if(window.DNAFirebase)run();else window.addEventListener('dna-firebase-ready',run,{once:true});
+  })();
+
   async function handleTelegramAuthChange(uid){
     if(habitsCloudUnsub){habitsCloudUnsub();habitsCloudUnsub=null;}
     if(!uid){
@@ -7637,10 +7651,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       getAuth, signInWithCustomToken, onAuthStateChanged, signOut
     } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
-    // URL функции telegramAuthVerify (Cloud Functions 2-го поколения публикуют и такой
-    // "классический" адрес наравне с Cloud Run URL). Регион по умолчанию — us-central1;
-    // если после первого деплоя оказался другим, поправить здесь.
+    // URL функций Cloud Functions 2-го поколения (тот же "классический" вид, что и у Cloud Run).
+    // Регион по умолчанию — us-central1; если после первого деплоя оказался другим, поправить
+    // здесь. telegramAuthVerify — вход через виджет; telegramLinkAuth — вход по одноразовой
+    // ссылке, которую присылает бот командой /start (проще: не требует BotFather /setdomain).
     const TELEGRAM_AUTH_VERIFY_URL = "https://us-central1-dnaa-a8ca3.cloudfunctions.net/telegramAuthVerify";
+    const TELEGRAM_LINK_AUTH_URL = "https://us-central1-dnaa-a8ca3.cloudfunctions.net/telegramLinkAuth";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCbkbr3vRfhoTkdF3Lo8VbNuL3OdVnmTt8",
@@ -7663,6 +7679,17 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         body: JSON.stringify(telegramUser),
       });
       if (!res.ok) throw new Error('telegramAuthVerify: ' + res.status);
+      const { customToken } = await res.json();
+      await signInWithCustomToken(auth, customToken);
+    }
+
+    async function signInWithTelegramLinkToken(loginToken) {
+      const res = await fetch(TELEGRAM_LINK_AUTH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: loginToken }),
+      });
+      if (!res.ok) throw new Error('telegramLinkAuth: ' + res.status);
       const { customToken } = await res.json();
       await signInWithCustomToken(auth, customToken);
     }
@@ -7741,7 +7768,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 
     window.DNAFirebase = {
       enablePublicSection, updatePublicSection, subscribeToPublicSection, loadPublicSectionOnce,
-      signInWithTelegram, signOutTelegram, loadTelegramProfileOnce,
+      signInWithTelegram, signInWithTelegramLinkToken, signOutTelegram, loadTelegramProfileOnce,
       syncHabitsToCloud, loadHabitsOnce, subscribeToHabits,
       currentUid: null,
     };
