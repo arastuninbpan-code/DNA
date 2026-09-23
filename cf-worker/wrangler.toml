@@ -1,0 +1,14 @@
+name = "dna-telegram-bot"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+# Раз в 30 минут — та же частота, что была у Cloud Scheduler в Firebase-варианте.
+[triggers]
+crons = ["*/30 * * * *"]
+
+# Секреты (TELEGRAM_BOT_TOKEN, FIREBASE_PRIVATE_KEY) задаются через `wrangler secret put`,
+# а не здесь — в этот файл они не должны попадать. Обычные (несекретные) переменные — ниже.
+[vars]
+FIREBASE_PROJECT_ID = "dnaa-a8ca3"
+FIREBASE_CLIENT_EMAIL = "REPLACE_ME@dnaa-a8ca3.iam.gserviceaccount.com"
+APP_URL = "https://arastuninbpan-code.github.io/DNA"

@@ -1,0 +1,14 @@
+{
+  "name": "dna-telegram-bot-cf",
+  "description": "D.N.A. Telegram integration — Cloudflare Worker (replaces the Firebase Cloud Functions version in functions/, which requires a paid Blaze plan)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "secrets": "echo 'Run: wrangler secret put TELEGRAM_BOT_TOKEN   &&   wrangler secret put FIREBASE_PRIVATE_KEY'"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}

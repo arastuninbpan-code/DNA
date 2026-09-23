@@ -1,8 +1,6 @@
-// Тонкие обёртки над Telegram Bot API через встроенный fetch (Node 20) — без сторонних
-// библиотек, чтобы держать поверхность зависимостей минимальной для личного проекта.
-'use strict';
-
-const crypto = require('crypto');
+// Тонкие обёртки над Telegram Bot API через fetch — без сторонних библиотек, тот же подход,
+// что был в функции functions/telegram.js (Firebase-вариант), только HMAC теперь через
+// Web Crypto (Node'овского crypto.createHmac в Workers нет).
 
 const API_BASE = 'https://api.telegram.org/bot';
 
@@ -23,7 +21,7 @@ async function callTelegram(token, method, payload) {
   return json.result;
 }
 
-function sendMessage(token, chatId, text, options = {}) {
+export function sendMessage(token, chatId, text, options = {}) {
   return callTelegram(token, 'sendMessage', {
     chat_id: chatId,
     text,
@@ -32,14 +30,14 @@ function sendMessage(token, chatId, text, options = {}) {
   });
 }
 
-function answerCallbackQuery(token, callbackQueryId, text) {
+export function answerCallbackQuery(token, callbackQueryId, text) {
   return callTelegram(token, 'answerCallbackQuery', {
     callback_query_id: callbackQueryId,
     text,
   });
 }
 
-function editMessageReplyMarkup(token, chatId, messageId, replyMarkup) {
+export function editMessageReplyMarkup(token, chatId, messageId, replyMarkup) {
   return callTelegram(token, 'editMessageReplyMarkup', {
     chat_id: chatId,
     message_id: messageId,
@@ -47,38 +45,46 @@ function editMessageReplyMarkup(token, chatId, messageId, replyMarkup) {
   });
 }
 
-function setWebhook(token, url) {
+export function setWebhook(token, url) {
   return callTelegram(token, 'setWebhook', { url });
+}
+
+function bytesToHex(bytes) {
+  return Array.from(new Uint8Array(bytes)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function timingSafeEqualHex(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 // Проверка подписи Telegram Login Widget — алгоритм из официальной документации:
 // secret_key = SHA256(bot_token); hash должен совпасть с HMAC_SHA256(data_check_string, secret_key),
 // где data_check_string — все поля кроме hash, отсортированные по ключу, "key=value" через \n.
-function verifyLoginWidgetPayload(token, payload) {
+export async function verifyLoginWidgetPayload(token, payload) {
   const { hash, ...fields } = payload;
   if (!hash) return false;
   const dataCheckString = Object.keys(fields)
     .sort()
     .map((key) => `${key}=${fields[key]}`)
     .join('\n');
-  const secretKey = crypto.createHash('sha256').update(token).digest();
-  const computedHash = crypto
-    .createHmac('sha256', secretKey)
-    .update(dataCheckString)
-    .digest('hex');
-  if (computedHash.length !== hash.length) return false;
-  const isValid = crypto.timingSafeEqual(Buffer.from(computedHash), Buffer.from(hash));
-  if (!isValid) return false;
+
+  const secretKeyBytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  const hmacKey = await crypto.subtle.importKey(
+    'raw',
+    secretKeyBytes,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', hmacKey, new TextEncoder().encode(dataCheckString));
+  const computedHash = bytesToHex(signature);
+
+  if (!timingSafeEqualHex(computedHash, hash)) return false;
   const authDate = Number(fields.auth_date);
   const ageSeconds = Date.now() / 1000 - authDate;
   // Защита от replay — payload старше суток не принимаем.
   return ageSeconds >= 0 && ageSeconds < 86400;
 }
-
-module.exports = {
-  sendMessage,
-  answerCallbackQuery,
-  editMessageReplyMarkup,
-  setWebhook,
-  verifyLoginWidgetPayload,
-};

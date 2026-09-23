@@ -7651,12 +7651,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       getAuth, signInWithCustomToken, onAuthStateChanged, signOut
     } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
-    // URL функций Cloud Functions 2-го поколения (тот же "классический" вид, что и у Cloud Run).
-    // Регион по умолчанию — us-central1; если после первого деплоя оказался другим, поправить
-    // здесь. telegramAuthVerify — вход через виджет; telegramLinkAuth — вход по одноразовой
-    // ссылке, которую присылает бот командой /start (проще: не требует BotFather /setdomain).
-    const TELEGRAM_AUTH_VERIFY_URL = "https://us-central1-dnaa-a8ca3.cloudfunctions.net/telegramAuthVerify";
-    const TELEGRAM_LINK_AUTH_URL = "https://us-central1-dnaa-a8ca3.cloudfunctions.net/telegramLinkAuth";
+    // Адрес Cloudflare Worker (см. cf-worker/ — заменил Firebase Cloud Functions, т.к. Blaze-план
+    // требует карту, которую не получилось привязать). ПОСЛЕ ПЕРВОГО ДЕПЛОЯ WORKER'А ЗАМЕНИТЬ
+    // ДОМЕН НИЖЕ на реальный вида https://dna-telegram-bot.<subdomain>.workers.dev — Cloudflare
+    // выдаёт его при деплое, заранее его не узнать. telegramAuthVerify — вход через виджет;
+    // telegramLinkAuth — вход по одноразовой ссылке от бота (/start, не требует /setdomain).
+    const TELEGRAM_WORKER_ORIGIN = "https://dna-telegram-bot.REPLACE_AFTER_DEPLOY.workers.dev";
+    const TELEGRAM_AUTH_VERIFY_URL = TELEGRAM_WORKER_ORIGIN + "/telegramAuthVerify";
+    const TELEGRAM_LINK_AUTH_URL = TELEGRAM_WORKER_ORIGIN + "/telegramLinkAuth";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCbkbr3vRfhoTkdF3Lo8VbNuL3OdVnmTt8",
