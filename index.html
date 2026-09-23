@@ -2987,6 +2987,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       return {type:'interval',n:n||1,unit};
     }
 
+    // "каждое 2 число" / "2 числа" / "по 2-му числу" — конкретный день месяца, а не единица
+    // интервала (число месяца не входит в PL_REPEAT_UNIT_FORMS выше). Проверяем раньше общего
+    // фолбэка на "каждый" ниже — иначе "каждое" по опечаточной нечёткости (то же расстояние,
+    // что и у "каждые" выше) само сворачивается в "каждый день" и число месяца теряется.
+    if(n!==null&&words.some(w=>plFuzzyWordMatch(w,['число','числа','числам','числу'])))
+      return {type:'monthday',day:n};
+
     if(words.some(w=>plFuzzyWordMatch(w,['будни','будням','будних','рабочий','рабочие'])))return {type:'weekdays'};
     if(words.some(w=>plFuzzyWordMatch(w,['выходные','выходным','выходной'])))return {type:'weekends'};
     if(words.some(w=>plFuzzyWordMatch(w,['каждый','ежедневно','всегда'])))return {type:'daily'};
@@ -3003,7 +3010,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const names={0:'воскресеньям',1:'понедельникам',2:'вторникам',3:'средам',4:'четвергам',5:'пятницам',6:'субботам'};
       return 'по '+(repeat.days||[]).map(d=>names[d]).filter(Boolean).join(', ');
     }
-    if(repeat.type==='interval'||repeat.type==='monthday'){
+    if(repeat.type==='monthday')return `каждое ${repeat.day||1} число`;
+    if(repeat.type==='interval'){
       const n=repeat.n||1,unit=repeat.unit||'month';
       const onePhrase={day:'каждый день',week:'каждую неделю',month:'каждый месяц',year:'каждый год'};
       if(n===1)return onePhrase[unit]||onePhrase.month;

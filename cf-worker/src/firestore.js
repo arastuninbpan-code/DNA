@@ -52,6 +52,17 @@ function fromFirestoreFields(fields) {
   return obj;
 }
 
+// Firestore REST: неэкранированный компонент field path может содержать только буквы, цифры
+// и подчёркивание, и не может начинаться с цифры — иначе его нужно оборачивать в бэктики.
+// Документ привычек хранит данные под ключами-датами ("2026-09-23" — и дефисы, и цифра в
+// начале), поэтому updateMask.fieldPaths для него без экранирования формально невалиден:
+// это и есть причина, по которой отметки привычек в боте вели себя ненадёжно, а у событий
+// (mergeDoc всегда с полем "events", обычное имя) — нет.
+function escapeFieldPathComponent(component) {
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(component)) return component;
+  return '`' + component.replace(/\\/g, '\\\\').replace(/`/g, '\\`') + '`';
+}
+
 // --- Публичный API ---
 
 export function createFirestoreClient(projectId, clientEmail, privateKeyPem) {
@@ -82,7 +93,7 @@ export function createFirestoreClient(projectId, clientEmail, privateKeyPem) {
   // Мердж отдельных полей (как Admin SDK .set(data, {merge:true})) — нужен для
   // markHabitDone (трогаем только один ключ-дату) и для апдейта профиля пользователя.
   async function mergeDoc(path, data) {
-    const mask = Object.keys(data).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+    const mask = Object.keys(data).map((k) => `updateMask.fieldPaths=${encodeURIComponent(escapeFieldPathComponent(k))}`).join('&');
     const res = await fetch(`${docUrl(projectId, path)}?${mask}`, {
       method: 'PATCH',
       headers: { ...(await authHeaders()), 'content-type': 'application/json' },

@@ -95,13 +95,9 @@ async function renderEventsScreen(env, firestore, uid, kind) {
     lines.push(...shown.map(eventLine));
     lines.push('', `Выполнено: ${list.filter((e) => e.done).length} из ${list.length}`);
     if (list.length > EVENT_LIST_CAP) lines.push(`…и ещё ${list.length - EVENT_LIST_CAP}`);
-    // Тап по самой строке — мгновенный тоггл готово/не готово (см. просьбу пользователя не
-    // заставлять открывать карточку ради одной галочки); отдельная маленькая "›" ведёт в
-    // карточку события (перенести на завтра и т.п.) для тех, кому нужно что-то ещё.
-    rows.push(...shown.map((e) => [
-      { text: eventButtonText(e), callback_data: `a:eventtoggle:${e.id}` },
-      { text: '›', callback_data: `s:event:${e.id}` },
-    ]));
+    // Тап по самой строке — мгновенный тоггл готово/не готово, значок слева от названия
+    // (см. просьбу пользователя: один ряд — одна кнопка, без второй "детальной" сбоку).
+    rows.push(...shown.map((e) => [{ text: eventButtonText(e), callback_data: `a:eventtoggle:${e.id}` }]));
   }
   rows.push(kind === 'tomorrow'
     ? [{ text: '📅 Сегодня', callback_data: 's:events' }]
@@ -154,12 +150,12 @@ async function renderHabitsScreen(env, firestore, uid) {
     const streaks = computeHabitStreaks(habitsDoc, dateKey);
     const best = pickBestActiveStreak(streaks, list, (h) => h.name);
     if (best) lines.push('', '🔥 Лучший текущий стрик:', `${escapeHtml(best.name)} — ${best.current} ${pluralRu(best.current, 'день', 'дня', 'дней')}`);
-    // Тап по строке — мгновенный тоггл (см. renderEventsScreen выше, тот же принцип); "›" ведёт
-    // в карточку со стриком для тех, кому нужны подробности.
-    rows.push(...shown.map((h) => [
-      { text: `${h.done ? '✅' : '⬜'} ${h.name}`.slice(0, 64), callback_data: `a:habittoggle:${habitCallbackName(h.name)}` },
-      { text: '›', callback_data: `s:habit:${habitCallbackName(h.name)}` },
-    ]));
+    // Тап по строке — мгновенный тоггл, значок слева от названия (см. renderEventsScreen выше:
+    // один ряд — одна кнопка, без второй "детальной" сбоку).
+    rows.push(...shown.map((h) => [{
+      text: `${h.done ? '✅' : '⬜'} ${h.name}`.slice(0, 64),
+      callback_data: `a:habittoggle:${habitCallbackName(h.name)}`,
+    }]));
     if (list.length > HABIT_LIST_CAP) lines.push(`…и ещё ${list.length - HABIT_LIST_CAP}`);
   }
   rows.push([{ text: '🏠 Главное', callback_data: 's:home' }]);
