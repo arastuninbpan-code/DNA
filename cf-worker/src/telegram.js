@@ -71,10 +71,17 @@ export function setWebhook(token, url) {
   return callTelegram(token, 'setWebhook', { url });
 }
 
-// Закрепление главного меню (см. bot.js#ensureMainMenu) — disable_notification, чтобы пиннинг
+// Закрепление главного меню (см. bot.js#renderToMainMenu) — disable_notification, чтобы пиннинг
 // не присылал пользователю отдельное системное уведомление "закреплено сообщение".
 export function pinChatMessage(token, chatId, messageId) {
   return callTelegram(token, 'pinChatMessage', { chat_id: chatId, message_id: messageId, disable_notification: true });
+}
+
+// Текущее состояние чата, в частности chat.pinned_message — источник истины о том, что сейчас
+// реально закреплено (см. bot.js#renderToMainMenu): наша копия message_id в Firestore может
+// устареть, если пользователь открепил сообщение сам или очистил историю чата.
+export function getChat(token, chatId) {
+  return callTelegram(token, 'getChat', { chat_id: chatId });
 }
 
 // Возвращает file_path (не URL!) самого маленького варианта фото профиля — этого достаточно

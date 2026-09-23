@@ -13,7 +13,7 @@ import {
   DEFAULT_TZ, todayKey, escapeHtml, uidForTelegramId, getUpcomingPlannerEvents,
 } from './reminders.js';
 import { runDailyDigests } from './digest.js';
-import { renderScreen, runAction, ensureMainMenu, routeRender } from './bot.js';
+import { renderScreen, runAction, renderHome, renderToMainMenu } from './bot.js';
 
 // Полчаса — достаточно, чтобы спокойно открыть одну и ту же ссылку и с телефона, и с
 // компьютера, не отправляя /start заново под каждое устройство (ссылка теперь не
@@ -146,7 +146,8 @@ async function handleTelegramWebhook(req, env, firestore) {
       // свои try/catch, отдельные от отправки ссылки ниже.
       await sendMediaGroup(token, from.id, ONBOARDING_IMAGE_PATHS.map((p) => `${env.APP_URL}/${p}`), ONBOARDING_CAPTION)
         .catch((err) => console.error('sendMediaGroup (onboarding) failed', err));
-      await ensureMainMenu(env, firestore, from.id).catch((err) => console.error('ensureMainMenu failed', err));
+      await renderToMainMenu(env, firestore, token, uidForTelegramId(from.id), from.id, renderHome())
+        .catch((err) => console.error('renderToMainMenu failed', err));
       await sendMessage(token, from.id, 'Открой приложение — сразу окажешься в своём аккаунте:', {
         reply_markup: {
           inline_keyboard: [[{ text: '📲 Открыть D.N.A.', url: `${env.APP_URL}/?telegram_login=${loginToken}` }]],
@@ -154,19 +155,17 @@ async function handleTelegramWebhook(req, env, firestore) {
       });
     } else if (update.message && update.message.text === '/menu') {
       const from = update.message.from;
-      await ensureMainMenu(env, firestore, from.id);
-      // /menu, в отличие от /start, всегда шлёт свежую копию меню тут же в чат — не нужно
-      // прокручивать вверх к закреплённому, чтобы сразу начать тыкать в разделы.
-      const uid = uidForTelegramId(from.id);
-      const home = await renderScreen(env, firestore, uid, 'home');
-      await sendMessage(token, from.id, home.text, { reply_markup: home.reply_markup });
+      // /menu просто обновляет то же закреплённое сообщение до "Главного меню" — не шлёт
+      // отдельную свежую копию (см. просьбу пользователя не плодить сообщения; закреплённое
+      // всегда доступно через шапку чата Telegram, прокручивать вверх вручную не нужно).
+      await renderToMainMenu(env, firestore, token, uidForTelegramId(from.id), from.id, renderHome());
     } else if (update.callback_query && String(update.callback_query.data).startsWith('s:')) {
       const cq = update.callback_query;
       const uid = uidForTelegramId(cq.from.id);
       const screen = cq.data.slice('s:'.length);
       const payload = await renderScreen(env, firestore, uid, screen);
       await answerCallbackQuery(token, cq.id);
-      await routeRender(env, firestore, token, uid, cq, payload);
+      await renderToMainMenu(env, firestore, token, uid, cq.message.chat.id, payload);
     } else if (update.callback_query && String(update.callback_query.data).startsWith('a:')) {
       const cq = update.callback_query;
       const uid = uidForTelegramId(cq.from.id);
@@ -174,7 +173,7 @@ async function handleTelegramWebhook(req, env, firestore) {
       const result = await runAction(firestore, uid, action);
       await answerCallbackQuery(token, cq.id, result.toast || undefined);
       const payload = await renderScreen(env, firestore, uid, result.nextScreen);
-      await routeRender(env, firestore, token, uid, cq, payload);
+      await renderToMainMenu(env, firestore, token, uid, cq.message.chat.id, payload);
     } else if (update.message && update.message.text) {
       await sendMessage(token, update.message.from.id, 'Не понял команду. /menu — открыть главное меню.');
     }

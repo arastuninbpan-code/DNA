@@ -1,9 +1,13 @@
-// Меню-интерфейс бота: одно закреплённое сообщение "Главное меню" как постоянная точка
-// возврата (никогда не редактируется в динамический экран — см. ensureMainMenu/routeRender),
-// и навигация внутри отдельного "рабочего" сообщения, которое редактируется на месте при
-// каждом переходе (см. spec п.13-14: навигация не должна засорять чат новыми сообщениями,
-// в отличие от ленты — напоминаний/отчётов/достижений, которые остаются отдельными
-// сообщениями и не эта система, см. digest.js и handlePlannerReminders в index.js).
+// Меню-интерфейс бота: ОДНО закреплённое сообщение "Главное меню" — оно же единственный
+// "рабочий экран": любая навигация редактирует его на месте (см. renderToMainMenu), новых
+// сообщений в чате при переходах между разделами не появляется. Отчёты/напоминания (дайджесты,
+// "скоро начнётся") — принципиально другой канал, остаются отдельными сообщениями в общей
+// ленте чата, не эта система (см. digest.js и handlePlannerReminders в index.js).
+//
+// Источник истины о том, что сейчас реально закреплено в чате — не наш сохранённый
+// mainMenuMessageId, а ответ Telegram (getChat.pinned_message): пользователь мог открепить
+// сообщение руками или очистить историю чата — тогда старый id мёртв, и renderToMainMenu
+// создаёт и закрепляет меню заново, а не пытается вечно редактировать то, чего больше нет.
 //
 // Единый визуальный язык (см. spec п.16): ✅ выполнено, ⬜ осталось, 🔥 стрик, 💰 финансы,
 // 📅 события, 📰 новости, 📊 "Сегодня", 🏠 главное меню. Для финансовых операций — 🟢/🔴
@@ -11,11 +15,11 @@
 
 import {
   DEFAULT_TZ, todayKey, currentHourInTz, dateKeyAddDays, escapeHtml, pluralRu, formatRub,
-  uidForTelegramId, getHabitsDoc, habitsOn, getPlannerDoc, plannerOn,
+  getHabitsDoc, habitsOn, getPlannerDoc, plannerOn,
   markPlannerDone, reschedulePlannerEvent, markHabitDoneByName,
 } from './reminders.js';
 import { computeHabitStreaks } from './streaks.js';
-import { sendMessage, editMessageText, pinChatMessage } from './telegram.js';
+import { sendMessage, editMessageText, pinChatMessage, getChat } from './telegram.js';
 
 const EVENT_LIST_CAP = 8;
 const HABIT_LIST_CAP = 12;
@@ -308,37 +312,43 @@ export async function runAction(firestore, uid, action) {
   return { toast: null, nextScreen: 'home' };
 }
 
-// -------- Закреплённое главное меню --------
-// Один раз на пользователя: создаём, шлём, пинним, запоминаем message_id. При повторных /start —
-// не пересоздаём, если он уже есть (см. просьбу пользователя явно не плодить новые закреплённые
-// сообщения). Если закрепить не получилось (бот не даёт нужных прав и т.п.) — не страшно, меню
-// всё равно отправлено и работает, просто не будет висеть сверху чата.
-export async function ensureMainMenu(env, firestore, telegramId) {
-  const uid = uidForTelegramId(telegramId);
-  const token = env.TELEGRAM_BOT_TOKEN;
-  const user = await firestore.getDoc(`users/${uid}`);
-  if (user && user.mainMenuMessageId) return;
-  const home = renderHome();
-  const sent = await sendMessage(token, telegramId, home.text, { reply_markup: home.reply_markup });
+// -------- Единственная точка входа в меню --------
+// Показать любой экран — значит отредактировать закреплённое сообщение на месте. Перед этим
+// сверяемся с Telegram (getChat), действительно ли оно всё ещё закреплено в чате: если
+// пользователь открепил его руками или очистил историю (тогда и сам pinned_message пропадает),
+// сохранённый в Firestore id мёртв — вместо бесполезной попытки его отредактировать создаём
+// новое сообщение и закрепляем заново. Если getChat сам не ответил (сетевой сбой) — не считаем
+// это признаком потери пина, а просто пробуем редактировать как обычно; если и редактирование
+// не удалось — тоже пересоздаём. Так эта же функция закрывает и первый /start (сообщения ещё
+// нет), и обычную навигацию, и восстановление после потери пина — везде один и тот же путь.
+export async function renderToMainMenu(env, firestore, token, uid, chatId, payload) {
+  const userPath = `users/${uid}`;
+  const user = await firestore.getDoc(userPath);
+  const options = payload.reply_markup ? { reply_markup: payload.reply_markup } : {};
+
+  if (user && user.mainMenuMessageId) {
+    let stillPinned = true;
+    try {
+      const chat = await getChat(token, chatId);
+      stillPinned = !!(chat.pinned_message && chat.pinned_message.message_id === user.mainMenuMessageId);
+    } catch (err) {
+      console.error('getChat failed, assuming pin is still valid', err);
+    }
+    if (stillPinned) {
+      try {
+        await editMessageText(token, chatId, user.mainMenuMessageId, payload.text, options);
+        return;
+      } catch (err) {
+        console.error('editMessageText on main menu failed, recreating it', err);
+      }
+    }
+  }
+
+  const sent = await sendMessage(token, chatId, payload.text, options);
   try {
-    await pinChatMessage(token, telegramId, sent.message_id);
+    await pinChatMessage(token, chatId, sent.message_id);
   } catch (err) {
     console.error('pinChatMessage failed', err);
   }
-  await firestore.mergeDoc(`users/${uid}`, { mainMenuMessageId: sent.message_id });
-}
-
-// -------- Отрисовка перехода: если клик пришёл с закреплённого меню — шлём НОВОЕ рабочее
-// сообщение (закреплённое остаётся неизменной точкой возврата, см. шапку файла); если клик
-// пришёл из уже открытого рабочего сообщения — редактируем его на месте (не плодим сообщения
-// при обычной навигации по разделам) --------
-export async function routeRender(env, firestore, token, uid, cq, payload) {
-  const user = await firestore.getDoc(`users/${uid}`);
-  const isPinned = user && user.mainMenuMessageId === cq.message.message_id;
-  const options = payload.reply_markup ? { reply_markup: payload.reply_markup } : {};
-  if (isPinned) {
-    await sendMessage(token, cq.from.id, payload.text, options);
-  } else {
-    await editMessageText(token, cq.message.chat.id, cq.message.message_id, payload.text, options);
-  }
+  await firestore.mergeDoc(userPath, { mainMenuMessageId: sent.message_id });
 }
