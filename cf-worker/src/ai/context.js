@@ -26,10 +26,16 @@ export async function buildDayContext(firestore, uid, dateKey) {
     .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
   const streaks = computeHabitStreaks(habitsDoc, dateKey);
 
+  const sections = Array.isArray(plannerDoc.sections) ? plannerDoc.sections : [];
+
   return {
     dateKey,
     habits: habits.map((h) => ({ name: h.name, done: !!h.done, streak: streaks[h.name]?.current || 0 })),
     events: events.map((e) => ({ id: e.id, title: e.title, time: e.time || null, done: !!e.done })),
+    // Список уже существующих разделов — чтобы AI не плодил дубликат "Спорт"/"спорт" вторым
+    // раздела с тем же смыслом, а сначала свериться, нет ли уже подходящего (см. create_section
+    // в actions.js/provider.js).
+    sections: sections.map((s) => s && s.name).filter(Boolean),
     finance: { spent, earned, transactions: transactions.map((t) => ({ amount: t.amount, category: t.category, type: t.type })) },
   };
 }

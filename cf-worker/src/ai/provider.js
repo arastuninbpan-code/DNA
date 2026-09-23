@@ -21,17 +21,23 @@ export function createYandexProvider(env) {
     }
   }
 
-  // audioBytes — сырые байты записи (см. index.html — MediaRecorder), mimeType — то, что
-  // реально записал браузер (обычно audio/webm;codecs=opus или audio/ogg) — SpeechKit понимает
-  // OggOpus напрямую, поэтому формат запроса подбираем по mimeType, а не жёстко фиксируем один.
-  async function transcribe(audioBytes, mimeType) {
+  // audioBytes — сырые байты записи. opts.format различает два реальных источника:
+  // - 'lpcm' (+ opts.sampleRateHertz) — из браузера (index.html): там MediaRecorder отдаёт
+  //   WebM-контейнер с Opus-кодеком, а не настоящий Ogg — раньше это ошибочно посылалось как
+  //   format=oggopus (WebM ≠ Ogg-контейнер несмотря на тот же кодек внутри), и SpeechKit не мог
+  //   разобрать звук, поэтому голос не распознавался вообще. Теперь браузер сам декодирует запись
+  //   в сырой PCM через Web Audio API (см. audioBlobToPcm16 в index.html) — раз данные без
+  //   контейнера, разночтений с форматом на входе SpeechKit больше нет.
+  // - 'oggopus' — из Telegram (голосовые сообщения бота): Telegram действительно присылает
+  //   настоящий Ogg/Opus файл, тут формат совпадает буквально, декодировать не нужно.
+  async function transcribe(audioBytes, opts = {}) {
     assertConfigured();
-    const isOgg = /ogg|webm/i.test(mimeType || '');
+    const format = opts.format === 'oggopus' ? 'oggopus' : 'lpcm';
     const params = new URLSearchParams({
       lang: 'ru-RU',
       folderId,
-      format: isOgg ? 'oggopus' : 'lpcm',
-      ...(isOgg ? {} : { sampleRateHertz: '48000' }),
+      format,
+      ...(format === 'lpcm' ? { sampleRateHertz: String(opts.sampleRateHertz || 16000) } : {}),
     });
     const res = await fetch(`${STT_URL}?${params}`, {
       method: 'POST',
@@ -53,7 +59,11 @@ export function createYandexProvider(env) {
       method: 'POST',
       headers: { Authorization: `Api-Key ${apiKey}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        modelUri: `gpt://${folderId}/yandexgpt/latest`,
+        // Lite, не Pro — задача модели тут строго "разобрать намерение и вернуть JSON по схеме",
+        // а не творческая генерация текста, для неё точности Lite с запасом хватает, а стоит она
+        // в разы дешевле (см. https://cloud.yandex.ru/docs/speechkit/pricing и обсуждение
+        // стоимости с пользователем).
+        modelUri: `gpt://${folderId}/yandexgpt-lite/latest`,
         completionOptions: { stream: false, temperature: 0.2, maxTokens: '800' },
         messages: [
           { role: 'system', text: buildSystemPrompt(context) },
@@ -80,6 +90,8 @@ function buildSystemPrompt(context) {
     '- create_event: {"action":"create_event","title":"строка","date":"YYYY-MM-DD","time":"HH:MM"(опционально)}',
     '- create_expense / create_income: {"action":"create_expense","amount":число_рублей,"category":"строка"(опц.),"description":"строка"(опц.)}',
     '- complete_habit: {"action":"complete_habit","name":"..."} — name ТОЛЬКО из списка сегодняшних привычек ниже, не придумывай новые',
+    '- complete_event: {"action":"complete_event","title":"...","date":"YYYY-MM-DD"(опц., по умолчанию сегодня)} — title ТОЛЬКО из списка событий ниже (сегодня/завтра), не придумывай новые',
+    '- create_section: {"action":"create_section","name":"строка","color":"#rrggbb"(опц.)} — раздел планера (категория событий); ПЕРЕД созданием свериться со списком существующих разделов ниже — если подходящий уже есть, использовать его, а не плодить дубликат',
     '',
     'Если пользователь просто спрашивает о своих данных (что сегодня/завтра, сколько потратил и т.п.),',
     'а не просит что-то создать или отметить — actions оставь пустым массивом [], а в reply ответь,',

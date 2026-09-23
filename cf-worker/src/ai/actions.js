@@ -5,7 +5,7 @@
 import {
   DEFAULT_TZ, todayKey, dateKeyAddDays, formatRub,
   getHabitsDoc, habitsOn, markHabitDoneByName,
-  createPlannerEvent, addFinanceTransaction,
+  createPlannerEvent, addFinanceTransaction, createSection, completeEventByTitle,
 } from '../reminders.js';
 
 export const ACTION_SCHEMA = {
@@ -13,6 +13,8 @@ export const ACTION_SCHEMA = {
   create_expense: { required: ['amount'], optional: ['category', 'description'] },
   create_income: { required: ['amount'], optional: ['category', 'description'] },
   complete_habit: { required: ['name'], optional: [] },
+  complete_event: { required: ['title'], optional: ['date'] },
+  create_section: { required: ['name'], optional: ['color'] },
 };
 
 export function validateAction(action) {
@@ -28,8 +30,14 @@ export function validateAction(action) {
   if ((action.action === 'create_expense' || action.action === 'create_income') && !(Number(action.amount) > 0)) {
     return { ok: false, error: 'amount must be a positive number' };
   }
-  if (action.action === 'create_event' && !/^\d{4}-\d{2}-\d{2}$/.test(String(action.date))) {
+  // date — не только у create_event: complete_event тоже принимает его опционально, обе схемы
+  // требуют одинаковый формат, поэтому проверка общая, а не привязана к конкретному action.
+  if (action.date !== undefined && action.date !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(action.date))) {
     return { ok: false, error: 'date must be YYYY-MM-DD' };
+  }
+  if (action.action === 'create_section' && action.color !== undefined && action.color !== null
+    && !/^#[0-9a-fA-F]{6}$/.test(String(action.color))) {
+    return { ok: false, error: 'color must be #rrggbb' };
   }
   return { ok: true };
 }
@@ -82,11 +90,24 @@ async function execCompleteHabit(firestore, uid, a) {
   return { summary: `✅ ${habit.name}` };
 }
 
+async function execCompleteEvent(firestore, uid, a) {
+  const updated = await completeEventByTitle(firestore, uid, { title: a.title, date: a.date });
+  if (!updated) return { error: `Не нашёл невыполненное событие «${a.title}»${a.date ? ' на ' + dayLabelShort(a.date) : ' на сегодня'}` };
+  return { summary: `✅ ${updated.title}` };
+}
+
+async function execCreateSection(firestore, uid, a) {
+  const section = await createSection(firestore, uid, { name: a.name, color: a.color });
+  return { summary: `📁 Раздел «${section.name}» создан` };
+}
+
 const EXECUTORS = {
   create_event: execCreateEvent,
   create_expense: execCreateExpense,
   create_income: execCreateIncome,
   complete_habit: execCompleteHabit,
+  complete_event: execCompleteEvent,
+  create_section: execCreateSection,
 };
 
 // Единственная точка, которая реально пишет в Firestore от лица AI — вызывается только для

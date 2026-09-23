@@ -119,7 +119,7 @@ function dateKeyDiffDays(a, b) {
 // dateKey входит в событие, если это его якорная дата (как раньше) ИЛИ dateKey попадает в
 // открытый интервал [start, start+duration) относительно якорной даты. Для события без времени
 // отсчитываем от начала суток (00:00) якорной даты — так же, как duration вычисляется в форме.
-function eventCoversDate(e, dateKey) {
+export function eventCoversDate(e, dateKey) {
   if (e.date === dateKey) return true;
   if (!e.duration || e.duration <= 1440) return false;
   const dayDiff = dateKeyDiffDays(e.date, dateKey);
@@ -226,6 +226,40 @@ export async function createPlannerEvent(firestore, uid, { title, date, time, du
   return event;
 }
 
+// Та же палитра и та же логика выбора цвета по умолчанию (по индексу нового раздела в общем
+// списке), что PL_COLORS в index.html — раздел, созданный голосовым/текстовым AI, должен
+// выглядеть так же, как созданный вручную в самом приложении, а не отдельным набором цветов.
+const PL_COLORS = ['#c9a84c', '#7fb8e0', '#e08fa0', '#8fd19e', '#d6a8e8', '#e0b17f', '#a3d9d3'];
+
+// Новый раздел планера — используется голосовым/текстовым AI-ассистентом (execCreateSection
+// в actions.js). Та же форма {id, name, color}, что и sections, которые создаёт сам клиент.
+export async function createSection(firestore, uid, { name, color }) {
+  const path = `users/${uid}/appData/planner`;
+  const data = (await firestore.getDoc(path)) || {};
+  const sections = Array.isArray(data.sections) ? [...data.sections] : [];
+  const section = { id: generateId(), name, color: color || PL_COLORS[sections.length % PL_COLORS.length] };
+  sections.push(section);
+  await firestore.mergeDoc(path, { sections });
+  return section;
+}
+
+// Отметить событие выполненным по НАЗВАНИЮ (не по id — AI не знает внутренний id, только то, что
+// видел в контексте дня, см. context.js), на заданную дату (по умолчанию сегодня). Сопоставление
+// без учёта регистра/пробелов по краям; если событие уже выполнено или не найдено — вернёт null,
+// а не тихо создаст новое (см. execCompleteEvent в actions.js — там же формируется отказ).
+export async function completeEventByTitle(firestore, uid, { title, date }) {
+  const path = `users/${uid}/appData/planner`;
+  const data = (await firestore.getDoc(path)) || {};
+  const events = Array.isArray(data.events) ? [...data.events] : [];
+  const dateKey = date || todayKey(DEFAULT_TZ);
+  const norm = (s) => String(s || '').trim().toLowerCase();
+  const idx = events.findIndex((e) => e && !e.done && norm(e.title) === norm(title) && eventCoversDate(e, dateKey));
+  if (idx === -1) return null;
+  events[idx] = { ...events[idx], done: true };
+  await firestore.mergeDoc(path, { events });
+  return events[idx];
+}
+
 // Финансовый документ целиком — как getHabitsDoc/getPlannerDoc, чтобы не дублировать
 // firestore.getDoc(...finance) в каждом месте (bot.js/digest.js читали его инлайн).
 export async function getFinanceDoc(firestore, uid) {
@@ -250,6 +284,31 @@ export async function addFinanceTransaction(firestore, uid, { amount, type, cate
   transactions.push(tx);
   await firestore.mergeDoc(path, { transactions });
   return tx;
+}
+
+// Разбор текста вида "100 на шоколадку" / "500р такси" в {amount, note} — НЕ AI, обычный
+// разбор строки регулярками (по прямой просьбе пользователя: кнопки "Пополнение"/"Расход" в
+// боте (см. renderFinancePromptScreen в bot.js) должны работать бесплатно и мгновенно, без
+// обращения к внешнему API — направление (доход/расход) уже известно из того, какую кнопку
+// нажали, парсеру остаётся достать только сумму и описание). Возвращает null, если в тексте
+// вообще нет числа — тогда пользователю нужно попробовать ещё раз.
+export function parseAmountAndNote(text) {
+  const raw = String(text || '').trim();
+  // Порядок альтернатив важен: регулярка берёт первую подошедшую, а не самую длинную — "р\.?"
+  // раньше стояло первым и "откусывало" только "р" от "руб", оставляя "уб" в начале описания.
+  const m = /(\d[\d\s]*(?:[.,]\d+)?)\s*(?:рублей|руб\.?|р\.?|₽)?/i.exec(raw);
+  if (!m) return null;
+  const amount = Number(m[1].replace(/\s+/g, '').replace(',', '.'));
+  if (!(amount > 0)) return null;
+  let note = (raw.slice(0, m.index) + raw.slice(m.index + m[0].length)).trim();
+  // Частые вводные слова ("потратил 100 на кофе", "получил 5000 зарплата") — не несут смысла
+  // как описание сами по себе, отдельно убираем сначала глагол, потом предлог, раз за разом
+  // оставшийся текст мог начинаться с любого из них после первого вырезания.
+  note = note.replace(/^(?:потратил(?:а)?|заплатил(?:а)?|купил(?:а)?|получил(?:а)?|пришло)\s+/i, '').trim();
+  note = note.replace(/^(?:на|за|от|из|для|по)\s+/i, '').trim();
+  note = note.replace(/\s{2,}/g, ' ');
+  if (note) note = note.charAt(0).toUpperCase() + note.slice(1);
+  return { amount, note };
 }
 
 // Для крон-напоминаний "скоро начнётся": события сегодня, с временем, ещё не выполненные,

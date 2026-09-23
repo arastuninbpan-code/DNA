@@ -274,9 +274,23 @@ async function renderFinanceScreen(env, firestore, uid) {
     text: lines.join('\n'),
     reply_markup: {
       inline_keyboard: [
+        [{ text: '➕ Пополнение', callback_data: 'a:financeprompt:income' }, { text: '➖ Расход', callback_data: 'a:financeprompt:expense' }],
         [{ text: '🏠 Главное', callback_data: 's:home' }],
       ],
     },
+  };
+}
+
+// Экран-приглашение после нажатия "Пополнение"/"Расход" — следующее текстовое сообщение
+// пользователя в чате разбирается parseAmountAndNote (см. reminders.js, НЕ AI) и сразу
+// становится операцией; направление (доход/расход) уже известно из выбранной кнопки, парсер
+// достаёт только сумму и описание. Отдельного подтверждения не требуется — по той же логике,
+// что и "✅ Выполнить" у привычек/событий: одно действие, сразу видимый результат.
+function renderFinancePromptScreen(type) {
+  const label = type === 'income' ? 'Новое пополнение' : 'Новый расход';
+  return {
+    text: `${type === 'income' ? '➕' : '➖'} <b>${label}</b>\n\nНапиши сообщением сумму и на что/от кого — например:\n«100 на шоколадку» или «500 такси».`,
+    reply_markup: { inline_keyboard: [[{ text: '❌ Отмена', callback_data: 's:finance' }]] },
   };
 }
 
@@ -366,6 +380,7 @@ export async function renderScreen(env, firestore, uid, screen) {
   if (screen === 'habits') return renderHabitsScreen(env, firestore, uid);
   if (screen.startsWith('habit:')) return renderHabitDetail(env, firestore, uid, screen.slice('habit:'.length));
   if (screen === 'finance') return renderFinanceScreen(env, firestore, uid);
+  if (screen.startsWith('finance:prompt:')) return renderFinancePromptScreen(screen.slice('finance:prompt:'.length));
   if (screen === 'news') return renderNewsScreen();
   if (screen === 'today') return renderTodayScreen(env, firestore, uid);
   return renderHome();
@@ -373,6 +388,16 @@ export async function renderScreen(env, firestore, uid, screen) {
 
 // -------- Действия (что-то меняют, потом возвращают на какой экран отрисоваться) --------
 export async function runAction(firestore, uid, action) {
+  if (action.startsWith('financeprompt:')) {
+    // Запоминаем, что от этого пользователя ждём следующим сообщением сумму+описание (см.
+    // pendingFinanceInput в index.js#handleTelegramWebhook) — поле снимается там же сразу после
+    // разбора текста (успешного или нет), а также при любом обычном переходе по меню (см. `s:`
+    // ветку в index.js), чтобы не "залипало" навсегда, если пользователь передумал и ушёл в
+    // другой раздел, не написав ничего.
+    const type = action.slice('financeprompt:'.length) === 'income' ? 'income' : 'expense';
+    await firestore.mergeDoc(`users/${uid}`, { pendingFinanceInput: type });
+    return { toast: null, nextScreen: `finance:prompt:${type}` };
+  }
   if (action.startsWith('eventtoggle:')) {
     // Тап по самой строке в списке событий (см. renderEventsScreen) — переключает готово/не
     // готово в обе стороны, а не только отмечает выполненным (в отличие от eventdone ниже,

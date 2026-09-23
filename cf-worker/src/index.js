@@ -7,11 +7,12 @@ import { createFirestoreClient } from './firestore.js';
 import { createCustomToken } from './googleAuth.js';
 import { verifyFirebaseIdToken } from './jwt.js';
 import {
-  sendMessage, sendMediaGroup, answerCallbackQuery,
+  sendMessage, sendMediaGroup, answerCallbackQuery, deleteMessage,
   verifyLoginWidgetPayload, getUserProfilePhotoFilePath, fetchTelegramFile,
 } from './telegram.js';
 import {
   DEFAULT_TZ, todayKey, escapeHtml, uidForTelegramId, getUpcomingPlannerEvents,
+  addFinanceTransaction, parseAmountAndNote,
 } from './reminders.js';
 import { runDailyDigests } from './digest.js';
 import { renderScreen, runAction, renderHome, renderToMainMenu } from './bot.js';
@@ -139,6 +140,42 @@ const ONBOARDING_CAPTION = [
   '⚠️ <b>Никому не пересылай ссылку в следующем сообщении</b> — по ней открывается именно твой личный аккаунт, а не просто сайт.',
 ].join('\n');
 
+// Свободный текст пользователя вне команд/кнопок. Основной случай — сумма+описание после
+// кнопок "➕ Пополнение"/"➖ Расход" в Финансах (см. renderFinancePromptScreen в bot.js):
+// pendingFinanceInput на users/{uid} говорит, что следующее сообщение нужно разобрать именно
+// так. Разбор — parseAmountAndNote (reminders.js), обычные регулярки, НЕ AI (по прямой просьбе
+// пользователя — должно работать бесплатно и мгновенно, без внешнего API). Если разобрать не
+// удалось, pendingFinanceInput нарочно НЕ снимается — пользователь может просто попробовать
+// ещё раз тем же сообщением, не открывая Финансы заново.
+async function handleTelegramFreeText(env, firestore, token, message) {
+  const uid = uidForTelegramId(message.from.id);
+  const user = await firestore.getDoc(`users/${uid}`);
+  const pending = user && user.pendingFinanceInput;
+  if (pending === 'income' || pending === 'expense') {
+    const parsed = parseAmountAndNote(message.text);
+    if (!parsed) {
+      await sendMessage(token, message.chat.id, 'Не понял сумму — напиши, например: «100 на шоколадку». Или нажми «❌ Отмена» в Финансах.');
+      return;
+    }
+    await firestore.mergeDoc(`users/${uid}`, { pendingFinanceInput: null });
+    await addFinanceTransaction(firestore, uid, {
+      amount: pending === 'income' ? Math.abs(parsed.amount) : -Math.abs(parsed.amount),
+      type: pending,
+      category: null,
+      note: parsed.note,
+      date: todayKey(DEFAULT_TZ),
+    });
+    // Сообщение с суммой само по себе больше не нужно — чистим чат, а не оставляем как мусор
+    // (тот же принцип, что и у пересоздания главного меню, см. renderToMainMenu).
+    await deleteMessage(token, message.chat.id, message.message_id)
+      .catch((err) => console.error('deleteMessage (finance quick-add) failed', err));
+    const payload = await renderScreen(env, firestore, uid, 'finance');
+    await renderToMainMenu(env, firestore, token, uid, message.chat.id, payload);
+    return;
+  }
+  await sendMessage(token, message.chat.id, 'Не понял команду. /menu — открыть главное меню.');
+}
+
 async function handleTelegramWebhook(req, env, firestore) {
   const token = env.TELEGRAM_BOT_TOKEN;
   const update = await req.json().catch(() => ({}));
@@ -180,6 +217,10 @@ async function handleTelegramWebhook(req, env, firestore) {
       const cq = update.callback_query;
       const uid = uidForTelegramId(cq.from.id);
       const screen = cq.data.slice('s:'.length);
+      // Любой обычный переход по меню (включая "❌ Отмена" на экране приглашения, см.
+      // renderFinancePromptScreen) снимает "жду сумму+описание" — иначе оно залипло бы навсегда,
+      // если пользователь передумал и ушёл в другой раздел, не написав ничего.
+      await firestore.mergeDoc(`users/${uid}`, { pendingFinanceInput: null });
       const payload = await renderScreen(env, firestore, uid, screen);
       await answerCallbackQuery(token, cq.id);
       await renderToMainMenu(env, firestore, token, uid, cq.message.chat.id, payload);
@@ -192,7 +233,7 @@ async function handleTelegramWebhook(req, env, firestore) {
       const payload = await renderScreen(env, firestore, uid, result.nextScreen);
       await renderToMainMenu(env, firestore, token, uid, cq.message.chat.id, payload);
     } else if (update.message && update.message.text) {
-      await sendMessage(token, update.message.from.id, 'Не понял команду. /menu — открыть главное меню.');
+      await handleTelegramFreeText(env, firestore, token, update.message);
     }
   } catch (err) {
     console.error('telegramWebhook failed', err);
@@ -310,12 +351,19 @@ async function handleAiVoice(req, env, firestore) {
   } catch (err) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
-  const mimeType = req.headers.get('content-type') || 'audio/ogg';
+  // Фронтенд (index.html) всегда шлёт сюда сырой PCM16 моно (декодированный из записи браузера
+  // через Web Audio API — см. audioBlobToPcm16), а не оригинальный webm/ogg от MediaRecorder:
+  // раньше это поле бралось из mime-типа MediaRecorder напрямую и лейблилось как "oggopus", хотя
+  // Chrome/Firefox пишут WebM-контейнер, а не настоящий Ogg — SpeechKit не мог разобрать звук,
+  // распознавание просто не работало. Частота дискретизации — из Content-Type (audio/l16;rate=N).
+  const contentType = req.headers.get('content-type') || '';
+  const rateMatch = /rate=(\d+)/.exec(contentType);
+  const sampleRateHertz = rateMatch ? Number(rateMatch[1]) : 16000;
   const audioBytes = await req.arrayBuffer();
   if (!audioBytes.byteLength) return json({ error: 'empty audio' }, 400, AI_CORS_HEADERS);
   try {
     const provider = createYandexProvider(env);
-    const transcript = await provider.transcribe(audioBytes, mimeType);
+    const transcript = await provider.transcribe(audioBytes, { format: 'lpcm', sampleRateHertz });
     if (!transcript.trim()) {
       return json({ transcript: '', error: 'empty_transcript' }, 200, AI_CORS_HEADERS);
     }
