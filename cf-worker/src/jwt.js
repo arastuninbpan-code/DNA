@@ -19,6 +19,10 @@ function pemToArrayBuffer(pem) {
   const base64 = pem
     .replace(/-----BEGIN PRIVATE KEY-----/, '')
     .replace(/-----END PRIVATE KEY-----/, '')
+    // Вставленное из JSON-файла значение private_key нередко содержит буквальные
+    // символы `\` + `n` (как они записаны в самом JSON), а не настоящие переводы
+    // строк — их тоже нужно вырезать, иначе atob() падает на "\n" как на мусоре.
+    .replace(/\\n/g, '')
     .replace(/\s+/g, '');
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
