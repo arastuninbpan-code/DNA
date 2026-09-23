@@ -95,7 +95,13 @@ async function renderEventsScreen(env, firestore, uid, kind) {
     lines.push(...shown.map(eventLine));
     lines.push('', `Выполнено: ${list.filter((e) => e.done).length} из ${list.length}`);
     if (list.length > EVENT_LIST_CAP) lines.push(`…и ещё ${list.length - EVENT_LIST_CAP}`);
-    rows.push(...shown.map((e) => [{ text: eventButtonText(e), callback_data: `s:event:${e.id}` }]));
+    // Тап по самой строке — мгновенный тоггл готово/не готово (см. просьбу пользователя не
+    // заставлять открывать карточку ради одной галочки); отдельная маленькая "›" ведёт в
+    // карточку события (перенести на завтра и т.п.) для тех, кому нужно что-то ещё.
+    rows.push(...shown.map((e) => [
+      { text: eventButtonText(e), callback_data: `a:eventtoggle:${e.id}` },
+      { text: '›', callback_data: `s:event:${e.id}` },
+    ]));
   }
   rows.push(kind === 'tomorrow'
     ? [{ text: '📅 Сегодня', callback_data: 's:events' }]
@@ -148,7 +154,12 @@ async function renderHabitsScreen(env, firestore, uid) {
     const streaks = computeHabitStreaks(habitsDoc, dateKey);
     const best = pickBestActiveStreak(streaks, list, (h) => h.name);
     if (best) lines.push('', '🔥 Лучший текущий стрик:', `${escapeHtml(best.name)} — ${best.current} ${pluralRu(best.current, 'день', 'дня', 'дней')}`);
-    rows.push(...shown.map((h) => [{ text: `${h.done ? '✅' : '⬜'} ${h.name}`.slice(0, 64), callback_data: `s:habit:${habitCallbackName(h.name)}` }]));
+    // Тап по строке — мгновенный тоггл (см. renderEventsScreen выше, тот же принцип); "›" ведёт
+    // в карточку со стриком для тех, кому нужны подробности.
+    rows.push(...shown.map((h) => [
+      { text: `${h.done ? '✅' : '⬜'} ${h.name}`.slice(0, 64), callback_data: `a:habittoggle:${habitCallbackName(h.name)}` },
+      { text: '›', callback_data: `s:habit:${habitCallbackName(h.name)}` },
+    ]));
     if (list.length > HABIT_LIST_CAP) lines.push(`…и ещё ${list.length - HABIT_LIST_CAP}`);
   }
   rows.push([{ text: '🏠 Главное', callback_data: 's:home' }]);
@@ -252,10 +263,24 @@ async function renderTodayScreen(env, firestore, uid) {
     lines.push(`📅 События: ${donePlanner}/${planner.length}`);
     lines.push(`🔥 Привычки: ${doneHabits}/${habits.length}`);
     lines.push(`💰 Расходы: ${formatRub(spent)}`);
-    const remaining = [...planner.filter((e) => !e.done), ...habits.filter((h) => !h.done)];
-    if (remaining.length) {
+    // 📅/🔥 — тот же значок раздела, что и в остальном боте (шапки экранов, кнопки главного
+    // меню), чтобы в общем списке было видно, где событие, а где привычка — раньше оба типа
+    // рисовались одинаковым "⬜" и не отличались друг от друга.
+    const remainingPlanner = planner.filter((e) => !e.done);
+    const remainingHabits = habits.filter((h) => !h.done);
+    if (remainingPlanner.length || remainingHabits.length) {
       lines.push('', hour >= 19 ? 'Осталось выполнить:' : 'Осталось:');
-      for (const it of remaining.slice(0, 5)) lines.push(`⬜ ${it.time ? it.time + ' — ' : ''}${escapeHtml(it.title || it.name)}`);
+      let shown = 0;
+      for (const e of remainingPlanner) {
+        if (shown >= 5) break;
+        lines.push(`📅 ${e.time ? e.time + ' — ' : ''}${escapeHtml(e.title)}`);
+        shown++;
+      }
+      for (const h of remainingHabits) {
+        if (shown >= 5) break;
+        lines.push(`🔥 ${escapeHtml(h.name)}`);
+        shown++;
+      }
     }
     const streaks = computeHabitStreaks(habitsDoc, dateKey);
     const best = pickBestActiveStreak(streaks, habits, (h) => h.name);
@@ -290,6 +315,20 @@ export async function renderScreen(env, firestore, uid, screen) {
 
 // -------- Действия (что-то меняют, потом возвращают на какой экран отрисоваться) --------
 export async function runAction(firestore, uid, action) {
+  if (action.startsWith('eventtoggle:')) {
+    // Тап по самой строке в списке событий (см. renderEventsScreen) — переключает готово/не
+    // готово в обе стороны, а не только отмечает выполненным (в отличие от eventdone ниже,
+    // которым по-прежнему пользуется кнопка "✅ Выполнить" в карточке события).
+    const id = action.slice('eventtoggle:'.length);
+    const plannerDoc = await getPlannerDoc(firestore, uid);
+    const events = Array.isArray(plannerDoc.events) ? plannerDoc.events : [];
+    const e = events.find((x) => x && x.id === id);
+    if (!e) return { toast: 'Не нашёл это событие', nextScreen: 'events' };
+    const updated = await markPlannerDone(firestore, uid, id, !e.done);
+    const today = todayKey(DEFAULT_TZ);
+    const screen = updated.date === dateKeyAddDays(today, 1) ? 'events:tomorrow' : 'events';
+    return { toast: updated.done ? `Готово: ${updated.title}` : `Отменено: ${updated.title}`, nextScreen: screen };
+  }
   if (action.startsWith('eventdone:')) {
     const id = action.slice('eventdone:'.length);
     const updated = await markPlannerDone(firestore, uid, id, true);
@@ -299,6 +338,16 @@ export async function runAction(firestore, uid, action) {
     const id = action.slice('eventpostpone:'.length);
     const updated = await reschedulePlannerEvent(firestore, uid, id, dateKeyAddDays(todayKey(DEFAULT_TZ), 1));
     return updated ? { toast: 'Перенесено на завтра', nextScreen: 'events' } : { toast: 'Не нашёл это событие', nextScreen: 'events' };
+  }
+  if (action.startsWith('habittoggle:')) {
+    const namePrefix = action.slice('habittoggle:'.length);
+    const dateKey = todayKey(DEFAULT_TZ);
+    const habitsDoc = await getHabitsDoc(firestore, uid);
+    const h = habitsOn(habitsDoc, dateKey).find((x) => x && habitCallbackName(x.name) === namePrefix);
+    if (!h) return { toast: 'Не нашёл эту привычку', nextScreen: 'habits' };
+    const newDone = !h.done;
+    await markHabitDoneByName(firestore, uid, dateKey, h.name, newDone);
+    return { toast: newDone ? `Готово: ${h.name}` : `Отменено: ${h.name}`, nextScreen: 'habits' };
   }
   if (action.startsWith('habitdone:')) {
     const namePrefix = action.slice('habitdone:'.length);

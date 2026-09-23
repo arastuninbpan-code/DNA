@@ -80,6 +80,12 @@ async function handleTelegramAuthVerify(req, env, firestore) {
     photoUrl: payload.photo_url,
   });
   const customToken = await createCustomToken(env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY, uid);
+  // Меню появляется только после реально завершённой регистрации (не при /start — тогда
+  // пользователь ещё даже не открыл приложение), см. renderToMainMenu ниже в handleTelegramLinkAuth.
+  // Если у пользователя ни разу не было диалога с ботом (вход только через виджет на сайте),
+  // отправка сообщения ожидаемо не удастся — это не должно ломать сам вход.
+  await renderToMainMenu(env, firestore, env.TELEGRAM_BOT_TOKEN, uid, payload.id, renderHome())
+    .catch((err) => console.error('renderToMainMenu (post-login, widget) failed', err));
   return json({ customToken }, 200, CORS_HEADERS);
 }
 
@@ -110,6 +116,11 @@ async function handleTelegramLinkAuth(req, env, firestore) {
     photoFilePath: data.photoFilePath,
   });
   const customToken = await createCustomToken(env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY, uid);
+  // Главное меню создаётся и закрепляется здесь, а не в /start — по задумке оно должно
+  // появляться только после того, как регистрация реально завершена (пользователь открыл
+  // приложение по ссылке и вошёл), а не сразу при нажатии /start, когда аккаунта ещё нет.
+  await renderToMainMenu(env, firestore, env.TELEGRAM_BOT_TOKEN, uid, data.telegramId, renderHome())
+    .catch((err) => console.error('renderToMainMenu (post-login) failed', err));
   return json({ customToken }, 200, CORS_HEADERS);
 }
 
@@ -142,12 +153,12 @@ async function handleTelegramWebhook(req, env, firestore) {
         photoFilePath,
         expiresAt: Date.now() + LOGIN_TOKEN_TTL_MS,
       });
-      // Сбой отправки картинок/меню не должен срывать сам вход — это дополнения, поэтому
-      // свои try/catch, отдельные от отправки ссылки ниже.
+      // Сбой отправки картинок не должен срывать сам вход — это дополнение, поэтому свой
+      // try/catch, отдельный от отправки ссылки ниже. Главное меню тут намеренно НЕ создаётся —
+      // см. renderToMainMenu в handleTelegramLinkAuth: оно появляется только после того, как
+      // пользователь реально откроет приложение по ссылке и войдёт, а не сразу по /start.
       await sendMediaGroup(token, from.id, ONBOARDING_IMAGE_PATHS.map((p) => `${env.APP_URL}/${p}`), ONBOARDING_CAPTION)
         .catch((err) => console.error('sendMediaGroup (onboarding) failed', err));
-      await renderToMainMenu(env, firestore, token, uidForTelegramId(from.id), from.id, renderHome())
-        .catch((err) => console.error('renderToMainMenu failed', err));
       await sendMessage(token, from.id, 'Открой приложение — сразу окажешься в своём аккаунте:', {
         reply_markup: {
           inline_keyboard: [[{ text: '📲 Открыть D.N.A.', url: `${env.APP_URL}/?telegram_login=${loginToken}` }]],
