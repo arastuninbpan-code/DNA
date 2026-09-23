@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Публичные разделы планера — без изменений, как было до Telegram-интеграции.
+    match /publicSections/{shareId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Приватные данные привязанного пользователя — доступны только ему самому (по Firebase
+    // Auth uid, выданному после проверки подписи Telegram Login Widget). Cloud Functions
+    // пишут сюда через Admin SDK, который эти правила не проверяет, — так что вебхук/
+    // планировщик работают независимо от них.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+      match /appData/{doc} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+  }
+}
