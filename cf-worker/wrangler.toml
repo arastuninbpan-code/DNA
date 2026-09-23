@@ -10,5 +10,5 @@ crons = ["*/30 * * * *"]
 # а не здесь — в этот файл они не должны попадать. Обычные (несекретные) переменные — ниже.
 [vars]
 FIREBASE_PROJECT_ID = "dnaa-a8ca3"
-FIREBASE_CLIENT_EMAIL = "REPLACE_ME@dnaa-a8ca3.iam.gserviceaccount.com"
+FIREBASE_CLIENT_EMAIL = "firebase-adminsdk-fbsvc@dnaa-a8ca3.iam.gserviceaccount.com"
 APP_URL = "https://arastuninbpan-code.github.io/DNA"
