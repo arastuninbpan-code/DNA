@@ -536,7 +536,12 @@ export async function renderToMainMenu(env, firestore, token, uid, chatId, paylo
     } catch (err) {
       console.error('getChat failed, assuming pin is still valid', err);
     }
-    const stillPinned = chat ? !!(chat.pinned_message && chat.pinned_message.message_id === storedId) : true;
+    // opts.forceNew — реплики AI-ассистента (см. handleAiTurn/handleTelegramVoice в index.js)
+    // никогда не редактируют старое сообщение на месте: пока идёт переписка, оно уходит вверх
+    // под новыми сообщениями пользователя и становится не видно без прокрутки. Каждый новый
+    // ответ AI — заново отправленное сообщение внизу чата, у самого поля ввода; старое (и то,
+    // что Telegram прямо сейчас считает закреплённым) удаляется ниже, как при обычном пересоздании.
+    const stillPinned = !opts.forceNew && (chat ? !!(chat.pinned_message && chat.pinned_message.message_id === storedId) : true);
     if (stillPinned) {
       try {
         await editMessageText(token, chatId, storedId, payload.text, options);

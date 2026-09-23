@@ -7,7 +7,7 @@ import { createFirestoreClient } from './firestore.js';
 import { createCustomToken } from './googleAuth.js';
 import { verifyFirebaseIdToken } from './jwt.js';
 import {
-  sendMessage, sendMediaGroup, answerCallbackQuery, deleteMessage,
+  sendMessage, sendMediaGroup, answerCallbackQuery,
   verifyLoginWidgetPayload, getUserProfilePhotoFilePath, fetchTelegramFile, getFilePath,
 } from './telegram.js';
 import {
@@ -165,12 +165,12 @@ async function handleTelegramFreeText(env, firestore, token, message) {
       note: parsed.note,
       date: todayKey(DEFAULT_TZ),
     });
-    // Сообщение с суммой само по себе больше не нужно — чистим чат, а не оставляем как мусор
-    // (тот же принцип, что и у пересоздания главного меню, см. renderToMainMenu).
-    await deleteMessage(token, message.chat.id, message.message_id)
-      .catch((err) => console.error('deleteMessage (finance quick-add) failed', err));
+    // Сообщение пользователя с суммой НЕ удаляется — пользователь должен видеть, что именно
+    // он написал (см. просьбу не убирать его запросы). forceNew — экран Финансов после этого
+    // пересоздаётся заново внизу чата, а не редактируется в старой позиции: старое сообщение
+    // могло уже уйти вверх под этим самым сообщением с суммой и стать не видно без прокрутки.
     const payload = await renderScreen(env, firestore, uid, 'finance');
-    await renderToMainMenu(env, firestore, token, uid, message.chat.id, payload);
+    await renderToMainMenu(env, firestore, token, uid, message.chat.id, payload, { forceNew: true });
     return;
   }
   // Любой другой текст (не команда, не ожидаемая сумма) — тот же AI-ассистент, что и в
@@ -189,7 +189,10 @@ async function handleAiTurn(env, firestore, token, uid, chatId, text) {
     const provider = createYandexProvider(env);
     const plan = await planTurn(provider, firestore, uid, text);
     await firestore.mergeDoc(`users/${uid}`, { pendingAiActions: plan.actions.length ? plan.actions : null });
-    await renderToMainMenu(env, firestore, token, uid, chatId, renderAiPlanScreen(plan));
+    // forceNew — ответ AI всегда заново отправляется внизу чата, у самого поля ввода, а не
+    // редактирует старое сообщение на его прежнем месте (оно могло уже уйти вверх под новыми
+    // сообщениями переписки и стать не видно без прокрутки — см. просьбу пользователя).
+    await renderToMainMenu(env, firestore, token, uid, chatId, renderAiPlanScreen(plan), { forceNew: true });
   } catch (err) {
     console.error('handleAiTurn failed', err);
     await sendMessage(token, chatId, `🤖 AI сейчас недоступен: ${escapeHtml(String(err.message || err))}`);

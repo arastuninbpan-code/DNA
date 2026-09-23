@@ -87,7 +87,7 @@ function buildSystemPrompt(context) {
     '{"actions":[{...}],"reply":"короткий ответ пользователю на русском"}',
     '',
     'Допустимые action и их поля:',
-    '- create_event: {"action":"create_event","title":"строка","date":"YYYY-MM-DD","time":"HH:MM"(опционально)}',
+    '- create_event: {"action":"create_event","title":"строка","date":"YYYY-MM-DD","time":"HH:MM"(опционально)} — если пользователь НЕ назвал время, поле time вообще не указывать (не придумывать "по умолчанию" 09:00 или любое другое) — событие без времени это нормальный случай, бот и приложение напомнят о нём в течение дня и без конкретного часа',
     '- create_expense / create_income: {"action":"create_expense","amount":число_рублей,"category":"строка"(опц.),"description":"строка"(опц.)}',
     '- complete_habit: {"action":"complete_habit","name":"..."} — name ТОЛЬКО из списка сегодняшних привычек ниже, не придумывай новые',
     '- complete_event: {"action":"complete_event","title":"...","date":"YYYY-MM-DD"(опц., по умолчанию сегодня)} — title ТОЛЬКО из списка событий ниже (сегодня/завтра), не придумывай новые',
