@@ -321,7 +321,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 }
 .home-mic .icon { width: 48px; height: 48px; }
 .home-voice-status { margin: 0; color: #b6aa88; font-size: .875rem; line-height: 1.5; }
-.home-screen button:focus-visible, .home-settings button:focus-visible, .voice-dialog button:focus-visible {
+.home-screen button:focus-visible, .home-settings button:focus-visible, .ai-screen button:focus-visible {
   outline: 2px solid var(--gold2); outline-offset: 5px;
 }
 .home-settings { padding: max(16px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 32px max(20px, env(safe-area-inset-left, 0px)); }
@@ -330,7 +330,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .settings-header h1 { margin: 0; font-size: 1.5rem; font-weight: 400; }
 .settings-card { padding: 22px; margin-top: 16px; border: 1px solid rgba(201,168,76,.2); border-radius: 18px; background: var(--surface); }
 .settings-card h2 { margin: 0 0 12px; font-size: 1rem; font-weight: 400; color: var(--gold); }
-.settings-card p, .voice-dialog p { margin: 10px 0 0; font-size: 1rem; line-height: 1.65; color: rgba(var(--ink),.65); }
+.settings-card p { margin: 10px 0 0; font-size: 1rem; line-height: 1.65; color: rgba(var(--ink),.65); }
 .settings-meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; }
 .settings-meta dt { font-size: 1rem; color: rgba(var(--ink),.65); }
 .settings-meta dd { margin: 0; font-size: 1.125rem; color: var(--gold2); font-variant-numeric: tabular-nums; }
@@ -359,10 +359,54 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .theme-picker-btn { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 8px; border-radius:14px; border:1.5px solid rgba(201,168,76,.18); background:var(--bg-deep); color:rgba(var(--ink),.6); font-family:Georgia,'Times New Roman',serif; font-size:.8125rem; transition:background-color .18s ease,border-color .18s ease,color .18s ease; }
 .theme-picker-btn .icon { width:20px; height:20px; }
 .theme-picker-btn.active { border-color:var(--gold); background:rgba(201,168,76,.12); color:var(--gold); }
-.voice-dialog { width: min(440px, calc(100% - 40px)); max-height: 80dvh; overflow: auto; padding: 26px; border: 1px solid rgba(201,168,76,.4); border-radius: 22px; background: var(--surface); color: var(--white); }
-.voice-dialog::backdrop { background: rgba(0,0,0,.78); }
-.voice-dialog h2 { margin: 0; color: var(--gold); font-size: 1.375rem; font-weight: 400; }
-.voice-dialog button { margin-top: 24px; min-height: 48px; width: 100%; border: 1px solid var(--gold); border-radius: 12px; background: rgba(201,168,76,.1); color: var(--gold2); font-size: 1rem; }
+/* AI-ассистент — тот же screen-host/.screen scroll-контейнер, что и остальные разделы (см.
+   .screen{position:absolute;inset:0;overflow:auto}), поэтому строка ввода приклеена через
+   sticky, а не fixed — иначе перекрывала бы контент других экранов при переключении вкладок. */
+.ai-screen { display: flex; flex-direction: column; min-height: 100%; }
+.ai-header { display: flex; align-items: center; gap: 12px; padding: max(16px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 8px max(20px, env(safe-area-inset-left, 0px)); }
+.ai-header h1 { margin: 0; font-size: 1.25rem; font-weight: 400; color: var(--gold); }
+.ai-header-spacer { flex: 0 0 48px; }
+.ai-body { flex: 1; display: flex; flex-direction: column; }
+.ai-idle { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px 24px 64px; text-align: center; }
+.ai-idle-mic.ai-mic-active { border-color: var(--gold-strong); box-shadow: 0 0 0 10px rgba(201,168,76,.08), 0 0 48px rgba(201,168,76,.12); animation: aiPulse 1.6s ease-in-out infinite; }
+@keyframes aiPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+.ai-idle-title { margin: 0; font-size: 1.0625rem; color: rgba(var(--ink),.85); }
+.ai-idle-hint { margin: 0; color: #b6aa88; font-size: .875rem; line-height: 1.5; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.ai-listening-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold-strong); animation: aiBlink 1s ease-in-out infinite; flex: 0 0 auto; }
+@keyframes aiBlink { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+.ai-messages { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 8px max(20px, env(safe-area-inset-right, 0px)) 16px max(20px, env(safe-area-inset-left, 0px)); }
+.ai-msg { display: flex; max-width: 88%; }
+.ai-msg-user { align-self: flex-end; justify-content: flex-end; }
+.ai-msg-ai, .ai-msg-status { align-self: flex-start; }
+.ai-bubble { padding: 11px 16px; border-radius: 18px; font-size: .9375rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.ai-msg-user .ai-bubble { background: var(--gold-strong); color: #171410; border-bottom-right-radius: 4px; }
+.ai-msg-ai .ai-bubble { background: var(--surface); color: rgba(var(--ink),.9); border: 1px solid rgba(201,168,76,.18); border-bottom-left-radius: 4px; }
+.ai-msg-error .ai-bubble { border-color: rgba(255,90,90,.4); color: #ff8a8a; }
+.ai-bubble-voice-tag { display: inline-flex; margin-right: 6px; }
+.ai-bubble-voice-tag .icon { width: 14px; height: 14px; vertical-align: -2px; }
+.ai-msg-status.ai-msg-listening { display: flex; align-items: center; gap: 6px; padding: 6px 4px; color: #b6aa88; font-size: .875rem; }
+.ai-msg-status .dna-loader { margin: 4px 0; }
+.ai-actions-card { margin-top: 8px; padding: 14px 16px; border: 1px solid rgba(201,168,76,.35); border-radius: 16px; background: var(--surface); width: 100%; }
+.ai-actions-card-title { margin: 0 0 8px; font-size: .875rem; color: var(--gold); }
+.ai-actions-list { margin: 0 0 12px; padding-left: 18px; font-size: .875rem; line-height: 1.6; color: rgba(var(--ink),.85); }
+.ai-actions-buttons { display: flex; gap: 8px; }
+.ai-action-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; border-radius: 12px; border: 1px solid var(--gold); background: transparent; color: var(--gold2); font-size: .875rem; }
+.ai-action-btn .icon { width: 16px; height: 16px; }
+.ai-action-confirm { background: var(--gold-strong); color: #171410; border-color: var(--gold-strong); }
+.ai-rejected-note { margin: 4px 0 0; font-size: .8125rem; color: #b6aa88; }
+.ai-results-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: .875rem; }
+.ai-results-list li { display: flex; align-items: center; gap: 6px; }
+.ai-results-list .icon { width: 15px; height: 15px; }
+.ai-result-ok { color: #7fd88a; }
+.ai-result-fail { color: #ff8a8a; }
+.ai-inputbar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 8px; padding: 10px max(16px, env(safe-area-inset-right, 0px)) max(12px, var(--safe-bottom)) max(16px, env(safe-area-inset-left, 0px)); background: var(--bg); border-top: 1px solid rgba(201,168,76,.15); }
+.ai-inputbar-mic, .ai-inputbar-send { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgba(201,168,76,.3); background: var(--surface); color: var(--gold); }
+.ai-inputbar-mic .icon, .ai-inputbar-send .icon { width: 18px; height: 18px; }
+.ai-inputbar-mic.ai-mic-active { background: var(--gold-strong); color: #171410; border-color: var(--gold-strong); }
+.ai-inputbar-send { background: var(--gold-strong); color: #171410; border-color: var(--gold-strong); }
+.ai-inputbar-send:disabled, .ai-inputbar-mic:disabled { opacity: .4; }
+.ai-inputbar-text { flex: 1; min-width: 0; height: 42px; padding: 0 14px; border-radius: 21px; border: 1px solid rgba(201,168,76,.25); background: var(--surface); color: rgba(var(--ink),.9); font-family: inherit; font-size: .9375rem; }
+.ai-inputbar-text:disabled { opacity: .5; }
 
 /* Скрытая игра: 5 быстрых тапов по плашке версии в Настройки → О приложении. */
 .overlay.game-overlay { padding: 0; align-items: stretch; background: #050504; }
@@ -1825,7 +1869,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.20';
+  const APP_VERSION = '0.26.0';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -1866,6 +1910,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     }catch(_){}
   })();
   let homePanel = 'main';
+  // Состояние экрана AI-ассистента (п.31 ТЗ) — переписка живёт только в памяти вкладки (не
+  // персистится и не синкается), потому что это черновик диалога, а не пользовательские данные:
+  // реальные события/расходы/привычки, которые AI создаёт, уже сохраняются как обычно через
+  // тот же Cloud-синк, что и ручной ввод — сам чат хранить незачем.
+  let aiChat = {
+    messages: [], // {role:'user'|'ai', text, kind:'text'|'voice', actions?, pending?, results?}
+    status: 'idle', // idle | listening | transcribing | thinking | error
+    recorder: null,
+    chunks: [],
+    recordStartedAt: 0,
+    timerHandle: null,
+  };
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
   const DAY_ITEM_WIDTH = 56;
@@ -5631,20 +5687,111 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function renderHome() {
     if (homePanel==='settings') return renderHomeSettings();
+    if (homePanel==='ai') return renderAiScreen();
     return `<section class="screen home-screen" aria-label="Главная">
       <div class="home-toolbar"><button class="home-icon-button pressable" data-home-settings aria-label="Открыть настройки" title="Настройки">${icon('settings')}</button></div>
       ${renderTelegramLoginPrompt()}
       <div class="home-stage"><div class="home-voice">
-        <button class="home-mic pressable" data-home-mic aria-label="Голосовой помощник — в разработке" aria-describedby="voice-status" aria-haspopup="dialog">${icon('mic')}</button>
-        <p class="home-voice-status" id="voice-status">Голосовой AI · скоро</p>
+        <button class="home-mic pressable" data-home-mic aria-label="Открыть голосовой AI-ассистент">${icon('mic')}</button>
+        <p class="home-voice-status" id="voice-status">Голосовой AI · можно говорить или написать</p>
       </div></div>
-      <dialog class="voice-dialog" id="voice-info" aria-labelledby="voice-info-title" aria-describedby="voice-info-description">
-        ${renderDnaLoader('Скоро',true)}<h2 id="voice-info-title">Голосовой помощник</h2>
-        <p id="voice-info-description">Эта функция ещё в разработке. Сейчас микрофон не записывает звук и не отправляет данные.</p>
-        <p>Пока добавляй операции и привычки вручную в соответствующих разделах.</p>
-        <form method="dialog"><button autofocus>Понятно</button></form>
-      </dialog>
     </section>`;
+  }
+
+  // -------- AI-ассистент (голос + текст) --------
+  // Экран остаётся одним и тем же (aiChat.messages пуст -> renderAiIdle, иначе -> renderAiMessages),
+  // а не отдельной страницей поверх — см. п.4 просьбы ("не отдельный экран, а превращение той же
+  // поверхности"). Реальная работа с сетью — только через /ai/chat, /ai/voice, /ai/confirm на
+  // Worker'е (см. cf-worker/src/index.js); здесь только UI и её вызов.
+  function renderAiScreen(){
+    const hasMessages = aiChat.messages.length>0;
+    return `<section class="screen ai-screen" aria-label="Голосовой AI-ассистент">
+      <div class="ai-header">
+        <button class="home-icon-button pressable" data-ai-back aria-label="Вернуться на главную">${icon('chev-left')}</button>
+        <h1>Голосовой AI</h1>
+        <span class="ai-header-spacer" aria-hidden="true"></span>
+      </div>
+      <div class="ai-body" data-ai-body>${hasMessages ? renderAiMessages() : renderAiIdle()}</div>
+      ${renderAiInputBar()}
+    </section>`;
+  }
+
+  function renderAiIdle(){
+    const listening = aiChat.status==='listening';
+    return `<div class="ai-idle">
+      <button class="home-mic ai-idle-mic pressable ${listening?'ai-mic-active':''}" data-ai-mic aria-label="${listening?'Остановить запись':'Начать голосовой ввод'}">${icon('mic')}</button>
+      <p class="ai-idle-title">Голосовой AI</p>
+      <p class="ai-idle-hint">${listening?renderAiListeningHint():'Можно говорить или написать'}</p>
+    </div>`;
+  }
+
+  function renderAiListeningHint(){
+    const secs = aiChat.recordStartedAt ? Math.max(0, Math.floor((Date.now()-aiChat.recordStartedAt)/1000)) : 0;
+    return `<span class="ai-listening-dot" aria-hidden="true"></span> Слушаю… ${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
+  }
+
+  function renderAiMessages(){
+    const rows = aiChat.messages.map((m,i)=>renderAiMessage(m,i)).join('');
+    const statusRow = (aiChat.status==='transcribing'||aiChat.status==='thinking')
+      ? `<div class="ai-msg ai-msg-ai ai-msg-status">${renderDnaLoader(aiChat.status==='transcribing'?'Распознаю речь…':'Думаю…',true)}</div>`
+      : (aiChat.status==='listening' ? `<div class="ai-msg ai-msg-status ai-msg-listening"><span class="ai-listening-dot" aria-hidden="true"></span> ${renderAiListeningHint().replace(/^.*?Слушаю/,'Слушаю')}</div>` : '');
+    return `<div class="ai-messages" data-ai-messages>${rows}${statusRow}</div>`;
+  }
+
+  function renderAiMessage(m,i){
+    if (m.role==='user'){
+      return `<div class="ai-msg ai-msg-user"><div class="ai-bubble">${m.kind==='voice'?`<span class="ai-bubble-voice-tag">${icon('mic')}</span>`:''}${esc(m.text)}</div></div>`;
+    }
+    if (m.role==='error'){
+      return `<div class="ai-msg ai-msg-ai ai-msg-error"><div class="ai-bubble">${esc(m.text)}</div></div>`;
+    }
+    const pendingCard = (m.pendingActions && m.pendingActions.length) ? renderAiActionsCard(m,i) : '';
+    const resultsBlock = m.results ? renderAiResults(m.results) : '';
+    const rejectedBlock = (m.rejected && m.rejected.length) ? `<p class="ai-rejected-note">Не смог понять: ${m.rejected.map(r=>esc(r.error||r.action?.action||'действие')).join('; ')}</p>` : '';
+    return `<div class="ai-msg ai-msg-ai">${m.text?`<div class="ai-bubble">${esc(m.text)}</div>`:''}${rejectedBlock}${pendingCard}${resultsBlock}</div>`;
+  }
+
+  function renderAiActionsCard(m,i){
+    return `<div class="ai-actions-card">
+      <p class="ai-actions-card-title">Добавить это?</p>
+      <ul class="ai-actions-list">${m.pendingActions.map(a=>`<li>${esc(aiActionSummary(a))}</li>`).join('')}</ul>
+      <div class="ai-actions-buttons">
+        <button type="button" class="ai-action-btn ai-action-confirm" data-ai-confirm="${i}">${icon('check')} Добавить всё</button>
+        <button type="button" class="ai-action-btn ai-action-cancel" data-ai-cancel="${i}">${icon('close')} Отмена</button>
+      </div>
+    </div>`;
+  }
+
+  function renderAiResults(results){
+    return `<ul class="ai-results-list">${results.map(r=>`<li class="${r.ok?'ai-result-ok':'ai-result-fail'}">${r.ok?icon('check'):icon('close')} ${esc(r.summary||r.error||'')}</li>`).join('')}</ul>`;
+  }
+
+  function aiActionSummary(a){
+    switch(a.action){
+      case 'create_event': return `Событие «${a.title||''}»${a.date?', '+aiDayLabel(a.date):''}${a.time?' в '+a.time:''}`;
+      case 'create_expense': return `Расход ${finMoney(Math.abs(num(a.amount)))}${a.category?' · '+a.category:''}`;
+      case 'create_income': return `Доход ${finMoney(Math.abs(num(a.amount)))}${a.description?' · '+a.description:''}`;
+      case 'complete_habit': return `Привычка «${a.name||''}» — выполнено`;
+      default: return a.action||'действие';
+    }
+  }
+
+  function aiDayLabel(dateKey){
+    const d=parseLocalDate(dateKey);
+    const today=isoDate(dateOnly());
+    if(dateKey===today)return 'сегодня';
+    if(dateKey===isoDate(addDays(dateOnly(),1)))return 'завтра';
+    return dayLabelFor(d);
+  }
+
+  function renderAiInputBar(){
+    const listening = aiChat.status==='listening';
+    const busy = aiChat.status==='transcribing'||aiChat.status==='thinking';
+    return `<form class="ai-inputbar" data-ai-form>
+      <button type="button" class="ai-inputbar-mic pressable ${listening?'ai-mic-active':''}" data-ai-mic-inline aria-label="${listening?'Остановить запись':'Голосовой ввод'}" ${busy?'disabled':''}>${icon('mic')}</button>
+      <input type="text" class="ai-inputbar-text" data-ai-input placeholder="Написать AI…" autocomplete="off" ${busy||listening?'disabled':''}>
+      <button type="submit" class="ai-inputbar-send pressable" data-ai-send aria-label="Отправить" ${busy||listening?'disabled':''}>${icon('send')}</button>
+    </form>`;
   }
 
   function renderHomeSettings() {
@@ -5661,6 +5808,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <section class="settings-card">${renderAccountCard()}</section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.26.0</div><p class="settings-note">Кнопка микрофона на главном экране открывает голосового AI-ассистента: можно говорить или писать текстом — создание событий, учёт расходов/доходов, отметка привычек выполненными, вопросы «что сегодня/завтра». Для нескольких действий сразу показывается карточка со списком — подтверждаешь одним нажатием, ничего не применяется без согласия.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.25.20</div><p class="settings-note">В боте — раздел «События» сначала предлагает выбрать раздел (как чипы в самом приложении), тап по строке события/привычки сразу отмечает выполненным без перехода в карточку, многодневные события видны на каждом дне, который затрагивают. Поле «Повторять» научилось понимать «каждое N число». Из Настроек убран блок «Напоминания в Telegram» (сами напоминания в боте продолжают работать). Привычки в светлой теме — обычный акцентный цвет вместо отдельного более яркого жёлтого.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.25.19</div><p class="settings-note">В боте — закреплённое «Главное меню» (Финансы/События/Привычки/Новости/Сегодня), навигация по разделам и карточкам событий/привычек редактирует одно сообщение, не засоряя чат; команда /menu открывает меню в любой момент. Поле «Повторять» у события/задачи теперь свободный текст («каждый день», «по вторникам и четвергам», «раз в 2 недели») вместо набора кнопок — понимает и опечатки, а при непонятном тексте поле трясётся красным, как при пустом названии.</p></div>
       </div></section>
@@ -5707,10 +5855,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const returnHome=()=>{homePanel='main'; renderScreen(); $('[data-home-settings]')?.focus({preventScroll:true});};
     $('[data-home-back]')?.addEventListener('click',returnHome);
     $('.home-settings')?.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();returnHome();}});
-    $('[data-home-mic]')?.addEventListener('click',()=>{
-      const dialog=$('#voice-info');
-      if(dialog && !dialog.open) dialog.showModal();
-    });
+    $('[data-home-mic]')?.addEventListener('click',()=>{ homePanel='ai'; renderScreen(); });
     $('[data-version-tile]')?.addEventListener('click',handleVersionTileTap);
     $$('[data-theme-mode]').forEach(b=>b.addEventListener('click',()=>setThemeMode(b.dataset.themeMode)));
     $('[data-telegram-login]')?.addEventListener('click',startTelegramLogin);
@@ -5721,6 +5866,190 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       try{localStorage.setItem('dna_telegram_prompt_dismissed','1');}catch(_){}
       $('[data-telegram-prompt]')?.remove();
     });
+    if (homePanel==='ai') bindAiEvents();
+  }
+
+  function bindAiEvents(){
+    $('[data-ai-back]')?.addEventListener('click',()=>{
+      stopAiRecording(true);
+      homePanel='main'; renderScreen(); $('[data-home-mic]')?.focus({preventScroll:true});
+    });
+    $('[data-ai-mic]')?.addEventListener('click',toggleAiRecording);
+    $('[data-ai-mic-inline]')?.addEventListener('click',toggleAiRecording);
+    $('[data-ai-form]')?.addEventListener('submit',e=>{
+      e.preventDefault();
+      const input=$('[data-ai-input]');
+      const text=(input?.value||'').trim();
+      if(!text)return;
+      input.value='';
+      sendAiText(text);
+    });
+    $$('[data-ai-confirm]').forEach(b=>b.addEventListener('click',()=>confirmAiActions(+b.dataset.aiConfirm)));
+    $$('[data-ai-cancel]').forEach(b=>b.addEventListener('click',()=>cancelAiActions(+b.dataset.aiCancel)));
+    const messagesEl=$('[data-ai-messages]');
+    if(messagesEl)messagesEl.scrollTop=messagesEl.scrollHeight;
+  }
+
+  function reRenderAi(){
+    if(state.nav!==2||homePanel!=='ai')return;
+    const host=$('#screen');
+    if(!host)return;
+    host.innerHTML=renderAiScreen();
+    bindAiEvents();
+    const input=$('[data-ai-input]');
+    if(document.activeElement!==input && aiChat.messages.length)$('[data-ai-messages]')?.scrollTo(0,9e6);
+  }
+
+  // -------- AI: сеть --------
+  async function aiAuthHeaders(){
+    const token = await window.DNAFirebase?.getIdToken?.();
+    if(!token)throw new Error('no-auth');
+    return {Authorization:`Bearer ${token}`};
+  }
+
+  async function sendAiText(text){
+    aiChat.messages.push({role:'user',text,kind:'text'});
+    aiChat.status='thinking';
+    reRenderAi();
+    try{
+      const headers=await aiAuthHeaders();
+      const res=await fetch(`${TELEGRAM_WORKER_ORIGIN}/ai/chat`,{
+        method:'POST',
+        headers:{...headers,'content-type':'application/json'},
+        body:JSON.stringify({text}),
+      });
+      const json=await res.json();
+      if(!res.ok)throw new Error(json?.message||json?.error||`ai_chat_${res.status}`);
+      aiChat.messages.push({role:'ai',text:json.reply||'',pendingActions:json.actions||[],rejected:json.rejected||[]});
+    }catch(err){
+      aiChat.messages.push({role:'error',text:aiErrorMessage(err)});
+    }finally{
+      aiChat.status='idle';
+      reRenderAi();
+    }
+  }
+
+  function aiErrorMessage(err){
+    if(err?.message==='no-auth')return 'Нужно войти через Telegram, чтобы пользоваться AI-ассистентом.';
+    if(err?.message==='ai_unavailable'||/не настроен/i.test(err?.message||''))return 'AI-ассистент пока не настроен — попробуй позже.';
+    return 'Не получилось связаться с AI. Проверь соединение и попробуй ещё раз.';
+  }
+
+  async function confirmAiActions(msgIndex){
+    const m=aiChat.messages[msgIndex];
+    if(!m||!m.pendingActions?.length)return;
+    const actions=m.pendingActions;
+    m.pendingActions=null;
+    aiChat.status='thinking';
+    reRenderAi();
+    try{
+      const headers=await aiAuthHeaders();
+      const res=await fetch(`${TELEGRAM_WORKER_ORIGIN}/ai/confirm`,{
+        method:'POST',
+        headers:{...headers,'content-type':'application/json'},
+        body:JSON.stringify({actions}),
+      });
+      const json=await res.json();
+      if(!res.ok)throw new Error(json?.message||json?.error||`ai_confirm_${res.status}`);
+      m.results=json.results||[];
+    }catch(err){
+      aiChat.messages.push({role:'error',text:aiErrorMessage(err)});
+    }finally{
+      aiChat.status='idle';
+      reRenderAi();
+    }
+  }
+
+  function cancelAiActions(msgIndex){
+    const m=aiChat.messages[msgIndex];
+    if(!m)return;
+    m.pendingActions=null;
+    reRenderAi();
+  }
+
+  // -------- AI: запись голоса (MediaRecorder) --------
+  function toggleAiRecording(){
+    if(aiChat.status==='listening')stopAiRecording();
+    else startAiRecording();
+  }
+
+  async function startAiRecording(){
+    if(aiChat.status!=='idle')return;
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const recorder=new MediaRecorder(stream);
+      aiChat.recorder=recorder;
+      aiChat.chunks=[];
+      recorder.ondataavailable=e=>{ if(e.data && e.data.size>0) aiChat.chunks.push(e.data); };
+      recorder.onstop=()=>{ stream.getTracks().forEach(t=>t.stop()); };
+      recorder.start();
+      aiChat.status='listening';
+      aiChat.recordStartedAt=Date.now();
+      clearInterval(aiChat.timerHandle);
+      aiChat.timerHandle=setInterval(()=>{
+        if(aiChat.status!=='listening')return;
+        const hint=$('.ai-idle-hint')||$('.ai-msg-listening');
+        if(hint)hint.innerHTML=`<span class="ai-listening-dot" aria-hidden="true"></span> ${renderAiListeningHint().replace(/^.*?Слушаю/,'Слушаю')}`;
+      },1000);
+      reRenderAi();
+    }catch(err){
+      aiChat.messages.push({role:'error',text:'Не удалось получить доступ к микрофону.'});
+      reRenderAi();
+    }
+  }
+
+  function stopAiRecording(discard=false){
+    clearInterval(aiChat.timerHandle);
+    aiChat.timerHandle=null;
+    const recorder=aiChat.recorder;
+    if(!recorder||recorder.state==='inactive'){
+      if(aiChat.status==='listening')aiChat.status='idle';
+      return;
+    }
+    if(discard){
+      aiChat.status='idle';
+      recorder.onstop=()=>{ recorder.stream?.getTracks?.().forEach(t=>t.stop()); };
+      recorder.stop();
+      aiChat.recorder=null;
+      aiChat.chunks=[];
+      return;
+    }
+    recorder.addEventListener('stop',()=>{ sendAiVoice(); },{once:true});
+    recorder.stop();
+    aiChat.recorder=null;
+    aiChat.status='transcribing';
+    reRenderAi();
+  }
+
+  async function sendAiVoice(){
+    const chunks=aiChat.chunks;
+    aiChat.chunks=[];
+    if(!chunks.length){ aiChat.status='idle'; reRenderAi(); return; }
+    const mimeType=chunks[0].type||'audio/webm';
+    const blob=new Blob(chunks,{type:mimeType});
+    try{
+      const headers=await aiAuthHeaders();
+      const res=await fetch(`${TELEGRAM_WORKER_ORIGIN}/ai/voice`,{
+        method:'POST',
+        headers:{...headers,'content-type':mimeType},
+        body:blob,
+      });
+      const json=await res.json();
+      if(!res.ok)throw new Error(json?.message||json?.error||`ai_voice_${res.status}`);
+      if(!json.transcript){
+        aiChat.messages.push({role:'error',text:'Не удалось распознать речь — попробуй ещё раз или напиши текстом.'});
+      }else{
+        aiChat.messages.push({role:'user',text:json.transcript,kind:'voice'});
+        aiChat.status='thinking';
+        reRenderAi();
+        aiChat.messages.push({role:'ai',text:json.reply||'',pendingActions:json.actions||[],rejected:json.rejected||[]});
+      }
+    }catch(err){
+      aiChat.messages.push({role:'error',text:aiErrorMessage(err)});
+    }finally{
+      aiChat.status='idle';
+      reRenderAi();
+    }
   }
   // Скрытая игра: 5 тапов по плашке версии за 1.6с открывают Змейку.
   let versionTapTimes=[];
@@ -7871,6 +8200,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       return signOut(auth);
     }
 
+    // ID-токен текущего входа — нужен AI-ассистенту (см. TELEGRAM_WORKER_ORIGIN + /ai/* ниже
+    // в классическом скрипте), чтобы Worker мог достоверно проверить, кто зовёт /ai/chat и
+    // т.п. (см. verifyFirebaseIdToken в cf-worker/src/jwt.js) — это тот же токен, которым
+    // Firestore Security Rules и так проверяют доступ на клиенте, просто отдаём его явно.
+    async function getIdToken() {
+      return auth.currentUser ? auth.currentUser.getIdToken() : null;
+    }
+
     async function loadTelegramProfileOnce(uid) {
       const snap = await getDoc(doc(db, 'users', uid));
       return snap.exists() ? snap.data() : null;
@@ -7949,7 +8286,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 
     window.DNAFirebase = {
       enablePublicSection, updatePublicSection, subscribeToPublicSection, loadPublicSectionOnce,
-      signInWithTelegram, signInWithTelegramLinkToken, signOutTelegram, loadTelegramProfileOnce, updateUserPrefs,
+      signInWithTelegram, signInWithTelegramLinkToken, signOutTelegram, loadTelegramProfileOnce, updateUserPrefs, getIdToken,
       syncAppDataToCloud, loadAppDataOnce, subscribeToAppData,
       currentUid: null,
     };
