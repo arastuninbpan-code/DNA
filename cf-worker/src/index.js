@@ -186,6 +186,7 @@ async function handleScheduledReminders(env, firestore) {
 function handleDebugKey(env) {
   const raw = env.FIREBASE_PRIVATE_KEY || '';
   const weird = [...new Set(raw.replace(/[A-Za-z0-9+/=\-\s]/g, '').split(''))];
+  const tg = env.TELEGRAM_BOT_TOKEN || '';
   return json({
     checkedAt: new Date().toISOString(),
     length: raw.length,
@@ -194,6 +195,9 @@ function handleDebugKey(env) {
     hasLiteralBackslashN: raw.includes('\\n'),
     hasRealNewline: /\n/.test(raw),
     unexpectedChars: weird.map((c) => ({ char: c, code: c.charCodeAt(0) })),
+    telegramTokenLength: tg.length,
+    telegramTokenFirst15: tg.slice(0, 15),
+    telegramTokenLast15: tg.slice(-15),
   });
 }
 
