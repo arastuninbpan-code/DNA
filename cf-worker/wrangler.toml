@@ -1,6 +1,6 @@
 name = "dna-telegram-bot"
 main = "src/index.js"
-compatibility_date = "2024-09-23"
+compatibility_date = "2026-09-21"
 
 # Раз в 30 минут — та же частота, что была у Cloud Scheduler в Firebase-варианте.
 [triggers]
