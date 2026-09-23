@@ -5,6 +5,7 @@
 // остаётся той же, Worker обращается к ней напрямую через REST API (см. firestore.js).
 import { createFirestoreClient } from './firestore.js';
 import { createCustomToken } from './googleAuth.js';
+import { verifyFirebaseIdToken } from './jwt.js';
 import {
   sendMessage, sendMediaGroup, answerCallbackQuery,
   verifyLoginWidgetPayload, getUserProfilePhotoFilePath, fetchTelegramFile,
@@ -14,6 +15,8 @@ import {
 } from './reminders.js';
 import { runDailyDigests } from './digest.js';
 import { renderScreen, runAction, renderHome, renderToMainMenu } from './bot.js';
+import { createYandexProvider } from './ai/provider.js';
+import { planTurn, confirmActions } from './ai/router.js';
 
 // Полчаса — достаточно, чтобы спокойно открыть одну и ту же ссылку и с телефона, и с
 // компьютера, не отправляя /start заново под каждое устройство (ссылка теперь не
@@ -250,6 +253,98 @@ async function handleAvatar(env, firestore, uid) {
   return new Response('no avatar', { status: 404 });
 }
 
+// Проверка личности звонящего для /ai/* — единственные эндпоинты, где клиент действует от
+// имени уже вошедшего пользователя (а не просто предъявляет одноразовый токен входа, как
+// /telegramLinkAuth). Без этой проверки любой мог бы прислать чужой uid и писать в чужие
+// данные (см. п.36 просьбы: "проверить пользователя, проверить права доступа"). Клиент уже
+// авторизован в Firebase (signInWithCustomToken после входа через Telegram), поэтому шлёт
+// свой обычный Firebase ID-токен — тот же, которым Firestore Security Rules проверяют доступ
+// на клиенте; здесь его проверяем сами, без Admin SDK (см. verifyFirebaseIdToken в jwt.js).
+async function requireFirebaseUid(req, env) {
+  const auth = req.headers.get('authorization') || '';
+  const m = /^Bearer\s+(.+)$/.exec(auth);
+  if (!m) throw new Error('missing bearer token');
+  return verifyFirebaseIdToken(m[1], env.FIREBASE_PROJECT_ID);
+}
+
+const AI_CORS_HEADERS = {
+  ...CORS_HEADERS,
+  'access-control-allow-headers': 'content-type, authorization',
+};
+
+// Текстовый ход диалога с AI-ассистентом: {text} -> {reply, actions, rejected}. actions —
+// уже провалидированные (см. actions.js), но НЕ применённые действия — клиент показывает их
+// пользователю как карточку подтверждения и, если он согласен, шлёт их же на /ai/confirm.
+async function handleAiChat(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  const body = await req.json().catch(() => ({}));
+  const text = String(body.text || '').trim();
+  if (!text) return json({ error: 'missing text' }, 400, AI_CORS_HEADERS);
+  try {
+    const provider = createYandexProvider(env);
+    const plan = await planTurn(provider, firestore, uid, text);
+    return json(plan, 200, AI_CORS_HEADERS);
+  } catch (err) {
+    console.error('handleAiChat failed', err);
+    return json({ error: 'ai_unavailable', message: String(err.message || err) }, 502, AI_CORS_HEADERS);
+  }
+}
+
+// Голосовой ход: тело запроса — сырые байты записи (Content-Type: реальный mime от
+// MediaRecorder). Сначала распознаём в текст (SpeechKit), дальше — та же логика, что в
+// handleAiChat, плюс transcript в ответе, чтобы клиент показал "ты сказал: ..." до ответа AI
+// (см. п.5 просьбы: пользователь должен видеть, что именно распознала система).
+async function handleAiVoice(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  const mimeType = req.headers.get('content-type') || 'audio/ogg';
+  const audioBytes = await req.arrayBuffer();
+  if (!audioBytes.byteLength) return json({ error: 'empty audio' }, 400, AI_CORS_HEADERS);
+  try {
+    const provider = createYandexProvider(env);
+    const transcript = await provider.transcribe(audioBytes, mimeType);
+    if (!transcript.trim()) {
+      return json({ transcript: '', error: 'empty_transcript' }, 200, AI_CORS_HEADERS);
+    }
+    const plan = await planTurn(provider, firestore, uid, transcript);
+    return json({ transcript, ...plan }, 200, AI_CORS_HEADERS);
+  } catch (err) {
+    console.error('handleAiVoice failed', err);
+    return json({ error: 'ai_unavailable', message: String(err.message || err) }, 502, AI_CORS_HEADERS);
+  }
+}
+
+// Подтверждение: клиент присылает ровно те actions, что получил от /ai/chat или /ai/voice
+// (после того, как пользователь нажал "Добавить всё" — см. п.16 просьбы, ничего не пишется
+// без явного подтверждения нескольких изменений сразу). confirmActions заново валидирует
+// каждое действие перед исполнением — не доверяет тому, что пришло от клиента, целиком.
+async function handleAiConfirm(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  const body = await req.json().catch(() => ({}));
+  const results = await confirmActions(firestore, uid, body.actions);
+  return json({ results }, 200, AI_CORS_HEADERS);
+}
+
 export default {
   async fetch(req, env) {
     const firestore = createFirestoreClient(env.FIREBASE_PROJECT_ID, env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY);
@@ -264,6 +359,12 @@ export default {
         return handleTelegramLinkAuth(req, env, firestore);
       case '/telegramWebhook':
         return handleTelegramWebhook(req, env, firestore);
+      case '/ai/chat':
+        return handleAiChat(req, env, firestore);
+      case '/ai/voice':
+        return handleAiVoice(req, env, firestore);
+      case '/ai/confirm':
+        return handleAiConfirm(req, env, firestore);
       default:
         return new Response('not found', { status: 404 });
     }

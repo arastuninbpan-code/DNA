@@ -190,6 +190,68 @@ export async function markHabitDoneByName(firestore, uid, dateKey, name, done = 
   return list[idx];
 }
 
+// Тот же id-формат, что клиент использует для событий/разделов/транзакций (Date.now в base36 +
+// немного случайности, см. uid()/plannerId() в index.html) — не обязателен для их алгоритмов
+// (там id проставляется лениво при загрузке, см. withIds), но при создании С СЕРВЕРА (голосовой
+// AI, см. cf-worker/src/ai/) хотим сразу получить адресуемую запись, а не ждать следующей
+// нормализации на клиенте.
+export function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// Создание нового события планера — используется голосовым/текстовым AI-ассистентом
+// (см. cf-worker/src/ai/actions.js#execCreateEvent). Та же форма объекта, что и ручное
+// сохранение в форме события (см. commitForm в index.html): минимальный набор полей,
+// остальное (блоки, повтор, цвет раздела) можно донастроить потом в самом приложении.
+export async function createPlannerEvent(firestore, uid, { title, date, time, duration }) {
+  const path = `users/${uid}/appData/planner`;
+  const data = (await firestore.getDoc(path)) || {};
+  const events = Array.isArray(data.events) ? [...data.events] : [];
+  const event = {
+    id: generateId(),
+    title,
+    date,
+    time: time || null,
+    duration: duration || 60,
+    sectionId: null,
+    color: null,
+    blocks: [],
+    repeat: null,
+    done: false,
+    comments: [],
+    createdAt: new Date().toISOString(),
+  };
+  events.push(event);
+  await firestore.mergeDoc(path, { events });
+  return event;
+}
+
+// Финансовый документ целиком — как getHabitsDoc/getPlannerDoc, чтобы не дублировать
+// firestore.getDoc(...finance) в каждом месте (bot.js/digest.js читали его инлайн).
+export async function getFinanceDoc(firestore, uid) {
+  return (await firestore.getDoc(`users/${uid}/appData/finance`)) || {};
+}
+
+// Новая финансовая операция — та же форма объекта, что кнопка "+ Расход/Доход" в приложении
+// (см. #tx-save в index.html): amount со знаком (отрицательный у расхода), type, category,
+// note, date. Используется голосовым/текстовым AI-ассистентом.
+export async function addFinanceTransaction(firestore, uid, { amount, type, category, note, date }) {
+  const path = `users/${uid}/appData/finance`;
+  const data = (await firestore.getDoc(path)) || {};
+  const transactions = Array.isArray(data.transactions) ? [...data.transactions] : [];
+  const tx = {
+    id: generateId(),
+    amount,
+    type,
+    category: category || null,
+    note: note || '',
+    date,
+  };
+  transactions.push(tx);
+  await firestore.mergeDoc(path, { transactions });
+  return tx;
+}
+
 // Для крон-напоминаний "скоро начнётся": события сегодня, с временем, ещё не выполненные,
 // чьё начало попадает в окно [сейчас, сейчас+windowMinutes) — т.е. каждое поймает ровно один
 // 30-минутный тик крона (см. handlePlannerReminders в index.js), плюс защита от повтора там же.
