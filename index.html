@@ -5919,7 +5919,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         body:JSON.stringify({text}),
       });
       const json=await res.json();
-      if(!res.ok)throw new Error(json?.message||json?.error||`ai_chat_${res.status}`);
+      if(!res.ok)throw aiBackendError(json,res.status);
       aiChat.messages.push({role:'ai',text:json.reply||'',pendingActions:json.actions||[],rejected:json.rejected||[]});
     }catch(err){
       aiChat.messages.push({role:'error',text:aiErrorMessage(err)});
@@ -5929,9 +5929,17 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     }
   }
 
+  // Ошибка с бэкенда (Worker ответил не-2xx, но ответил) — это НЕ проблема соединения,
+  // а конкретная причина (не настроены ключи, квота/биллинг Yandex и т.п.), показываем её
+  // пользователю как есть, а не общей фразой "проверь соединение" — иначе не понять, что чинить.
+  function aiBackendError(json,status){
+    const err=new Error(json?.message||json?.error||`ai_${status}`);
+    err.aiBackend=true;
+    return err;
+  }
   function aiErrorMessage(err){
     if(err?.message==='no-auth')return 'Нужно войти через Telegram, чтобы пользоваться AI-ассистентом.';
-    if(err?.message==='ai_unavailable'||/не настроен/i.test(err?.message||''))return 'AI-ассистент пока не настроен — попробуй позже.';
+    if(err?.aiBackend)return `AI вернул ошибку: ${err.message}`;
     return 'Не получилось связаться с AI. Проверь соединение и попробуй ещё раз.';
   }
 
@@ -5950,7 +5958,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         body:JSON.stringify({actions}),
       });
       const json=await res.json();
-      if(!res.ok)throw new Error(json?.message||json?.error||`ai_confirm_${res.status}`);
+      if(!res.ok)throw aiBackendError(json,res.status);
       m.results=json.results||[];
     }catch(err){
       aiChat.messages.push({role:'error',text:aiErrorMessage(err)});
@@ -6035,7 +6043,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         body:blob,
       });
       const json=await res.json();
-      if(!res.ok)throw new Error(json?.message||json?.error||`ai_voice_${res.status}`);
+      if(!res.ok)throw aiBackendError(json,res.status);
       if(!json.transcript){
         aiChat.messages.push({role:'error',text:'Не удалось распознать речь — попробуй ещё раз или напиши текстом.'});
       }else{
