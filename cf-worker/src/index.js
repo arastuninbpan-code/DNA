@@ -60,7 +60,7 @@ const CORS_HEADERS = {
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'content-type': 'application/json', ...extraHeaders },
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...extraHeaders },
   });
 }
 
@@ -187,6 +187,7 @@ function handleDebugKey(env) {
   const raw = env.FIREBASE_PRIVATE_KEY || '';
   const weird = [...new Set(raw.replace(/[A-Za-z0-9+/=\-\s]/g, '').split(''))];
   return json({
+    checkedAt: new Date().toISOString(),
     length: raw.length,
     first30: raw.slice(0, 30),
     last30: raw.slice(-30),
