@@ -5,10 +5,16 @@
 // остаётся той же, Worker обращается к ней напрямую через REST API (см. firestore.js).
 import { createFirestoreClient } from './firestore.js';
 import { createCustomToken } from './googleAuth.js';
-import { sendMessage, answerCallbackQuery, editMessageReplyMarkup, verifyLoginWidgetPayload } from './telegram.js';
+import {
+  sendMessage, answerCallbackQuery, editMessageReplyMarkup, verifyLoginWidgetPayload,
+  getUserProfilePhotoFilePath, fetchTelegramFile,
+} from './telegram.js';
 import { DEFAULT_TZ, todayKey, currentHourInTz, getHabitsToday, markHabitDone } from './reminders.js';
 
-const LOGIN_TOKEN_TTL_MS = 10 * 60 * 1000;
+// Полчаса — достаточно, чтобы спокойно открыть одну и ту же ссылку и с телефона, и с
+// компьютера, не отправляя /start заново под каждое устройство (ссылка теперь не
+// одноразовая, см. handleTelegramLinkAuth).
+const LOGIN_TOKEN_TTL_MS = 30 * 60 * 1000;
 
 function uidForTelegramId(telegramId) {
   return `tg_${telegramId}`;
@@ -43,7 +49,12 @@ async function upsertTelegramUser(firestore, telegramId, profile) {
     telegramId,
     telegramUsername: profile.username || null,
     telegramFirstName: profile.firstName || '',
+    telegramLastName: profile.lastName || '',
+    // Виджет входа отдаёт готовый публичный URL фото; вход по ссылке от бота — только
+    // file_path (см. getUserProfilePhotoFilePath), который отдаётся клиенту не напрямую,
+    // а через прокси /avatar/:uid (см. handleAvatar), чтобы не светить токен бота в URL.
     telegramPhotoUrl: profile.photoUrl || null,
+    telegramPhotoFilePath: profile.photoFilePath || null,
     linkedAt: existing ? existing.linkedAt ?? Date.now() : Date.now(),
     reminderHourLocal: existing ? existing.reminderHourLocal ?? 20 : 20,
     lastReminderSentDate: existing ? existing.lastReminderSentDate ?? null : null,
@@ -74,17 +85,18 @@ async function handleTelegramAuthVerify(req, env, firestore) {
   const uid = await upsertTelegramUser(firestore, payload.id, {
     username: payload.username,
     firstName: payload.first_name,
+    lastName: payload.last_name,
     photoUrl: payload.photo_url,
   });
   const customToken = await createCustomToken(env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY, uid);
   return json({ customToken }, 200, CORS_HEADERS);
 }
 
-// Вход по одноразовой ссылке из бота (проще виджета — не требует BotFather /setdomain). Бот
-// при /start кладёт случайный токен в loginTokens/{token} и присылает ссылку вида
-// APP_URL?telegram_login=<token>. Открыв её, клиент шлёт токен сюда; мы проверяем, что такой
-// токен существует и не протух, сразу удаляем его (одноразовый — как magic-link в email), и
-// выдаём тот же custom token, что и вход через виджет.
+// Вход по ссылке из бота (проще виджета — не требует BotFather /setdomain). Бот при /start
+// кладёт токен в loginTokens/{token} и присылает ссылку вида APP_URL?telegram_login=<token>.
+// Ссылка НЕ одноразовая — живёт LOGIN_TOKEN_TTL_MS (30 минут) и её можно открыть несколько
+// раз за это окно (например, сначала с телефона, потом с компьютера); удаляем только когда
+// она реально протухла, просто для уборки за собой.
 async function handleTelegramLinkAuth(req, env, firestore) {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS_HEADERS });
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, CORS_HEADERS);
@@ -94,14 +106,17 @@ async function handleTelegramLinkAuth(req, env, firestore) {
 
   const tokenPath = `loginTokens/${loginToken}`;
   const data = await firestore.getDoc(tokenPath);
-  if (!data) return json({ error: 'invalid or already used token' }, 401, CORS_HEADERS);
-  await firestore.deleteDoc(tokenPath);
-  if (Date.now() > data.expiresAt) return json({ error: 'token expired' }, 401, CORS_HEADERS);
+  if (!data) return json({ error: 'invalid or expired token' }, 401, CORS_HEADERS);
+  if (Date.now() > data.expiresAt) {
+    await firestore.deleteDoc(tokenPath);
+    return json({ error: 'token expired' }, 401, CORS_HEADERS);
+  }
 
   const uid = await upsertTelegramUser(firestore, data.telegramId, {
     username: data.username,
     firstName: data.firstName,
-    photoUrl: data.photoUrl,
+    lastName: data.lastName,
+    photoFilePath: data.photoFilePath,
   });
   const customToken = await createCustomToken(env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY, uid);
   return json({ customToken }, 200, CORS_HEADERS);
@@ -115,11 +130,13 @@ async function handleTelegramWebhook(req, env, firestore) {
     if (update.message && update.message.text === '/start') {
       const from = update.message.from;
       const loginToken = randomToken();
+      const photoFilePath = await getUserProfilePhotoFilePath(token, from.id).catch(() => null);
       await firestore.setDoc(`loginTokens/${loginToken}`, {
         telegramId: from.id,
         username: from.username || null,
         firstName: from.first_name || '',
-        photoUrl: null,
+        lastName: from.last_name || '',
+        photoFilePath,
         expiresAt: Date.now() + LOGIN_TOKEN_TTL_MS,
       });
       await sendMessage(token, from.id, 'Открой приложение — сразу окажешься в своём аккаунте:', {
@@ -180,34 +197,36 @@ async function handleScheduledReminders(env, firestore) {
   }
 }
 
-// ВРЕМЕННЫЙ диагностический эндпоинт — не раскрывает сам ключ, только его форму (длину,
-// первые/последние символы — это всегда открытый текст BEGIN/END, не секрет), чтобы понять,
-// что именно сломано во вставленном FIREBASE_PRIVATE_KEY. Убрать после починки.
-function handleDebugKey(env) {
-  const raw = env.FIREBASE_PRIVATE_KEY || '';
-  const weird = [...new Set(raw.replace(/[A-Za-z0-9+/=\-\s]/g, '').split(''))];
-  const tg = env.TELEGRAM_BOT_TOKEN || '';
-  return json({
-    checkedAt: new Date().toISOString(),
-    length: raw.length,
-    first30: raw.slice(0, 30),
-    last30: raw.slice(-30),
-    hasLiteralBackslashN: raw.includes('\\n'),
-    hasRealNewline: /\n/.test(raw),
-    unexpectedChars: weird.map((c) => ({ char: c, code: c.charCodeAt(0) })),
-    telegramTokenLength: tg.length,
-    telegramTokenFirst15: tg.slice(0, 15),
-    telegramTokenLast15: tg.slice(-15),
-  });
+// Прокси-аватар: /avatar/tg_<telegramId>. Виджет входа даёт готовый публичный URL фото — для
+// него достаточно redirect. Вход по ссылке от бота даёт только file_path, который скачивается
+// с serverов Telegram лишь вместе с токеном бота — поэтому качаем сами и отдаём уже сами байты,
+// токен наружу не уходит. uid не секрет (это просто "tg_<telegramId>", тот же формат, что и
+// в Firestore, публично виден любому, кто напишет боту).
+async function handleAvatar(env, firestore, uid) {
+  const user = await firestore.getDoc(`users/${uid}`);
+  if (!user) return new Response('not found', { status: 404 });
+  if (user.telegramPhotoUrl) {
+    return Response.redirect(user.telegramPhotoUrl, 302);
+  }
+  if (user.telegramPhotoFilePath) {
+    const file = await fetchTelegramFile(env.TELEGRAM_BOT_TOKEN, user.telegramPhotoFilePath);
+    if (file) {
+      return new Response(file.body, {
+        headers: { 'content-type': file.contentType, 'cache-control': 'public, max-age=3600' },
+      });
+    }
+  }
+  return new Response('no avatar', { status: 404 });
 }
 
 export default {
   async fetch(req, env) {
     const firestore = createFirestoreClient(env.FIREBASE_PROJECT_ID, env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY);
     const url = new URL(req.url);
+    if (url.pathname.startsWith('/avatar/')) {
+      return handleAvatar(env, firestore, url.pathname.slice('/avatar/'.length));
+    }
     switch (url.pathname) {
-      case '/debugKey':
-        return handleDebugKey(env);
       case '/telegramAuthVerify':
         return handleTelegramAuthVerify(req, env, firestore);
       case '/telegramLinkAuth':

@@ -49,6 +49,28 @@ export function setWebhook(token, url) {
   return callTelegram(token, 'setWebhook', { url });
 }
 
+// Возвращает file_path (не URL!) самого маленького варианта фото профиля — этого достаточно
+// для маленького круглого аватара в интерфейсе. file_path сам по себе не секрет, но получить
+// по нему файл можно только вместе с токеном бота — поэтому отдаём его клиенту не напрямую,
+// а через прокси-роут /avatar/:uid в index.js (см. handleAvatar), не раскрывая токен.
+export async function getUserProfilePhotoFilePath(token, userId) {
+  const res = await fetch(`${apiUrl(token, 'getUserProfilePhotos')}?user_id=${userId}&limit=1`);
+  const json = await res.json();
+  if (!json.ok || !json.result.photos.length) return null;
+  const fileId = json.result.photos[0][0].file_id;
+  const fileRes = await fetch(`${apiUrl(token, 'getFile')}?file_id=${fileId}`);
+  const fileJson = await fileRes.json();
+  return fileJson.ok ? fileJson.result.file_path : null;
+}
+
+// Скачивает файл с серверов Telegram (для прокси — токен остаётся на сервере, наружу уходит
+// только сам файл). Возвращает { body, contentType } или null, если Telegram не отдал файл.
+export async function fetchTelegramFile(token, filePath) {
+  const res = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
+  if (!res.ok) return null;
+  return { body: res.body, contentType: res.headers.get('content-type') || 'image/jpeg' };
+}
+
 function bytesToHex(bytes) {
   return Array.from(new Uint8Array(bytes)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }

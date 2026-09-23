@@ -297,6 +297,20 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
   border: 1px solid rgba(201,168,76,.25); border-radius: 50%; background: var(--surface); color: var(--gold);
 }
 .home-icon-button .icon { width: 22px; height: 22px; }
+.home-telegram-prompt {
+  width: 100%; max-width: 960px; margin: 16px auto 0; padding: 16px 44px 16px 16px; position: relative;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid rgba(201,168,76,.25); border-radius: 18px;
+}
+.home-telegram-prompt-body { flex: 1 1 200px; min-width: 0; }
+.home-telegram-prompt-body strong { display: block; margin-bottom: 4px; }
+.home-telegram-prompt-body p { margin: 0; color: #b6aa88; font-size: .8125rem; line-height: 1.4; }
+.home-telegram-prompt .secondary-button { margin: 0; flex: 0 0 auto; }
+.home-telegram-prompt-close {
+  position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; display: grid; place-items: center;
+  border: none; background: transparent; color: #b6aa88; border-radius: 50%;
+}
+.home-telegram-prompt-close .icon { width: 16px; height: 16px; }
 .home-stage { flex: 1; min-height: 240px; display: grid; place-items: center; padding: 32px 0 64px; text-align: center; }
 .home-voice { display: flex; flex-direction: column; align-items: center; gap: 18px; }
 .home-mic {
@@ -333,6 +347,10 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .account-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex: 0 0 44px; }
 .account-avatar-fallback { display: flex; align-items: center; justify-content: center; background: var(--gold-strong); color: #000; font-size: 1.125rem; font-weight: 600; }
 .account-linked-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.profile-hero { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px 0 6px; text-align: center; }
+.profile-hero-avatar { width: 92px; height: 92px; border-radius: 50%; object-fit: cover; }
+.profile-hero-avatar-fallback { display: flex; align-items: center; justify-content: center; background: var(--gold-strong); color: #000; font-size: 2.25rem; font-weight: 600; }
+.profile-hero-name { font-size: 1.1875rem; font-weight: 700; }
 .account-linked-info strong { font-weight: 500; font-size: 1rem; }
 .account-linked-info span { font-size: .8125rem; color: rgba(var(--ink),.5); }
 /* Переключатель темы — тот же язык сегмент-контрола, что и у остального приложения (мягкие
@@ -1624,8 +1642,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
    align-items:flex-end (сам пузырь — inline-block, поэтому не растягивается на всю ширину). */
 .pl-comment-item.mine{flex-direction:row-reverse;}
 .pl-comment-item.mine .pl-comment-body{align-items:flex-end;}
-.pl-comment-avatar{width:28px;height:28px;border-radius:50%;background:var(--gold-strong);color:#1a1508;font-size:.75rem;font-weight:700;display:grid;place-items:center;flex:0 0 auto;}
+.pl-comment-avatar{width:28px;height:28px;border-radius:50%;background:var(--gold-strong);color:#1a1508;font-size:.75rem;font-weight:700;display:grid;place-items:center;flex:0 0 auto;overflow:hidden;}
 .pl-comment-item.theirs .pl-comment-avatar{background:rgba(var(--ink),.16);color:var(--white);}
+.pl-comment-avatar img{width:100%;height:100%;object-fit:cover;}
 /* display:flex;flex-direction:column — раньше стояло только у .mine, у "чужих" сообщений
    .pl-comment-body оставался обычным блоком, а сам пузырь — inline-block (нужно, чтобы не
    растягиваться на всю ширину) — из-за этого короткий пузырь вставал РЯДОМ с именем на одной
@@ -1810,14 +1829,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.13';
+  const APP_VERSION = '0.25.15';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
   const TELEGRAM_BOT_ID = '8499699490';
   const TELEGRAM_BOT_USERNAME = 'dna_corporation_bot';
+  // Тот же адрес, что и в модульном Firebase-скрипте (TELEGRAM_WORKER_ORIGIN) — два разных
+  // <script>-контекста, значение приходится дублировать, а не шарить переменную напрямую.
+  const TELEGRAM_WORKER_ORIGIN = 'https://dna.nikitosik6613.workers.dev';
   let telegramProfile = null; // { telegramFirstName, telegramUsername, telegramId } из users/{uid} после входа
   let telegramAuthPending = false;
+  // Баннер-приглашение войти через Telegram на главном экране — для тех, кто открыл сайт
+  // напрямую (не по ссылке от бота), поэтому ещё не привязан. Показывается, пока не привязан
+  // аккаунт и пока пользователь сам его не закрыл (тогда больше не надоедаем).
+  let telegramPromptDismissed = false;
+  try{telegramPromptDismissed = localStorage.getItem('dna_telegram_prompt_dismissed')==='1';}catch(_){}
   let habitsCloudUnsub = null;
   let lastSyncedHabitsJson = null;
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
@@ -2454,6 +2481,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     let id;try{id=localStorage.getItem('dna_user_id');}catch(_){}
     if(!id){id=uid();try{localStorage.setItem('dna_user_id',id);}catch(_){}}
     return id;
+  }
+  // Имя/аватарка для нового комментария — только если аккаунт привязан к Telegram. Имя
+  // записывается текстом на момент отправки (не меняется задним числом при смене имени в
+  // Telegram); аватарка — ссылка на прокси /avatar/:uid, всегда покажет текущее фото.
+  function plannerAuthorSnapshot(){
+    if(!telegramProfile)return {};
+    const authorName=telegramProfile.telegramFirstName||telegramProfile.telegramUsername||null;
+    const authorPhoto=telegramAvatarUrl(telegramProfile);
+    return {...(authorName?{authorName}:{}),...(authorPhoto?{authorPhoto}:{})};
   }
   // Persist an outbox before sending id-level patches. Transactions merge against the
   // current server document, so edits to different events cannot replace each other.
@@ -5311,9 +5347,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const divider=dayLabel!==lastDay?`<div class="pl-comment-divider"><span>${esc(dayLabel)}</span></div>`:'';
       lastDay=dayLabel;
       if(it.system)return divider+`<div class="pl-comment-system">Событие создано</div>`;
-      const mine=(it.authorId||my)===my,name=mine?'Я':'Собеседник';
+      const mine=(it.authorId||my)===my;
+      const name=it.authorName||(mine?'Я':'Собеседник');
+      const avatar=it.authorPhoto?`<img src="${esc(it.authorPhoto)}" alt="">`:(mine?'Я':'С');
       return divider+`<div class="pl-comment-item ${mine?'mine':'theirs'}" data-comment-id="${esc(it.id)}" data-comment-mine="${mine}">
-        <div class="pl-comment-avatar">${mine?'Я':'С'}</div>
+        <div class="pl-comment-avatar">${avatar}</div>
         <div class="pl-comment-body">
           <span class="pl-comment-name">${esc(name)}</span>
           <div class="pl-comment-bubble">${it.image?`<img class="pl-comment-image" src="${esc(it.image)}" alt="">`:''}${it.text?`<span class="pl-comment-text">${esc(it.text)}</span>`:''}</div>
@@ -5436,7 +5474,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         return;
       }
       if(!text&&!stagedImage)return;
-      ev.comments.push({id:plannerId(),text,date:new Date().toISOString(),authorId:plannerUserId(),image:stagedImage||undefined});
+      ev.comments.push({id:plannerId(),text,date:new Date().toISOString(),authorId:plannerUserId(),image:stagedImage||undefined,...plannerAuthorSnapshot()});
       input.value='';stagedImage=null;renderStaged();savePlannerEvents();
       $('#pl-comment-list',ov).innerHTML=plannerCommentList(ev);
       $('#pl-comment-list',ov).scrollTop=$('#pl-comment-list',ov).scrollHeight;
@@ -5540,10 +5578,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('#pl-detail-delete',ov).onclick=()=>{plannerDelete(ev.id);closeOverlay();};
     $('[data-pl-edit]',ov).onclick=()=>{closeOverlay();showPlannerEditSheet(ev.id);};
   }
+  function renderTelegramLoginPrompt(){
+    if(telegramProfile||telegramPromptDismissed)return '';
+    return `<div class="home-telegram-prompt" data-telegram-prompt>
+      <button type="button" class="home-telegram-prompt-close" data-telegram-prompt-dismiss aria-label="Закрыть">${icon('close')}</button>
+      <div class="home-telegram-prompt-body">
+        <strong>Войди через Telegram</strong>
+        <p>Бот @${TELEGRAM_BOT_USERNAME} сможет напоминать о привычках и отмечать их выполненными — прямо из чата.</p>
+      </div>
+      <button type="button" class="secondary-button" data-telegram-prompt-login>${icon('send')} Войти</button>
+    </div>`;
+  }
   function renderHome() {
     if (homePanel==='settings') return renderHomeSettings();
     return `<section class="screen home-screen" aria-label="Главная">
       <div class="home-toolbar"><button class="home-icon-button pressable" data-home-settings aria-label="Открыть настройки" title="Настройки">${icon('settings')}</button></div>
+      ${renderTelegramLoginPrompt()}
       <div class="home-stage"><div class="home-voice">
         <button class="home-mic pressable" data-home-mic aria-label="Голосовой помощник — в разработке" aria-describedby="voice-status" aria-haspopup="dialog">${icon('mic')}</button>
         <p class="home-voice-status" id="voice-status">Голосовой AI · скоро</p>
@@ -5560,6 +5610,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function renderHomeSettings() {
     return `<section class="screen home-settings" aria-labelledby="settings-title"><div class="settings-inner">
       <header class="settings-header"><button class="home-icon-button pressable" data-home-back aria-label="Вернуться на главную">${icon('chev-left')}</button><h1 id="settings-title">Настройки</h1></header>
+      ${telegramProfile?renderProfileHero():''}
       <section class="settings-card"><h2>Оформление</h2><p>Светлая, тёмная или как в системе — переключается сразу, без перезагрузки.</p>
         <div class="theme-picker" role="radiogroup" aria-label="Тема оформления">
           <button type="button" class="theme-picker-btn ${themeMode==='light'?'active':''}" data-theme-mode="light" role="radio" aria-checked="${themeMode==='light'}">${icon('sun')}<span>Светлая</span></button>
@@ -5570,23 +5621,42 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <section class="settings-card">${renderAccountCard()}</section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v0.25.13</div><p class="settings-note">Более простой вход через Telegram: команда /start у бота сразу присылает ссылку, по которой открывается вход в аккаунт — без кнопки в настройках и без ошибки «bot domain invalid».</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.15</div><p class="settings-note">Аватарка из Telegram теперь подтягивается и в настройках, и в комментариях к событиям (вместе с именем); ссылка входа от бота больше не одноразовая — ею можно войти и с телефона, и с компьютера; сверху настроек — крупная аватарка и имя; новым пользователям на главном экране предлагается войти через Telegram.</p></div>
       </div></section>
     </div></section>`;
   }
 
+  // Виджет входа отдаёт готовый публичный URL фото; вход по ссылке от бота — только file_path,
+  // который отдаёт файл лишь вместе с токеном бота, поэтому там всегда используется прокси
+  // /avatar/:uid на самом Worker'е (см. cf-worker/src/index.js#handleAvatar) — токен наружу
+  // не уходит, клиент просто получает готовые байты картинки.
+  function telegramAvatarUrl(profile){
+    if(!profile||!(profile.telegramPhotoUrl||profile.telegramPhotoFilePath))return null;
+    const uid=window.DNAFirebase?.currentUid;
+    if(!uid)return null;
+    return `${TELEGRAM_WORKER_ORIGIN}/avatar/${encodeURIComponent(uid)}`;
+  }
+
+  // Аватарка и полное имя показываются в profile-hero сверху экрана настроек — здесь,
+  // пока аккаунт привязан, остаётся только служебное действие (отвязать) и пояснение.
   function renderAccountCard(){
     if(telegramProfile){
-      const name=esc(telegramProfile.telegramFirstName||telegramProfile.telegramUsername||'Telegram');
-      const handle=telegramProfile.telegramUsername?`@${esc(telegramProfile.telegramUsername)}`:'';
-      const photo=telegramProfile.telegramPhotoUrl?`<img src="${esc(telegramProfile.telegramPhotoUrl)}" alt="" class="account-avatar">`:`<div class="account-avatar account-avatar-fallback">${name.charAt(0).toUpperCase()}</div>`;
-      return `<h2>Аккаунт</h2><div class="account-linked">${photo}<div class="account-linked-info"><strong>${name}</strong>${handle?`<span>${handle}</span>`:''}</div></div>
+      return `<h2>Аккаунт</h2>
         <button type="button" class="text-btn" style="padding:10px 0" data-telegram-unlink>Отвязать Telegram</button>
         <p class="settings-note">Бот пришлёт напоминание, если к вечеру останутся незакрытые привычки. Команда /today в чате с ботом покажет план на сегодня.</p>`;
     }
     return `<h2>Аккаунт</h2><p>Локальный режим</p>
       <button type="button" class="primary-button" data-telegram-login>${icon('send')} Войти через Telegram</button>
       <p class="settings-note">Вход подтягивает привычки в облако — бот @${TELEGRAM_BOT_USERNAME} сможет напоминать о них и отмечать выполненные. Проще всего написать боту команду /start и открыть присланную им ссылку — вход произойдёт сразу, без этой кнопки.</p>`;
+  }
+
+  // Крупная круглая аватарка + "Имя Фамилия" (без ника из Telegram) над всеми настройками —
+  // показывается только если аккаунт привязан (renderHomeSettings вызывает это условно).
+  function renderProfileHero(){
+    const fullName=esc([telegramProfile.telegramFirstName,telegramProfile.telegramLastName].filter(Boolean).join(' ')||telegramProfile.telegramUsername||'Telegram');
+    const avatarUrl=telegramAvatarUrl(telegramProfile);
+    const photo=avatarUrl?`<img src="${esc(avatarUrl)}" alt="" class="profile-hero-avatar">`:`<div class="profile-hero-avatar profile-hero-avatar-fallback">${fullName.charAt(0).toUpperCase()}</div>`;
+    return `<div class="profile-hero">${photo}<div class="profile-hero-name">${fullName}</div></div>`;
   }
 
   function bindHomeEvents() {
@@ -5604,6 +5674,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $$('[data-theme-mode]').forEach(b=>b.addEventListener('click',()=>setThemeMode(b.dataset.themeMode)));
     $('[data-telegram-login]')?.addEventListener('click',startTelegramLogin);
     $('[data-telegram-unlink]')?.addEventListener('click',signOutTelegramAccount);
+    $('[data-telegram-prompt-login]')?.addEventListener('click',startTelegramLogin);
+    $('[data-telegram-prompt-dismiss]')?.addEventListener('click',()=>{
+      telegramPromptDismissed=true;
+      try{localStorage.setItem('dna_telegram_prompt_dismissed','1');}catch(_){}
+      $('[data-telegram-prompt]')?.remove();
+    });
   }
   // Скрытая игра: 5 тапов по плашке версии за 1.6с открывают Змейку.
   let versionTapTimes=[];
