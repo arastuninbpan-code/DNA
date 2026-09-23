@@ -359,13 +359,12 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .theme-picker-btn { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 8px; border-radius:14px; border:1.5px solid rgba(201,168,76,.18); background:var(--bg-deep); color:rgba(var(--ink),.6); font-family:Georgia,'Times New Roman',serif; font-size:.8125rem; transition:background-color .18s ease,border-color .18s ease,color .18s ease; }
 .theme-picker-btn .icon { width:20px; height:20px; }
 .theme-picker-btn.active { border-color:var(--gold); background:rgba(201,168,76,.12); color:var(--gold); }
-/* AI-ассистент — тот же screen-host/.screen scroll-контейнер, что и остальные разделы (см.
+/* AI-ассистент — прямо на главном экране (.home-screen), без отдельной страницы позади тапа:
+   тот же screen-host/.screen scroll-контейнер, что и остальные разделы (см.
    .screen{position:absolute;inset:0;overflow:auto}), поэтому строка ввода приклеена через
    sticky, а не fixed — иначе перекрывала бы контент других экранов при переключении вкладок. */
-.ai-screen { display: flex; flex-direction: column; min-height: 100%; }
-.ai-header { display: flex; align-items: center; gap: 12px; padding: max(16px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 8px max(20px, env(safe-area-inset-left, 0px)); }
-.ai-header h1 { margin: 0; font-size: 1.25rem; font-weight: 400; color: var(--gold); }
-.ai-header-spacer { flex: 0 0 48px; }
+.ai-home { padding-left: 0; padding-right: 0; }
+.ai-home .home-toolbar { padding: 0 max(24px, env(safe-area-inset-right, 0px)) 0 max(24px, env(safe-area-inset-left, 0px)); }
 .ai-body { flex: 1; display: flex; flex-direction: column; }
 .ai-idle { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px 24px 64px; text-align: center; }
 .ai-idle-mic.ai-mic-active { border-color: var(--gold-strong); box-shadow: 0 0 0 10px rgba(201,168,76,.08), 0 0 48px rgba(201,168,76,.12); animation: aiPulse 1.6s ease-in-out infinite; }
@@ -1869,7 +1868,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.26.0';
+  const APP_VERSION = '0.26.1';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -1921,6 +1920,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     chunks: [],
     recordStartedAt: 0,
     timerHandle: null,
+    locked: false, // запись идёт без удержания пальца — остановится по повторному тапу, не по отпусканию
   };
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
@@ -5685,32 +5685,19 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <button type="button" class="telegram-button compact" data-telegram-prompt-login>${telegramLogoIcon(18)} Войти</button>
     </div>`;
   }
+  // -------- Главная = AI-ассистент (голос + текст) --------
+  // Главный экран сразу И ЕСТЬ переписка с AI — без промежуточного тапа по микрофону, чтобы её
+  // "запустить" (раньше был отдельный renderAiScreen позади second tap, пользователь попросил
+  // убрать этот лишний шаг): aiChat.messages пуст -> renderAiIdle (крупный микрофон + подсказка),
+  // иначе -> renderAiMessages (сама переписка) — тот же экран, просто разное содержимое ai-body.
+  // Реальная работа с сетью — только через /ai/chat, /ai/voice, /ai/confirm на Worker'е
+  // (см. cf-worker/src/index.js); здесь только UI и её вызов.
   function renderHome() {
     if (homePanel==='settings') return renderHomeSettings();
-    if (homePanel==='ai') return renderAiScreen();
-    return `<section class="screen home-screen" aria-label="Главная">
+    const hasMessages = aiChat.messages.length>0;
+    return `<section class="screen home-screen ai-home" aria-label="Главная — голосовой AI">
       <div class="home-toolbar"><button class="home-icon-button pressable" data-home-settings aria-label="Открыть настройки" title="Настройки">${icon('settings')}</button></div>
       ${renderTelegramLoginPrompt()}
-      <div class="home-stage"><div class="home-voice">
-        <button class="home-mic pressable" data-home-mic aria-label="Открыть голосовой AI-ассистент">${icon('mic')}</button>
-        <p class="home-voice-status" id="voice-status">Голосовой AI · можно говорить или написать</p>
-      </div></div>
-    </section>`;
-  }
-
-  // -------- AI-ассистент (голос + текст) --------
-  // Экран остаётся одним и тем же (aiChat.messages пуст -> renderAiIdle, иначе -> renderAiMessages),
-  // а не отдельной страницей поверх — см. п.4 просьбы ("не отдельный экран, а превращение той же
-  // поверхности"). Реальная работа с сетью — только через /ai/chat, /ai/voice, /ai/confirm на
-  // Worker'е (см. cf-worker/src/index.js); здесь только UI и её вызов.
-  function renderAiScreen(){
-    const hasMessages = aiChat.messages.length>0;
-    return `<section class="screen ai-screen" aria-label="Голосовой AI-ассистент">
-      <div class="ai-header">
-        <button class="home-icon-button pressable" data-ai-back aria-label="Вернуться на главную">${icon('chev-left')}</button>
-        <h1>Голосовой AI</h1>
-        <span class="ai-header-spacer" aria-hidden="true"></span>
-      </div>
       <div class="ai-body" data-ai-body>${hasMessages ? renderAiMessages() : renderAiIdle()}</div>
       ${renderAiInputBar()}
     </section>`;
@@ -5719,22 +5706,28 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function renderAiIdle(){
     const listening = aiChat.status==='listening';
     return `<div class="ai-idle">
-      <button class="home-mic ai-idle-mic pressable ${listening?'ai-mic-active':''}" data-ai-mic aria-label="${listening?'Остановить запись':'Начать голосовой ввод'}">${icon('mic')}</button>
+      <button class="home-mic ai-idle-mic pressable ${listening?'ai-mic-active':''} ${aiChat.locked?'ai-mic-locked':''}" data-ai-mic aria-label="${listening?'Остановить запись':'Зажми, чтобы наговорить, или коротко тапни для записи без удержания'}">${icon('mic')}</button>
       <p class="ai-idle-title">Голосовой AI</p>
-      <p class="ai-idle-hint">${listening?renderAiListeningHint():'Можно говорить или написать'}</p>
+      <p class="ai-idle-hint">${listening?`<span class="ai-listening-dot" aria-hidden="true"></span> ${aiListeningLabel()}`:'Зажми микрофон и говори, или напиши внизу'}</p>
     </div>`;
   }
 
-  function renderAiListeningHint(){
+  // Текст статуса записи — общий для идле-подсказки и статус-строки в самой переписке (см.
+  // renderAiMessages ниже), чтобы формулировка не разъезжалась между двумя местами. Различает
+  // "держишь палец" (отпустишь — остановится) и "залочено коротким тапом" (остановится по
+  // повторному тапу) — см. onAiMicDown/onAiMicUp: описание жеста, который попросил пользователь.
+  function aiListeningLabel(){
     const secs = aiChat.recordStartedAt ? Math.max(0, Math.floor((Date.now()-aiChat.recordStartedAt)/1000)) : 0;
-    return `<span class="ai-listening-dot" aria-hidden="true"></span> Слушаю… ${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
+    const timer = `${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
+    const hint = aiChat.locked ? 'нажми ещё раз, чтобы остановить' : 'отпусти, чтобы остановить';
+    return `Слушаю… ${timer} · ${hint}`;
   }
 
   function renderAiMessages(){
     const rows = aiChat.messages.map((m,i)=>renderAiMessage(m,i)).join('');
     const statusRow = (aiChat.status==='transcribing'||aiChat.status==='thinking')
       ? `<div class="ai-msg ai-msg-ai ai-msg-status">${renderDnaLoader(aiChat.status==='transcribing'?'Распознаю речь…':'Думаю…',true)}</div>`
-      : (aiChat.status==='listening' ? `<div class="ai-msg ai-msg-status ai-msg-listening"><span class="ai-listening-dot" aria-hidden="true"></span> ${renderAiListeningHint().replace(/^.*?Слушаю/,'Слушаю')}</div>` : '');
+      : (aiChat.status==='listening' ? `<div class="ai-msg ai-msg-status ai-msg-listening"><span class="ai-listening-dot" aria-hidden="true"></span> ${aiListeningLabel()}</div>` : '');
     return `<div class="ai-messages" data-ai-messages>${rows}${statusRow}</div>`;
   }
 
@@ -5788,7 +5781,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const listening = aiChat.status==='listening';
     const busy = aiChat.status==='transcribing'||aiChat.status==='thinking';
     return `<form class="ai-inputbar" data-ai-form>
-      <button type="button" class="ai-inputbar-mic pressable ${listening?'ai-mic-active':''}" data-ai-mic-inline aria-label="${listening?'Остановить запись':'Голосовой ввод'}" ${busy?'disabled':''}>${icon('mic')}</button>
+      <button type="button" class="ai-inputbar-mic pressable ${listening?'ai-mic-active':''} ${aiChat.locked?'ai-mic-locked':''}" data-ai-mic-inline aria-label="${listening?'Остановить запись':'Голосовой ввод'}" ${busy?'disabled':''}>${icon('mic')}</button>
       <input type="text" class="ai-inputbar-text" data-ai-input placeholder="Написать AI…" autocomplete="off" ${busy||listening?'disabled':''}>
       <button type="submit" class="ai-inputbar-send pressable" data-ai-send aria-label="Отправить" ${busy||listening?'disabled':''}>${icon('send')}</button>
     </form>`;
@@ -5808,6 +5801,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <section class="settings-card">${renderAccountCard()}</section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.26.1</div><p class="settings-note">Голосовой AI теперь прямо на главном экране, без лишнего тапа по микрофону. Запись — как в мессенджерах: держишь микрофон — идёт запись, отпустишь — останавливается; короткий тап — запись продолжается без удержания пальца до следующего тапа. Починено распознавание речи (раньше не работало из-за формата записи браузера). AI также умеет создавать разделы планера и отмечать события выполненными.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.26.0</div><p class="settings-note">Кнопка микрофона на главном экране открывает голосового AI-ассистента: можно говорить или писать текстом — создание событий, учёт расходов/доходов, отметка привычек выполненными, вопросы «что сегодня/завтра». Для нескольких действий сразу показывается карточка со списком — подтверждаешь одним нажатием, ничего не применяется без согласия.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.25.20</div><p class="settings-note">В боте — раздел «События» сначала предлагает выбрать раздел (как чипы в самом приложении), тап по строке события/привычки сразу отмечает выполненным без перехода в карточку, многодневные события видны на каждом дне, который затрагивают. Поле «Повторять» научилось понимать «каждое N число». Из Настроек убран блок «Напоминания в Telegram» (сами напоминания в боте продолжают работать). Привычки в светлой теме — обычный акцентный цвет вместо отдельного более яркого жёлтого.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.25.19</div><p class="settings-note">В боте — закреплённое «Главное меню» (Финансы/События/Привычки/Новости/Сегодня), навигация по разделам и карточкам событий/привычек редактирует одно сообщение, не засоряя чат; команда /menu открывает меню в любой момент. Поле «Повторять» у события/задачи теперь свободный текст («каждый день», «по вторникам и четвергам», «раз в 2 недели») вместо набора кнопок — понимает и опечатки, а при непонятном тексте поле трясётся красным, как при пустом названии.</p></div>
@@ -5855,7 +5849,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const returnHome=()=>{homePanel='main'; renderScreen(); $('[data-home-settings]')?.focus({preventScroll:true});};
     $('[data-home-back]')?.addEventListener('click',returnHome);
     $('.home-settings')?.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();returnHome();}});
-    $('[data-home-mic]')?.addEventListener('click',()=>{ homePanel='ai'; renderScreen(); });
     $('[data-version-tile]')?.addEventListener('click',handleVersionTileTap);
     $$('[data-theme-mode]').forEach(b=>b.addEventListener('click',()=>setThemeMode(b.dataset.themeMode)));
     $('[data-telegram-login]')?.addEventListener('click',startTelegramLogin);
@@ -5866,16 +5859,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       try{localStorage.setItem('dna_telegram_prompt_dismissed','1');}catch(_){}
       $('[data-telegram-prompt]')?.remove();
     });
-    if (homePanel==='ai') bindAiEvents();
+    if (homePanel==='main') bindAiEvents();
   }
 
   function bindAiEvents(){
-    $('[data-ai-back]')?.addEventListener('click',()=>{
-      stopAiRecording(true);
-      homePanel='main'; renderScreen(); $('[data-home-mic]')?.focus({preventScroll:true});
-    });
-    $('[data-ai-mic]')?.addEventListener('click',toggleAiRecording);
-    $('[data-ai-mic-inline]')?.addEventListener('click',toggleAiRecording);
+    bindAiMicHold($('[data-ai-mic]'));
+    bindAiMicHold($('[data-ai-mic-inline]'));
     $('[data-ai-form]')?.addEventListener('submit',e=>{
       e.preventDefault();
       const input=$('[data-ai-input]');
@@ -5890,14 +5879,49 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(messagesEl)messagesEl.scrollTop=messagesEl.scrollHeight;
   }
 
+  // Жест как в мессенджерах с голосовыми сообщениями: держишь микрофон — идёт запись, пока не
+  // отпустишь палец; если тапнул быстро (короче MIC_HOLD_THRESHOLD_MS) — запись "залочивается"
+  // и продолжается без удержания до следующего тапа (aiChat.locked). pointerdown/up вместо
+  // click+touchstart — единая обработка мыши/тача/пера без дублирования логики под каждую.
+  const MIC_HOLD_THRESHOLD_MS = 350;
+  let micPressAt = 0;
+  function bindAiMicHold(el){
+    if(!el)return;
+    el.addEventListener('pointerdown',onAiMicDown);
+    el.addEventListener('pointerup',onAiMicUp);
+    el.addEventListener('pointercancel',onAiMicUp);
+    el.addEventListener('contextmenu',e=>e.preventDefault());
+  }
+  function onAiMicDown(e){
+    e.preventDefault();
+    if(aiChat.status==='listening'){
+      if(aiChat.locked)stopAiRecording();
+      return;
+    }
+    if(aiChat.status!=='idle')return;
+    micPressAt=Date.now();
+    aiChat.locked=false;
+    startAiRecording();
+  }
+  function onAiMicUp(e){
+    if(aiChat.status!=='listening'||aiChat.locked)return;
+    if(Date.now()-micPressAt<MIC_HOLD_THRESHOLD_MS){
+      aiChat.locked=true;
+      reRenderAi();
+    }else{
+      stopAiRecording();
+    }
+  }
+
   function reRenderAi(){
-    if(state.nav!==2||homePanel!=='ai')return;
+    if(state.nav!==2||homePanel!=='main')return;
     const host=$('#screen');
     if(!host)return;
-    host.innerHTML=renderAiScreen();
-    bindAiEvents();
-    const input=$('[data-ai-input]');
-    if(document.activeElement!==input && aiChat.messages.length)$('[data-ai-messages]')?.scrollTo(0,9e6);
+    const wasFocused=document.activeElement && document.activeElement.hasAttribute('data-ai-input');
+    host.innerHTML=renderHome();
+    bindScreenEvents();
+    if(wasFocused)$('[data-ai-input]')?.focus({preventScroll:true});
+    if(!wasFocused && aiChat.messages.length)$('[data-ai-messages]')?.scrollTo(0,9e6);
   }
 
   // -------- AI: сеть --------
@@ -5940,6 +5964,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function aiErrorMessage(err){
     if(err?.message==='no-auth')return 'Нужно войти через Telegram, чтобы пользоваться AI-ассистентом.';
     if(err?.aiBackend)return `AI вернул ошибку: ${err.message}`;
+    if(err?.name==='EncodingError'||/decod/i.test(err?.message||''))return 'Не удалось обработать запись — попробуй ещё раз.';
     return 'Не получилось связаться с AI. Проверь соединение и попробуй ещё раз.';
   }
 
@@ -5976,11 +6001,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
 
   // -------- AI: запись голоса (MediaRecorder) --------
-  function toggleAiRecording(){
-    if(aiChat.status==='listening')stopAiRecording();
-    else startAiRecording();
-  }
-
   async function startAiRecording(){
     if(aiChat.status!=='idle')return;
     try{
@@ -5997,11 +6017,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       aiChat.timerHandle=setInterval(()=>{
         if(aiChat.status!=='listening')return;
         const hint=$('.ai-idle-hint')||$('.ai-msg-listening');
-        if(hint)hint.innerHTML=`<span class="ai-listening-dot" aria-hidden="true"></span> ${renderAiListeningHint().replace(/^.*?Слушаю/,'Слушаю')}`;
+        if(hint)hint.innerHTML=`<span class="ai-listening-dot" aria-hidden="true"></span> ${aiListeningLabel()}`;
       },1000);
       reRenderAi();
     }catch(err){
-      aiChat.messages.push({role:'error',text:'Не удалось получить доступ к микрофону.'});
+      aiChat.messages.push({role:'error',text:'Не удалось получить доступ к микрофону — разреши его в настройках браузера.'});
       reRenderAi();
     }
   }
@@ -6009,6 +6029,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function stopAiRecording(discard=false){
     clearInterval(aiChat.timerHandle);
     aiChat.timerHandle=null;
+    aiChat.locked=false;
     const recorder=aiChat.recorder;
     if(!recorder||recorder.state==='inactive'){
       if(aiChat.status==='listening')aiChat.status='idle';
@@ -6029,18 +6050,54 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     reRenderAi();
   }
 
+  // Декодирует записанный блок (WebM/Opus в Chrome и Firefox, MP4/AAC в Safari — какой бы
+  // контейнер ни выбрал MediaRecorder) в сырой PCM16 моно 16кГц через Web Audio API. Раньше
+  // байты просто пересылались на SpeechKit с пометкой "oggopus" по названию mime-типа — но
+  // WebM ≠ настоящий Ogg-контейнер (тот же кодек Opus внутри, другая обёртка), SpeechKit не мог
+  // разобрать звук и распознавание молча не работало. PCM без контейнера снимает эту проблему
+  // целиком — не важно, что записал браузер, на выходе всегда один и тот же плоский формат.
+  function decodeAudioData(ctx,arrayBuffer){
+    return new Promise((resolve,reject)=>{
+      const maybe=ctx.decodeAudioData(arrayBuffer,resolve,reject);
+      if(maybe && typeof maybe.then==='function')maybe.then(resolve,reject);
+    });
+  }
+  async function audioBlobToPcm16(blob,targetRate=16000){
+    const Ctx=window.AudioContext||window.webkitAudioContext;
+    if(!Ctx)throw new Error('Web Audio API недоступен в этом браузере');
+    const arrayBuffer=await blob.arrayBuffer();
+    const decodeCtx=new Ctx();
+    let decoded;
+    try{ decoded=await decodeAudioData(decodeCtx,arrayBuffer); }
+    finally{ decodeCtx.close().catch(()=>{}); }
+    const offline=new OfflineAudioContext(1,Math.max(1,Math.ceil(decoded.duration*targetRate)),targetRate);
+    const src=offline.createBufferSource();
+    src.buffer=decoded;
+    src.connect(offline.destination);
+    src.start();
+    const rendered=await offline.startRendering();
+    const data=rendered.getChannelData(0);
+    const pcm16=new Int16Array(data.length);
+    for(let i=0;i<data.length;i++){
+      const s=Math.max(-1,Math.min(1,data[i]));
+      pcm16[i]=s<0?s*0x8000:s*0x7FFF;
+    }
+    return pcm16.buffer;
+  }
+
   async function sendAiVoice(){
     const chunks=aiChat.chunks;
     aiChat.chunks=[];
     if(!chunks.length){ aiChat.status='idle'; reRenderAi(); return; }
-    const mimeType=chunks[0].type||'audio/webm';
-    const blob=new Blob(chunks,{type:mimeType});
+    const recordedMimeType=chunks[0].type||'audio/webm';
+    const blob=new Blob(chunks,{type:recordedMimeType});
     try{
+      const pcmBuffer=await audioBlobToPcm16(blob,16000);
       const headers=await aiAuthHeaders();
       const res=await fetch(`${TELEGRAM_WORKER_ORIGIN}/ai/voice`,{
         method:'POST',
-        headers:{...headers,'content-type':mimeType},
-        body:blob,
+        headers:{...headers,'content-type':'audio/l16;rate=16000'},
+        body:pcmBuffer,
       });
       const json=await res.json();
       if(!res.ok)throw aiBackendError(json,res.status);
