@@ -53,6 +53,31 @@ export function timeToMinutes(time) {
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 }
 
+// "tg_<telegramId>" — тот же детерминированный uid, что и everywhere в проекте (Firebase custom
+// token, Firestore-документ пользователя); нужен и вебхуку, и дайджестам, и меню бота, поэтому
+// общая функция, а не три копии.
+export function uidForTelegramId(telegramId) {
+  return `tg_${telegramId}`;
+}
+
+// Стандартное русское согласование числительного с существительным (1 день / 2 дня / 5 дней) —
+// общая утилита для дайджестов и меню бота.
+export function pluralRu(n, one, few, many) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
+export function formatRub(n) {
+  try {
+    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(n);
+  } catch (_) {
+    return `${Math.round(n)} ₽`;
+  }
+}
+
 // dateKey ('YYYY-MM-DD') ± N дней — простая календарная арифметика без библиотек, достаточно
 // для "вчера"/"завтра" при обходе истории привычек и плана на следующий день.
 export function dateKeyAddDays(dateKey, days) {
@@ -87,26 +112,6 @@ export function plannerOn(plannerDoc, dateKey) {
     .sort((a, b) => (timeToMinutes(a.time) ?? 9999) - (timeToMinutes(b.time) ?? 9999));
 }
 
-export async function getHabitsToday(firestore, uid, tz = DEFAULT_TZ) {
-  const dateKey = todayKey(tz);
-  const data = (await firestore.getDoc(`users/${uid}/appData/habits`)) || {};
-  const list = Array.isArray(data[dateKey]) ? data[dateKey] : [];
-  return { dateKey, list };
-}
-
-// Firestore REST не даёт настоящих транзакций одним вызовом так же просто, как Admin SDK —
-// но у нас максимум два писателя (сам пользователь и бот от его лица), так что read-modify-write
-// без блокировки достаточно: конфликтующая одновременная запись по одной и той же привычке
-// практически исключена для личного проекта одного пользователя.
-export async function markHabitDone(firestore, uid, dateKey, index, done = true) {
-  const path = `users/${uid}/appData/habits`;
-  const data = (await firestore.getDoc(path)) || {};
-  const list = Array.isArray(data[dateKey]) ? [...data[dateKey]] : [];
-  if (!list[index]) return;
-  list[index] = { ...list[index], done };
-  await firestore.mergeDoc(path, { [dateKey]: list });
-}
-
 // Планер хранится целиком одним документом (см. plannerSnapshot в index.html) — {events,
 // sections, pollVotes}. Тут читаем только события на сегодня (e.date === сегодняшний ключ),
 // отсортированные: сначала с временем (по времени), потом без времени (задачи на день).
@@ -131,6 +136,34 @@ export async function markPlannerDone(firestore, uid, eventId, done = true) {
   events[idx] = { ...events[idx], done };
   await firestore.mergeDoc(path, { events });
   return events[idx];
+}
+
+// "Перенести" из меню бота — просто переставляет якорную дату события (без времени эта дата и
+// есть само событие, с временем время остаётся тем же на новой дате). Разово, не трогает repeat.
+export async function reschedulePlannerEvent(firestore, uid, eventId, newDate) {
+  const path = `users/${uid}/appData/planner`;
+  const data = (await firestore.getDoc(path)) || {};
+  const events = Array.isArray(data.events) ? [...data.events] : [];
+  const idx = events.findIndex((e) => e && e.id === eventId);
+  if (idx === -1) return null;
+  events[idx] = { ...events[idx], date: newDate };
+  await firestore.mergeDoc(path, { events });
+  return events[idx];
+}
+
+// Меню бота адресует привычки по имени (тот же естественный ключ, что использует и сам клиент
+// для переименования/сопоставления между днями — см. renameHabit в index.html), а не по индексу
+// в дневном массиве: индекс сегодняшнего списка нестабилен и не подходит для callback_data,
+// который переживает несколько независимых нажатий.
+export async function markHabitDoneByName(firestore, uid, dateKey, name, done = true) {
+  const path = `users/${uid}/appData/habits`;
+  const data = (await firestore.getDoc(path)) || {};
+  const list = Array.isArray(data[dateKey]) ? [...data[dateKey]] : [];
+  const idx = list.findIndex((h) => h && h.name === name);
+  if (idx === -1) return null;
+  list[idx] = { ...list[idx], done };
+  await firestore.mergeDoc(path, { [dateKey]: list });
+  return list[idx];
 }
 
 // Для крон-напоминаний "скоро начнётся": события сегодня, с временем, ещё не выполненные,

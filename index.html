@@ -1779,31 +1779,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 .pl-date-display{font-size:14px;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;color:var(--white);pointer-events:none;}
 .pl-time-input-wrap .pl-date-input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;}
 .pl-time-input-wrap .pl-time-input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;}
-.pl-repeat-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.pl-repeat-chip{flex:0 0 auto;width:100%;padding:7px 14px;border-radius:14px;border:1.5px solid rgba(var(--ink),.12);background:var(--surface);color:rgba(var(--ink),.7);font-family:inherit;font-size:.8125rem;text-align:center;}
-.pl-repeat-chip.active{border-color:var(--gold);background:rgba(201,168,76,.18);color:var(--gold);font-weight:700;}
-.pl-repeat-days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px;}
-.pl-repeat-day{width:100%;height:38px;padding:0;border-radius:10px;border:1.5px solid rgba(var(--ink),.12);background:var(--surface);color:rgba(var(--ink),.7);font-family:inherit;font-size:.75rem;font-weight:600;}
-.pl-repeat-day.active{border-color:var(--gold);background:rgba(201,168,76,.18);color:var(--gold);}
-.pl-repeat-other{margin-top:10px;}
-.pl-repeat-suboptions{display:flex;gap:8px;}
-.pl-repeat-chip.small{flex:1 1 0;width:auto;padding:6px 10px;font-size:.75rem;border-radius:12px;}
-.pl-repeat-period{margin-top:12px;}
-.pl-repeat-period-preview{text-align:center;font-size:.9375rem;font-weight:700;color:var(--gold);margin-bottom:8px;}
-.pl-repeat-period-wheels{display:flex;align-items:center;justify-content:center;gap:8px;}
-.pl-wheel{position:relative;height:96px;width:64px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;background:var(--surface);border-radius:10px;}
-.pl-wheel-unit{width:96px;}
-.pl-wheel::-webkit-scrollbar{display:none;}
-/* Раньше высота фейда (32px) равнялась высоте ОДНОГО пункта колеса — верхний/нижний соседний
-   пункт (напр. "недели", когда по умолчанию выбран "месяц" прямо под ним) оказывался целиком
-   внутри градиента и гас почти до фона, а не просто слегка подсвечивался как затухающий край.
-   Сокращаем фейд до трети пункта — виден эффект скругления края колеса, но соседние пункты
-   остаются читаемыми. */
-.pl-wheel::before,.pl-wheel::after{content:'';position:absolute;left:0;right:0;height:10px;pointer-events:none;z-index:1;}
-.pl-wheel::before{top:0;background:linear-gradient(var(--surface),transparent);}
-.pl-wheel::after{bottom:0;background:linear-gradient(transparent,var(--surface));}
-.pl-wheel-item{scroll-snap-align:center;text-align:center;color:rgba(var(--ink),.55);font-variant-numeric:tabular-nums;font-size:.875rem;}
-.pl-wheel-item.active{color:var(--gold3);font-weight:700;font-size:1rem;}
+// Свободный текст вместо пресетов/колёс — поле той же высоты, что и .pl-time-input-wrap (48px),
+// во всю ширину строки, как она стоит у остальных полей формы (см. parseRepeatText ниже).
+.pl-repeat-input{min-height:48px;}
+.pl-repeat-hint{margin:6px 2px 0;font-size:.75rem;color:rgba(var(--ink),.4);min-height:1.2em;}
 .sheet-handle,.sheet-title,.pl-detail-head{touch-action:none;}
 @container(max-width:130px){
   .pl-inline-block:not(.pl-inline-block-image){padding:6px;}
@@ -1854,7 +1833,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.18';
+  const APP_VERSION = '0.25.19';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -2934,6 +2913,107 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function plannerEventOccursOn(e,dateIso){return e.date===dateIso||plannerEventRepeatsOn(e,dateIso);}
   function plannerEventsFor(dateIso){return state.planner.events.filter(e=>plannerEventOccursOn(e,dateIso)&&(!state.planner.activeSection||e.sectionId===state.planner.activeSection));}
+
+  // -------- Свободный текст повторения ("повторять каждый день") --------
+  // Взамен пресетов/колёс — пользователь пишет по-русски как удобно, разбор идёт нечётким
+  // сравнением (расстояние Левенштейна) с известными словоформами, а не точным regex, поэтому
+  // терпит опечатки. Результат — тот же repeat-объект, что понимает plannerEventRepeatsOn выше;
+  // если распознать не удалось, возвращается null — вызывающий код (форма события) тогда трясёт
+  // поле красным, так же как при пустом названии.
+  function plLevenshtein(a,b){
+    const m=a.length,n=b.length;
+    if(!m)return n;if(!n)return m;
+    let prev=Array.from({length:n+1},(_,j)=>j);
+    for(let i=1;i<=m;i++){
+      const cur=[i];
+      for(let j=1;j<=n;j++)cur[j]=a[i-1]===b[j-1]?prev[j-1]:1+Math.min(prev[j-1],prev[j],cur[j-1]);
+      prev=cur;
+    }
+    return prev[n];
+  }
+  function plFuzzyWordMatch(word,forms){
+    for(const f of forms){
+      const threshold=f.length<=3?0:f.length<=5?1:2;
+      if(plLevenshtein(word,f)<=threshold)return true;
+    }
+    return false;
+  }
+  const PL_REPEAT_DAY_FORMS=[
+    {dow:1,forms:['понедельник','понедельникам','пн']},
+    {dow:2,forms:['вторник','вторникам','вт']},
+    {dow:3,forms:['среда','среду','средам','ср']},
+    {dow:4,forms:['четверг','четвергам','чт']},
+    {dow:5,forms:['пятница','пятницу','пятницам','пт']},
+    {dow:6,forms:['суббота','субботу','субботам','сб']},
+    {dow:0,forms:['воскресенье','воскресеньям','вс']},
+  ];
+  const PL_REPEAT_UNIT_FORMS={
+    day:['день','дня','дней','дни'],
+    week:['неделя','недели','неделю','недель'],
+    month:['месяц','месяца','месяцев'],
+    year:['год','года','лет'],
+  };
+  const PL_REPEAT_NUMBER_WORDS={два:2,две:2,три:3,четыре:4,пять:5,шесть:6,семь:7,восемь:8,девять:9,десять:10};
+  function parseRepeatText(raw){
+    const text=(raw||'').toLowerCase().replace(/ё/g,'е').trim();
+    if(!text)return null;
+    const words=text.split(/[^a-zа-я0-9]+/i).filter(Boolean);
+    if(!words.length)return null;
+
+    // Дни недели — самый однозначный сценарий, проверяем первым; можно назвать несколько.
+    const days=[];
+    for(const w of words)for(const d of PL_REPEAT_DAY_FORMS)if(plFuzzyWordMatch(w,d.forms)&&!days.includes(d.dow))days.push(d.dow);
+    if(days.length)return {type:'custom',days};
+
+    // "через день" — устойчивое выражение для "раз в 2 дня", разбирается отдельно от общего
+    // числа+единицы ниже, иначе даёт неверный результат (раз в 1 день = каждый день).
+    if(words.some(w=>plFuzzyWordMatch(w,['через']))&&words.some(w=>plFuzzyWordMatch(w,['день'])))
+      return {type:'interval',n:2,unit:'day'};
+
+    let n=null;
+    for(const w of words){
+      if(/^\d+$/.test(w)){n=Math.max(1,Math.min(31,parseInt(w,10)));break;}
+      if(PL_REPEAT_NUMBER_WORDS[w]){n=PL_REPEAT_NUMBER_WORDS[w];break;}
+    }
+    let unit=null;
+    outer: for(const w of words)for(const u in PL_REPEAT_UNIT_FORMS)if(plFuzzyWordMatch(w,PL_REPEAT_UNIT_FORMS[u])){unit=u;break outer;}
+    if(unit){
+      // "день"/"дня" без явного числа и без "раз" — это просто "каждый день", не "раз в 1 день"
+      // (то же самое по смыслу, но каноничнее как отдельный тип 'daily'). Не проверяем здесь
+      // "каждые" отдельно — при нечёткости, достаточной чтобы прощать опечатки, оно слишком
+      // легко путается с "каждый" (расстояние между ними то же, что у типичной опечатки), а
+      // короткое "раз" короткое и однозначное, этого достаточно как маркер интервала.
+      if(n===null&&unit==='day'&&!words.some(w=>plFuzzyWordMatch(w,['раз'])))return {type:'daily'};
+      return {type:'interval',n:n||1,unit};
+    }
+
+    if(words.some(w=>plFuzzyWordMatch(w,['будни','будням','будних','рабочий','рабочие'])))return {type:'weekdays'};
+    if(words.some(w=>plFuzzyWordMatch(w,['выходные','выходным','выходной'])))return {type:'weekends'};
+    if(words.some(w=>plFuzzyWordMatch(w,['каждый','ежедневно','всегда'])))return {type:'daily'};
+    return null;
+  }
+  // Обратное преобразование — человекочитаемая фраза для уже сохранённого repeat, чтобы при
+  // редактировании существующего повторяющегося события поле не было пустым.
+  function repeatToText(repeat){
+    if(!repeat)return '';
+    if(repeat.type==='daily')return 'каждый день';
+    if(repeat.type==='weekdays')return 'по будням';
+    if(repeat.type==='weekends')return 'по выходным';
+    if(repeat.type==='custom'){
+      const names={0:'воскресеньям',1:'понедельникам',2:'вторникам',3:'средам',4:'четвергам',5:'пятницам',6:'субботам'};
+      return 'по '+(repeat.days||[]).map(d=>names[d]).filter(Boolean).join(', ');
+    }
+    if(repeat.type==='interval'||repeat.type==='monthday'){
+      const n=repeat.n||1,unit=repeat.unit||'month';
+      const onePhrase={day:'каждый день',week:'каждую неделю',month:'каждый месяц',year:'каждый год'};
+      if(n===1)return onePhrase[unit]||onePhrase.month;
+      const forms=PL_REPEAT_UNIT_FORMS[unit]||PL_REPEAT_UNIT_FORMS.month;
+      const m10=n%10,m100=n%100;
+      const word=m10===1&&m100!==11?forms[0]:(m10>=2&&m10<=4&&!(m100>=12&&m100<=14)?forms[1]:forms[2]);
+      return `каждые ${n} ${word}`;
+    }
+    return '';
+  }
   function plannerMinutesFromTime(t){const p=t.split(':').map(Number);return p[0]*60+p[1];}
   function formatPlannerDate(iso){return parseLocalDate(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});}
   function formatPlannerDateTime(iso){const d=new Date(iso);return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+', '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
@@ -4895,34 +4975,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const dateText=value=>value?value.split('-').reverse().join('.'):'—';
     const evRepeat=draft?draft.repeat:existing?.repeat||null;
     const repeatOnDefault=!!evRepeat;
-    // Старый repeat.type==='monthday' (свободно выбираемое число месяца 1-31, независимое от
-    // даты события) больше не редактируется как таковой — конструктор "Другое" теперь строит
-    // общий интервал (тип 'interval': раз в N дней/недель/месяцев/лет от даты события). При
-    // открытии такого старого события на редактирование он просто подхватывается в подрежим
-    // "Период" со значением по умолчанию (раз в 1 месяц) — plannerEventRepeatsOn при этом
-    // по-прежнему понимает и старый формат, так что уже сохранённые события не ломаются, пока
-    // их не пересохранят через новый конструктор.
-    const repeatTypeDefault=evRepeat?.type==='monthday'?'interval':(evRepeat?.type||'daily');
-    const repeatDaysDefault=evRepeat?.days||[];
-    // "Другое" — не отдельный тип повтора сам по себе, а зонтик над двумя подрежимами: свои дни
-    // недели (тип 'custom') и период (тип 'interval', конструируется двумя колёсами — число и
-    // единица — как в системном будильнике). Верхний чип "Другое" активен для обоих сразу.
-    const repeatSubModeDefault=repeatTypeDefault==='interval'?'interval':'custom';
-    const repeatIntervalNDefault=evRepeat?.type==='interval'&&evRepeat.n?evRepeat.n:1;
-    const repeatIntervalUnitDefault=evRepeat?.type==='interval'&&evRepeat.unit?evRepeat.unit:'month';
-    const PL_REPEAT_PRESETS=[{type:'daily',label:'Каждый день'},{type:'weekdays',label:'По будням'},{type:'weekends',label:'По выходным'},{type:'other',label:'Другое'}];
-    const PL_REPEAT_DAY_LABELS=[{dow:1,label:'Пн'},{dow:2,label:'Вт'},{dow:3,label:'Ср'},{dow:4,label:'Чт'},{dow:5,label:'Пт'},{dow:6,label:'Сб'},{dow:0,label:'Вс'}];
-    const PL_REPEAT_UNITS=[{unit:'day',label:'дни'},{unit:'week',label:'недели'},{unit:'month',label:'месяцы'},{unit:'year',label:'годы'}];
-    const PL_REPEAT_UNIT_META={
-      day:{forms:['день','дня','дней'],one:'Каждый день'},
-      week:{forms:['неделя','недели','недель'],one:'Каждую неделю'},
-      month:{forms:['месяц','месяца','месяцев'],one:'Каждый месяц'},
-      year:{forms:['год','года','лет'],one:'Каждый год'},
-    };
-    // Стандартное русское согласование числительного с существительным (1 день / 2 дня / 5 дней).
-    const plRuCount=(n,forms)=>{const m10=n%10,m100=n%100;if(m10===1&&m100!==11)return forms[0];if(m10>=2&&m10<=4&&!(m100>=12&&m100<=14))return forms[1];return forms[2];};
-    const plRepeatPeriodPhrase=(unit,n)=>{const meta=PL_REPEAT_UNIT_META[unit]||PL_REPEAT_UNIT_META.month;return n===1?meta.one:`Каждые ${n} ${plRuCount(n,meta.forms)}`;};
-    const PL_REPEAT_WHEEL_ITEM_H=32;
+    // Поле "Повторять" теперь свободный текст, а не пресеты/колёса — пользователь пишет по-русски
+    // как удобно ("каждый день", "по вторникам и четвергам", "раз в 2 недели", даже с опечатками),
+    // а parseRepeatText (объявлена выше, вне формы) разбирает это нечётким сравнением в тот же
+    // repeat-объект, что раньше собирали чипы. repeatToText — обратное преобразование, чтобы при
+    // редактировании существующего события в поле сразу была читаемая фраза, а не пусто.
+    const repeatTextDefault=repeatToText(evRepeat);
     const ov=overlay(`<div class="sheet"><div class="sheet-handle"></div><div class="sheet-title" style="font-size:18px">${existing?'Редактировать задачу':'Новая задача'}</div>
       <div class="pl-form-row"><label>Название</label>${formField('pl-title','Что нужно сделать','text',draft?.title??existing?.title??'')}</div>
       <div class="pl-toggle-row" id="pl-time-toggle-row"><label>Время</label><button class="pl-switch ${timeOnDefault?'on':''}" id="pl-time-toggle" type="button" aria-pressed="${timeOnDefault}"></button></div>
@@ -4937,33 +4995,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </div>
       <div class="pl-toggle-row" id="pl-repeat-toggle-row"><label for="pl-repeat-toggle">Повторять</label><button class="pl-switch ${repeatOnDefault?'on':''}" id="pl-repeat-toggle" type="button" aria-label="Повторять" aria-pressed="${repeatOnDefault}"></button></div>
       <div class="pl-form-row" id="pl-repeat-row" ${repeatOnDefault?'':'style="display:none"'}>
-        <div class="pl-repeat-options" id="pl-repeat-options">
-          ${PL_REPEAT_PRESETS.map(p=>`<button type="button" class="pl-repeat-chip ${(p.type==='other'?['custom','interval'].includes(repeatTypeDefault):repeatTypeDefault===p.type)?'active':''}" data-repeat-type="${p.type}">${p.label}</button>`).join('')}
-        </div>
-        <div class="pl-repeat-other" id="pl-repeat-other" ${['custom','interval'].includes(repeatTypeDefault)?'':'style="display:none"'}>
-          <div class="pl-repeat-suboptions" id="pl-repeat-suboptions">
-            <button type="button" class="pl-repeat-chip small ${repeatSubModeDefault==='custom'?'active':''}" data-repeat-sub="custom">Дни недели</button>
-            <button type="button" class="pl-repeat-chip small ${repeatSubModeDefault==='interval'?'active':''}" data-repeat-sub="interval">Период</button>
-          </div>
-          <div class="pl-repeat-days" id="pl-repeat-days" ${repeatSubModeDefault==='custom'?'':'style="display:none"'}>
-            ${PL_REPEAT_DAY_LABELS.map(d=>`<button type="button" class="pl-repeat-day ${repeatDaysDefault.includes(d.dow)?'active':''}" data-repeat-day="${d.dow}" aria-pressed="${repeatDaysDefault.includes(d.dow)}">${d.label}</button>`).join('')}
-          </div>
-          <div class="pl-repeat-period" id="pl-repeat-period" ${repeatSubModeDefault==='interval'?'':'style="display:none"'}>
-            <div class="pl-repeat-period-preview" id="pl-repeat-period-preview">${esc(plRepeatPeriodPhrase(repeatIntervalUnitDefault,repeatIntervalNDefault))}</div>
-            <div class="pl-repeat-period-wheels">
-              <div class="pl-wheel" id="pl-repeat-n-wheel">
-                <div class="pl-wheel-track" style="padding:${(96-PL_REPEAT_WHEEL_ITEM_H)/2}px 0">
-                  ${Array.from({length:31},(_,i)=>i+1).map(n=>`<div class="pl-wheel-item ${n===repeatIntervalNDefault?'active':''}" data-value="${n}" style="height:${PL_REPEAT_WHEEL_ITEM_H}px;line-height:${PL_REPEAT_WHEEL_ITEM_H}px">${n}</div>`).join('')}
-                </div>
-              </div>
-              <div class="pl-wheel pl-wheel-unit" id="pl-repeat-unit-wheel">
-                <div class="pl-wheel-track" style="padding:${(96-PL_REPEAT_WHEEL_ITEM_H)/2}px 0">
-                  ${PL_REPEAT_UNITS.map(u=>`<div class="pl-wheel-item ${u.unit===repeatIntervalUnitDefault?'active':''}" data-value="${u.unit}" style="height:${PL_REPEAT_WHEEL_ITEM_H}px;line-height:${PL_REPEAT_WHEEL_ITEM_H}px">${u.label}</div>`).join('')}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <input class="field pl-repeat-input" id="pl-repeat-text" type="text" placeholder="повторять каждый день" autocomplete="off" value="${esc(repeatTextDefault)}">
+        <p class="pl-repeat-hint" id="pl-repeat-hint">Например: «каждый день», «по вторникам и четвергам», «раз в 2 недели»</p>
       </div>
       <div class="pl-form-row"><label>Цвет</label><div class="pl-color-picker" id="pl-event-color-picker">
         ${PL_COLORS.map(c=>`<button type="button" class="pl-color-swatch ${evColor===c?'active':''}" data-color="${c}" style="--sw:${c}" aria-label="Цвет ${c}"></button>`).join('')}
@@ -4990,7 +5023,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       syncPending();
       try{
         const draftRepeatOn=$('#pl-repeat-toggle',ov).classList.contains('on');
-        const draftRepeat=draftRepeatOn?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[],...(repeatType==='interval'?{unit:repeatIntervalUnit,n:repeatIntervalN}:{})}:null;
+        const draftRepeat=draftRepeatOn?currentRepeat():null;
         localStorage.setItem(draftKey,JSON.stringify({eventId,title:$('#pl-title',ov).value,date:$('#pl-date-value',ov).value,time:$('#pl-time-value',ov).value,endTime:$('#pl-time-end-value',ov).value,endDate:$('#pl-end-date-value',ov).value,timeOn:$('#pl-time-toggle',ov).classList.contains('on'),dateOn,endTouched,endDateTouched,sectionId,color,blocks,repeat:draftRepeat}));
         return true;
       }catch(_){showToast('Не удалось сохранить черновик: проверь свободное место');return false;}
@@ -5198,78 +5231,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       $('#pl-date-fields',ov).style.display=dateOn?'':'none';
     };
     $('#pl-date-toggle',ov).onclick=()=>{dateOn=!dateOn;syncMultiDayUI();};
-    let repeatType=repeatTypeDefault==='other'?repeatSubModeDefault:repeatTypeDefault,repeatDays=repeatDaysDefault.slice();
-    let repeatSubMode=repeatSubModeDefault,repeatIntervalN=repeatIntervalNDefault,repeatIntervalUnit=repeatIntervalUnitDefault;
+    // Текущее значение repeat читается прямо из текстового поля в момент, когда оно нужно
+    // (черновик/сохранение) — parseRepeatText чистая функция, поэтому не нужно параллельно
+    // держать репликат состояния в переменных, которые раньше обновляли чипы/колёса по кускам.
+    const currentRepeat=()=>parseRepeatText($('#pl-repeat-text',ov)?.value);
     $('#pl-repeat-toggle',ov).onclick=()=>{
       const on=!$('#pl-repeat-toggle',ov).classList.contains('on');
       $('#pl-repeat-toggle',ov).classList.toggle('on',on);$('#pl-repeat-toggle',ov).setAttribute('aria-pressed',String(on));
       $('#pl-repeat-row',ov).style.display=on?'':'none';
+      if(on)$('#pl-repeat-text',ov).focus({preventScroll:true});
     };
-    $$('#pl-repeat-options [data-repeat-type]',ov).forEach(b=>b.onclick=()=>{
-      const type=b.dataset.repeatType;
-      $$('#pl-repeat-options [data-repeat-type]',ov).forEach(x=>x.classList.toggle('active',x===b));
-      if(type==='other'){
-        $('#pl-repeat-other',ov).style.display='';
-        repeatType=repeatSubMode;
-      }else{
-        $('#pl-repeat-other',ov).style.display='none';
-        repeatType=type;
-      }
-    });
-    const updatePeriodPreview=()=>{$('#pl-repeat-period-preview',ov).textContent=plRepeatPeriodPhrase(repeatIntervalUnit,repeatIntervalN);};
-    const nWheelEl=$('#pl-repeat-n-wheel',ov),unitWheelEl=$('#pl-repeat-unit-wheel',ov);
-    // Установка scrollTop на элементе с display:none — молчаливый no-op в браузере (высота/скролл
-    // не посчитаны, пока элемент скрыт). Подрежим "Период" у НОВОГО события изначально спрятан
-    // (по умолчанию активен подрежим "Дни недели") — если выставить позиции колёс только один раз,
-    // сразу при создании листа, то к моменту, когда пользователь впервые переключится на "Период",
-    // колёса физически останутся в исходном scrollTop:0, хотя текстовое превью и класс .active
-    // уже (корректно) указывают на нужное значение — расхождение "превью говорит одно, колесо
-    // показывает другое". Поэтому позиционируем колёса не только один раз при открытии формы, но
-    // и заново при каждом переключении на подрежим "Период" — тогда он уже видим и раскладка
-    // посчитана.
-    const syncPeriodWheels=()=>{
-      nWheelEl.scrollTop=(repeatIntervalN-1)*PL_REPEAT_WHEEL_ITEM_H;
-      const unitIdx=Math.max(0,PL_REPEAT_UNITS.findIndex(u=>u.unit===repeatIntervalUnit));
-      unitWheelEl.scrollTop=unitIdx*PL_REPEAT_WHEEL_ITEM_H;
-    };
-    $$('#pl-repeat-suboptions [data-repeat-sub]',ov).forEach(b=>b.onclick=()=>{
-      repeatSubMode=b.dataset.repeatSub;
-      repeatType=repeatSubMode;
-      $$('#pl-repeat-suboptions [data-repeat-sub]',ov).forEach(x=>x.classList.toggle('active',x===b));
-      $('#pl-repeat-days',ov).style.display=repeatSubMode==='custom'?'':'none';
-      $('#pl-repeat-period',ov).style.display=repeatSubMode==='interval'?'':'none';
-      if(repeatSubMode==='interval')syncPeriodWheels();
-    });
-    $$('#pl-repeat-days [data-repeat-day]',ov).forEach(b=>b.onclick=()=>{
-      const dow=+b.dataset.repeatDay,on=!b.classList.contains('active');
-      b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));
-      repeatDays=on?[...repeatDays,dow]:repeatDays.filter(d=>d!==dow);
-    });
-    {
-      syncPeriodWheels();
-      let nWheelSettleTimer=null;
-      nWheelEl.addEventListener('scroll',()=>{
-        clearTimeout(nWheelSettleTimer);
-        nWheelSettleTimer=setTimeout(()=>{
-          const idx=Math.round(nWheelEl.scrollTop/PL_REPEAT_WHEEL_ITEM_H);
-          const val=Math.min(31,Math.max(1,idx+1));
-          repeatIntervalN=val;
-          $$('#pl-repeat-n-wheel .pl-wheel-item',ov).forEach(x=>x.classList.toggle('active',+x.dataset.value===val));
-          updatePeriodPreview();
-        },120);
-      });
-      let unitWheelSettleTimer=null;
-      unitWheelEl.addEventListener('scroll',()=>{
-        clearTimeout(unitWheelSettleTimer);
-        unitWheelSettleTimer=setTimeout(()=>{
-          const idx=Math.min(PL_REPEAT_UNITS.length-1,Math.max(0,Math.round(unitWheelEl.scrollTop/PL_REPEAT_WHEEL_ITEM_H)));
-          const val=PL_REPEAT_UNITS[idx].unit;
-          repeatIntervalUnit=val;
-          $$('#pl-repeat-unit-wheel .pl-wheel-item',ov).forEach(x=>x.classList.toggle('active',x.dataset.value===val));
-          updatePeriodPreview();
-        },120);
-      });
-    }
     $('#pl-time-toggle',ov).onclick=()=>{
       const on=!$('#pl-time-toggle',ov).classList.contains('on');
       $('#pl-time-toggle',ov).classList.toggle('on',on);$('#pl-time-toggle',ov).setAttribute('aria-pressed',String(on));
@@ -5355,7 +5326,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         return true;
       }).map(b=>{if(b.type!=='checklist')return b;const {pendingText,...rest}=b;return {...rest,items:pendingText?.trim()?[...b.items,{id:plannerId(),text:pendingText.trim(),done:false}]:b.items};});
       const repeatOn=$('#pl-repeat-toggle',ov).classList.contains('on');
-      const repeat=repeatOn&&(repeatType!=='custom'||repeatDays.length)?{type:repeatType,days:repeatType==='custom'?repeatDays.slice():[],...(repeatType==='interval'?{unit:repeatIntervalUnit,n:repeatIntervalN}:{})}:null;
+      const repeat=repeatOn?currentRepeat():null;
+      if(repeatOn&&!repeat){
+        if(!explicit)return draftSaved;
+        const repeatInput=$('#pl-repeat-text',ov);
+        $('.sheet',ov).scrollTo({top:repeatInput.offsetTop-16,behavior:reducedMotion()?'auto':'smooth'});
+        repeatInput.focus();
+        repeatInput.classList.remove('shake-invalid');void repeatInput.offsetWidth;repeatInput.classList.add('shake-invalid');
+        repeatInput.addEventListener('animationend',()=>repeatInput.classList.remove('shake-invalid'),{once:true});
+        return;
+      }
       const previous=state.planner.events.slice();
       const index=state.planner.events.findIndex(e=>e.id===eventId);
       if(existing&&index<0){showToast('Событие уже удалено. Данные оставлены в черновике.');return draftSaved;}
@@ -5682,7 +5662,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderReminderSettingsCard():''}
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v0.25.18</div><p class="settings-note">Бот в Telegram теперь ведёт себя как один персональный помощник, а не пять отдельных уведомлений: утром — краткая сводка на день, вечером — что осталось и не под угрозой ли стрик привычки, ближе к ночи — итог дня и план на завтра. Сообщений мало, каждое по делу — пустой день не порождает лишний спам, а всё важное объединяется в одно сообщение.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.19</div><p class="settings-note">В боте — закреплённое «Главное меню» (Финансы/События/Привычки/Новости/Сегодня), навигация по разделам и карточкам событий/привычек редактирует одно сообщение, не засоряя чат; команда /menu открывает меню в любой момент. Поле «Повторять» у события/задачи теперь свободный текст («каждый день», «по вторникам и четвергам», «раз в 2 недели») вместо набора кнопок — понимает и опечатки, а при непонятном тексте поле трясётся красным, как при пустом названии.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -5704,7 +5684,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(telegramProfile){
       return `<h2>Аккаунт</h2>
         <button type="button" class="text-btn" style="padding:10px 0" data-telegram-unlink>Отвязать Telegram</button>
-        <p class="settings-note">В чате с ботом: /today — привычки и план на сегодня с кнопками-переключателями, /plan — сразу план на день. Прямо там же можно отмечать привычки и события выполненными.</p>`;
+        <p class="settings-note">В чате с ботом сверху закреплено «Главное меню» — оттуда одним нажатием открываются Финансы, События, Привычки, Новости и «Сегодня» (команда /menu откроет его снова в любой момент). Привычки и события можно отмечать выполненными прямо там.</p>`;
     }
     return `<h2>Аккаунт</h2><p>Локальный режим</p>
       <button type="button" class="telegram-button" style="margin-top:24px" data-telegram-login>${telegramLogoIcon()} Войти через Telegram</button>

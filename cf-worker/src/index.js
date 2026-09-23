@@ -6,77 +6,23 @@
 import { createFirestoreClient } from './firestore.js';
 import { createCustomToken } from './googleAuth.js';
 import {
-  sendMessage, sendMediaGroup, editMessageText, answerCallbackQuery,
+  sendMessage, sendMediaGroup, answerCallbackQuery,
   verifyLoginWidgetPayload, getUserProfilePhotoFilePath, fetchTelegramFile,
 } from './telegram.js';
 import {
-  DEFAULT_TZ, todayKey, escapeHtml, getHabitsToday, markHabitDone,
-  getPlannerToday, markPlannerDone, getUpcomingPlannerEvents,
+  DEFAULT_TZ, todayKey, escapeHtml, uidForTelegramId, getUpcomingPlannerEvents,
 } from './reminders.js';
 import { runDailyDigests } from './digest.js';
+import { renderScreen, runAction, ensureMainMenu, routeRender } from './bot.js';
 
 // Полчаса — достаточно, чтобы спокойно открыть одну и ту же ссылку и с телефона, и с
 // компьютера, не отправляя /start заново под каждое устройство (ссылка теперь не
 // одноразовая, см. handleTelegramLinkAuth).
 const LOGIN_TOKEN_TTL_MS = 30 * 60 * 1000;
 
-function uidForTelegramId(telegramId) {
-  return `tg_${telegramId}`;
-}
-
 function randomToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function habitsListMessage(list) {
-  if (!list.length) return 'На сегодня привычек нет.';
-  return list.map((h) => `${h.done ? '✅' : '▫️'} ${escapeHtml(h.name)}`).join('\n');
-}
-
-function habitsUndoneRows(list) {
-  return list
-    .map((h, i) => ({ h, i }))
-    .filter(({ h }) => !h.done)
-    .map(({ h, i }) => [{ text: `✅ ${h.name}`.slice(0, 64), callback_data: `done:${i}` }]);
-}
-
-function plannerListMessage(list) {
-  if (!list.length) return 'На сегодня в планере пусто.';
-  return list.map((e) => `${e.done ? '✅' : '▫️'} ${e.time ? e.time + ' ' : ''}${escapeHtml(e.title)}`).join('\n');
-}
-
-function plannerUndoneRows(list) {
-  return list
-    .filter((e) => !e.done)
-    .map((e) => [{ text: `✅ ${e.time ? e.time + ' ' : ''}${e.title}`.slice(0, 64), callback_data: `plandone:${e.id}` }]);
-}
-
-// Единая "вкладочная" карточка /today — переключение между привычками и планом на день одной
-// кнопкой снизу (редактируется то же сообщение, не шлём новое) — то самое "переключение между
-// разделами" из бота, о котором просили: не отдельные несвязанные команды, а один экран.
-function todayViewPayload(kind, habits, planner) {
-  const switchButton = kind === 'planner'
-    ? { text: '🎯 Привычки', callback_data: 'view:habits' }
-    : { text: '📅 План на сегодня', callback_data: 'view:planner' };
-  if (kind === 'planner') {
-    return {
-      text: `📅 <b>План на сегодня</b>\n\n${plannerListMessage(planner)}`,
-      reply_markup: { inline_keyboard: [...plannerUndoneRows(planner), [switchButton]] },
-    };
-  }
-  return {
-    text: `🎯 <b>Привычки на сегодня</b>\n\n${habitsListMessage(habits)}`,
-    reply_markup: { inline_keyboard: [...habitsUndoneRows(habits), [switchButton]] },
-  };
-}
-
-async function loadTodayView(firestore, uid, kind) {
-  const [{ list: habits }, { list: planner }] = await Promise.all([
-    getHabitsToday(firestore, uid, DEFAULT_TZ),
-    getPlannerToday(firestore, uid, DEFAULT_TZ),
-  ]);
-  return todayViewPayload(kind, habits, planner);
 }
 
 // Профиль (имя/юзернейм/фото) обновляем при каждом входе — он может поменяться в Telegram.
@@ -196,55 +142,41 @@ async function handleTelegramWebhook(req, env, firestore) {
         photoFilePath,
         expiresAt: Date.now() + LOGIN_TOKEN_TTL_MS,
       });
-      // Сбой отправки картинок не должен срывать сам вход — это просто приятное дополнение,
-      // поэтому свой try/catch, отдельный от отправки ссылки ниже.
+      // Сбой отправки картинок/меню не должен срывать сам вход — это дополнения, поэтому
+      // свои try/catch, отдельные от отправки ссылки ниже.
       await sendMediaGroup(token, from.id, ONBOARDING_IMAGE_PATHS.map((p) => `${env.APP_URL}/${p}`), ONBOARDING_CAPTION)
         .catch((err) => console.error('sendMediaGroup (onboarding) failed', err));
+      await ensureMainMenu(env, firestore, from.id).catch((err) => console.error('ensureMainMenu failed', err));
       await sendMessage(token, from.id, 'Открой приложение — сразу окажешься в своём аккаунте:', {
         reply_markup: {
           inline_keyboard: [[{ text: '📲 Открыть D.N.A.', url: `${env.APP_URL}/?telegram_login=${loginToken}` }]],
         },
       });
-    } else if (update.message && (update.message.text === '/today' || update.message.text === '/plan')) {
-      const telegramId = update.message.from.id;
-      const uid = uidForTelegramId(telegramId);
-      const kind = update.message.text === '/plan' ? 'planner' : 'habits';
-      const view = await loadTodayView(firestore, uid, kind);
-      await sendMessage(token, telegramId, view.text, { reply_markup: view.reply_markup });
-    } else if (update.callback_query && (update.callback_query.data === 'view:habits' || update.callback_query.data === 'view:planner')) {
+    } else if (update.message && update.message.text === '/menu') {
+      const from = update.message.from;
+      await ensureMainMenu(env, firestore, from.id);
+      // /menu, в отличие от /start, всегда шлёт свежую копию меню тут же в чат — не нужно
+      // прокручивать вверх к закреплённому, чтобы сразу начать тыкать в разделы.
+      const uid = uidForTelegramId(from.id);
+      const home = await renderScreen(env, firestore, uid, 'home');
+      await sendMessage(token, from.id, home.text, { reply_markup: home.reply_markup });
+    } else if (update.callback_query && String(update.callback_query.data).startsWith('s:')) {
       const cq = update.callback_query;
       const uid = uidForTelegramId(cq.from.id);
-      const kind = cq.data.slice('view:'.length);
-      const view = await loadTodayView(firestore, uid, kind);
+      const screen = cq.data.slice('s:'.length);
+      const payload = await renderScreen(env, firestore, uid, screen);
       await answerCallbackQuery(token, cq.id);
-      await editMessageText(token, cq.message.chat.id, cq.message.message_id, view.text, { reply_markup: view.reply_markup });
-    } else if (update.callback_query && String(update.callback_query.data).startsWith('plandone:')) {
+      await routeRender(env, firestore, token, uid, cq, payload);
+    } else if (update.callback_query && String(update.callback_query.data).startsWith('a:')) {
       const cq = update.callback_query;
       const uid = uidForTelegramId(cq.from.id);
-      const eventId = cq.data.slice('plandone:'.length);
-      const updated = await markPlannerDone(firestore, uid, eventId, true);
-      if (updated) {
-        await answerCallbackQuery(token, cq.id, `Готово: ${updated.title}`);
-        const view = await loadTodayView(firestore, uid, 'planner');
-        await editMessageText(token, cq.message.chat.id, cq.message.message_id, view.text, { reply_markup: view.reply_markup });
-      } else {
-        await answerCallbackQuery(token, cq.id, 'Не нашёл это событие — возможно, список уже обновился.');
-      }
-    } else if (update.callback_query && String(update.callback_query.data).startsWith('done:')) {
-      const cq = update.callback_query;
-      const uid = uidForTelegramId(cq.from.id);
-      const index = Number(cq.data.slice('done:'.length));
-      const { dateKey, list } = await getHabitsToday(firestore, uid, DEFAULT_TZ);
-      if (list[index]) {
-        await markHabitDone(firestore, uid, dateKey, index, true);
-        await answerCallbackQuery(token, cq.id, `Готово: ${list[index].name}`);
-        const view = await loadTodayView(firestore, uid, 'habits');
-        await editMessageText(token, cq.message.chat.id, cq.message.message_id, view.text, { reply_markup: view.reply_markup });
-      } else {
-        await answerCallbackQuery(token, cq.id, 'Не нашёл эту привычку — возможно, список уже обновился.');
-      }
+      const action = cq.data.slice('a:'.length);
+      const result = await runAction(firestore, uid, action);
+      await answerCallbackQuery(token, cq.id, result.toast || undefined);
+      const payload = await renderScreen(env, firestore, uid, result.nextScreen);
+      await routeRender(env, firestore, token, uid, cq, payload);
     } else if (update.message && update.message.text) {
-      await sendMessage(token, update.message.from.id, 'Понимаю команды:\n/today — привычки и план на сегодня\n/plan — сразу план на сегодня');
+      await sendMessage(token, update.message.from.id, 'Не понял команду. /menu — открыть главное меню.');
     }
   } catch (err) {
     console.error('telegramWebhook failed', err);

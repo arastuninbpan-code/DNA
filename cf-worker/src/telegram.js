@@ -71,6 +71,12 @@ export function setWebhook(token, url) {
   return callTelegram(token, 'setWebhook', { url });
 }
 
+// Закрепление главного меню (см. bot.js#ensureMainMenu) — disable_notification, чтобы пиннинг
+// не присылал пользователю отдельное системное уведомление "закреплено сообщение".
+export function pinChatMessage(token, chatId, messageId) {
+  return callTelegram(token, 'pinChatMessage', { chat_id: chatId, message_id: messageId, disable_notification: true });
+}
+
 // Возвращает file_path (не URL!) самого маленького варианта фото профиля — этого достаточно
 // для маленького круглого аватара в интерфейсе. file_path сам по себе не секрет, но получить
 // по нему файл можно только вместе с токеном бота — поэтому отдаём его клиенту не напрямую,

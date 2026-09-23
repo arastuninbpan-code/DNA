@@ -11,7 +11,7 @@
 // CLOUD_DATA_TYPES) — здесь ничего не пишется в эти документы, только читается.
 
 import {
-  DEFAULT_TZ, todayKey, currentHourInTz, dateKeyAddDays, escapeHtml,
+  DEFAULT_TZ, todayKey, currentHourInTz, dateKeyAddDays, escapeHtml, pluralRu, formatRub,
   getHabitsDoc, habitsOn, getPlannerDoc, plannerOn,
 } from './reminders.js';
 import { computeHabitStreaks } from './streaks.js';
@@ -25,28 +25,12 @@ const EOD_HOUR = 22;
 // её потеря не будет ощущаться как потеря, и напоминание о ней — просто лишний шум.
 const MEANINGFUL_STREAK = 3;
 
-function pluralRu(n, one, few, many) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
-}
-
 const WEEKDAY_GENITIVE = ['воскресенья', 'понедельника', 'вторника', 'среды', 'четверга', 'пятницы', 'субботы'];
 // День недели однозначно определяется календарной датой независимо от часового пояса —
 // поэтому просто берём UTC-день недели у даты, собранной из частей dateKey.
 function weekdayGenitive(dateKey) {
   const [y, m, d] = dateKey.split('-').map(Number);
   return WEEKDAY_GENITIVE[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
-}
-
-function formatRub(n) {
-  try {
-    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(n);
-  } catch (_) {
-    return `${Math.round(n)} ₽`;
-  }
 }
 
 // Стрик считается "под угрозой", только если он уже что-то значит (см. MEANINGFUL_STREAK) и
