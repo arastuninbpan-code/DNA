@@ -90,13 +90,12 @@ async function renderEventsScreen(env, firestore, uid, kind) {
     const shown = list.slice(0, EVENT_LIST_CAP);
     lines.push(...shown.map(eventLine));
     lines.push('', `Выполнено: ${list.filter((e) => e.done).length} из ${list.length}`);
+    if (list.length > EVENT_LIST_CAP) lines.push(`…и ещё ${list.length - EVENT_LIST_CAP}`);
     rows.push(...shown.map((e) => [{ text: eventButtonText(e), callback_data: `s:event:${e.id}` }]));
-    if (list.length > EVENT_LIST_CAP) rows.push([{ text: `Показать все (${list.length}) в приложении`, url: env.APP_URL }]);
   }
-  rows.push([{ text: '➕ Добавить событие', url: env.APP_URL }]);
   rows.push(kind === 'tomorrow'
-    ? [{ text: '📅 Сегодня', callback_data: 's:events' }, { text: '🗓 Все события', url: env.APP_URL }]
-    : [{ text: '📅 Завтра', callback_data: 's:events:tomorrow' }, { text: '🗓 Все события', url: env.APP_URL }]);
+    ? [{ text: '📅 Сегодня', callback_data: 's:events' }]
+    : [{ text: '📅 Завтра', callback_data: 's:events:tomorrow' }]);
   rows.push([{ text: '🏠 Главное', callback_data: 's:home' }]);
   return { text: lines.join('\n'), reply_markup: { inline_keyboard: rows } };
 }
@@ -124,7 +123,6 @@ async function renderEventDetail(env, firestore, uid, eventId) {
     rows.push([{ text: '✅ Выполнить', callback_data: `a:eventdone:${e.id}` }]);
     rows.push([{ text: '⏰ Перенести на завтра', callback_data: `a:eventpostpone:${e.id}` }]);
   }
-  rows.push([{ text: '✏️ Изменить', url: env.APP_URL }]);
   rows.push([{ text: '← События', callback_data: 's:events' }, { text: '🏠 Главное', callback_data: 's:home' }]);
   return { text: lines.join('\n'), reply_markup: { inline_keyboard: rows } };
 }
@@ -147,10 +145,8 @@ async function renderHabitsScreen(env, firestore, uid) {
     const best = pickBestActiveStreak(streaks, list, (h) => h.name);
     if (best) lines.push('', '🔥 Лучший текущий стрик:', `${escapeHtml(best.name)} — ${best.current} ${pluralRu(best.current, 'день', 'дня', 'дней')}`);
     rows.push(...shown.map((h) => [{ text: `${h.done ? '✅' : '⬜'} ${h.name}`.slice(0, 64), callback_data: `s:habit:${habitCallbackName(h.name)}` }]));
-    if (list.length > HABIT_LIST_CAP) rows.push([{ text: `Показать все (${list.length}) в приложении`, url: env.APP_URL }]);
+    if (list.length > HABIT_LIST_CAP) lines.push(`…и ещё ${list.length - HABIT_LIST_CAP}`);
   }
-  rows.push([{ text: '➕ Добавить привычку', url: env.APP_URL }]);
-  rows.push([{ text: '📊 Прогресс', url: env.APP_URL }]);
   rows.push([{ text: '🏠 Главное', callback_data: 's:home' }]);
   return { text: lines.join('\n'), reply_markup: { inline_keyboard: rows } };
 }
@@ -178,8 +174,6 @@ async function renderHabitDetail(env, firestore, uid, habitNamePrefix) {
   ];
   const rows = [];
   if (!h.done) rows.push([{ text: '✅ Выполнить', callback_data: `a:habitdone:${habitCallbackName(h.name)}` }]);
-  rows.push([{ text: '📊 Статистика', url: env.APP_URL }]);
-  rows.push([{ text: '✏️ Настроить', url: env.APP_URL }]);
   rows.push([{ text: '← Привычки', callback_data: 's:habits' }, { text: '🏠 Главное', callback_data: 's:home' }]);
   return { text: lines.join('\n'), reply_markup: { inline_keyboard: rows } };
 }
@@ -211,8 +205,6 @@ async function renderFinanceScreen(env, firestore, uid) {
     text: lines.join('\n'),
     reply_markup: {
       inline_keyboard: [
-        [{ text: '➖ Расход', url: env.APP_URL }, { text: '➕ Доход', url: env.APP_URL }],
-        [{ text: '📊 Статистика', url: env.APP_URL }, { text: '📜 История', url: env.APP_URL }],
         [{ text: '🏠 Главное', callback_data: 's:home' }],
       ],
     },

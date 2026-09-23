@@ -115,7 +115,7 @@ export async function buildMorningMessage(env, firestore, uid, dateKey) {
   if (!habits.length && !planner.length) {
     return {
       text: '☀️ Доброе утро!\n\nНа сегодня пока ничего не запланировано.\nХочешь выбрать несколько главных дел на день?',
-      reply_markup: { inline_keyboard: [[{ text: '📲 Открыть D.N.A.', url: env.APP_URL }]] },
+      reply_markup: { inline_keyboard: [[{ text: '🏠 Главное меню', callback_data: 's:home' }]] },
     };
   }
 
