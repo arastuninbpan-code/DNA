@@ -110,9 +110,16 @@ export async function getUserProfilePhotoFilePath(token, userId) {
   const json = await res.json();
   if (!json.ok || !json.result.photos.length) return null;
   const fileId = json.result.photos[0][0].file_id;
-  const fileRes = await fetch(`${apiUrl(token, 'getFile')}?file_id=${fileId}`);
-  const fileJson = await fileRes.json();
-  return fileJson.ok ? fileJson.result.file_path : null;
+  return getFilePath(token, fileId);
+}
+
+// file_id -> file_path (не сам файл — см. fetchTelegramFile ниже) — тот же вызов getFile, что
+// getUserProfilePhotoFilePath уже делал для аватаров, вынесен отдельно для голосовых сообщений
+// (см. handleTelegramVoice в index.js: voice.file_id -> getFilePath -> fetchTelegramFile).
+export async function getFilePath(token, fileId) {
+  const res = await fetch(`${apiUrl(token, 'getFile')}?file_id=${fileId}`);
+  const json = await res.json();
+  return json.ok ? json.result.file_path : null;
 }
 
 // Скачивает файл с серверов Telegram (для прокси — токен остаётся на сервере, наружу уходит

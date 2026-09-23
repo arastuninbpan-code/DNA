@@ -8,14 +8,14 @@ import { createCustomToken } from './googleAuth.js';
 import { verifyFirebaseIdToken } from './jwt.js';
 import {
   sendMessage, sendMediaGroup, answerCallbackQuery, deleteMessage,
-  verifyLoginWidgetPayload, getUserProfilePhotoFilePath, fetchTelegramFile,
+  verifyLoginWidgetPayload, getUserProfilePhotoFilePath, fetchTelegramFile, getFilePath,
 } from './telegram.js';
 import {
   DEFAULT_TZ, todayKey, escapeHtml, uidForTelegramId, getUpcomingPlannerEvents,
   addFinanceTransaction, parseAmountAndNote,
 } from './reminders.js';
 import { runDailyDigests } from './digest.js';
-import { renderScreen, runAction, renderHome, renderToMainMenu } from './bot.js';
+import { renderScreen, runAction, renderHome, renderToMainMenu, renderAiPlanScreen } from './bot.js';
 import { createYandexProvider } from './ai/provider.js';
 import { planTurn, confirmActions } from './ai/router.js';
 
@@ -173,7 +173,55 @@ async function handleTelegramFreeText(env, firestore, token, message) {
     await renderToMainMenu(env, firestore, token, uid, message.chat.id, payload);
     return;
   }
-  await sendMessage(token, message.chat.id, 'Не понял команду. /menu — открыть главное меню.');
+  // Любой другой текст (не команда, не ожидаемая сумма) — тот же AI-ассистент, что и в
+  // приложении (см. п.24 исходной просьбы: "та же схема AI работает и для Telegram, не
+  // создавать отдельную AI-логику"). planTurn/confirmActions — общие с handleAiChat в этом же
+  // файле, разница только в представлении результата (см. renderAiPlanScreen в bot.js).
+  await handleAiTurn(env, firestore, token, uid, message.chat.id, message.text);
+}
+
+// Текстовый ход AI прямо в боте — планирует действия (planTurn), но ничего не применяет: если
+// AI нашёл действия, они кладутся в users/{uid}.pendingAiActions и ждут подтверждения кнопками
+// "✅ Добавить всё"/"❌ Отмена" (см. runAction#aiconfirm в bot.js) — тот же принцип "ничего не
+// применяется без явного согласия", что и в приложении.
+async function handleAiTurn(env, firestore, token, uid, chatId, text) {
+  try {
+    const provider = createYandexProvider(env);
+    const plan = await planTurn(provider, firestore, uid, text);
+    await firestore.mergeDoc(`users/${uid}`, { pendingAiActions: plan.actions.length ? plan.actions : null });
+    await renderToMainMenu(env, firestore, token, uid, chatId, renderAiPlanScreen(plan));
+  } catch (err) {
+    console.error('handleAiTurn failed', err);
+    await sendMessage(token, chatId, `🤖 AI сейчас недоступен: ${escapeHtml(String(err.message || err))}`);
+  }
+}
+
+// Голосовое сообщение в Telegram — тот же AI-пайплайн, что и текст (handleAiTurn), плюс
+// распознавание речи в начале. В отличие от браузера (см. index.html#audioBlobToPcm16),
+// Telegram присылает настоящий Ogg/Opus файл — конвертация не нужна, format:'oggopus' передаётся
+// в SpeechKit как есть (см. provider.js#transcribe). Распознанный текст отправляется отдельным
+// сообщением ДО ответа AI (п.5 исходной просьбы: пользователь должен видеть, что именно
+// распознала система, прежде чем увидит реакцию на это).
+async function handleTelegramVoice(env, firestore, token, message) {
+  const uid = uidForTelegramId(message.from.id);
+  try {
+    const filePath = await getFilePath(token, message.voice.file_id);
+    if (!filePath) throw new Error('Telegram не отдал файл голосового сообщения');
+    const file = await fetchTelegramFile(token, filePath);
+    if (!file) throw new Error('не удалось скачать голосовое сообщение');
+    const audioBytes = await new Response(file.body).arrayBuffer();
+    const provider = createYandexProvider(env);
+    const transcript = await provider.transcribe(audioBytes, { format: 'oggopus' });
+    if (!transcript.trim()) {
+      await sendMessage(token, message.chat.id, 'Не удалось распознать речь — попробуй ещё раз или напиши текстом.');
+      return;
+    }
+    await sendMessage(token, message.chat.id, `🎤 <i>${escapeHtml(transcript)}</i>`);
+    await handleAiTurn(env, firestore, token, uid, message.chat.id, transcript);
+  } catch (err) {
+    console.error('handleTelegramVoice failed', err);
+    await sendMessage(token, message.chat.id, `🤖 Не получилось распознать голос: ${escapeHtml(String(err.message || err))}`);
+  }
 }
 
 async function handleTelegramWebhook(req, env, firestore) {
@@ -218,9 +266,10 @@ async function handleTelegramWebhook(req, env, firestore) {
       const uid = uidForTelegramId(cq.from.id);
       const screen = cq.data.slice('s:'.length);
       // Любой обычный переход по меню (включая "❌ Отмена" на экране приглашения, см.
-      // renderFinancePromptScreen) снимает "жду сумму+описание" — иначе оно залипло бы навсегда,
-      // если пользователь передумал и ушёл в другой раздел, не написав ничего.
-      await firestore.mergeDoc(`users/${uid}`, { pendingFinanceInput: null });
+      // renderFinancePromptScreen, и уход с экрана подтверждения действий AI, см.
+      // renderAiPlanScreen) снимает оба "жду чего-то" состояния — иначе залипли бы навсегда,
+      // если пользователь передумал и ушёл в другой раздел, ничего не подтвердив/не написав.
+      await firestore.mergeDoc(`users/${uid}`, { pendingFinanceInput: null, pendingAiActions: null });
       const payload = await renderScreen(env, firestore, uid, screen);
       await answerCallbackQuery(token, cq.id);
       await renderToMainMenu(env, firestore, token, uid, cq.message.chat.id, payload);
@@ -232,6 +281,8 @@ async function handleTelegramWebhook(req, env, firestore) {
       await answerCallbackQuery(token, cq.id, result.toast || undefined);
       const payload = await renderScreen(env, firestore, uid, result.nextScreen);
       await renderToMainMenu(env, firestore, token, uid, cq.message.chat.id, payload);
+    } else if (update.message && update.message.voice) {
+      await handleTelegramVoice(env, firestore, token, update.message);
     } else if (update.message && update.message.text) {
       await handleTelegramFreeText(env, firestore, token, update.message);
     }

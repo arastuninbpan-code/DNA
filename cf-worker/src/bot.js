@@ -20,6 +20,7 @@ import {
 } from './reminders.js';
 import { computeHabitStreaks } from './streaks.js';
 import { sendMessage, editMessageText, pinChatMessage, getChat, unpinAllChatMessages, deleteMessage } from './telegram.js';
+import { confirmActions } from './ai/router.js';
 
 const EVENT_LIST_CAP = 8;
 const HABIT_LIST_CAP = 12;
@@ -294,6 +295,41 @@ function renderFinancePromptScreen(type) {
   };
 }
 
+// -------- AI-ассистент (текст и голос — общая точка с index.html, см. ai/router.js) --------
+// То же самое planTurn/confirmActions, что использует веб-приложение (см. handleAiChat/
+// handleAiVoice в index.js) — никакой отдельной AI-логики под Telegram, только своё
+// представление результата под интерфейс бота (одно закреплённое сообщение вместо чата).
+function aiActionSummaryText(a) {
+  switch (a.action) {
+    case 'create_event': return `Событие «${a.title || ''}»${a.date ? ', ' + a.date : ''}${a.time ? ' в ' + a.time : ''}`;
+    case 'create_expense': return `Расход ${formatRub(Math.abs(Number(a.amount) || 0))}${a.category ? ' · ' + a.category : ''}`;
+    case 'create_income': return `Доход ${formatRub(Math.abs(Number(a.amount) || 0))}${a.description ? ' · ' + a.description : ''}`;
+    case 'complete_habit': return `Привычка «${a.name || ''}» — выполнено`;
+    case 'complete_event': return `Событие «${a.title || ''}» — выполнено`;
+    case 'create_section': return `Раздел «${a.name || ''}»`;
+    default: return a.action || 'действие';
+  }
+}
+
+// plan = {reply, actions, rejected} от planTurn — actions тут ещё НЕ применены (см. п.16/18
+// исходной просьбы: несколько действий сразу требуют явного подтверждения), только показаны на
+// подтверждение; сам список на этот момент уже сохранён в users/{uid}.pendingAiActions
+// (см. handleAiTurn/handleTelegramVoice в index.js) — кнопки ниже лишь ссылаются на него.
+export function renderAiPlanScreen(plan) {
+  const lines = ['🤖 ' + escapeHtml(plan.reply || 'Готово.')];
+  if (plan.rejected && plan.rejected.length) {
+    lines.push('', `⚠️ Не понял: ${plan.rejected.map((r) => escapeHtml(r.error || 'действие')).join('; ')}`);
+  }
+  const rows = [];
+  if (plan.actions && plan.actions.length) {
+    lines.push('', 'Добавить это?');
+    for (const a of plan.actions) lines.push(`• ${escapeHtml(aiActionSummaryText(a))}`);
+    rows.push([{ text: '✅ Добавить всё', callback_data: 'a:aiconfirm' }, { text: '❌ Отмена', callback_data: 'a:aicancel' }]);
+  }
+  rows.push([{ text: '🏠 Главное', callback_data: 's:home' }]);
+  return { text: lines.join('\n'), reply_markup: { inline_keyboard: rows } };
+}
+
 // -------- Новости --------
 // В самом приложении раздел ещё в разработке (заглушка "Персональная лента ещё в разработке"),
 // реальных данных для дайджеста по темам нет — честно показываем то же самое в боте, а не
@@ -397,6 +433,24 @@ export async function runAction(firestore, uid, action) {
     const type = action.slice('financeprompt:'.length) === 'income' ? 'income' : 'expense';
     await firestore.mergeDoc(`users/${uid}`, { pendingFinanceInput: type });
     return { toast: null, nextScreen: `finance:prompt:${type}` };
+  }
+  if (action === 'aiconfirm') {
+    // Список действий на подтверждение не помещается в callback_data (лимит Telegram — 64
+    // байта, а тут может быть несколько событий/операций сразу), поэтому лежит в Firestore
+    // (см. handleAiTurn/handleTelegramVoice в index.js) — кнопка лишь ссылается на него.
+    // confirmActions заново валидирует каждое действие, не доверяя слепо тому, что тут лежит
+    // (тот же принцип, что и в /ai/confirm — см. router.js).
+    const user = await firestore.getDoc(`users/${uid}`);
+    const pending = Array.isArray(user?.pendingAiActions) ? user.pendingAiActions : [];
+    await firestore.mergeDoc(`users/${uid}`, { pendingAiActions: null });
+    if (!pending.length) return { toast: 'Нечего подтверждать', nextScreen: 'home' };
+    const results = await confirmActions(firestore, uid, pending);
+    const ok = results.filter((r) => r.ok).length;
+    return { toast: `Готово: ${ok}/${results.length}`, nextScreen: 'home' };
+  }
+  if (action === 'aicancel') {
+    await firestore.mergeDoc(`users/${uid}`, { pendingAiActions: null });
+    return { toast: 'Отменено', nextScreen: 'home' };
   }
   if (action.startsWith('eventtoggle:')) {
     // Тап по самой строке в списке событий (см. renderEventsScreen) — переключает готово/не
