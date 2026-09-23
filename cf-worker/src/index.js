@@ -180,11 +180,29 @@ async function handleScheduledReminders(env, firestore) {
   }
 }
 
+// ВРЕМЕННЫЙ диагностический эндпоинт — не раскрывает сам ключ, только его форму (длину,
+// первые/последние символы — это всегда открытый текст BEGIN/END, не секрет), чтобы понять,
+// что именно сломано во вставленном FIREBASE_PRIVATE_KEY. Убрать после починки.
+function handleDebugKey(env) {
+  const raw = env.FIREBASE_PRIVATE_KEY || '';
+  const weird = [...new Set(raw.replace(/[A-Za-z0-9+/=\-\s]/g, '').split(''))];
+  return json({
+    length: raw.length,
+    first30: raw.slice(0, 30),
+    last30: raw.slice(-30),
+    hasLiteralBackslashN: raw.includes('\\n'),
+    hasRealNewline: /\n/.test(raw),
+    unexpectedChars: weird.map((c) => ({ char: c, code: c.charCodeAt(0) })),
+  });
+}
+
 export default {
   async fetch(req, env) {
     const firestore = createFirestoreClient(env.FIREBASE_PROJECT_ID, env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY);
     const url = new URL(req.url);
     switch (url.pathname) {
+      case '/debugKey':
+        return handleDebugKey(env);
       case '/telegramAuthVerify':
         return handleTelegramAuthVerify(req, env, firestore);
       case '/telegramLinkAuth':
