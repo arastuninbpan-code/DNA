@@ -6,9 +6,13 @@ compatibility_date = "2026-09-21"
 [triggers]
 crons = ["*/30 * * * *"]
 
-# Секреты (TELEGRAM_BOT_TOKEN, FIREBASE_PRIVATE_KEY) задаются через `wrangler secret put`,
-# а не здесь — в этот файл они не должны попадать. Обычные (несекретные) переменные — ниже.
+# Секреты (TELEGRAM_BOT_TOKEN, FIREBASE_PRIVATE_KEY, YANDEX_API_KEY) задаются через
+# `wrangler secret put`, а не здесь — в этот файл они не должны попадать. Обычные
+# (несекретные) переменные — ниже.
 [vars]
 FIREBASE_PROJECT_ID = "dnaa-a8ca3"
 FIREBASE_CLIENT_EMAIL = "firebase-adminsdk-fbsvc@dnaa-a8ca3.iam.gserviceaccount.com"
 APP_URL = "https://arastuninbpan-code.github.io/DNA"
+# Идентификатор каталога Yandex Cloud (folder id) — не секрет сам по себе (без API-ключа
+# бесполезен, ничего не открывает), поэтому обычная переменная, а не `wrangler secret put`.
+YANDEX_FOLDER_ID = "b1gf0irujfvas5jstr2u"
