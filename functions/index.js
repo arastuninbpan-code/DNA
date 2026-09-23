@@ -56,16 +56,21 @@ exports.telegramAuthVerify = onRequest(
     const uid = uidForTelegramId(telegramId);
     const userRef = db.doc(`users/${uid}`);
     const snap = await userRef.get();
-    if (!snap.exists) {
-      await userRef.set({
+    // Профиль (имя/юзернейм/фото) обновляем при каждом входе — он может поменяться в Telegram.
+    // Настройки напоминаний трогаем только при первой привязке, чтобы не затирать то, что
+    // пользователь мог уже изменить.
+    await userRef.set(
+      {
         telegramId,
         telegramUsername: payload.username || null,
         telegramFirstName: payload.first_name || '',
-        linkedAt: admin.firestore.FieldValue.serverTimestamp(),
-        reminderHourLocal: 20,
-        lastReminderSentDate: null,
-      });
-    }
+        telegramPhotoUrl: payload.photo_url || null,
+        linkedAt: snap.exists ? snap.data().linkedAt : admin.firestore.FieldValue.serverTimestamp(),
+        reminderHourLocal: snap.exists ? snap.data().reminderHourLocal : 20,
+        lastReminderSentDate: snap.exists ? snap.data().lastReminderSentDate : null,
+      },
+      { merge: true }
+    );
     const customToken = await admin.auth().createCustomToken(uid);
     res.json({ customToken });
   }

@@ -329,6 +329,12 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .changelog-entry:first-child { padding-top: 0; margin-top: 0; border-top: 0; }
 .changelog-version { font-size: .8125rem; font-weight: 600; color: var(--gold2); font-variant-numeric: tabular-nums; }
 .changelog-entry .settings-note { margin-top: 4px; }
+.account-linked { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.account-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex: 0 0 44px; }
+.account-avatar-fallback { display: flex; align-items: center; justify-content: center; background: var(--gold-strong); color: #000; font-size: 1.125rem; font-weight: 600; }
+.account-linked-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.account-linked-info strong { font-weight: 500; font-size: 1rem; }
+.account-linked-info span { font-size: .8125rem; color: rgba(var(--ink),.5); }
 /* Переключатель темы — тот же язык сегмент-контрола, что и у остального приложения (мягкие
    скругления, золотая обводка активного пункта), три равные доли на всю ширину карточки. */
 .theme-picker { display:flex; gap:8px; margin-top:14px; }
@@ -1773,6 +1779,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 :root{--system-theme:dark;}
 @media(prefers-color-scheme:light){:root{--system-theme:light;}}
 </style>
+<script async src="https://telegram.org/js/telegram-widget.js?22"></script>
 </head>
 <body>
   <div id="splash" class="splash" role="status" aria-label="Загрузка D.N.A.">
@@ -1803,7 +1810,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.11';
+  const APP_VERSION = '0.25.12';
+  // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
+  // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
+  // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
+  const TELEGRAM_BOT_ID = '8499699490';
+  const TELEGRAM_BOT_USERNAME = 'dna_corporation_bot';
+  let telegramProfile = null; // { telegramFirstName, telegramUsername, telegramId } из users/{uid} после входа
+  let telegramAuthPending = false;
+  let habitsCloudUnsub = null;
+  let lastSyncedHabitsJson = null;
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2291,7 +2307,24 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(high)return'✨ Отличная работа перед сном!';
     return'🌟 Ночная дисциплина — путь к успеху.';
   }
-  function saveHabits() { saveJSON('dna_habits_v2', state.habits.data); }
+  function saveHabits() { saveJSON('dna_habits_v2', state.habits.data); syncPrivateDataToCloud(); }
+
+  // Дебаунс-отправка привычек в Firestore для привязанного через Telegram аккаунта. Для всех,
+  // кто Telegram не подключал, currentUid всегда null — функция сразу выходит, и поведение
+  // остаётся ровно таким же, как раньше (только localStorage, ни одного обращения к сети).
+  let habitsSyncTimer = null;
+  function syncPrivateDataToCloud() {
+    if (!window.DNAFirebase?.currentUid || !navigator.onLine) return;
+    const uid = window.DNAFirebase.currentUid;
+    clearTimeout(habitsSyncTimer);
+    habitsSyncTimer = setTimeout(() => {
+      const json = JSON.stringify(state.habits.data);
+      if (json === lastSyncedHabitsJson) return;
+      lastSyncedHabitsJson = json;
+      window.DNAFirebase.syncHabitsToCloud(uid, state.habits.data)
+        .catch(err => console.error('[DNA] ошибка синхронизации привычек:', err));
+    }, 2000);
+  }
 
   // -------- Navigation / shell --------
   const navItems = [
@@ -5534,12 +5567,26 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           <button type="button" class="theme-picker-btn ${themeMode==='system'?'active':''}" data-theme-mode="system" role="radio" aria-checked="${themeMode==='system'}">${icon('contrast')}<span>Системная</span></button>
         </div>
       </section>
-      <section class="settings-card"><h2>Аккаунт</h2><p>Локальный режим</p><p class="settings-note">Вход, аватар и синхронизация между устройствами появятся в следующих версиях.</p></section>
-      <section class="settings-card"><h2>Данные на устройстве</h2><p>Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
+      <section class="settings-card">${renderAccountCard()}</section>
+      <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v0.25.11</div><p class="settings-note">Панель числового режима у привычек теперь растёт ровно до той же стенки, что и сама карточка (раньше карточка могла уехать примерно на 20px дальше правого края панели, и они визуально расходились при широком свайпе).</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.12</div><p class="settings-note">Привязка аккаунта к Telegram: вход через официальный виджет, привычки синхронизируются с ботом (напоминания вечером + отметка «Готово» прямо в чате).</p></div>
       </div></section>
     </div></section>`;
+  }
+
+  function renderAccountCard(){
+    if(telegramProfile){
+      const name=esc(telegramProfile.telegramFirstName||telegramProfile.telegramUsername||'Telegram');
+      const handle=telegramProfile.telegramUsername?`@${esc(telegramProfile.telegramUsername)}`:'';
+      const photo=telegramProfile.telegramPhotoUrl?`<img src="${esc(telegramProfile.telegramPhotoUrl)}" alt="" class="account-avatar">`:`<div class="account-avatar account-avatar-fallback">${name.charAt(0).toUpperCase()}</div>`;
+      return `<h2>Аккаунт</h2><div class="account-linked">${photo}<div class="account-linked-info"><strong>${name}</strong>${handle?`<span>${handle}</span>`:''}</div></div>
+        <button type="button" class="text-btn" style="padding:10px 0" data-telegram-unlink>Отвязать Telegram</button>
+        <p class="settings-note">Бот пришлёт напоминание, если к вечеру останутся незакрытые привычки. Команда /today в чате с ботом покажет план на сегодня.</p>`;
+    }
+    return `<h2>Аккаунт</h2><p>Локальный режим</p>
+      <button type="button" class="primary-button" data-telegram-login>${icon('send')} Войти через Telegram</button>
+      <p class="settings-note">Вход подтягивает привычки в облако — бот @${TELEGRAM_BOT_USERNAME} сможет напоминать о них и отмечать выполненные.</p>`;
   }
 
   function bindHomeEvents() {
@@ -5555,6 +5602,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     });
     $('[data-version-tile]')?.addEventListener('click',handleVersionTileTap);
     $$('[data-theme-mode]').forEach(b=>b.addEventListener('click',()=>setThemeMode(b.dataset.themeMode)));
+    $('[data-telegram-login]')?.addEventListener('click',startTelegramLogin);
+    $('[data-telegram-unlink]')?.addEventListener('click',signOutTelegramAccount);
   }
   // Скрытая игра: 5 тапов по плашке версии за 1.6с открывают Змейку.
   let versionTapTimes=[];
@@ -6717,7 +6766,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 
   // -------- Habits actions / overlays --------
   function commitHabitData(next) {
-    try{localStorage.setItem('dna_habits_v2',JSON.stringify(next));state.habits.data=next;return true;}
+    try{localStorage.setItem('dna_habits_v2',JSON.stringify(next));state.habits.data=next;syncPrivateDataToCloud();return true;}
     catch(_){showToast('Не удалось сохранить изменения');return false;}
   }
   function habitNumber(n){return Number(Number(n).toFixed(3)).toLocaleString('ru-RU');}
@@ -7003,7 +7052,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(keys.some(k=>state.habits.data[k].some(h=>h.name===name)))return {ok:false,error:'Привычка с таким названием уже есть. Выбери другое.'};
     const next={...state.habits.data};keys.forEach(k=>{next[k]=next[k].map(h=>h.name===expectedName?{...h,name}:h);});
     try{localStorage.setItem('dna_habits_v2',JSON.stringify(next));}catch(_){return {ok:false,error:'Не удалось сохранить. Проверь свободное место в браузере.'};}
-    state.habits.data=next;return {ok:true};
+    state.habits.data=next;syncPrivateDataToCloud();return {ok:true};
   }
   function showHabitActions(index) {
     const h=currentHabits()[index];if(!h)return;
@@ -7462,6 +7511,70 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(window.DNAFirebase)run();else window.addEventListener('dna-firebase-ready',run,{once:true});
   })();
 
+  // Привязка Telegram: как только модульный Firebase-скрипт готов, слушаем смену auth-статуса
+  // (вход/выход/восстановление сессии при перезагрузке страницы уже привязанного пользователя).
+  (function initTelegramAuth(){
+    const bind=()=>window.addEventListener('dna-auth-changed',e=>handleTelegramAuthChange(e.detail.uid));
+    if(window.DNAFirebase)bind();else window.addEventListener('dna-firebase-ready',bind,{once:true});
+  })();
+
+  async function handleTelegramAuthChange(uid){
+    if(habitsCloudUnsub){habitsCloudUnsub();habitsCloudUnsub=null;}
+    if(!uid){
+      telegramProfile=null;lastSyncedHabitsJson=null;
+      if(homePanel==='settings')renderScreen();
+      return;
+    }
+    try{telegramProfile=await window.DNAFirebase.loadTelegramProfileOnce(uid);}catch(_){telegramProfile=null;}
+    try{
+      const cloud=await window.DNAFirebase.loadHabitsOnce(uid);
+      if(cloud&&Object.keys(cloud).length){
+        const json=JSON.stringify(cloud);
+        lastSyncedHabitsJson=json;
+        state.habits.data=cloud;
+        try{localStorage.setItem('dna_habits_v2',json);}catch(_){}
+      }else{
+        lastSyncedHabitsJson=JSON.stringify(state.habits.data);
+        await window.DNAFirebase.syncHabitsToCloud(uid,state.habits.data);
+      }
+    }catch(err){console.error('[DNA] ошибка первичной синхронизации привычек:',err);}
+    habitsCloudUnsub=window.DNAFirebase.subscribeToHabits(uid,applyCloudHabits);
+    telegramAuthPending=false;
+    renderScreen();
+    if(state.nav===3)prepareHabitAnimation(progressForDate(state.habits.selectedDate),progressForDate(state.habits.selectedDate));
+  }
+
+  function applyCloudHabits(data){
+    const json=JSON.stringify(data);
+    if(json===lastSyncedHabitsJson)return; // эхо нашей же записи — уже применено локально
+    lastSyncedHabitsJson=json;
+    state.habits.data=data;
+    try{localStorage.setItem('dna_habits_v2',json);}catch(_){}
+    renderScreen();
+  }
+
+  function startTelegramLogin(){
+    if(telegramAuthPending)return;
+    if(!window.Telegram?.Login){showToast('Виджет Telegram ещё загружается, попробуй ещё раз через секунду');return;}
+    telegramAuthPending=true;
+    window.Telegram.Login.auth({bot_id:TELEGRAM_BOT_ID,request_access:'write'},async user=>{
+      if(!user){telegramAuthPending=false;return;}
+      try{
+        await window.DNAFirebase.signInWithTelegram(user);
+        showToast('Вход выполнен');
+      }catch(err){
+        console.error('[DNA] ошибка входа через Telegram:',err);
+        telegramAuthPending=false;
+        showToast('Не удалось войти через Telegram');
+      }
+    });
+  }
+
+  async function signOutTelegramAccount(){
+    try{await window.DNAFirebase.signOutTelegram();showToast('Аккаунт отвязан');}
+    catch(err){console.error('[DNA] ошибка выхода:',err);showToast('Не удалось отвязать аккаунт');}
+  }
+
   document.addEventListener('visibilitychange',()=>{
     document.documentElement.toggleAttribute('data-paused',document.hidden);
     if(document.hidden)return;
@@ -7520,6 +7633,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     import {
       getFirestore, doc, setDoc, getDoc, onSnapshot, runTransaction
     } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+    import {
+      getAuth, signInWithCustomToken, onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+    // URL функции telegramAuthVerify (Cloud Functions 2-го поколения публикуют и такой
+    // "классический" адрес наравне с Cloud Run URL). Регион по умолчанию — us-central1;
+    // если после первого деплоя оказался другим, поправить здесь.
+    const TELEGRAM_AUTH_VERIFY_URL = "https://us-central1-dnaa-a8ca3.cloudfunctions.net/telegramAuthVerify";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCbkbr3vRfhoTkdF3Lo8VbNuL3OdVnmTt8",
@@ -7533,6 +7654,52 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    async function signInWithTelegram(telegramUser) {
+      const res = await fetch(TELEGRAM_AUTH_VERIFY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(telegramUser),
+      });
+      if (!res.ok) throw new Error('telegramAuthVerify: ' + res.status);
+      const { customToken } = await res.json();
+      await signInWithCustomToken(auth, customToken);
+    }
+
+    function signOutTelegram() {
+      return signOut(auth);
+    }
+
+    async function loadTelegramProfileOnce(uid) {
+      const snap = await getDoc(doc(db, 'users', uid));
+      return snap.exists() ? snap.data() : null;
+    }
+
+    // Приватные данные привычек — полный снапшот (весь state.habits.data целиком), а не
+    // outbox/diff как у публичных разделов: писателей максимум двое (сам пользователь и бот
+    // от его лица), так что конфликтов записи не бывает и диффинг не нужен. Документ хранит
+    // те же ключи-даты верхним уровнем, что и localStorage — этот же формат читает и пишет
+    // functions/reminders.js на сервере.
+    async function syncHabitsToCloud(uid, habitsData) {
+      await setDoc(doc(db, 'users', uid, 'appData', 'habits'), habitsData);
+    }
+
+    async function loadHabitsOnce(uid) {
+      const snap = await getDoc(doc(db, 'users', uid, 'appData', 'habits'));
+      return snap.exists() ? snap.data() : null;
+    }
+
+    function subscribeToHabits(uid, onUpdate) {
+      const ref = doc(db, 'users', uid, 'appData', 'habits');
+      return onSnapshot(ref, (snap) => { if (snap.exists()) onUpdate(snap.data()); },
+        (err) => console.error('[DNA] ошибка подписки на приватные привычки:', err));
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      window.DNAFirebase.currentUid = user ? user.uid : null;
+      window.dispatchEvent(new CustomEvent('dna-auth-changed', { detail: { uid: user ? user.uid : null } }));
+    });
 
     function generateShareId(length = 8) {
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -7572,7 +7739,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       return snap.exists() ? snap.data().data : null;
     }
 
-    window.DNAFirebase = { enablePublicSection, updatePublicSection, subscribeToPublicSection, loadPublicSectionOnce };
+    window.DNAFirebase = {
+      enablePublicSection, updatePublicSection, subscribeToPublicSection, loadPublicSectionOnce,
+      signInWithTelegram, signOutTelegram, loadTelegramProfileOnce,
+      syncHabitsToCloud, loadHabitsOnce, subscribeToHabits,
+      currentUid: null,
+    };
     window.dispatchEvent(new Event('dna-firebase-ready'));
   </script>
 </body>
