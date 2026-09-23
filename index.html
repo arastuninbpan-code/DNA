@@ -1829,7 +1829,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.15';
+  const APP_VERSION = '0.25.16';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -1838,15 +1838,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // Тот же адрес, что и в модульном Firebase-скрипте (TELEGRAM_WORKER_ORIGIN) — два разных
   // <script>-контекста, значение приходится дублировать, а не шарить переменную напрямую.
   const TELEGRAM_WORKER_ORIGIN = 'https://dna.nikitosik6613.workers.dev';
-  let telegramProfile = null; // { telegramFirstName, telegramUsername, telegramId } из users/{uid} после входа
+  // Кешируем последний успешно загруженный профиль в localStorage и используем его как
+  // стартовое значение — иначе на каждой перезагрузке страницы telegramProfile на мгновение
+  // (а при медленной сети — надолго) снова null, пока не придёт ответ Firestore, и пользователь
+  // видит "Локальный режим"/баннер входа, хотя аккаунт на самом деле привязан. onAuthStateChanged
+  // всё равно сверяет и поправляет это состояние сразу после восстановления сессии (см.
+  // handleTelegramAuthChange) — кеш только убирает ложный "разлогинен" на старте.
+  let telegramProfile = loadJSON('dna_telegram_profile_cache', null); // { telegramFirstName, telegramUsername, telegramId } из users/{uid} после входа
   let telegramAuthPending = false;
   // Баннер-приглашение войти через Telegram на главном экране — для тех, кто открыл сайт
   // напрямую (не по ссылке от бота), поэтому ещё не привязан. Показывается, пока не привязан
   // аккаунт и пока пользователь сам его не закрыл (тогда больше не надоедаем).
   let telegramPromptDismissed = false;
   try{telegramPromptDismissed = localStorage.getItem('dna_telegram_prompt_dismissed')==='1';}catch(_){}
-  let habitsCloudUnsub = null;
-  let lastSyncedHabitsJson = null;
+  // Одна отписка на каждый синхронизируемый тип приватных данных (habits/planner/finance).
+  let cloudDataUnsubs = {};
+  let lastSyncedCloudJson = {};
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
   // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
@@ -2241,6 +2248,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     saveJSON('transactions', state.finance.transactions);
     saveJSON('goals', state.finance.goals);
     saveJSON('assets', state.finance.assets);
+    queueCloudSync('finance', financeSnapshot);
+  }
+  // Токен брокера (tinkoff_token) сознательно не включён в снапшот — это чувствительный
+  // доступ к реальному счёту, ему незачем лежать в Firestore, достаточно операций/целей/активов.
+  function financeSnapshot(){
+    return {transactions: state.finance.transactions, goals: state.finance.goals, assets: state.finance.assets};
   }
 
   // -------- Habits computed state --------
@@ -2334,22 +2347,28 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(high)return'✨ Отличная работа перед сном!';
     return'🌟 Ночная дисциплина — путь к успеху.';
   }
-  function saveHabits() { saveJSON('dna_habits_v2', state.habits.data); syncPrivateDataToCloud(); }
+  function saveHabits() { saveJSON('dna_habits_v2', state.habits.data); queueCloudSync('habits', () => state.habits.data); }
 
-  // Дебаунс-отправка привычек в Firestore для привязанного через Telegram аккаунта. Для всех,
+  // Дебаунс-отправка приватных данных (привычки/планер/финансы) в Firestore для привязанного
+  // через Telegram аккаунта — один документ на тип данных (users/{uid}/appData/{key}), полная
+  // перезапись снапшотом при каждом сохранении (см. пояснение у syncAppDataToCloud). Для всех,
   // кто Telegram не подключал, currentUid всегда null — функция сразу выходит, и поведение
   // остаётся ровно таким же, как раньше (только localStorage, ни одного обращения к сети).
-  let habitsSyncTimer = null;
-  function syncPrivateDataToCloud() {
+  // Именно эта синхронизация и делает "один и тот же аккаунт — одни и те же данные на любом
+  // устройстве": сохранение на одном устройстве шлёт снапшот в облако, а подписка на этот же
+  // документ (см. handleTelegramAuthChange/applyCloudData) применяет его на всех остальных.
+  let cloudSyncTimers = {};
+  function queueCloudSync(key, getData) {
     if (!window.DNAFirebase?.currentUid || !navigator.onLine) return;
     const uid = window.DNAFirebase.currentUid;
-    clearTimeout(habitsSyncTimer);
-    habitsSyncTimer = setTimeout(() => {
-      const json = JSON.stringify(state.habits.data);
-      if (json === lastSyncedHabitsJson) return;
-      lastSyncedHabitsJson = json;
-      window.DNAFirebase.syncHabitsToCloud(uid, state.habits.data)
-        .catch(err => console.error('[DNA] ошибка синхронизации привычек:', err));
+    clearTimeout(cloudSyncTimers[key]);
+    cloudSyncTimers[key] = setTimeout(() => {
+      const data = getData();
+      const json = JSON.stringify(data);
+      if (json === lastSyncedCloudJson[key]) return;
+      lastSyncedCloudJson[key] = json;
+      window.DNAFirebase.syncAppDataToCloud(uid, key, data)
+        .catch(err => console.error(`[DNA] ошибка синхронизации (${key}):`, err));
     }, 2000);
   }
 
@@ -2470,10 +2489,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       try{state.planner.events=JSON.parse(localStorage.getItem('planner_events')||'[]');}catch(_){}
       return false;
     }
-    plannerSyncAllPublicSections();return true;
+    plannerSyncAllPublicSections();queueCloudSync('planner',plannerSnapshot);return true;
   }
-  function savePlannerSections(){if(!plannerPersist('planner_sections',state.planner.sections))return false;plannerSyncAllPublicSections();return true;}
-  function savePlannerPollVotes(){saveJSON('planner_poll_votes',state.planner.pollVotes);}
+  function savePlannerSections(){if(!plannerPersist('planner_sections',state.planner.sections))return false;plannerSyncAllPublicSections();queueCloudSync('planner',plannerSnapshot);return true;}
+  function savePlannerPollVotes(){saveJSON('planner_poll_votes',state.planner.pollVotes);queueCloudSync('planner',plannerSnapshot);}
+  // Снапшот ВСЕГО личного планера (не только расшаренных по ссылке разделов) — для приватной
+  // облачной синхронизации между устройствами одного Telegram-аккаунта (см. queueCloudSync).
+  // Независимая система от plannerSyncAllPublicSections/outbox выше — та шлёт только события
+  // разделов с shareId в publicSections (для гостей по ссылке), эта — вообще весь планер целиком
+  // в приватный users/{uid}/appData/planner (виден только самому пользователю на его устройствах).
+  function plannerSnapshot(){
+    return {events: state.planner.events, sections: state.planner.sections, pollVotes: state.planner.pollVotes};
+  }
   // Локальный анонимный id устройства — пока нет реальной авторизации (см. задачу про
   // публичные разделы), используется как "это я" для мессенджер-вида комментариев и учёта
   // голосования в опросах.
@@ -5621,7 +5648,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <section class="settings-card">${renderAccountCard()}</section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v0.25.15</div><p class="settings-note">Аватарка из Telegram теперь подтягивается и в настройках, и в комментариях к событиям (вместе с именем); ссылка входа от бота больше не одноразовая — ею можно войти и с телефона, и с компьютера; сверху настроек — крупная аватарка и имя; новым пользователям на главном экране предлагается войти через Telegram.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.16</div><p class="settings-note">Вход через Telegram теперь надёжнее переживает перезагрузку страницы; привычки, планер и финансы синхронизируются в облако — на любом устройстве с тем же Telegram-аккаунтом видны одни и те же данные.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -6842,7 +6869,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 
   // -------- Habits actions / overlays --------
   function commitHabitData(next) {
-    try{localStorage.setItem('dna_habits_v2',JSON.stringify(next));state.habits.data=next;syncPrivateDataToCloud();return true;}
+    try{localStorage.setItem('dna_habits_v2',JSON.stringify(next));state.habits.data=next;queueCloudSync('habits',()=>state.habits.data);return true;}
     catch(_){showToast('Не удалось сохранить изменения');return false;}
   }
   function habitNumber(n){return Number(Number(n).toFixed(3)).toLocaleString('ru-RU');}
@@ -7128,7 +7155,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(keys.some(k=>state.habits.data[k].some(h=>h.name===name)))return {ok:false,error:'Привычка с таким названием уже есть. Выбери другое.'};
     const next={...state.habits.data};keys.forEach(k=>{next[k]=next[k].map(h=>h.name===expectedName?{...h,name}:h);});
     try{localStorage.setItem('dna_habits_v2',JSON.stringify(next));}catch(_){return {ok:false,error:'Не удалось сохранить. Проверь свободное место в браузере.'};}
-    state.habits.data=next;syncPrivateDataToCloud();return {ok:true};
+    state.habits.data=next;queueCloudSync('habits',()=>state.habits.data);return {ok:true};
   }
   function showHabitActions(index) {
     const h=currentHabits()[index];if(!h)return;
@@ -7608,38 +7635,89 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(window.DNAFirebase)run();else window.addEventListener('dna-firebase-ready',run,{once:true});
   })();
 
+  // Единая точка для приватной облачной синхронизации: одна запись на тип данных
+  // (habits/planner/finance) — как прочитать текущее локальное значение (get) и как применить
+  // снапшот из Firestore к state+localStorage (apply). Используется и при первом входе (скачать
+  // облачную копию или, если её ещё нет, залить туда локальную), и в реальном времени при любом
+  // изменении с другого устройства того же аккаунта (см. applyCloudData/subscribeToAppData).
+  const CLOUD_DATA_TYPES = {
+    habits: {
+      get: () => state.habits.data,
+      apply(data){
+        state.habits.data = data;
+        try{localStorage.setItem('dna_habits_v2', JSON.stringify(data));}catch(_){}
+      },
+    },
+    planner: {
+      get: plannerSnapshot,
+      apply(data){
+        if(Array.isArray(data.events))state.planner.events=withIds(data.events);
+        if(Array.isArray(data.sections))state.planner.sections=data.sections;
+        if(data.pollVotes)state.planner.pollVotes=data.pollVotes;
+        plannerPersist('planner_events',state.planner.events);
+        plannerPersist('planner_sections',state.planner.sections);
+        plannerPersist('planner_poll_votes',state.planner.pollVotes);
+      },
+    },
+    finance: {
+      get: financeSnapshot,
+      apply(data){
+        if(Array.isArray(data.transactions))state.finance.transactions=withIds(data.transactions);
+        if(Array.isArray(data.goals))state.finance.goals=data.goals;
+        if(Array.isArray(data.assets))state.finance.assets=data.assets;
+        saveJSON('transactions',state.finance.transactions);
+        saveJSON('goals',state.finance.goals);
+        saveJSON('assets',state.finance.assets);
+      },
+    },
+  };
+
   async function handleTelegramAuthChange(uid){
-    if(habitsCloudUnsub){habitsCloudUnsub();habitsCloudUnsub=null;}
+    for(const unsub of Object.values(cloudDataUnsubs))unsub?.();
+    cloudDataUnsubs={};
     if(!uid){
-      telegramProfile=null;lastSyncedHabitsJson=null;
+      telegramProfile=null;lastSyncedCloudJson={};
+      try{localStorage.removeItem('dna_telegram_profile_cache');}catch(_){}
       if(homePanel==='settings')renderScreen();
       return;
     }
-    try{telegramProfile=await window.DNAFirebase.loadTelegramProfileOnce(uid);}catch(_){telegramProfile=null;}
     try{
-      const cloud=await window.DNAFirebase.loadHabitsOnce(uid);
-      if(cloud&&Object.keys(cloud).length){
-        const json=JSON.stringify(cloud);
-        lastSyncedHabitsJson=json;
-        state.habits.data=cloud;
-        try{localStorage.setItem('dna_habits_v2',json);}catch(_){}
-      }else{
-        lastSyncedHabitsJson=JSON.stringify(state.habits.data);
-        await window.DNAFirebase.syncHabitsToCloud(uid,state.habits.data);
-      }
-    }catch(err){console.error('[DNA] ошибка первичной синхронизации привычек:',err);}
-    habitsCloudUnsub=window.DNAFirebase.subscribeToHabits(uid,applyCloudHabits);
+      const profile=await window.DNAFirebase.loadTelegramProfileOnce(uid);
+      // Профиль могли ещё не успеть создать (доля секунды между signInWithCustomToken и
+      // upsertTelegramUser на Worker'е) — тогда просто не обновляем, а не затираем null.
+      if(profile){telegramProfile=profile;saveJSON('dna_telegram_profile_cache',profile);}
+    }catch(err){
+      // Сеть могла моргнуть на старте — не сбрасываем telegramProfile в null: если он уже был
+      // взят из кеша (см. объявление telegramProfile выше), пользователь так и останется
+      // "залогиненным" в интерфейсе, а не увидит на секунду баннер "войти" при живой сессии.
+      console.error('[DNA] ошибка загрузки профиля Telegram:',err);
+    }
+    for(const [key,handler] of Object.entries(CLOUD_DATA_TYPES)){
+      try{
+        const cloud=await window.DNAFirebase.loadAppDataOnce(uid,key);
+        if(cloud&&Object.keys(cloud).length){
+          lastSyncedCloudJson[key]=JSON.stringify(cloud);
+          handler.apply(cloud);
+        }else{
+          const local=handler.get();
+          lastSyncedCloudJson[key]=JSON.stringify(local);
+          await window.DNAFirebase.syncAppDataToCloud(uid,key,local);
+        }
+      }catch(err){console.error(`[DNA] ошибка первичной синхронизации (${key}):`,err);}
+      cloudDataUnsubs[key]=window.DNAFirebase.subscribeToAppData(uid,key,data=>applyCloudData(key,data));
+    }
     telegramAuthPending=false;
     renderScreen();
     if(state.nav===3)prepareHabitAnimation(progressForDate(state.habits.selectedDate),progressForDate(state.habits.selectedDate));
   }
 
-  function applyCloudHabits(data){
+  // Прилетает при ЛЮБОМ изменении этого типа данных в облаке — в том числе с другого устройства
+  // того же аккаунта: тут и происходит собственно "поменял на одном — увидел на другом".
+  function applyCloudData(key,data){
     const json=JSON.stringify(data);
-    if(json===lastSyncedHabitsJson)return; // эхо нашей же записи — уже применено локально
-    lastSyncedHabitsJson=json;
-    state.habits.data=data;
-    try{localStorage.setItem('dna_habits_v2',json);}catch(_){}
+    if(json===lastSyncedCloudJson[key])return; // эхо нашей же записи — уже применено локально
+    lastSyncedCloudJson[key]=json;
+    CLOUD_DATA_TYPES[key].apply(data);
     renderScreen();
   }
 
@@ -7724,7 +7802,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       getFirestore, doc, setDoc, getDoc, onSnapshot, runTransaction
     } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
     import {
-      getAuth, signInWithCustomToken, onAuthStateChanged, signOut
+      getAuth, signInWithCustomToken, onAuthStateChanged, signOut,
+      setPersistence, browserLocalPersistence,
     } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
     // Адрес Cloudflare Worker (см. cf-worker/ — заменил Firebase Cloud Functions, т.к. Blaze-план
@@ -7747,6 +7826,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
+    // browserLocalPersistence и так значение по умолчанию для веб-SDK, но задаём явно —
+    // чтобы вход переживал перезагрузку страницы гарантированно, а не полагаться на дефолт,
+    // который где-то может тихо переопределиться (например, другим кодом до этой строки).
+    setPersistence(auth, browserLocalPersistence).catch(err=>console.error('[DNA] не удалось включить постоянный вход:',err));
 
     async function signInWithTelegram(telegramUser) {
       const res = await fetch(TELEGRAM_AUTH_VERIFY_URL, {
@@ -7779,24 +7862,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       return snap.exists() ? snap.data() : null;
     }
 
-    // Приватные данные привычек — полный снапшот (весь state.habits.data целиком), а не
-    // outbox/diff как у публичных разделов: писателей максимум двое (сам пользователь и бот
-    // от его лица), так что конфликтов записи не бывает и диффинг не нужен. Документ хранит
-    // те же ключи-даты верхним уровнем, что и localStorage — этот же формат читает и пишет
-    // functions/reminders.js на сервере.
-    async function syncHabitsToCloud(uid, habitsData) {
-      await setDoc(doc(db, 'users', uid, 'appData', 'habits'), habitsData);
+    // Приватные данные (привычки/планер/финансы) — полный снапшот целиком при каждом
+    // сохранении, а не outbox/diff как у публичных разделов: писателей максимум двое (сам
+    // пользователь и бот от его лица для привычек), конфликтов записи не бывает, диффинг не
+    // нужен. Один документ на тип данных: users/{uid}/appData/{key}. Для привычек документ
+    // хранит те же ключи-даты верхним уровнем, что и localStorage — этот же формат читает и
+    // пишет cf-worker/src/reminders.js на сервере (не переименовывать без синхронной правки там).
+    async function syncAppDataToCloud(uid, key, data) {
+      await setDoc(doc(db, 'users', uid, 'appData', key), data);
     }
 
-    async function loadHabitsOnce(uid) {
-      const snap = await getDoc(doc(db, 'users', uid, 'appData', 'habits'));
+    async function loadAppDataOnce(uid, key) {
+      const snap = await getDoc(doc(db, 'users', uid, 'appData', key));
       return snap.exists() ? snap.data() : null;
     }
 
-    function subscribeToHabits(uid, onUpdate) {
-      const ref = doc(db, 'users', uid, 'appData', 'habits');
+    function subscribeToAppData(uid, key, onUpdate) {
+      const ref = doc(db, 'users', uid, 'appData', key);
       return onSnapshot(ref, (snap) => { if (snap.exists()) onUpdate(snap.data()); },
-        (err) => console.error('[DNA] ошибка подписки на приватные привычки:', err));
+        (err) => console.error(`[DNA] ошибка подписки на приватные данные (${key}):`, err));
     }
 
     onAuthStateChanged(auth, (user) => {
@@ -7845,7 +7929,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     window.DNAFirebase = {
       enablePublicSection, updatePublicSection, subscribeToPublicSection, loadPublicSectionOnce,
       signInWithTelegram, signInWithTelegramLinkToken, signOutTelegram, loadTelegramProfileOnce,
-      syncHabitsToCloud, loadHabitsOnce, subscribeToHabits,
+      syncAppDataToCloud, loadAppDataOnce, subscribeToAppData,
       currentUid: null,
     };
     window.dispatchEvent(new Event('dna-firebase-ready'));
