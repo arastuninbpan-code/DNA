@@ -275,7 +275,7 @@ async function renderFinanceScreen(env, firestore, uid) {
     text: lines.join('\n'),
     reply_markup: {
       inline_keyboard: [
-        [{ text: '➕ Пополнение', callback_data: 'a:financeprompt:income' }, { text: '➖ Расход', callback_data: 'a:financeprompt:expense' }],
+        [{ text: '➖ Расход', callback_data: 'a:financeprompt:expense' }, { text: '➕ Пополнение', callback_data: 'a:financeprompt:income' }],
         [{ text: '🏠 Главное', callback_data: 's:home' }],
       ],
     },
