@@ -30,6 +30,28 @@ export function sendMessage(token, chatId, text, options = {}) {
   });
 }
 
+// Альбом фото по URL (без multipart-аплоада — картинки уже публично лежат на GitHub Pages
+// рядом с самим приложением, см. handleTelegramWebhook#/start). Подпись показывается только
+// под ПЕРВЫМ элементом альбома — так задумано Telegram API, не баг.
+export function sendMediaGroup(token, chatId, photoUrls, caption) {
+  const media = photoUrls.map((url, i) => ({
+    type: 'photo',
+    media: url,
+    ...(i === 0 && caption ? { caption, parse_mode: 'HTML' } : {}),
+  }));
+  return callTelegram(token, 'sendMediaGroup', { chat_id: chatId, media });
+}
+
+export function editMessageText(token, chatId, messageId, text, options = {}) {
+  return callTelegram(token, 'editMessageText', {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    parse_mode: 'HTML',
+    ...options,
+  });
+}
+
 export function answerCallbackQuery(token, callbackQueryId, text) {
   return callTelegram(token, 'answerCallbackQuery', {
     callback_query_id: callbackQueryId,

@@ -305,7 +305,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .home-telegram-prompt-body { flex: 1 1 200px; min-width: 0; }
 .home-telegram-prompt-body strong { display: block; margin-bottom: 4px; }
 .home-telegram-prompt-body p { margin: 0; color: #b6aa88; font-size: .8125rem; line-height: 1.4; }
-.home-telegram-prompt .secondary-button { margin: 0; flex: 0 0 auto; }
+.home-telegram-prompt .telegram-button { width: auto; flex: 0 0 auto; }
 .home-telegram-prompt-close {
   position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; display: grid; place-items: center;
   border: none; background: transparent; color: #b6aa88; border-radius: 50%;
@@ -335,6 +335,22 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .settings-meta dt { font-size: 1rem; color: rgba(var(--ink),.65); }
 .settings-meta dd { margin: 0; font-size: 1.125rem; color: var(--gold2); font-variant-numeric: tabular-nums; }
 .settings-card .settings-note { font-size: .875rem; color: rgba(var(--ink),.65); }
+.settings-switch-row, .settings-select-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.settings-switch-row:first-of-type { margin-top: 0; }
+.settings-select-row.disabled { opacity: .45; pointer-events: none; }
+.settings-select-row select {
+  border-radius: 10px; border: 1px solid rgba(201,168,76,.3); background: var(--bg-deep); color: inherit;
+  padding: 8px 10px; font-family: inherit; font-size: .9375rem;
+}
+.settings-switch { position: relative; display: inline-block; width: 44px; height: 26px; flex: 0 0 auto; }
+.settings-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.settings-switch-track { position: absolute; inset: 0; background: rgba(var(--ink),.15); border-radius: 999px; transition: background-color .18s ease; }
+.settings-switch-track::before {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; transition: transform .18s ease; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.settings-switch input:checked + .settings-switch-track { background: var(--gold-strong); }
+.settings-switch input:checked + .settings-switch-track::before { transform: translateX(18px); }
 /* Раньше все версии дописывались в один нарастающий абзац — было не видно, что именно
    изменилось В ЭТОЙ версии, только сплошное полотно текста. Теперь список по версиям, новее
    сверху, у каждой — свой заголовок с номером и короткое описание только её изменений. */
@@ -479,6 +495,15 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .primary-button { margin-top:24px; background:linear-gradient(135deg,var(--gold2),#c9a94e); color:#000; }
 .secondary-button { background:rgba(var(--ink),.03); border:1px solid rgba(201,168,76,.25); color:var(--gold); }
 .primary-button .icon, .secondary-button .icon { width:20px; height:20px; }
+/* Кнопка входа через Telegram — фирменный синий, не общий золотой стиль приложения:
+   как у "Войти через Google/Apple", бренд-цвет и логотип узнаются сразу, независимо от темы. */
+.telegram-button {
+  width:100%; border-radius:14px; padding:13px 22px; display:flex; justify-content:center; align-items:center; gap:10px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; font-size:15px; font-weight:600; border:0;
+  background:linear-gradient(135deg,#2AABEE,#229ED9); color:#fff; box-shadow:0 6px 16px rgba(34,158,217,.32);
+}
+.telegram-button.compact { padding:11px 18px; font-size:14px; box-shadow:0 4px 12px rgba(34,158,217,.28); }
+.telegram-logo { flex:0 0 auto; display:block; }
 
 /* Finance empty / history / goals / investments */
 .center-state { height:100%; min-height:360px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; }
@@ -1829,7 +1854,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.16';
+  const APP_VERSION = '0.25.17';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -2162,6 +2187,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       'clock': '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
     }[name] || '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>';
     return `<span class="icon ${cls}"><svg ${common}>${p}</svg></span>`;
+  }
+
+  // Настоящий логотип Telegram (не через icon() — та система рисует однотонные контурные
+  // иконки stroke=currentColor, а тут нужна узнаваемая двуцветная марка: синий круг + белый
+  // самолётик), а не общая стрелка "отправить" — раньше кнопка входа именно из-за неё и
+  // выглядела как случайная диагональная стрелка, а не как понятная кнопка входа через Telegram.
+  function telegramLogoIcon(size=20){
+    return `<svg width="${size}" height="${size}" viewBox="0 0 240 240" aria-hidden="true" class="telegram-logo"><circle cx="120" cy="120" r="120" fill="#29A9EA"/><path fill="#fff" d="M179.8 60.9c2.5-11.7-4.7-16.3-12.8-13.3L34.7 99.9c-8.8 3.4-8.7 8.6-1.6 10.8l33.8 10.6 78.3-49.4c3.7-2.4 7.1-1 4.3 1.6l-63.4 57.3-2.4 33.9c3.5 0 5-1.6 6.9-3.5l16.6-16 34.5 25.5c6.3 3.5 10.9 1.7 12.5-5.9l22.6-104.1z"/></svg>`;
   }
 
   function formatNum(n) {
@@ -5613,7 +5646,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <strong>Войди через Telegram</strong>
         <p>Бот @${TELEGRAM_BOT_USERNAME} сможет напоминать о привычках и отмечать их выполненными — прямо из чата.</p>
       </div>
-      <button type="button" class="secondary-button" data-telegram-prompt-login>${icon('send')} Войти</button>
+      <button type="button" class="telegram-button compact" data-telegram-prompt-login>${telegramLogoIcon(18)} Войти</button>
     </div>`;
   }
   function renderHome() {
@@ -5646,9 +5679,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         </div>
       </section>
       <section class="settings-card">${renderAccountCard()}</section>
+      ${telegramProfile?renderReminderSettingsCard():''}
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v0.25.16</div><p class="settings-note">Вход через Telegram теперь надёжнее переживает перезагрузку страницы; привычки, планер и финансы синхронизируются в облако — на любом устройстве с тем же Telegram-аккаунтом видны одни и те же данные.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.17</div><p class="settings-note">Кнопка входа через Telegram — теперь с настоящим логотипом вместо стрелки. В боте: /today и /plan показывают привычки и план на день с переключением между ними и кнопками "Готово" прямо в чате; напоминания можно включить/выключить и выбрать время в Настройках; бот дополнительно предупредит за 30 минут до события с указанным временем; после /start бот присылает инструкцию по установке приложения на телефон.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -5670,11 +5704,32 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(telegramProfile){
       return `<h2>Аккаунт</h2>
         <button type="button" class="text-btn" style="padding:10px 0" data-telegram-unlink>Отвязать Telegram</button>
-        <p class="settings-note">Бот пришлёт напоминание, если к вечеру останутся незакрытые привычки. Команда /today в чате с ботом покажет план на сегодня.</p>`;
+        <p class="settings-note">В чате с ботом: /today — привычки и план на сегодня с кнопками-переключателями, /plan — сразу план на день. Прямо там же можно отмечать привычки и события выполненными.</p>`;
     }
     return `<h2>Аккаунт</h2><p>Локальный режим</p>
-      <button type="button" class="primary-button" data-telegram-login>${icon('send')} Войти через Telegram</button>
+      <button type="button" class="telegram-button" style="margin-top:24px" data-telegram-login>${telegramLogoIcon()} Войти через Telegram</button>
       <p class="settings-note">Вход подтягивает привычки в облако — бот @${TELEGRAM_BOT_USERNAME} сможет напоминать о них и отмечать выполненные. Проще всего написать боту команду /start и открыть присланную им ссылку — вход произойдёт сразу, без этой кнопки.</p>`;
+  }
+
+  // Настройки напоминаний от бота — вкл/выкл целиком и час вечернего напоминания по привычкам
+  // (событиям в планере отдельное время не нужно: бот предупреждает за 30 минут до начала
+  // каждого, см. handlePlannerReminders в cf-worker). Пишем прямо в users/{uid} в Firestore —
+  // это разрешено правилами безопасности самому владельцу документа, отдельный сервер не нужен.
+  function renderReminderSettingsCard(){
+    const enabled=telegramProfile.remindersEnabled!==false;
+    const hour=Number.isInteger(telegramProfile.reminderHourLocal)?telegramProfile.reminderHourLocal:20;
+    const hourOptions=Array.from({length:24},(_,h)=>`<option value="${h}" ${h===hour?'selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('');
+    return `<section class="settings-card"><h2>Напоминания в Telegram</h2>
+      <label class="settings-switch-row">
+        <span>Присылать напоминания</span>
+        <span class="settings-switch"><input type="checkbox" data-reminders-enabled ${enabled?'checked':''}><span class="settings-switch-track"></span></span>
+      </label>
+      <label class="settings-select-row ${enabled?'':'disabled'}">
+        <span>Время напоминания о привычках</span>
+        <select data-reminder-hour ${enabled?'':'disabled'}>${hourOptions}</select>
+      </label>
+      <p class="settings-note">Если к этому часу останутся незакрытые привычки — бот напишет. О событиях планера с указанным временем предупредит отдельно, за полчаса до начала.</p>
+    </section>`;
   }
 
   // Крупная круглая аватарка + "Имя Фамилия" (без ника из Telegram) над всеми настройками —
@@ -5707,6 +5762,23 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       try{localStorage.setItem('dna_telegram_prompt_dismissed','1');}catch(_){}
       $('[data-telegram-prompt]')?.remove();
     });
+    $('[data-reminders-enabled]')?.addEventListener('change',e=>{
+      updateReminderPrefs({remindersEnabled:e.target.checked});
+      $('.settings-select-row')?.classList.toggle('disabled',!e.target.checked);
+      const select=$('[data-reminder-hour]');if(select)select.disabled=!e.target.checked;
+    });
+    $('[data-reminder-hour]')?.addEventListener('change',e=>updateReminderPrefs({reminderHourLocal:Number(e.target.value)}));
+  }
+  // Настройки напоминаний пишутся сразу в users/{uid} в Firestore (правила это разрешают
+  // владельцу документа) — отдельного эндпоинта на Worker'е не нужно, бот сам читает эти поля
+  // при следующем срабатывании крона (см. cf-worker/src/index.js#handleScheduledReminders).
+  async function updateReminderPrefs(patch){
+    const uid=window.DNAFirebase?.currentUid;
+    if(!uid)return;
+    telegramProfile={...telegramProfile,...patch};
+    saveJSON('dna_telegram_profile_cache',telegramProfile);
+    try{await window.DNAFirebase.updateUserPrefs(uid,patch);}
+    catch(err){console.error('[DNA] ошибка сохранения настроек напоминаний:',err);showToast('Не удалось сохранить настройки напоминаний');}
   }
   // Скрытая игра: 5 тапов по плашке версии за 1.6с открывают Змейку.
   let versionTapTimes=[];
@@ -7862,6 +7934,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       return snap.exists() ? snap.data() : null;
     }
 
+    // Точечная правка пары полей в users/{uid} (напр. remindersEnabled/reminderHourLocal) —
+    // отдельно от loadTelegramProfileOnce/upsertTelegramUser (тот пишет только сервер, этот же
+    // документ клиенту разрешено дописывать полям своих же настроек — см. firestore.rules).
+    async function updateUserPrefs(uid, patch) {
+      await setDoc(doc(db, 'users', uid), patch, { merge: true });
+    }
+
     // Приватные данные (привычки/планер/финансы) — полный снапшот целиком при каждом
     // сохранении, а не outbox/diff как у публичных разделов: писателей максимум двое (сам
     // пользователь и бот от его лица для привычек), конфликтов записи не бывает, диффинг не
@@ -7928,7 +8007,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 
     window.DNAFirebase = {
       enablePublicSection, updatePublicSection, subscribeToPublicSection, loadPublicSectionOnce,
-      signInWithTelegram, signInWithTelegramLinkToken, signOutTelegram, loadTelegramProfileOnce,
+      signInWithTelegram, signInWithTelegramLinkToken, signOutTelegram, loadTelegramProfileOnce, updateUserPrefs,
       syncAppDataToCloud, loadAppDataOnce, subscribeToAppData,
       currentUid: null,
     };
