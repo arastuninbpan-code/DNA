@@ -67,6 +67,13 @@ export function editMessageReplyMarkup(token, chatId, messageId, replyMarkup) {
   });
 }
 
+// Удаление сообщения (не просто открепление) — нужно при пересоздании главного меню, чтобы
+// старое действительно пропадало из чата, а не просто переставало значиться закреплённым
+// (unpinAllChatMessages выше снимает статус "закреплено", но само сообщение остаётся в истории).
+export function deleteMessage(token, chatId, messageId) {
+  return callTelegram(token, 'deleteMessage', { chat_id: chatId, message_id: messageId });
+}
+
 export function setWebhook(token, url) {
   return callTelegram(token, 'setWebhook', { url });
 }

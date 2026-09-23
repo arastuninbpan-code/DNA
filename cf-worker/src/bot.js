@@ -19,7 +19,7 @@ import {
   markPlannerDone, reschedulePlannerEvent, markHabitDoneByName,
 } from './reminders.js';
 import { computeHabitStreaks } from './streaks.js';
-import { sendMessage, editMessageText, pinChatMessage, getChat, unpinAllChatMessages } from './telegram.js';
+import { sendMessage, editMessageText, pinChatMessage, getChat, unpinAllChatMessages, deleteMessage } from './telegram.js';
 
 const EVENT_LIST_CAP = 8;
 const HABIT_LIST_CAP = 12;
@@ -32,30 +32,37 @@ const CATEGORY_EMOJI = {
   'Пополнение':'➕','Инвестиции':'📈','Связь':'📱','Другое':'💳',
 };
 
-// Разделы — свободный текст (пользователь сам вводит имя при создании), не фиксированный
-// список как у категорий финансов выше, поэтому точного совпадения по словарю часто не будет.
-// Сначала пробуем узнать смысл по ключевым словам в названии, а для всего остального —
-// детерминированный (стабильный между показами) фолбэк по id раздела, а не случайный смайлик.
-const SECTION_EMOJI_KEYWORDS = [
-  [/работ|проект|офис|карьер/i, '💼'],
-  [/учеб|учёб|универ|школ|курс|экзамен/i, '📚'],
-  [/спорт|трениров|зал|фитнес|бег/i, '🏋️'],
-  [/здоров|врач|медиц/i, '💊'],
-  [/дом|быт|уборк|ремонт/i, '🏠'],
-  [/сем[ьяи]|дет[ие]/i, '👨‍👩‍👧'],
-  [/путешеств|отпуск|поездк/i, '✈️'],
-  [/финанс|деньг|бюджет/i, '💰'],
-  [/хобби|творч|музык|рисован/i, '🎨'],
-  [/покупк|шопинг|магазин/i, '🛒'],
-  [/друз|встреч|личн/i, '🧑‍🤝‍🧑'],
+// Разделы уже хранят реальный HEX-цвет (тот же PL_COLORS, что красит чипы и обводку событий
+// в самом приложении — см. renderPlannerScreen), поэтому карточка раздела в боте — это ближайший
+// по RGB цветной квадрат-эмодзи к ЭТОМУ цвету, а не смайлик, угаданный по названию: Telegram не
+// умеет красить кнопки произвольным цветом, но 9 цветных квадратов — ближайшее доступное подобие.
+const SECTION_COLOR_SWATCHES = [
+  ['🟥', [229, 49, 44]],
+  ['🟧', [244, 144, 12]],
+  ['🟨', [253, 203, 88]],
+  ['🟩', [120, 177, 89]],
+  ['🟦', [85, 172, 238]],
+  ['🟪', [170, 122, 192]],
+  ['🟫', [150, 109, 74]],
+  ['⬛', [30, 30, 30]],
+  ['⬜', [240, 240, 240]],
 ];
-const SECTION_EMOJI_FALLBACK = ['🏷️', '📌', '🔖', '📁', '🧩', '⭐'];
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
 function sectionEmoji(section) {
-  const name = String(section?.name || '');
-  for (const [re, emoji] of SECTION_EMOJI_KEYWORDS) if (re.test(name)) return emoji;
-  let hash = 0;
-  for (const ch of String(section?.id || name)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  return SECTION_EMOJI_FALLBACK[hash % SECTION_EMOJI_FALLBACK.length];
+  const rgb = hexToRgb(section?.color);
+  if (!rgb) return '⬜';
+  let best = SECTION_COLOR_SWATCHES[0][0];
+  let bestDist = Infinity;
+  for (const [emoji, ref] of SECTION_COLOR_SWATCHES) {
+    const dist = (rgb[0] - ref[0]) ** 2 + (rgb[1] - ref[1]) ** 2 + (rgb[2] - ref[2]) ** 2;
+    if (dist < bestDist) { bestDist = dist; best = emoji; }
+  }
+  return best;
 }
 
 function dayLabel(dateKey, todayKeyStr) {
@@ -425,30 +432,39 @@ export async function runAction(firestore, uid, action) {
 //
 // Перед КАЖДЫМ новым pinChatMessage сначала открепляем всё через unpinAllChatMessages: Telegram
 // не заменяет предыдущий пин новым сам по себе, а копит их один за другим, а chat.pinned_message
-// в getChat выше показывает только самый свежий — так что после нескольких пересозданий (сбой
+// в getChat ниже показывает только самый свежий — так что после нескольких пересозданий (сбой
 // сети, очистка истории и т.п.) в чате незаметно копится несколько закреплённых "Главных меню"
 // сразу. opts.repair форсирует эту же чистку и в "штатной" ветке (просто правки текста) — её
 // включает команда /menu, которую пользователь и так использует как "почини мне меню".
+//
+// Открепить недостаточно: старое сообщение остаётся висеть в истории чата как мусор — поэтому
+// при пересоздании ещё и удаляем его (deleteMessage), а не только снимаем статус "закреплено".
+// Чистим и то, что мы сами помнили (storedId), и то, что Telegram ПРЯМО СЕЙЧАС считает
+// закреплённым (chat.pinned_message) — на случай если это другое сообщение (например, пин
+// прошёл, а запись id в Firestore после этого не удалась). Пины из ЕЩЁ более ранних циклов,
+// чей id нигде не сохранился, штатно не найти: Bot API отдаёт только самый свежий пин чата,
+// полного списка закреплённых сообщений в нём нет — такие приходится убирать вручную один раз.
 export async function renderToMainMenu(env, firestore, token, uid, chatId, payload, opts = {}) {
   const userPath = `users/${uid}`;
   const user = await firestore.getDoc(userPath);
   const options = payload.reply_markup ? { reply_markup: payload.reply_markup } : {};
+  const storedId = user && user.mainMenuMessageId;
 
-  if (user && user.mainMenuMessageId) {
-    let stillPinned = true;
+  let chat = null;
+  if (storedId) {
     try {
-      const chat = await getChat(token, chatId);
-      stillPinned = !!(chat.pinned_message && chat.pinned_message.message_id === user.mainMenuMessageId);
+      chat = await getChat(token, chatId);
     } catch (err) {
       console.error('getChat failed, assuming pin is still valid', err);
     }
+    const stillPinned = chat ? !!(chat.pinned_message && chat.pinned_message.message_id === storedId) : true;
     if (stillPinned) {
       try {
-        await editMessageText(token, chatId, user.mainMenuMessageId, payload.text, options);
+        await editMessageText(token, chatId, storedId, payload.text, options);
         if (opts.repair) {
           try {
             await unpinAllChatMessages(token, chatId);
-            await pinChatMessage(token, chatId, user.mainMenuMessageId);
+            await pinChatMessage(token, chatId, storedId);
           } catch (err) {
             console.error('repair re-pin failed', err);
           }
@@ -466,6 +482,18 @@ export async function renderToMainMenu(env, firestore, token, uid, chatId, paylo
     await pinChatMessage(token, chatId, sent.message_id);
   } catch (err) {
     console.error('pinChatMessage failed', err);
+  }
+  const staleIds = new Set();
+  if (storedId && storedId !== sent.message_id) staleIds.add(storedId);
+  if (chat && chat.pinned_message && chat.pinned_message.message_id !== sent.message_id) {
+    staleIds.add(chat.pinned_message.message_id);
+  }
+  for (const staleId of staleIds) {
+    try {
+      await deleteMessage(token, chatId, staleId);
+    } catch (err) {
+      console.error(`deleting stale main menu message ${staleId} failed`, err);
+    }
   }
   await firestore.mergeDoc(userPath, { mainMenuMessageId: sent.message_id });
 }
