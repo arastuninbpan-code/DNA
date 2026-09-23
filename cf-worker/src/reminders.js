@@ -5,6 +5,14 @@
 
 export const DEFAULT_TZ = 'Europe/Moscow';
 
+// sendMessage/editMessageText шлют с parse_mode 'HTML' — свободный текст (имена привычек,
+// названия задач/событий) вводит сам пользователь и может содержать <, >, & — без экранирования
+// Telegram либо сломает разметку, либо вовсе отклонит вызов API. Общая утилита — нужна и
+// index.js, и digest.js, поэтому здесь, а не продублирована в обоих местах.
+export function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 // 'YYYY-MM-DD' в заданной IANA-таймзоне — тот же формат ключа, что использует клиент
 // (habitDateKey в index.html), но посчитанный на сервере независимо от таймзоны машины.
 export function todayKey(tz = DEFAULT_TZ) {
@@ -40,9 +48,43 @@ export function currentMinutesInTz(tz = DEFAULT_TZ) {
   return get('hour') * 60 + get('minute');
 }
 
-function timeToMinutes(time) {
+export function timeToMinutes(time) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(time || '');
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+// dateKey ('YYYY-MM-DD') ± N дней — простая календарная арифметика без библиотек, достаточно
+// для "вчера"/"завтра" при обходе истории привычек и плана на следующий день.
+export function dateKeyAddDays(dateKey, days) {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+// Весь документ привычек разом (не по одной дате) — нужен дайджесту (см. digest.js) для
+// подсчёта стриков по каждой привычке отдельно: там придётся пройти историю за много дней,
+// а один getDoc дешевле, чем дергать Firestore за каждый день истории по отдельности.
+export async function getHabitsDoc(firestore, uid) {
+  return (await firestore.getDoc(`users/${uid}/appData/habits`)) || {};
+}
+
+export function habitsOn(habitsDoc, dateKey) {
+  return Array.isArray(habitsDoc[dateKey]) ? habitsDoc[dateKey] : [];
+}
+
+// Аналогично — весь планер разом, чтобы digest.js мог посмотреть и сегодня, и завтра одним
+// чтением, не заводя отдельный вызов на каждый день (getPlannerToday ниже это делает и
+// остаётся как есть — им уже пользуются /today и напоминания о скором событии).
+export async function getPlannerDoc(firestore, uid) {
+  return (await firestore.getDoc(`users/${uid}/appData/planner`)) || {};
+}
+
+export function plannerOn(plannerDoc, dateKey) {
+  const events = Array.isArray(plannerDoc.events) ? plannerDoc.events : [];
+  return events
+    .filter((e) => e && e.date === dateKey)
+    .sort((a, b) => (timeToMinutes(a.time) ?? 9999) - (timeToMinutes(b.time) ?? 9999));
 }
 
 export async function getHabitsToday(firestore, uid, tz = DEFAULT_TZ) {

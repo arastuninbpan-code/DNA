@@ -1854,7 +1854,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.25.17';
+  const APP_VERSION = '0.25.18';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -5682,7 +5682,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderReminderSettingsCard():''}
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v0.25.17</div><p class="settings-note">Кнопка входа через Telegram — теперь с настоящим логотипом вместо стрелки. В боте: /today и /plan показывают привычки и план на день с переключением между ними и кнопками "Готово" прямо в чате; напоминания можно включить/выключить и выбрать время в Настройках; бот дополнительно предупредит за 30 минут до события с указанным временем; после /start бот присылает инструкцию по установке приложения на телефон.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.25.18</div><p class="settings-note">Бот в Telegram теперь ведёт себя как один персональный помощник, а не пять отдельных уведомлений: утром — краткая сводка на день, вечером — что осталось и не под угрозой ли стрик привычки, ближе к ночи — итог дня и план на завтра. Сообщений мало, каждое по делу — пустой день не порождает лишний спам, а всё важное объединяется в одно сообщение.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -5725,10 +5725,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <span class="settings-switch"><input type="checkbox" data-reminders-enabled ${enabled?'checked':''}><span class="settings-switch-track"></span></span>
       </label>
       <label class="settings-select-row ${enabled?'':'disabled'}">
-        <span>Время напоминания о привычках</span>
+        <span>Время вечернего напоминания</span>
         <select data-reminder-hour ${enabled?'':'disabled'}>${hourOptions}</select>
       </label>
-      <p class="settings-note">Если к этому часу останутся незакрытые привычки — бот напишет. О событиях планера с указанным временем предупредит отдельно, за полчаса до начала.</p>
+      <p class="settings-note">Утром бот коротко расскажет, что сегодня в планах; к этому часу вечером — что осталось незакрытым и не под угрозой ли стрик; вечером позже подведёт итог дня и покажет план на завтра. О событии с указанным временем предупредит отдельно, за полчаса до начала. Сообщений немного — бот старается объединять всё важное, а не присылать по одному на каждую мелочь.</p>
     </section>`;
   }
 

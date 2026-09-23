@@ -10,9 +10,10 @@ import {
   verifyLoginWidgetPayload, getUserProfilePhotoFilePath, fetchTelegramFile,
 } from './telegram.js';
 import {
-  DEFAULT_TZ, todayKey, currentHourInTz, getHabitsToday, markHabitDone,
+  DEFAULT_TZ, todayKey, escapeHtml, getHabitsToday, markHabitDone,
   getPlannerToday, markPlannerDone, getUpcomingPlannerEvents,
 } from './reminders.js';
+import { runDailyDigests } from './digest.js';
 
 // Полчаса — достаточно, чтобы спокойно открыть одну и ту же ссылку и с телефона, и с
 // компьютера, не отправляя /start заново под каждое устройство (ссылка теперь не
@@ -28,13 +29,6 @@ function randomToken() {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// sendMessage/editMessageText шлют с parse_mode 'HTML' — имена привычек и названия событий
-// вводит сам пользователь и могут содержать <, >, & — без экранирования Telegram либо
-// сломает разметку, либо вовсе отклонит вызов API.
-function escapeHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 function habitsListMessage(list) {
   if (!list.length) return 'На сегодня привычек нет.';
   return list.map((h) => `${h.done ? '✅' : '▫️'} ${escapeHtml(h.name)}`).join('\n');
@@ -45,11 +39,6 @@ function habitsUndoneRows(list) {
     .map((h, i) => ({ h, i }))
     .filter(({ h }) => !h.done)
     .map(({ h, i }) => [{ text: `✅ ${h.name}`.slice(0, 64), callback_data: `done:${i}` }]);
-}
-
-function undoneKeyboard(list) {
-  const rows = habitsUndoneRows(list);
-  return rows.length ? { inline_keyboard: rows } : undefined;
 }
 
 function plannerListMessage(list) {
@@ -110,10 +99,10 @@ async function upsertTelegramUser(firestore, telegramId, profile) {
     linkedAt: existing ? existing.linkedAt ?? Date.now() : Date.now(),
     reminderHourLocal: existing ? existing.reminderHourLocal ?? 20 : 20,
     // Вкл/выкл напоминаний целиком — настраивается в приложении (Настройки), пишется клиентом
-    // напрямую в users/{uid} (правила Firestore это уже разрешают). Затрагивает и привычки,
-    // и напоминания о событиях планера (см. handleScheduledReminders/handlePlannerReminders).
+    // напрямую в users/{uid} (правила Firestore это уже разрешают). Общий выключатель для всей
+    // системы уведомлений — и дайджестов (см. digest.js), и напоминаний о скором событии
+    // (handlePlannerReminders ниже).
     remindersEnabled: existing ? existing.remindersEnabled ?? true : true,
-    lastReminderSentDate: existing ? existing.lastReminderSentDate ?? null : null,
   });
   return uid;
 }
@@ -264,33 +253,11 @@ async function handleTelegramWebhook(req, env, firestore) {
   return new Response('ok', { status: 200 });
 }
 
-async function handleScheduledReminders(env, firestore) {
-  const token = env.TELEGRAM_BOT_TOKEN;
-  const users = await firestore.listCollection('users');
-  const today = todayKey(DEFAULT_TZ);
-  const hour = currentHourInTz(DEFAULT_TZ);
-  for (const { id: uid, data: user } of users) {
-    if (user.remindersEnabled === false) continue;
-    const reminderHour = user.reminderHourLocal ?? 20;
-    if (hour < reminderHour) continue;
-    if (user.lastReminderSentDate === today) continue;
-    const { list } = await getHabitsToday(firestore, uid, DEFAULT_TZ);
-    const undone = list.filter((h) => !h.done);
-    if (!undone.length) continue;
-    try {
-      await sendMessage(token, user.telegramId, `Ещё не отмечено сегодня:\n${habitsListMessage(list)}`, {
-        reply_markup: undoneKeyboard(list),
-      });
-      await firestore.mergeDoc(`users/${uid}`, { lastReminderSentDate: today });
-    } catch (err) {
-      console.error(`sendHabitReminders failed for ${uid}`, err);
-    }
-  }
-}
-
-// "Скоро начнётся" — отдельно от вечернего напоминания по привычкам: тикает каждые 30 минут
-// (тот же крон) и ловит события планера, чьё начало попадает в ближайшие полчаса. sentIds
-// на сегодня — защита от повторной отправки того же события на следующем тике крона.
+// "Скоро начнётся" — отдельно от дайджестов (см. digest.js): это единственный тип уведомления,
+// которому оправданно быть отдельным сообщением вне общего утро/вечер/итог-ритма — важные
+// события должны долетать сразу, а не ждать вечернего дайджеста. Тикает каждые 30 минут (тот
+// же крон) и ловит события планера, чьё начало попадает в ближайшие полчаса. sentIds на
+// сегодня — защита от повторной отправки того же события на следующем тике крона.
 async function handlePlannerReminders(env, firestore) {
   const token = env.TELEGRAM_BOT_TOKEN;
   const users = await firestore.listCollection('users');
@@ -360,8 +327,8 @@ export default {
   async scheduled(event, env, ctx) {
     const firestore = createFirestoreClient(env.FIREBASE_PROJECT_ID, env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY);
     ctx.waitUntil(Promise.all([
-      handleScheduledReminders(env, firestore),
       handlePlannerReminders(env, firestore),
+      runDailyDigests(env, firestore),
     ]));
   },
 };
