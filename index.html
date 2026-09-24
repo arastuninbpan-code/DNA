@@ -1943,7 +1943,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.29.1';
+  const APP_VERSION = '0.29.2';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -5915,6 +5915,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       case 'complete_event': return `Событие «${a.title||''}» — выполнено`;
       case 'delete_event': return `Удалить событие «${a.title||''}»`;
       case 'create_section': return `Раздел «${a.name||''}»`;
+      case 'delete_section': return `Удалить раздел «${a.name||''}»`;
       default: return a.action||'действие';
     }
   }
@@ -5954,6 +5955,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.29.2</div><p class="settings-note">Карточка подтверждения Атласа в боте и в приложении показывала сырое имя действия ("delete_section") при удалении раздела вместо понятного описания — в свиче не хватало этого случая (был только для удаления событий). Теперь пишет «Удалить раздел «Название»».</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.29.1</div><p class="settings-note">Правки по фидбэку из панели разработчика: починена чёрная полоса снизу экрана «Финансы» (баг вёрстки, круг с балансом теперь кликабелен — раньше случайно унаследовал pointer-events:none от другого элемента). Тап по балансу — редактирование. Кнопка «Начальный остаток» убрана. «Расход» — красный, кнопки показывают суммы за месяц вместо статичных слов. Заголовок и вкладки выровнены по размеру с «Планер». Круг переключает месяц свайпом, между Главная/История/Цели/Инвестиции — тоже свайп по строке вкладок. Раздел «Динамика» убран (позже заменим на анализ трат). Панель разработчика: заметки можно отмечать «Готово» — убираются из списка.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.29.0</div><p class="settings-note">Начало переработки раздела «Финансы» (первый этап). Главная: круг с текущим балансом и кольцом доходов/расходов за месяц, переключатель месяца, «Результат месяца», «Обязательные платежи», «Ближайшая цель». Операции теперь умеют быть с датой в будущем (не трогают баланс, пока не подтверждены — «Оплачено»/«Получено») и повторяющимися («Повторять» — та же механика, что у событий планера). История: фильтр «ОП» (обязательные платежи), группировка по дням, переключатель месяца. Цели: кнопка «Отложить» — перевод денег в цель, не считается расходом.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.5</div><p class="settings-note">Подмена цифр не срабатывала для жирного начертания (баланс, крупные суммы) — из-за этого в одних местах цифры выглядели ровно, в других по-прежнему «прыгали». Теперь правило подмены отвечает за цифры при любой жирности, шрифт цифр везде одинаковый.</p></div>

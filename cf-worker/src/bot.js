@@ -472,6 +472,8 @@ function aiActionCard(a) {
       return `🔥 ${escapeHtml(a.name || '')}\nОтметить выполненной`;
     case 'create_section':
       return `📁 ${escapeHtml(a.name || '')}\nНовый раздел`;
+    case 'delete_section':
+      return `🗑️ ${escapeHtml(a.name || '')}\nУдалить раздел`;
     default:
       return escapeHtml(a.action || 'действие');
   }
