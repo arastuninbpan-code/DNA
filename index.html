@@ -139,6 +139,10 @@ html, body { margin: 0; width: 100%; height: 100%; background: var(--shell-bg); 
 body {
   color: var(--white);
   font-family: Georgia, 'Times New Roman', serif;
+  /* Georgia — не моноширинный шрифт: цифры в нём разной ширины, из-за чего таймеры/суммы/счётчики
+     визуально "прыгают" при каждом обновлении текста. tabular-nums не меняет сам шрифт и рисунок
+     цифр (риска задеть вёрстку нет) — только выравнивает их ширину между собой. */
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
@@ -1871,7 +1875,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.28.1';
+  const APP_VERSION = '0.28.2';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -2028,7 +2032,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     window.addEventListener('focus',resumeTheme);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeTheme();});
     document.addEventListener('pointerdown',()=>{if(themeMode==='system')onSystemChange();},{passive:true});
-    setInterval(()=>{if(!document.hidden&&themeMode==='system')onSystemChange();},500);
+    // 500мс ощущались как заметная задержка ("не сразу") — на части устройств событие 'change'
+    // у matchMedia не срабатывает надёжно (сам поллинг тут как раз и есть основной сработавший
+    // механизм, не подстраховка), поэтому 150мс — тот компромисс, где переключение уже
+    // воспринимается мгновенным, а лишней нагрузки от частого сравнения ещё не заметно.
+    setInterval(()=>{if(!document.hidden&&themeMode==='system')onSystemChange();},150);
   }
   // Миграция: старые записи (транзакции/цели/активы) хранились по индексу массива, не по id —
   // после удаления/сортировки индексы «плывут» и легко зацепить не ту запись. Добиваем id всем,
@@ -5811,6 +5819,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.28.2</div><p class="settings-note">Атлас понимает относительное время («напомни через час», «через 30 минут») — сам вычисляет точное время. Цифры теперь одинаковой ширины — не «прыгают» при обновлении. Системная тема переключается заметно быстрее при смене темы в ОС.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.1</div><p class="settings-note">Голосовой ассистент получил имя — Атлас: так теперь называется в приложении и в боте (заголовок экрана, поле ввода, сообщения об ошибках, карточка подтверждения действий в Telegram).</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.0</div><p class="settings-note">Панель разработчика: кнопка выхода (сбрасывает доступ по-настоящему, не только визуально), статистика пользователей (всего/новых/активных за день-неделю-месяц, топ по частоте заходов), заметки «поправить/добавить» — доступны и в приложении, и в боте. Пароль панели теперь удаляется из чата бота сразу после разблокировки.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.27.1</div><p class="settings-note">Пароль панели разработчика теперь можно просто отправить как есть — текстом в Telegram или в поле «Промокод» в Настройках, без отдельной команды /admin.</p></div>

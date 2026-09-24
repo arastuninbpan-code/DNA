@@ -4,7 +4,17 @@
 // что уже прошло validateAction (см. actions.js). LLM не имеет прямого доступа к Firestore.
 import { validateAction, executeAction } from './actions.js';
 import { buildDayContext } from './context.js';
-import { DEFAULT_TZ, todayKey, dateKeyAddDays } from '../reminders.js';
+import { DEFAULT_TZ, todayKey, dateKeyAddDays, currentMinutesInTz } from '../reminders.js';
+
+// "HH:MM" сейчас в DEFAULT_TZ — без этого модель не может посчитать относительное время
+// ("напомни через час"): дата у неё уже есть (today/tomorrow), а часов и минут не было вовсе,
+// так что "через час" ей было решительно не от чего прибавлять.
+function currentTimeHHMM(tz) {
+  const minutes = currentMinutesInTz(tz);
+  const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
+  const mm = String(minutes % 60).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
 
 export async function planTurn(provider, firestore, uid, text) {
   const today = todayKey(DEFAULT_TZ);
@@ -14,7 +24,7 @@ export async function planTurn(provider, firestore, uid, text) {
     buildDayContext(firestore, uid, tomorrow),
   ]);
 
-  const llmResult = await provider.route(text, { today: todayCtx, tomorrow: tomorrowCtx });
+  const llmResult = await provider.route(text, { today: todayCtx, tomorrow: tomorrowCtx, now: currentTimeHHMM(DEFAULT_TZ) });
 
   const actions = [];
   const rejected = [];
