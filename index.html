@@ -53,6 +53,15 @@
   src: local('Helvetica Neue'), local('Segoe UI'), local('Roboto'), local('Arial'), local('Liberation Sans'), local('DejaVu Sans');
   unicode-range: U+0030-0039;
   font-display: swap;
+  /* Без явного диапазона font-weight описание по умолчанию match'ится только к обычному
+     начертанию (400) — а самые заметные цифры в приложении (баланс, крупные суммы) жирные
+     (600/700). Для них запроса под это единственное правило не находилось, и браузер откатывался
+     к настоящей системной Georgia — отсюда "в одних местах заменено, в других нет". Диапазон
+     100–900 заставляет ЭТО ЖЕ правило отвечать на любой вес; отсутствующее жирное начертание
+     подставного шрифта браузер просто дорисовывает сам (синтетический bold) — визуально не
+     идеально повторяет жирный Helvetica Neue, зато одинаково ровные, лайнинговые цифры везде. */
+  font-weight: 100 900;
+  font-style: normal italic;
 }
 :root {
   --gold: #c9a84c;
@@ -1891,7 +1900,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.28.4';
+  const APP_VERSION = '0.28.5';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -5848,6 +5857,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.28.5</div><p class="settings-note">Подмена цифр не срабатывала для жирного начертания (баланс, крупные суммы) — из-за этого в одних местах цифры выглядели ровно, в других по-прежнему «прыгали». Теперь правило подмены отвечает за цифры при любой жирности, шрифт цифр везде одинаковый.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.4</div><p class="settings-note">Нашлась настоящая причина двух прошлых заметок, а не только симптомы: у шрифта Georgia физически нет ровных цифр — теперь цифры подменяются на системный шрифт с ровными по ширине и высоте начертаниями, буквы не затронуты. Системная тема: раньше JS сам себе мешал жить и переключался только после перезахода — теперь в режиме «системная» переключение отдано целиком браузеру (CSS), он делает это вживую и мгновенно.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.3</div><p class="settings-note">Доисправлены две прошлые заметки: цифры теперь не «прыгают» по высоте (5 больше не ниже 0), а системная тема переключается сразу, а не только после перезахода в приложение. Атлас научился удалять разделы планера — по названию или по цвету («удали зелёный раздел»).</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.2</div><p class="settings-note">Атлас понимает относительное время («напомни через час», «через 30 минут») — сам вычисляет точное время. Цифры теперь одинаковой ширины — не «прыгают» при обновлении. Системная тема переключается заметно быстрее при смене темы в ОС.</p></div>
