@@ -405,13 +405,49 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .ai-home { padding-left: 0; padding-right: 0; }
 .ai-home .home-toolbar { padding: 0 max(24px, env(safe-area-inset-right, 0px)) 0 max(24px, env(safe-area-inset-left, 0px)); }
 .ai-body { flex: 1; display: flex; flex-direction: column; }
-.ai-idle { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px 24px 64px; text-align: center; }
-.ai-idle-mic.ai-mic-active { border-color: var(--gold-strong); box-shadow: 0 0 0 10px rgba(201,168,76,.08), 0 0 48px rgba(201,168,76,.12); animation: aiPulse 1.6s ease-in-out infinite; }
-@keyframes aiPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
-.ai-idle-title { margin: 0; font-size: 1.0625rem; color: rgba(var(--ink),.85); }
+.ai-idle { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px 24px 56px; text-align: center; }
 .ai-idle-hint { margin: 0; color: #b6aa88; font-size: .875rem; line-height: 1.5; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .ai-listening-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold-strong); animation: aiBlink 1s ease-in-out infinite; flex: 0 0 auto; }
 @keyframes aiBlink { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+.ai-word { width: min(140px, 42vw); height: auto; display: block; margin: 0 auto; }
+.ai-quick-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 4px; max-width: 360px; }
+.ai-quick-chip { padding: 8px 14px; border-radius: 16px; border: 1px solid rgba(201,168,76,.3); background: var(--surface); color: rgba(var(--ink),.75); font-size: .8125rem; font-family: inherit; }
+.ai-quick-chip:active { transform: scale(.96); }
+/* Atlas — фирменный знак (assets/atlas/mark.png — точная обрезка утверждённого референса:
+   буква A + орбита + сфера как одна нетронутая иллюстрация). Этот растр НИГДЕ не меняется —
+   единственный НОВЫЙ анимируемый элемент поверх него — .atlas-mark-dot: маленькая золотая
+   точка, которая реально летит по эллипсу вокруг знака (см. runAtlasOrbitFrame в JS). Геометрия
+   эллипса (центр/полуоси/наклон -28°) замерена по самому файлу mark.png так, что точка стартует
+   ровно там, где на растре уже нарисована сфера — прыжка при первом кадре не видно. */
+.atlas-mark { position: relative; width: var(--atlas-size, 160px); aspect-ratio: 307 / 246; display: block; }
+.atlas-mark-img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; filter: drop-shadow(0 0 0 rgba(201,168,76,0)); transition: filter .35s ease; }
+.atlas-mark-glow { position: absolute; inset: -18%; border-radius: 50%; background: radial-gradient(circle, rgba(201,168,76,.4), transparent 68%); opacity: 0; transition: opacity .35s ease; pointer-events: none; }
+/* Тонкая полупрозрачная "дорожка" той же геометрии, что и сама орбита (см. ATLAS_ORBIT в JS) —
+   без неё точка, пролетая по дуге ЗА буквой (там, где на утверждённом рисунке кольцо перекрыто
+   буквой и физически не нарисовано), выглядела как оторвавшаяся искра без видимого пути. Контур
+   специально бледный (не конкурирует с золотым кольцом на самом растре) — просто даёт глазу
+   опору для движения точки по всему кругу, а не только по видимой части референса. */
+.atlas-mark-track { position: absolute; left: 49.67%; top: 67.07%; width: 112.05%; height: 37.4%; transform: translate(-50%,-50%) rotate(-28deg); border-radius: 50%; border: 1px solid rgba(201,168,76,.22); pointer-events: none; }
+.atlas-mark-dot { position: absolute; width: 4.6%; height: 4.6%; left: 0; top: 0; border-radius: 50%; background: radial-gradient(circle at 32% 28%, #fde9b8, #e8c84a 45%, #8a5a1e 100%); box-shadow: 0 0 6px rgba(201,168,76,.75); pointer-events: none; will-change: transform; }
+.atlas-mark--listening .atlas-mark-glow { opacity: calc(.22 + var(--atlas-level, 0) * .6); }
+.atlas-mark--listening .atlas-mark-img { filter: drop-shadow(0 0 calc(6px + var(--atlas-level, 0) * 22px) rgba(201,168,76,.65)); }
+.atlas-mark--thinking .atlas-mark-glow, .atlas-mark--transcribing .atlas-mark-glow { opacity: .3; animation: atlasPulse 1.4s ease-in-out infinite; }
+.atlas-mark--confirmation .atlas-mark-glow { opacity: .26; background: radial-gradient(circle, rgba(230,190,90,.5), transparent 68%); animation: atlasPulse 2.2s ease-in-out infinite; }
+.atlas-mark--success .atlas-mark-glow { opacity: .5; background: radial-gradient(circle, rgba(120,200,140,.5), transparent 68%); }
+.atlas-mark--error .atlas-mark-glow { opacity: .5; background: radial-gradient(circle, rgba(255,90,90,.5), transparent 68%); }
+@keyframes atlasPulse { 0%,100% { opacity: .2; } 50% { opacity: .5; } }
+.atlas-mark-btn { border: 0; background: none; padding: 0; display: block; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.atlas-mark-btn:active { transform: scale(.97); }
+.atlas-header-wrap { height: 0; overflow: visible; }
+.atlas-header-mark { --atlas-size: 40px; margin: 4px auto 10px; }
+.atlas-header-enter .atlas-header-mark { animation: atlasHeaderIn .5s cubic-bezier(.16,.84,.28,1) both; }
+@keyframes atlasHeaderIn { from { opacity: 0; transform: translateY(-8px) scale(.7); } to { opacity: 1; transform: none; } }
+.nav-atlas-mark { width: 27px; height: auto; display: block; }
+@media (prefers-reduced-motion: reduce) {
+  .atlas-mark-dot, .atlas-mark-track { display: none; }
+  .atlas-mark-img, .atlas-mark-glow { transition: none; }
+  .atlas-header-enter .atlas-header-mark { animation: none; }
+}
 .ai-messages { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 8px max(20px, env(safe-area-inset-right, 0px)) 16px max(20px, env(safe-area-inset-left, 0px)); }
 .ai-msg { display: flex; max-width: 88%; }
 .ai-msg-user { align-self: flex-end; justify-content: flex-end; }
@@ -1960,7 +1996,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.29.3';
+  const APP_VERSION = '0.30.0';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -2014,6 +2050,73 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     timerHandle: null,
     locked: false, // запись идёт без удержания пальца — остановится по повторному тапу, не по отпусканию
   };
+  // -------- Atlas — фирменный знак (assets/atlas/mark.png), см. CSS-комментарий у .atlas-mark --------
+  // Геометрия орбиты замерена по самому референсному файлу (crop 307×246): эллипс с центром
+  // (152.5,165), полуосями 172×46, наклонённый на -28°. Угол t=0 (точка (rx,0) до поворота)
+  // после поворота ложится ровно на уже нарисованную на растре сферу — свежедобавленная точка
+  // стартует без видимого прыжка.
+  const ATLAS_ICON_W = 307, ATLAS_ICON_H = 246;
+  const ATLAS_ORBIT = { cx: 152.5, cy: 165, rx: 172, ry: 46, theta: -28 * Math.PI / 180 };
+  function atlasOrbitPoint(t) {
+    const ux = ATLAS_ORBIT.rx * Math.cos(t), uy = ATLAS_ORBIT.ry * Math.sin(t);
+    const cosT = Math.cos(ATLAS_ORBIT.theta), sinT = Math.sin(ATLAS_ORBIT.theta);
+    return {
+      xPct: (ATLAS_ORBIT.cx + ux * cosT - uy * sinT) / ATLAS_ICON_W * 100,
+      yPct: (ATLAS_ORBIT.cy + ux * sinT + uy * cosT) / ATLAS_ICON_H * 100,
+    };
+  }
+  // Секунд на оборот по состоянию — покой медленный и ровный, запись/обработка заметно живее;
+  // сама запись ещё и явно реагирует на громкость голоса через --atlas-level (см. meterAiMicLevel).
+  const ATLAS_ORBIT_SPEED = { idle: 10, listening: 4, transcribing: 6, thinking: 5, confirmation: 8, success: 6, error: 8 };
+  let atlasOrbitRaf = 0, atlasOrbitAngle = 0, atlasOrbitLastTs = 0;
+  // Состояние знака — производное от aiChat.status и данных последнего сообщения, а не отдельное
+  // поле: pendingActions/results уже полностью описывают "жду подтверждения"/"готово", заводить
+  // для них второй источник истины смысла нет (см. confirmAiActions/cancelAiActions).
+  function atlasVisualState() {
+    if (aiChat.status === 'listening') return 'listening';
+    if (aiChat.status === 'transcribing') return 'transcribing';
+    if (aiChat.status === 'thinking') return 'thinking';
+    const last = aiChat.messages[aiChat.messages.length - 1];
+    if (last?.role === 'error') return 'error';
+    if (last?.pendingActions?.length) return 'confirmation';
+    if (last?.results) return 'success';
+    return 'idle';
+  }
+  function runAtlasOrbitFrame(ts) {
+    if (!atlasOrbitLastTs) atlasOrbitLastTs = ts;
+    const dt = (ts - atlasOrbitLastTs) / 1000;
+    atlasOrbitLastTs = ts;
+    const speed = ATLAS_ORBIT_SPEED[atlasVisualState()] || ATLAS_ORBIT_SPEED.idle;
+    atlasOrbitAngle = (atlasOrbitAngle + dt * (2 * Math.PI / speed)) % (2 * Math.PI);
+    const { xPct, yPct } = atlasOrbitPoint(atlasOrbitAngle);
+    $$('.atlas-mark-dot').forEach(el => { el.style.transform = `translate(${xPct}%, ${yPct}%) translate(-50%,-50%)`; });
+    atlasOrbitRaf = requestAnimationFrame(runAtlasOrbitFrame);
+  }
+  // Запущен только пока реально виден экран Atlas (см. вызовы в bindAiEvents/switchNav) — не
+  // гоняем rAF по всему приложению ради маленькой точки, которую всё равно не видно на других экранах.
+  function startAtlasOrbit() {
+    if (atlasOrbitRaf || reducedMotion()) return;
+    atlasOrbitLastTs = 0;
+    atlasOrbitRaf = requestAnimationFrame(runAtlasOrbitFrame);
+  }
+  function stopAtlasOrbit() {
+    cancelAnimationFrame(atlasOrbitRaf);
+    atlasOrbitRaf = 0;
+    atlasOrbitLastTs = 0;
+  }
+  const AI_QUICK_PROMPTS = ['Что сегодня?', 'Добавь расход', 'Отметь привычку', 'Что на завтра?'];
+  // interactive — оборачивается кнопкой-триггером записи снаружи (см. renderAiIdle), сам по себе
+  // компонент кнопкой не является (используется и как некликабельная маленькая метка в шапке
+  // чата и в нижней навигации).
+  function renderAtlasMark({ size = 160, withGlow = true, extraClass = '' } = {}) {
+    const state = atlasVisualState();
+    return `<div class="atlas-mark atlas-mark--${state}${extraClass ? ' ' + extraClass : ''}" style="--atlas-size:${size}px">
+      ${withGlow ? '<div class="atlas-mark-glow" aria-hidden="true"></div>' : ''}
+      ${withGlow ? '<div class="atlas-mark-track" aria-hidden="true"></div>' : ''}
+      <img class="atlas-mark-img" src="assets/atlas/mark.png" alt="" draggable="false">
+      ${withGlow ? '<span class="atlas-mark-dot" aria-hidden="true"></span>' : ''}
+    </div>`;
+  }
   const RED = '#ff5a5a';
   const GREEN = '#4caf50';
   const DAY_ITEM_WIDTH = 56;
@@ -2599,8 +2702,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   const navItems = [
     ['bank','Финансы'],['calendar','Планер'],['mic','Главная'],['target','Привычки'],['article','Новости']
   ];
+  // Центральная вкладка — маленький фирменный знак Atlas (assets/atlas/mark.png), а не иконка
+  // микрофона: сам микрофон остаётся отдельным легитимным элементом только внутри композера
+  // (см. .ai-inputbar-mic) — здесь именно бренд-марка раздела, статичная (без орбиты — живая
+  // анимация только на самом экране Atlas, см. startAtlasOrbit/stopAtlasOrbit).
   function renderNav() {
-    $('#bottom-nav').innerHTML = navItems.map((it,i)=>`<button class="nav-item ${i===state.nav?'active':''} ${i===2?'nav-center':''}" data-nav="${i}" aria-label="${it[1]}">${i===2?`<span class="nav-icon-wrap">${icon(it[0])}</span>`:icon(it[0])}</button>`).join('');
+    $('#bottom-nav').innerHTML = navItems.map((it,i)=>`<button class="nav-item ${i===state.nav?'active':''} ${i===2?'nav-center':''}" data-nav="${i}" aria-label="${it[1]}">${i===2?`<span class="nav-icon-wrap"><img class="nav-atlas-mark" src="assets/atlas/mark.png" alt="" draggable="false"></span>`:icon(it[0])}</button>`).join('');
   }
   function switchNav(index) {
     if(index===state.nav||index<0||index>=navItems.length)return;
@@ -5870,9 +5977,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function renderAiIdle(){
     const listening = aiChat.status==='listening';
     return `<div class="ai-idle">
-      <button class="home-mic ai-idle-mic pressable ${listening?'ai-mic-active':''} ${aiChat.locked?'ai-mic-locked':''}" data-ai-mic aria-label="${listening?'Остановить запись':'Зажми, чтобы наговорить, или коротко тапни для записи без удержания'}">${icon('mic')}</button>
-      <p class="ai-idle-title">Атлас</p>
-      <p class="ai-idle-hint">${listening?`<span class="ai-listening-dot" aria-hidden="true"></span> ${aiListeningLabel()}`:'Зажми микрофон и говори, или напиши внизу'}</p>
+      <button type="button" class="atlas-mark-btn pressable" data-ai-mic aria-label="${listening?'Остановить запись':'Тапни, чтобы наговорить Атласу, или коротко для записи без удержания'}">${renderAtlasMark({size:168})}</button>
+      <img class="ai-word" src="assets/atlas/wordmark.png" alt="Atlas">
+      <p class="ai-idle-hint">${listening?`<span class="ai-listening-dot" aria-hidden="true"></span> ${aiListeningLabel()}`:'Тапни по знаку и говори, или напиши внизу'}</p>
+      <div class="ai-quick-row">${AI_QUICK_PROMPTS.map(q=>`<button type="button" class="ai-quick-chip pressable" data-ai-quick="${esc(q)}">${esc(q)}</button>`).join('')}</div>
     </div>`;
   }
 
@@ -5887,12 +5995,20 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `Слушаю… ${timer} · ${hint}`;
   }
 
+  // justEntered — переход из большого знака в маленький играется РОВНО ОДИН РАЗ, в момент, когда
+  // aiChat.messages впервые становится непустым (см. п. ТЗ "плавный переход большой лого → шапка
+  // чата после первого сообщения") — на каждом следующем ре-рендере (новое сообщение, статус)
+  // aiHeaderAnimated уже true, и класс входа больше не добавляется.
+  let aiHeaderAnimated = false;
   function renderAiMessages(){
+    const justEntered = !aiHeaderAnimated;
+    aiHeaderAnimated = true;
     const rows = aiChat.messages.map((m,i)=>renderAiMessage(m,i)).join('');
     const statusRow = (aiChat.status==='transcribing'||aiChat.status==='thinking')
       ? `<div class="ai-msg ai-msg-ai ai-msg-status">${renderDnaLoader(aiChat.status==='transcribing'?'Распознаю речь…':'Думаю…',true)}</div>`
       : (aiChat.status==='listening' ? `<div class="ai-msg ai-msg-status ai-msg-listening"><span class="ai-listening-dot" aria-hidden="true"></span> ${aiListeningLabel()}</div>` : '');
-    return `<div class="ai-messages" data-ai-messages>${rows}${statusRow}</div>`;
+    const header = `<div class="atlas-header-wrap${justEntered?' atlas-header-enter':''}">${renderAtlasMark({size:40,withGlow:false,extraClass:'atlas-header-mark'})}</div>`;
+    return `<div class="ai-messages" data-ai-messages>${header}${rows}${statusRow}</div>`;
   }
 
   function renderAiMessage(m,i){
@@ -5972,7 +6088,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Здесь показывается только текущая версия (см. ef591d4 — раньше уже было так же, но список снова разросся до полной истории). Свайпы в «Финансах» на круге и вкладках заработали — раньше нативный скролл телефона перехватывал жест раньше, чем его успевал увидеть JS; зона свайпа круга расширена на всю строку, а не только сам круг. Сумма операции — красным при расходе, серым при переводе в цель (раньше расход вообще не получал цвета). Подставной шрифт цифр сменился с гротескного на засечечный — вписывается в общую атмосферу Georgia, оставаясь ровным по ширине.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Редизайн экрана Atlas по новому фирменному знаку: буква A с орбитой и сферой — настоящая иллюстрация вместо иконки микрофона, с живой медленной орбитой в покое, реальной реакцией свечения на громкость голоса во время записи и плавным переходом в маленький знак над перепиской после первого сообщения. Знак в нижней навигации тоже сменился с иконки микрофона на фирменную марку. На главном экране появились 4 кнопки быстрых команд.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -6247,6 +6363,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     });
     $$('[data-ai-confirm]').forEach(b=>b.addEventListener('click',()=>confirmAiActions(+b.dataset.aiConfirm)));
     $$('[data-ai-cancel]').forEach(b=>b.addEventListener('click',()=>cancelAiActions(+b.dataset.aiCancel)));
+    $$('[data-ai-quick]').forEach(b=>b.addEventListener('click',()=>{
+      if(aiChat.status!=='idle')return;
+      sendAiText(b.dataset.aiQuick);
+    }));
     const messagesEl=$('[data-ai-messages]');
     if(messagesEl)messagesEl.scrollTop=messagesEl.scrollHeight;
   }
@@ -6374,6 +6494,40 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
 
   // -------- AI: запись голоса (MediaRecorder) --------
+  // -------- Atlas: реальный уровень громкости во время записи (не имитация) --------
+  // AnalyserNode на том же MediaStream, что уже открыт для MediaRecorder — второй getUserMedia
+  // не нужен. Пишем 0..1 в CSS-переменную --atlas-level прямо на .atlas-mark (её же читает
+  // .atlas-mark--listening в CSS для свечения/тени — см. атлас-CSS выше) — если знак сейчас не
+  // на экране (например запись держится клавиатурой на другом фокусе), просто нечего обновлять,
+  // querySelectorAll молча вернёт пусто.
+  let aiMicMeterCtx=null, aiMicMeterRaf=0;
+  function startAiMicMeter(stream){
+    try{
+      const Ctx=window.AudioContext||window.webkitAudioContext;
+      if(!Ctx)return;
+      const ctx=new Ctx();
+      const analyser=ctx.createAnalyser();
+      analyser.fftSize=256;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      aiMicMeterCtx=ctx;
+      const data=new Uint8Array(analyser.frequencyBinCount);
+      const tick=()=>{
+        analyser.getByteTimeDomainData(data);
+        let sum=0;
+        for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;sum+=v*v;}
+        const level=Math.min(1,Math.sqrt(sum/data.length)*3.2);
+        $$('.atlas-mark').forEach(el=>el.style.setProperty('--atlas-level',level.toFixed(3)));
+        aiMicMeterRaf=requestAnimationFrame(tick);
+      };
+      aiMicMeterRaf=requestAnimationFrame(tick);
+    }catch(_){ /* метрика — украшение, без неё запись всё равно работает */ }
+  }
+  function stopAiMicMeter(){
+    cancelAnimationFrame(aiMicMeterRaf); aiMicMeterRaf=0;
+    aiMicMeterCtx?.close?.().catch(()=>{});
+    aiMicMeterCtx=null;
+    $$('.atlas-mark').forEach(el=>el.style.setProperty('--atlas-level','0'));
+  }
   async function startAiRecording(){
     if(aiChat.status!=='idle')return;
     try{
@@ -6384,6 +6538,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       recorder.ondataavailable=e=>{ if(e.data && e.data.size>0) aiChat.chunks.push(e.data); };
       recorder.onstop=()=>{ stream.getTracks().forEach(t=>t.stop()); };
       recorder.start();
+      startAiMicMeter(stream);
       aiChat.status='listening';
       aiChat.recordStartedAt=Date.now();
       clearInterval(aiChat.timerHandle);
@@ -6414,6 +6569,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     clearInterval(aiChat.timerHandle);
     aiChat.timerHandle=null;
     aiChat.locked=false;
+    stopAiMicMeter();
     const recorder=aiChat.recorder;
     if(!recorder||recorder.state==='inactive'){
       if(aiChat.status==='listening')aiChat.status='idle';
@@ -7453,6 +7609,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(state.nav===1) bindPlannerEvents();
     if(state.nav===2) bindHomeEvents();
     if(state.nav===3) bindHabitsEvents();
+    // Живая орбита знака Atlas — только пока реально виден сам экран Atlas (nav===2 и не
+    // Настройки/Панель поверх него), синхронизируется на КАЖДОМ рендере экрана, а не в
+    // отдельных местах смены nav/homePanel — так не нужно ловить каждую точку перехода.
+    if(state.nav===2 && homePanel==='main') startAtlasOrbit(); else stopAtlasOrbit();
   }
   function bindTransactionGestures() {
     $$('.tx-interactive').forEach(el=>{
