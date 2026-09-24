@@ -18,6 +18,11 @@ import { runDailyDigests } from './digest.js';
 import { renderScreen, runAction, renderHome, renderToMainMenu, renderAiPlanScreen } from './bot.js';
 import { createYandexProvider } from './ai/provider.js';
 import { planTurn, confirmActions } from './ai/router.js';
+import { logAiUsage, getUsageOverview } from './ai/usage.js';
+import {
+  tryUnlockAdmin, isUserAdmin, redeemPromoCode, createPromoCode, listPromoCodes,
+  submitSupportMessage, listSupportMessages,
+} from './admin.js';
 
 // Полчаса — достаточно, чтобы спокойно открыть одну и ту же ссылку и с телефона, и с
 // компьютера, не отправляя /start заново под каждое устройство (ссылка теперь не
@@ -93,7 +98,8 @@ async function handleTelegramAuthVerify(req, env, firestore) {
   // пользователь ещё даже не открыл приложение), см. renderToMainMenu ниже в handleTelegramLinkAuth.
   // Если у пользователя ни разу не было диалога с ботом (вход только через виджет на сайте),
   // отправка сообщения ожидаемо не удастся — это не должно ломать сам вход.
-  await renderToMainMenu(env, firestore, env.TELEGRAM_BOT_TOKEN, uid, payload.id, renderHome())
+  const widgetLoginUser = await firestore.getDoc(`users/${uid}`);
+  await renderToMainMenu(env, firestore, env.TELEGRAM_BOT_TOKEN, uid, payload.id, renderHome(!!widgetLoginUser?.isAdmin))
     .catch((err) => console.error('renderToMainMenu (post-login, widget) failed', err));
   return json({ customToken }, 200, CORS_HEADERS);
 }
@@ -128,7 +134,8 @@ async function handleTelegramLinkAuth(req, env, firestore) {
   // Главное меню создаётся и закрепляется здесь, а не в /start — по задумке оно должно
   // появляться только после того, как регистрация реально завершена (пользователь открыл
   // приложение по ссылке и вошёл), а не сразу при нажатии /start, когда аккаунта ещё нет.
-  await renderToMainMenu(env, firestore, env.TELEGRAM_BOT_TOKEN, uid, data.telegramId, renderHome())
+  const linkLoginUser = await firestore.getDoc(`users/${uid}`);
+  await renderToMainMenu(env, firestore, env.TELEGRAM_BOT_TOKEN, uid, data.telegramId, renderHome(!!linkLoginUser?.isAdmin))
     .catch((err) => console.error('renderToMainMenu (post-login) failed', err));
   return json({ customToken }, 200, CORS_HEADERS);
 }
@@ -178,6 +185,29 @@ async function handleTelegramFreeText(env, firestore, token, message) {
     await renderToMainMenu(env, firestore, token, uid, message.chat.id, payload, { forceNew: true });
     return;
   }
+  // "✉️ Поддержка" в главном меню (см. renderHome/runAction в bot.js) ставит этот флаг перед
+  // тем, как ждать следующее сообщение как текст обращения — тот же паттерн, что и
+  // pendingFinanceInput выше.
+  if (user && user.pendingSupportInput) {
+    await firestore.mergeDoc(`users/${uid}`, { pendingSupportInput: null });
+    await submitSupportMessage(firestore, { uid, text: message.text, source: 'telegram' });
+    await sendMessage(token, message.chat.id, '✅ Спасибо! Сообщение передано в поддержку.');
+    return;
+  }
+  // Промокод — просто присланный текст, без отдельной кнопки (по просьбе пользователя: "можно
+  // было просто прислать промокоды"). Короткий алфанумерик без пробелов сверяется с реальным
+  // промокодом (см. generatePromoCode в admin.js) одним прямым getDoc по имени документа — не
+  // тратим AI-вызов на распознавание того, что это вообще такое, и не путаем обычные вопросы к
+  // ассистенту (в них почти всегда есть пробелы/пунктуация) с кодом.
+  const trimmedText = String(message.text || '').trim();
+  if (/^[A-Za-z0-9-]{4,20}$/.test(trimmedText)) {
+    const promo = await firestore.getDoc(`promoCodes/${trimmedText.toUpperCase()}`);
+    if (promo) {
+      const result = await redeemPromoCode(firestore, uid, trimmedText);
+      await sendMessage(token, message.chat.id, result.ok ? '🎉 Промокод активирован!' : `❌ ${escapeHtml(result.error)}`);
+      return;
+    }
+  }
   // Любой другой текст (не команда, не ожидаемая сумма) — тот же AI-ассистент, что и в
   // приложении (см. п.24 исходной просьбы: "та же схема AI работает и для Telegram, не
   // создавать отдельную AI-логику"). planTurn/confirmActions — общие с handleAiChat в этом же
@@ -189,10 +219,14 @@ async function handleTelegramFreeText(env, firestore, token, message) {
 // AI нашёл действия, они кладутся в users/{uid}.pendingAiActions и ждут подтверждения кнопками
 // "✅ Добавить всё"/"❌ Отмена" (см. runAction#aiconfirm в bot.js) — тот же принцип "ничего не
 // применяется без явного согласия", что и в приложении.
-async function handleAiTurn(env, firestore, token, uid, chatId, text) {
+async function handleAiTurn(env, firestore, token, uid, chatId, text, source = 'telegram_text') {
   try {
     const provider = createYandexProvider(env);
     const plan = await planTurn(provider, firestore, uid, text);
+    await logAiUsage(firestore, {
+      uid, source, kind: 'gpt', model: plan.usage?.model,
+      inputTokens: plan.usage?.inputTokens, outputTokens: plan.usage?.outputTokens,
+    });
     await firestore.mergeDoc(`users/${uid}`, { pendingAiActions: plan.actions.length ? plan.actions : null });
     // forceNew — ответ AI всегда заново отправляется внизу чата, у самого поля ввода, а не
     // редактирует старое сообщение на его прежнем месте (оно могло уже уйти вверх под новыми
@@ -228,12 +262,13 @@ async function handleTelegramVoice(env, firestore, token, message) {
     const audioBytes = await new Response(file.body).arrayBuffer();
     const provider = createYandexProvider(env);
     const transcript = await provider.transcribe(audioBytes, { format: 'oggopus' });
+    await logAiUsage(firestore, { uid, source: 'telegram_voice', kind: 'stt', speechSeconds: message.voice.duration });
     if (!transcript.trim()) {
       await sendMessage(token, message.chat.id, 'Не удалось распознать речь — попробуй ещё раз или напиши текстом.');
       return;
     }
     await sendMessage(token, message.chat.id, `🎤 <i>${escapeHtml(transcript)}</i>`);
-    await handleAiTurn(env, firestore, token, uid, message.chat.id, transcript);
+    await handleAiTurn(env, firestore, token, uid, message.chat.id, transcript, 'telegram_voice');
   } catch (err) {
     console.error('handleTelegramVoice failed', err);
     await sendMessage(token, message.chat.id, `🤖 Не получилось распознать голос: ${escapeHtml(String(err.message || err))}`);
@@ -270,22 +305,40 @@ async function handleTelegramWebhook(req, env, firestore) {
       });
     } else if (update.message && update.message.text === '/menu') {
       const from = update.message.from;
+      const uid = uidForTelegramId(from.id);
+      const homeUser = await firestore.getDoc(`users/${uid}`);
       // /menu просто обновляет то же закреплённое сообщение до "Главного меню" — не шлёт
       // отдельную свежую копию (см. просьбу пользователя не плодить сообщения; закреплённое
       // всегда доступно через шапку чата Telegram, прокручивать вверх вручную не нужно).
       // repair:true — форсирует unpinAll+pin даже если правка текста прошла успешно: если из-за
       // прошлых сбоев/пересозданий в чате незаметно накопилось несколько пинов сразу (Telegram
       // их не заменяет автоматически), /menu как раз естественная команда "почини мне меню".
-      await renderToMainMenu(env, firestore, token, uidForTelegramId(from.id), from.id, renderHome(), { repair: true });
+      await renderToMainMenu(env, firestore, token, uid, from.id, renderHome(!!homeUser?.isAdmin), { repair: true });
+    } else if (update.message && /^\/admin(\s|$)/.test(update.message.text || '')) {
+      // Секретный вход в панель разработчика прямо в боте (по просьбе пользователя — "можно
+      // было просто прислать") — пароль хранится ТОЛЬКО как секрет Worker'а (env.ADMIN_SECRET),
+      // см. tryUnlockAdmin в admin.js. Пароль неизбежно виден в истории переписки с ботом самого
+      // владельца — для личного бота с одним владельцем это приемлемо.
+      const from = update.message.from;
+      const uid = uidForTelegramId(from.id);
+      const password = update.message.text.replace(/^\/admin\s*/, '').trim();
+      if (!password) {
+        await sendMessage(token, from.id, 'Пришли пароль вторым словом: <code>/admin &lt;пароль&gt;</code>');
+      } else {
+        const result = await tryUnlockAdmin(firestore, env, uid, password);
+        await sendMessage(token, from.id, result.ok
+          ? '✅ Панель разработчика разблокирована — она появится в Главном меню.'
+          : `❌ ${escapeHtml(result.error || 'не удалось')}`);
+      }
     } else if (update.callback_query && String(update.callback_query.data).startsWith('s:')) {
       const cq = update.callback_query;
       const uid = uidForTelegramId(cq.from.id);
       const screen = cq.data.slice('s:'.length);
       // Любой обычный переход по меню (включая "❌ Отмена" на экране приглашения, см.
       // renderFinancePromptScreen, и уход с экрана подтверждения действий AI, см.
-      // renderAiPlanScreen) снимает оба "жду чего-то" состояния — иначе залипли бы навсегда,
+      // renderAiPlanScreen) снимает все "жду чего-то" состояния — иначе залипли бы навсегда,
       // если пользователь передумал и ушёл в другой раздел, ничего не подтвердив/не написав.
-      await firestore.mergeDoc(`users/${uid}`, { pendingFinanceInput: null, pendingAiActions: null });
+      await firestore.mergeDoc(`users/${uid}`, { pendingFinanceInput: null, pendingAiActions: null, pendingSupportInput: null });
       const payload = await renderScreen(env, firestore, uid, screen);
       await answerCallbackQuery(token, cq.id);
       await renderToMainMenu(env, firestore, token, uid, cq.message.chat.id, payload);
@@ -398,6 +451,10 @@ async function handleAiChat(req, env, firestore) {
   try {
     const provider = createYandexProvider(env);
     const plan = await planTurn(provider, firestore, uid, text);
+    await logAiUsage(firestore, {
+      uid, source: 'web_text', kind: 'gpt', model: plan.usage?.model,
+      inputTokens: plan.usage?.inputTokens, outputTokens: plan.usage?.outputTokens,
+    });
     return json(plan, 200, AI_CORS_HEADERS);
   } catch (err) {
     console.error('handleAiChat failed', err);
@@ -438,10 +495,15 @@ async function handleAiVoice(req, env, firestore) {
   try {
     const provider = createYandexProvider(env);
     const transcript = await provider.transcribe(audioBytes, { format: 'lpcm', sampleRateHertz });
+    await logAiUsage(firestore, { uid, source: 'web_voice', kind: 'stt', speechSeconds: durationSeconds });
     if (!transcript.trim()) {
       return json({ transcript: '', error: 'empty_transcript' }, 200, AI_CORS_HEADERS);
     }
     const plan = await planTurn(provider, firestore, uid, transcript);
+    await logAiUsage(firestore, {
+      uid, source: 'web_voice', kind: 'gpt', model: plan.usage?.model,
+      inputTokens: plan.usage?.inputTokens, outputTokens: plan.usage?.outputTokens,
+    });
     return json({ transcript, ...plan }, 200, AI_CORS_HEADERS);
   } catch (err) {
     console.error('handleAiVoice failed', err);
@@ -467,6 +529,88 @@ async function handleAiConfirm(req, env, firestore) {
   return json({ results }, 200, AI_CORS_HEADERS);
 }
 
+// Секретный вход в панель разработчика из приложения (веб-версия "/admin <пароль>" в боте —
+// см. handleTelegramWebhook) — пароль сверяется с env.ADMIN_SECRET, сам никогда не попадает
+// в Firestore или код, только флаг isAdmin на уже вошедшем пользователе.
+async function handleAdminUnlock(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  const body = await req.json().catch(() => ({}));
+  const result = await tryUnlockAdmin(firestore, env, uid, body.password);
+  return json(result, result.ok ? 200 : 403, AI_CORS_HEADERS);
+}
+
+// Данные для панели разработчика: AI-траты (см. usage.js), обращения в поддержку, промокоды —
+// одним запросом, чтобы не плодить round-trips на каждый виджет панели.
+async function handleAdminSummary(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  if (!(await isUserAdmin(firestore, uid))) return json({ error: 'forbidden' }, 403, AI_CORS_HEADERS);
+  const [usage, support, promoCodes] = await Promise.all([
+    getUsageOverview(firestore),
+    listSupportMessages(firestore),
+    listPromoCodes(firestore),
+  ]);
+  return json({ usage, support, promoCodes }, 200, AI_CORS_HEADERS);
+}
+
+async function handleAdminCreatePromo(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  if (!(await isUserAdmin(firestore, uid))) return json({ error: 'forbidden' }, 403, AI_CORS_HEADERS);
+  const body = await req.json().catch(() => ({}));
+  const code = await createPromoCode(firestore, { maxUses: body.maxUses, note: body.note });
+  return json({ code }, 200, AI_CORS_HEADERS);
+}
+
+// Активация промокода — доступна любому вошедшему пользователю (не только админу), это же
+// действие доступно и прямо в Telegram простой отправкой кода текстом (см. handleTelegramFreeText).
+async function handlePromoRedeem(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  const body = await req.json().catch(() => ({}));
+  const result = await redeemPromoCode(firestore, uid, body.code);
+  return json(result, result.ok ? 200 : 400, AI_CORS_HEADERS);
+}
+
+async function handleSupportSend(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  const body = await req.json().catch(() => ({}));
+  const result = await submitSupportMessage(firestore, { uid, text: body.text, source: 'web' });
+  return json(result, result.ok ? 200 : 400, AI_CORS_HEADERS);
+}
+
 export default {
   async fetch(req, env) {
     const firestore = createFirestoreClient(env.FIREBASE_PROJECT_ID, env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY);
@@ -487,6 +631,16 @@ export default {
         return handleAiVoice(req, env, firestore);
       case '/ai/confirm':
         return handleAiConfirm(req, env, firestore);
+      case '/admin/unlock':
+        return handleAdminUnlock(req, env, firestore);
+      case '/admin/summary':
+        return handleAdminSummary(req, env, firestore);
+      case '/admin/promo/create':
+        return handleAdminCreatePromo(req, env, firestore);
+      case '/promo/redeem':
+        return handlePromoRedeem(req, env, firestore);
+      case '/support/send':
+        return handleSupportSend(req, env, firestore);
       default:
         return new Response('not found', { status: 404 });
     }

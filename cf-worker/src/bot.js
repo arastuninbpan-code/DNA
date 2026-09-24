@@ -21,6 +21,8 @@ import {
 import { computeHabitStreaks } from './streaks.js';
 import { sendMessage, editMessageText, pinChatMessage, getChat, unpinAllChatMessages, deleteMessage } from './telegram.js';
 import { confirmActions } from './ai/router.js';
+import { getUsageOverview } from './ai/usage.js';
+import { isUserAdmin, listSupportMessages, listPromoCodes, createPromoCode } from './admin.js';
 
 const EVENT_LIST_CAP = 8;
 const HABIT_LIST_CAP = 12;
@@ -104,14 +106,101 @@ function pickBestActiveStreak(streaks, list, key) {
 }
 
 // -------- Главное меню (пинится один раз, содержимое всегда одно и то же) --------
-export function renderHome() {
+// isAdmin — показывать ли пункт "Панель разработчика" (см. isUserAdmin в admin.js); "Поддержка"
+// видна всем — пользователю не нужен особый статус, чтобы написать разработчику.
+export function renderHome(isAdmin = false) {
+  const rows = [
+    [{ text: '💰 Финансы', callback_data: 's:finance' }, { text: '📅 События', callback_data: 's:events' }],
+    [{ text: '🔥 Привычки', callback_data: 's:habits' }, { text: '📰 Новости', callback_data: 's:news' }],
+    [{ text: '📊 Сегодня', callback_data: 's:today' }],
+    [{ text: '✉️ Поддержка', callback_data: 'a:supportprompt' }],
+  ];
+  if (isAdmin) rows.push([{ text: '🛠 Панель разработчика', callback_data: 's:admin' }]);
   return {
     text: '🏠 <b>Главное меню</b>\n\nЧто хочешь открыть?',
+    reply_markup: { inline_keyboard: rows },
+  };
+}
+
+function renderSupportPromptScreen() {
+  return {
+    text: '✉️ <b>Поддержка</b>\n\nНапиши, что случилось — сообщение получит разработчик.',
+    reply_markup: { inline_keyboard: [[{ text: '❌ Отмена', callback_data: 's:home' }]] },
+  };
+}
+
+// -------- Панель разработчика — см. просьбу пользователя: секретный пароль (/admin <пароль>,
+// см. index.js) открывает эти экраны только тому, у кого isAdmin=true на users/{uid}. Минимальная
+// версия: сколько AI стоит (см. usage.js — то, ради чего затевался аудит AI-расходов), обращения
+// в поддержку (и с сайта, и из бота — оба пишут в supportMessages, см. admin.js), промокоды.
+function rubText(n) {
+  return `${(Math.round((n || 0) * 100) / 100).toLocaleString('ru-RU')} ₽`;
+}
+
+async function renderAdminScreen(firestore, uid) {
+  if (!(await isUserAdmin(firestore, uid))) return renderHome(false);
+  const [usage, support, promoCodes] = await Promise.all([
+    getUsageOverview(firestore), listSupportMessages(firestore, 5), listPromoCodes(firestore),
+  ]);
+  const newSupport = support.filter((m) => m.status === 'new').length;
+  return {
+    text: [
+      '🛠 <b>Панель разработчика</b>', '',
+      `💸 AI сегодня: ${rubText(usage.today.gptCostRub + usage.today.sttCostRub)} · ${usage.today.requests} запрос(ов)`,
+      `✉️ Обращения: ${support.length}${newSupport ? ` (новых: ${newSupport})` : ''}`,
+      `🎟 Промокодов: ${promoCodes.length}`,
+    ].join('\n'),
     reply_markup: {
       inline_keyboard: [
-        [{ text: '💰 Финансы', callback_data: 's:finance' }, { text: '📅 События', callback_data: 's:events' }],
-        [{ text: '🔥 Привычки', callback_data: 's:habits' }, { text: '📰 Новости', callback_data: 's:news' }],
-        [{ text: '📊 Сегодня', callback_data: 's:today' }],
+        [{ text: '💸 AI-траты', callback_data: 's:admin:usage' }],
+        [{ text: '✉️ Обращения', callback_data: 's:admin:support' }],
+        [{ text: '🎟 Промокоды', callback_data: 's:admin:promo' }],
+        [{ text: '🏠 Главное меню', callback_data: 's:home' }],
+      ],
+    },
+  };
+}
+
+async function renderAdminUsageScreen(firestore, uid) {
+  if (!(await isUserAdmin(firestore, uid))) return renderHome(false);
+  const usage = await getUsageOverview(firestore);
+  const line = (label, t) => `<b>${label}</b>: ${rubText(t.gptCostRub + t.sttCostRub)} · GPT ${rubText(t.gptCostRub)} · STT ${rubText(t.sttCostRub)} · ${t.requests} запрос(ов) · ${t.inputTokens + t.outputTokens} токенов`;
+  return {
+    text: [
+      '💸 <b>AI-траты</b>', '',
+      line('Сегодня', usage.today),
+      line('7 дней', usage.week),
+      line('30 дней', usage.month),
+      '', 'Тарифы приблизительные — см. cf-worker/src/ai/pricing.js',
+    ].join('\n'),
+    reply_markup: { inline_keyboard: [[{ text: '🛠 Назад', callback_data: 's:admin' }]] },
+  };
+}
+
+async function renderAdminSupportScreen(firestore, uid) {
+  if (!(await isUserAdmin(firestore, uid))) return renderHome(false);
+  const messages = await listSupportMessages(firestore, 10);
+  const lines = messages.length
+    ? messages.map((m) => `${m.status === 'new' ? '🆕' : '·'} <i>${escapeHtml(m.source)}</i> · <code>${escapeHtml(m.uid)}</code>\n${escapeHtml(m.text)}`).join('\n\n')
+    : 'Пока пусто.';
+  return {
+    text: `✉️ <b>Обращения в поддержку</b>\n\n${lines}`,
+    reply_markup: { inline_keyboard: [[{ text: '🛠 Назад', callback_data: 's:admin' }]] },
+  };
+}
+
+async function renderAdminPromoScreen(firestore, uid) {
+  if (!(await isUserAdmin(firestore, uid))) return renderHome(false);
+  const codes = await listPromoCodes(firestore);
+  const lines = codes.length
+    ? codes.map((c) => `<code>${escapeHtml(c.code)}</code> — использован ${c.usedCount || 0}${c.maxUses != null ? `/${c.maxUses}` : ''} раз`).join('\n')
+    : 'Пока нет ни одного кода.';
+  return {
+    text: `🎟 <b>Промокоды</b>\n\n${lines}`,
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '➕ Создать код', callback_data: 'a:promocreate' }],
+        [{ text: '🛠 Назад', callback_data: 's:admin' }],
       ],
     },
   };
@@ -448,7 +537,12 @@ export async function renderScreen(env, firestore, uid, screen) {
   if (screen.startsWith('finance:prompt:')) return renderFinancePromptScreen(screen.slice('finance:prompt:'.length));
   if (screen === 'news') return renderNewsScreen();
   if (screen === 'today') return renderTodayScreen(env, firestore, uid);
-  return renderHome();
+  if (screen === 'support') return renderSupportPromptScreen();
+  if (screen === 'admin') return renderAdminScreen(firestore, uid);
+  if (screen === 'admin:usage') return renderAdminUsageScreen(firestore, uid);
+  if (screen === 'admin:support') return renderAdminSupportScreen(firestore, uid);
+  if (screen === 'admin:promo') return renderAdminPromoScreen(firestore, uid);
+  return renderHome(await isUserAdmin(firestore, uid));
 }
 
 // -------- Действия (что-то меняют, потом возвращают на какой экран отрисоваться) --------
@@ -462,6 +556,17 @@ export async function runAction(firestore, uid, action) {
     const type = action.slice('financeprompt:'.length) === 'income' ? 'income' : 'expense';
     await firestore.mergeDoc(`users/${uid}`, { pendingFinanceInput: type });
     return { toast: null, nextScreen: `finance:prompt:${type}` };
+  }
+  if (action === 'supportprompt') {
+    // Тот же паттерн, что financeprompt выше — следующее сообщение пользователя ловит
+    // pendingSupportInput в index.js#handleTelegramFreeText, а не уходит в AI.
+    await firestore.mergeDoc(`users/${uid}`, { pendingSupportInput: true });
+    return { toast: null, nextScreen: 'support' };
+  }
+  if (action === 'promocreate') {
+    if (!(await isUserAdmin(firestore, uid))) return { toast: 'Недоступно', nextScreen: 'home' };
+    const code = await createPromoCode(firestore, {});
+    return { toast: `Код создан: ${code}`, nextScreen: 'admin:promo' };
   }
   if (action === 'aiconfirm') {
     // Список действий на подтверждение не помещается в callback_data (лимит Telegram — 64

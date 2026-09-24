@@ -74,7 +74,18 @@ export function createYandexProvider(env) {
     if (!res.ok) throw new Error(`YandexGPT: ${res.status} ${await res.text()}`);
     const json = await res.json();
     const raw = json.result?.alternatives?.[0]?.message?.text || '';
-    return parseModelJson(raw);
+    // usage — реальный расход токенов из ответа модели (не оценка) — прокидывается наверх через
+    // planTurn (router.js) до конкретного вызывающего в index.js, который знает канал (source) и
+    // логирует его через logAiUsage (usage.js) — см. п.6/8 ТЗ по контролю AI-себестоимости.
+    const usage = json.result?.usage || {};
+    return {
+      ...parseModelJson(raw),
+      usage: {
+        model: 'yandexgpt-lite',
+        inputTokens: Number(usage.inputTextTokens) || 0,
+        outputTokens: Number(usage.completionTokens) || 0,
+      },
+    };
   }
 
   return { transcribe, route };

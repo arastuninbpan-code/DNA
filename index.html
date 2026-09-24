@@ -335,6 +335,9 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .settings-meta dt { font-size: 1rem; color: rgba(var(--ink),.65); }
 .settings-meta dd { margin: 0; font-size: 1.125rem; color: var(--gold2); font-variant-numeric: tabular-nums; }
 .settings-card .settings-note { font-size: .875rem; color: rgba(var(--ink),.65); }
+.settings-inline-form { display: flex; gap: 8px; align-items: center; }
+.settings-inline-form input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(var(--ink),.15); background: var(--surface); color: rgba(var(--ink),.92); font-size: .9375rem; }
+.settings-inline-form .text-btn { padding: 10px 12px; flex-shrink: 0; }
 /* Раньше все версии дописывались в один нарастающий абзац — было не видно, что именно
    изменилось В ЭТОЙ версии, только сплошное полотно текста. Теперь список по версиям, новее
    сверху, у каждой — свой заголовок с номером и короткое описание только её изменений. */
@@ -1868,7 +1871,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.26.3';
+  const APP_VERSION = '0.27.0';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -5694,6 +5697,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // (см. cf-worker/src/index.js); здесь только UI и её вызов.
   function renderHome() {
     if (homePanel==='settings') return renderHomeSettings();
+    if (homePanel==='admin') return renderHomeAdmin();
     const hasMessages = aiChat.messages.length>0;
     return `<section class="screen home-screen ai-home" aria-label="Главная — голосовой AI">
       <div class="home-toolbar"><button class="home-icon-button pressable" data-home-settings aria-label="Открыть настройки" title="Настройки">${icon('settings')}</button></div>
@@ -5803,7 +5807,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card">${renderAccountCard()}</section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
+      ${telegramProfile?renderPromoCard():''}
+      ${telegramProfile?renderSupportCard():''}
+      ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.27.0</div><p class="settings-note">Промокоды: активируются полем в Настройках или просто отправкой кода в Telegram. Поддержка: форма «Написать в поддержку» в Настройках и в Telegram — сообщения видны в новой Панели разработчика (долгое удержание номера версии открывает вход по секретному паролю), вместе со сводкой трат на AI (SpeechKit/YandexGPT) за сегодня/7/30 дней.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.26.3</div><p class="settings-note">Голосовые сообщения AI-ассистенту (в приложении и в боте) ограничены 30 секундами — при превышении запись останавливается и не отправляется на распознавание.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.26.2</div><p class="settings-note">В боте — голосовой AI теперь и там: любое текстовое или голосовое сообщение (кроме команд/кнопок) понимается ассистентом так же, как в приложении, с той же карточкой подтверждения перед применением. В «Финансах» — кнопки «➕ Пополнение»/«➖ Расход»: пишешь сумму и на что (например, «100 на шоколадку») — операция добавляется без AI, обычным разбором текста.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.26.1</div><p class="settings-note">Голосовой AI теперь прямо на главном экране, без лишнего тапа по микрофону. Запись — как в мессенджерах: держишь микрофон — идёт запись, отпустишь — останавливается; короткий тап — запись продолжается без удержания пальца до следующего тапа. Починено распознавание речи (раньше не работало из-за формата записи браузера). AI также умеет создавать разделы планера и отмечать события выполненными.</p></div>
@@ -5847,6 +5855,114 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `<div class="profile-hero">${photo}<div class="profile-hero-name">${fullName}</div></div>`;
   }
 
+  // -------- Промокод, поддержка, панель разработчика --------
+  // Общий помощник для /admin/*, /promo/*, /support/* — тот же Firebase Bearer-токен, что и у
+  // /ai/* (см. aiAuthHeaders выше), только на "нормальные" ответы с ok:false отвечаем как на
+  // успех сети (это бизнес-отказ типа "код не найден", а не сбой соединения).
+  async function backendJson(path,body){
+    const headers=await aiAuthHeaders();
+    const res=await fetch(`${TELEGRAM_WORKER_ORIGIN}${path}`,{
+      method:'POST',
+      headers:{...headers,'content-type':'application/json'},
+      body:JSON.stringify(body||{}),
+    });
+    const json=await res.json().catch(()=>({}));
+    if(!res.ok && !('ok' in json))throw aiBackendError(json,res.status);
+    return json;
+  }
+
+  function renderPromoCard(){
+    return `<section class="settings-card"><h2>Промокод</h2>
+      <form data-promo-form class="settings-inline-form"><input type="text" data-promo-code placeholder="Код" autocapitalize="characters" autocomplete="off"><button type="submit" class="text-btn">Активировать</button></form>
+      <p class="settings-note" data-promo-status>${telegramProfile.premium?`Активирован код ${esc(telegramProfile.premiumCode||'')}.`:''}</p>
+    </section>`;
+  }
+
+  function renderSupportCard(){
+    return `<section class="settings-card"><h2>Поддержка</h2>
+      <details class="settings-support"><summary class="text-btn" style="cursor:pointer">✉️ Написать в поддержку</summary>
+        <form data-support-form style="margin-top:12px">
+          <textarea data-support-text rows="3" placeholder="Опиши проблему или предложение" style="width:100%;resize:vertical" required></textarea>
+          <button type="submit" class="text-btn" style="margin-top:8px">Отправить</button>
+          <p class="settings-note" data-support-status></p>
+        </form>
+      </details>
+    </section>`;
+  }
+
+  async function unlockAdminPrompt(){
+    const password=window.prompt('Пароль панели разработчика:');
+    if(!password)return;
+    try{
+      const json=await backendJson('/admin/unlock',{password});
+      if(!json.ok){alert(json.error||'Не удалось разблокировать');return;}
+      telegramProfile={...(telegramProfile||{}),isAdmin:true};
+      saveJSON('dna_telegram_profile_cache',telegramProfile);
+      renderScreen();
+    }catch(err){
+      alert(aiErrorMessage(err));
+    }
+  }
+
+  // Долгое удержание плашки версии (отдельно от 5-тапов на Змейку — handleVersionTileTap ниже)
+  // открывает запрос секретного пароля панели разработчика. Обычный клик по завершении
+  // удержания всё равно долетит и добавит одну лишнюю метку в versionTapTimes — не мешает,
+  // порог для Змейки (5 тапов за 1.6с) всё равно не наберётся за одно долгое нажатие.
+  let versionPressTimer=null;
+  function bindVersionLongPress(el){
+    if(!el)return;
+    const cancel=()=>{clearTimeout(versionPressTimer);versionPressTimer=null;};
+    el.addEventListener('pointerdown',()=>{cancel();versionPressTimer=setTimeout(()=>{versionPressTimer=null;unlockAdminPrompt();},1500);});
+    el.addEventListener('pointerup',cancel);
+    el.addEventListener('pointerleave',cancel);
+    el.addEventListener('pointercancel',cancel);
+  }
+
+  // -------- Панель разработчика (homePanel==='admin') --------
+  // adminData — кэш последнего успешного /admin/summary; null, пока идёт первая загрузка.
+  // Синхронный renderHome() не может дождаться fetch, поэтому паттерн как у остального
+  // асинхронного контента в этом файле: рисуем то, что уже есть (или "Загрузка…"), запускаем
+  // fetch в фоне, по готовности кладём в adminData и перерисовываем.
+  let adminData=null;
+  let adminLoading=false;
+  function loadAdminData(){
+    if(adminLoading)return;
+    adminLoading=true;
+    backendJson('/admin/summary',{}).then(json=>{
+      adminData=json;
+    }).catch(err=>{
+      adminData={error:aiErrorMessage(err)};
+    }).finally(()=>{
+      adminLoading=false;
+      if(homePanel==='admin')renderScreen();
+    });
+  }
+  function rubText(n){return `${(Math.round((n||0)*100)/100).toLocaleString('ru-RU')} ₽`;}
+  function renderHomeAdmin(){
+    if(!adminData)loadAdminData();
+    const body=(()=>{
+      if(!adminData)return '<p class="settings-note">Загрузка…</p>';
+      if(adminData.error)return `<p class="settings-note">${esc(adminData.error)}</p>`;
+      const u=adminData.usage;
+      const line=(label,t)=>`<p><b>${label}</b>: ${rubText(t.gptCostRub+t.sttCostRub)} · GPT ${rubText(t.gptCostRub)} · STT ${rubText(t.sttCostRub)} · ${t.requests} запрос(ов)</p>`;
+      const support=adminData.support.length
+        ?adminData.support.map(m=>`<div class="settings-note" style="margin-bottom:8px">${m.status==='new'?'🆕 ':''}<i>${esc(m.source)}</i> · <code>${esc(m.uid)}</code><br>${esc(m.text)}</div>`).join('')
+        :'<p class="settings-note">Пока пусто.</p>';
+      const promo=adminData.promoCodes.length
+        ?adminData.promoCodes.map(c=>`<div class="settings-note">${esc(c.code)} — использован ${c.usedCount||0}${c.maxUses!=null?`/${c.maxUses}`:''} раз</div>`).join('')
+        :'<p class="settings-note">Пока нет ни одного кода.</p>';
+      return `
+        <section class="settings-card"><h2>AI-траты</h2>${line('Сегодня',u.today)}${line('7 дней',u.week)}${line('30 дней',u.month)}
+          <p class="settings-note">Тарифы приблизительные — см. cf-worker/src/ai/pricing.js</p></section>
+        <section class="settings-card"><h2>Обращения в поддержку</h2>${support}</section>
+        <section class="settings-card"><h2>Промокоды</h2>${promo}<button type="button" class="text-btn" style="margin-top:8px" data-admin-promo-create>➕ Создать код</button></section>`;
+    })();
+    return `<section class="screen home-settings" aria-labelledby="admin-title"><div class="settings-inner">
+      <header class="settings-header"><button class="home-icon-button pressable" data-admin-back aria-label="Вернуться в настройки">${icon('chev-left')}</button><h1 id="admin-title">Панель разработчика</h1></header>
+      ${body}
+    </div></section>`;
+  }
+
   function bindHomeEvents() {
     $('[data-home-settings]')?.addEventListener('click',()=>{
       homePanel='settings'; renderScreen(); $('[data-home-back]')?.focus({preventScroll:true});
@@ -5855,6 +5971,45 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('[data-home-back]')?.addEventListener('click',returnHome);
     $('.home-settings')?.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();returnHome();}});
     $('[data-version-tile]')?.addEventListener('click',handleVersionTileTap);
+    bindVersionLongPress($('[data-version-tile]'));
+    $('[data-open-admin]')?.addEventListener('click',()=>{ homePanel='admin'; adminData=null; renderScreen(); });
+    $('[data-admin-back]')?.addEventListener('click',()=>{ homePanel='settings'; renderScreen(); });
+    $('[data-admin-promo-create]')?.addEventListener('click',async(e)=>{
+      const btn=e.currentTarget; btn.disabled=true;
+      try{
+        const json=await backendJson('/admin/promo/create',{});
+        alert(`Код создан: ${json.code}`);
+        adminData=null; renderScreen();
+      }catch(err){ alert(aiErrorMessage(err)); btn.disabled=false; }
+    });
+    $('[data-promo-form]')?.addEventListener('submit',async(e)=>{
+      e.preventDefault();
+      const input=$('[data-promo-code]'); const status=$('[data-promo-status]');
+      const code=(input?.value||'').trim();
+      if(!code)return;
+      if(status)status.textContent='Проверяю…';
+      try{
+        const json=await backendJson('/promo/redeem',{code});
+        if(status)status.textContent=json.ok?'🎉 Промокод активирован!':(json.error||'Не удалось активировать');
+        if(json.ok){
+          telegramProfile={...(telegramProfile||{}),premium:true,premiumCode:code.toUpperCase()};
+          saveJSON('dna_telegram_profile_cache',telegramProfile);
+          if(input)input.value='';
+        }
+      }catch(err){ if(status)status.textContent=aiErrorMessage(err); }
+    });
+    $('[data-support-form]')?.addEventListener('submit',async(e)=>{
+      e.preventDefault();
+      const textarea=$('[data-support-text]'); const status=$('[data-support-status]');
+      const text=(textarea?.value||'').trim();
+      if(!text)return;
+      if(status)status.textContent='Отправляю…';
+      try{
+        const json=await backendJson('/support/send',{text});
+        if(status)status.textContent=json.ok?'✅ Отправлено! Спасибо.':(json.error||'Не удалось отправить');
+        if(json.ok&&textarea)textarea.value='';
+      }catch(err){ if(status)status.textContent=aiErrorMessage(err); }
+    });
     $$('[data-theme-mode]').forEach(b=>b.addEventListener('click',()=>setThemeMode(b.dataset.themeMode)));
     $('[data-telegram-login]')?.addEventListener('click',startTelegramLogin);
     $('[data-telegram-unlink]')?.addEventListener('click',signOutTelegramAccount);
@@ -8103,6 +8258,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(!uid){
       telegramProfile=null;lastSyncedCloudJson={};
       try{localStorage.removeItem('dna_telegram_profile_cache');}catch(_){}
+      adminData=null;
+      if(homePanel==='admin')homePanel='settings';
       if(homePanel==='settings')renderScreen();
       return;
     }

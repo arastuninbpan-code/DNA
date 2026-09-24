@@ -24,7 +24,7 @@ export async function planTurn(provider, firestore, uid, text) {
     else rejected.push({ action: raw, error: validation.error });
   }
 
-  return { reply: llmResult.reply || '', actions, rejected };
+  return { reply: llmResult.reply || '', actions, rejected, usage: llmResult.usage || null };
 }
 
 // Применение уже подтверждённых пользователем действий (кнопка "Добавить всё" в интерфейсе) —
