@@ -306,6 +306,7 @@ function aiActionSummaryText(a) {
     case 'create_income': return `Доход ${formatRub(Math.abs(Number(a.amount) || 0))}${a.description ? ' · ' + a.description : ''}`;
     case 'complete_habit': return `Привычка «${a.name || ''}» — выполнено`;
     case 'complete_event': return `Событие «${a.title || ''}» — выполнено`;
+    case 'delete_event': return `Удалить событие «${a.title || ''}»`;
     case 'create_section': return `Раздел «${a.name || ''}»`;
     default: return a.action || 'действие';
   }

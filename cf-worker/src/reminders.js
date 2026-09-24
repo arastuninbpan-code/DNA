@@ -260,6 +260,23 @@ export async function completeEventByTitle(firestore, uid, { title, date }) {
   return events[idx];
 }
 
+// Удалить событие по НАЗВАНИЮ (та же логика поиска, что и completeEventByTitle) — в отличие от
+// completeEventByTitle не фильтрует по !e.done: пользователь может захотеть удалить и уже
+// выполненное событие, done тут не признак "нельзя трогать". Возвращает удалённое событие или
+// null, если не нашлось (см. execDeleteEvent в actions.js — там же формируется отказ).
+export async function deleteEventByTitle(firestore, uid, { title, date }) {
+  const path = `users/${uid}/appData/planner`;
+  const data = (await firestore.getDoc(path)) || {};
+  const events = Array.isArray(data.events) ? [...data.events] : [];
+  const dateKey = date || todayKey(DEFAULT_TZ);
+  const norm = (s) => String(s || '').trim().toLowerCase();
+  const idx = events.findIndex((e) => e && norm(e.title) === norm(title) && eventCoversDate(e, dateKey));
+  if (idx === -1) return null;
+  const [removed] = events.splice(idx, 1);
+  await firestore.mergeDoc(path, { events });
+  return removed;
+}
+
 // Финансовый документ целиком — как getHabitsDoc/getPlannerDoc, чтобы не дублировать
 // firestore.getDoc(...finance) в каждом месте (bot.js/digest.js читали его инлайн).
 export async function getFinanceDoc(firestore, uid) {

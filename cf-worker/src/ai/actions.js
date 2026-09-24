@@ -5,7 +5,7 @@
 import {
   DEFAULT_TZ, todayKey, dateKeyAddDays, formatRub,
   getHabitsDoc, habitsOn, markHabitDoneByName,
-  createPlannerEvent, addFinanceTransaction, createSection, completeEventByTitle,
+  createPlannerEvent, addFinanceTransaction, createSection, completeEventByTitle, deleteEventByTitle,
 } from '../reminders.js';
 
 export const ACTION_SCHEMA = {
@@ -14,6 +14,7 @@ export const ACTION_SCHEMA = {
   create_income: { required: ['amount'], optional: ['category', 'description'] },
   complete_habit: { required: ['name'], optional: [] },
   complete_event: { required: ['title'], optional: ['date'] },
+  delete_event: { required: ['title'], optional: ['date'] },
   create_section: { required: ['name'], optional: ['color'] },
 };
 
@@ -96,6 +97,12 @@ async function execCompleteEvent(firestore, uid, a) {
   return { summary: `✅ ${updated.title}` };
 }
 
+async function execDeleteEvent(firestore, uid, a) {
+  const removed = await deleteEventByTitle(firestore, uid, { title: a.title, date: a.date });
+  if (!removed) return { error: `Не нашёл событие «${a.title}»${a.date ? ' на ' + dayLabelShort(a.date) : ' на сегодня'}` };
+  return { summary: `🗑️ ${removed.title}` };
+}
+
 async function execCreateSection(firestore, uid, a) {
   const section = await createSection(firestore, uid, { name: a.name, color: a.color });
   return { summary: `📁 Раздел «${section.name}» создан` };
@@ -107,6 +114,7 @@ const EXECUTORS = {
   create_income: execCreateIncome,
   complete_habit: execCompleteHabit,
   complete_event: execCompleteEvent,
+  delete_event: execDeleteEvent,
   create_section: execCreateSection,
 };
 
