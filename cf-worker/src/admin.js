@@ -19,6 +19,14 @@ export async function isUserAdmin(firestore, uid) {
   return !!(user && user.isAdmin);
 }
 
+// Выход из режима разработчика — по просьбе пользователя. Снимает isAdmin на сервере (а не
+// только прячет кнопку локально в интерфейсе) — иначе профиль, перезагруженный из Firestore на
+// другом устройстве/после переустановки, тут же вернул бы доступ без повторного ввода пароля.
+export async function lockAdmin(firestore, uid) {
+  await firestore.mergeDoc(`users/${uid}`, { isAdmin: false });
+  return { ok: true };
+}
+
 // -------- Промокоды --------
 // Код хранится как ИМЯ документа (в верхнем регистре), не как поле внутри — тогда "это
 // промокод?" (и в боте, и на /promo/redeem) — один прямой getDoc по известному пути, без query
@@ -83,4 +91,75 @@ export async function submitSupportMessage(firestore, { uid, text, source }) {
 export async function listSupportMessages(firestore, limit = 30) {
   const docs = await firestore.listCollection('supportMessages');
   return docs.map((d) => d.data).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, limit);
+}
+
+// -------- Заметки для разработки --------
+// Отдельно от supportMessages выше: то — жалобы/вопросы ОТ пользователей владельцу, это —
+// собственные заметки владельца "поправить/добавить" в самой панели разработчика (см. просьбу
+// "какие-то запросы присылались прямяком тебе, какие-то правки или дополнения"). Настоящей
+// прямой доставки в чужую переписку у Worker'а нет — заметки просто копятся здесь и видны в
+// панели, откуда их разбирают вручную или по расписанию (см. /admin/devrequests в index.js —
+// его можно опрашивать скриптом по секрету, не только из самого приложения).
+export async function submitDevRequest(firestore, { uid, text }) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return { ok: false, error: 'пустая заметка' };
+  const id = crypto.randomUUID();
+  await firestore.setDoc(`devRequests/${id}`, {
+    uid, text: trimmed.slice(0, 4000), status: 'new', createdAt: Date.now(),
+  });
+  return { ok: true };
+}
+
+export async function listDevRequests(firestore, limit = 50) {
+  const docs = await firestore.listCollection('devRequests');
+  return docs.map((d) => ({ id: d.id, ...d.data })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, limit);
+}
+
+// -------- Статистика пользователей --------
+// lastSeenAt обновляет touchUserActivity (index.js — вызывается из requireFirebaseUid на КАЖДОМ
+// аутентифицированном запросе и из handleTelegramWebhook на каждом апдейте бота), поэтому
+// "активен" тут значит буквально "было любое взаимодействие", а не только вход. activeDaysCount —
+// растёт максимум на 1 в календарный день (МСК, см. lastSeenDateKey) — грубая, но дешёвая оценка
+// "частоты заходов" без отдельной таблицы визитов.
+export async function touchUserActivity(firestore, uid, todayDateKey) {
+  try {
+    const path = `users/${uid}`;
+    const user = await firestore.getDoc(path);
+    const patch = { lastSeenAt: Date.now() };
+    if (!user?.firstSeenAt) patch.firstSeenAt = user?.linkedAt || Date.now();
+    if (user?.lastSeenDateKey !== todayDateKey) {
+      patch.lastSeenDateKey = todayDateKey;
+      patch.activeDaysCount = (user?.activeDaysCount || 0) + 1;
+    }
+    await firestore.mergeDoc(path, patch);
+  } catch (err) {
+    // Побочный учёт — сбой не должен ронять сам запрос, ради которого он вызван.
+    console.error('touchUserActivity failed', err);
+  }
+}
+
+export async function getUserStatsOverview(firestore) {
+  const rows = await firestore.listCollection('users');
+  const now = Date.now();
+  const DAY = 24 * 60 * 60 * 1000;
+  const seenWithin = (ms) => rows.filter((r) => now - (r.data.lastSeenAt || 0) < ms).length;
+  const createdWithin = (ms) => rows.filter((r) => now - (r.data.firstSeenAt || r.data.linkedAt || 0) < ms).length;
+  const topActive = rows
+    .map((r) => ({
+      uid: r.id,
+      name: r.data.telegramFirstName || r.data.telegramUsername || r.id,
+      activeDaysCount: r.data.activeDaysCount || 0,
+      lastSeenAt: r.data.lastSeenAt || 0,
+    }))
+    .sort((a, b) => b.activeDaysCount - a.activeDaysCount)
+    .slice(0, 5);
+  return {
+    total: rows.length,
+    activeToday: seenWithin(DAY),
+    activeWeek: seenWithin(7 * DAY),
+    activeMonth: seenWithin(30 * DAY),
+    newToday: createdWithin(DAY),
+    newWeek: createdWithin(7 * DAY),
+    topActive,
+  };
 }

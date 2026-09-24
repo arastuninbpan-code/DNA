@@ -7,7 +7,7 @@ import { createFirestoreClient } from './firestore.js';
 import { createCustomToken } from './googleAuth.js';
 import { verifyFirebaseIdToken } from './jwt.js';
 import {
-  sendMessage, sendMediaGroup, answerCallbackQuery,
+  sendMessage, sendMediaGroup, answerCallbackQuery, deleteMessage,
   verifyLoginWidgetPayload, getUserProfilePhotoFilePath, fetchTelegramFile, getFilePath,
 } from './telegram.js';
 import {
@@ -20,8 +20,9 @@ import { createYandexProvider } from './ai/provider.js';
 import { planTurn, confirmActions } from './ai/router.js';
 import { logAiUsage, getUsageOverview } from './ai/usage.js';
 import {
-  tryUnlockAdmin, isUserAdmin, redeemPromoCode, createPromoCode, listPromoCodes,
-  submitSupportMessage, listSupportMessages,
+  tryUnlockAdmin, lockAdmin, isUserAdmin, redeemPromoCode, createPromoCode, listPromoCodes,
+  submitSupportMessage, listSupportMessages, submitDevRequest, listDevRequests,
+  touchUserActivity, getUserStatsOverview,
 } from './admin.js';
 
 // Полчаса — достаточно, чтобы спокойно открыть одну и ту же ссылку и с телефона, и с
@@ -194,6 +195,15 @@ async function handleTelegramFreeText(env, firestore, token, message) {
     await sendMessage(token, message.chat.id, '✅ Спасибо! Сообщение передано в поддержку.');
     return;
   }
+  // "📝 Заметка для разработки" в панели разработчика (только у админа — см. runAction в
+  // bot.js) — отдельно от pendingSupportInput выше: это не жалоба пользователя владельцу,
+  // а собственная заметка владельца "поправить/добавить" (см. submitDevRequest в admin.js).
+  if (user && user.pendingDevRequestInput) {
+    await firestore.mergeDoc(`users/${uid}`, { pendingDevRequestInput: null });
+    await submitDevRequest(firestore, { uid, text: message.text });
+    await sendMessage(token, message.chat.id, '📝 Записал — будет видно в панели разработчика.');
+    return;
+  }
   // Промокод — просто присланный текст, без отдельной кнопки (по просьбе пользователя: "можно
   // было просто прислать промокоды"). Короткий алфанумерик без пробелов сверяется с реальным
   // промокодом (см. generatePromoCode в admin.js) одним прямым getDoc по имени документа — не
@@ -208,6 +218,11 @@ async function handleTelegramFreeText(env, firestore, token, message) {
   if (env.ADMIN_SECRET && trimmedText === env.ADMIN_SECRET) {
     const result = await tryUnlockAdmin(firestore, env, uid, trimmedText);
     if (result.ok) {
+      // Сам пароль удаляем из чата сразу после успешной разблокировки (по просьбе пользователя) —
+      // не должен висеть открытым текстом в истории переписки. Сбой удаления (например, прошло
+      // больше 48 часов — Telegram не даёт удалять старые чужие сообщения, но тут ровно только
+      // что отправленное своё) не должен мешать самой разблокировке, поэтому отдельный catch.
+      await deleteMessage(token, message.chat.id, message.message_id).catch((err) => console.error('deleteMessage (password) failed', err));
       await sendMessage(token, message.chat.id, '✅ Панель разработчика разблокирована — она появится в Главном меню.');
       return;
     }
@@ -292,6 +307,16 @@ async function handleTelegramWebhook(req, env, firestore) {
   const update = await req.json().catch(() => ({}));
 
   try {
+    // "Было взаимодействие" — тот же учёт, что и у веб-канала (см. requireFirebaseUid), сюда же
+    // уходит "частота заходов" в статистике (см. getUserStatsOverview в admin.js). Пропускаем
+    // /start: в этот момент профиль ещё не создан (см. ветку ниже — вход завершается только
+    // после реального открытия приложения по ссылке), тап по кнопке бота до регистрации не
+    // должен засчитываться визитом пользователя.
+    const fromId = update.message?.from?.id ?? update.callback_query?.from?.id;
+    if (fromId && update.message?.text !== '/start') {
+      await touchUserActivity(firestore, uidForTelegramId(fromId), todayKey(DEFAULT_TZ));
+    }
+
     if (update.message && update.message.text === '/start') {
       const from = update.message.from;
       const loginToken = randomToken();
@@ -327,10 +352,11 @@ async function handleTelegramWebhook(req, env, firestore) {
       // их не заменяет автоматически), /menu как раз естественная команда "почини мне меню".
       await renderToMainMenu(env, firestore, token, uid, from.id, renderHome(!!homeUser?.isAdmin), { repair: true });
     } else if (update.message && /^\/admin(\s|$)/.test(update.message.text || '')) {
-      // Секретный вход в панель разработчика прямо в боте (по просьбе пользователя — "можно
-      // было просто прислать") — пароль хранится ТОЛЬКО как секрет Worker'а (env.ADMIN_SECRET),
-      // см. tryUnlockAdmin в admin.js. Пароль неизбежно виден в истории переписки с ботом самого
-      // владельца — для личного бота с одним владельцем это приемлемо.
+      // Альтернатива простой отправке пароля текстом (см. handleTelegramFreeText) — работает
+      // и без совпадения по shape-фильтру там. Пароль хранится ТОЛЬКО как секрет Worker'а
+      // (env.ADMIN_SECRET), см. tryUnlockAdmin в admin.js. Сообщение с командой удаляется сразу
+      // после обработки (успешной или нет — пароль всё равно был напечатан в чат) — по просьбе
+      // пользователя не оставлять пароль видимым в истории переписки.
       const from = update.message.from;
       const uid = uidForTelegramId(from.id);
       const password = update.message.text.replace(/^\/admin\s*/, '').trim();
@@ -338,6 +364,7 @@ async function handleTelegramWebhook(req, env, firestore) {
         await sendMessage(token, from.id, 'Пришли пароль вторым словом: <code>/admin &lt;пароль&gt;</code>');
       } else {
         const result = await tryUnlockAdmin(firestore, env, uid, password);
+        await deleteMessage(token, update.message.chat.id, update.message.message_id).catch((err) => console.error('deleteMessage (/admin) failed', err));
         await sendMessage(token, from.id, result.ok
           ? '✅ Панель разработчика разблокирована — она появится в Главном меню.'
           : `❌ ${escapeHtml(result.error || 'не удалось')}`);
@@ -350,7 +377,9 @@ async function handleTelegramWebhook(req, env, firestore) {
       // renderFinancePromptScreen, и уход с экрана подтверждения действий AI, см.
       // renderAiPlanScreen) снимает все "жду чего-то" состояния — иначе залипли бы навсегда,
       // если пользователь передумал и ушёл в другой раздел, ничего не подтвердив/не написав.
-      await firestore.mergeDoc(`users/${uid}`, { pendingFinanceInput: null, pendingAiActions: null, pendingSupportInput: null });
+      await firestore.mergeDoc(`users/${uid}`, {
+        pendingFinanceInput: null, pendingAiActions: null, pendingSupportInput: null, pendingDevRequestInput: null,
+      });
       const payload = await renderScreen(env, firestore, uid, screen);
       await answerCallbackQuery(token, cq.id);
       await renderToMainMenu(env, firestore, token, uid, cq.message.chat.id, payload);
@@ -433,11 +462,17 @@ async function handleAvatar(env, firestore, uid) {
 // авторизован в Firebase (signInWithCustomToken после входа через Telegram), поэтому шлёт
 // свой обычный Firebase ID-токен — тот же, которым Firestore Security Rules проверяют доступ
 // на клиенте; здесь его проверяем сами, без Admin SDK (см. verifyFirebaseIdToken в jwt.js).
-async function requireFirebaseUid(req, env) {
+async function requireFirebaseUid(req, env, firestore) {
   const auth = req.headers.get('authorization') || '';
   const m = /^Bearer\s+(.+)$/.exec(auth);
   if (!m) throw new Error('missing bearer token');
-  return verifyFirebaseIdToken(m[1], env.FIREBASE_PROJECT_ID);
+  const uid = await verifyFirebaseIdToken(m[1], env.FIREBASE_PROJECT_ID);
+  // Единая точка для "было взаимодействие" по веб-каналу — см. просьбу про статистику
+  // пользователей/активность. Await, а не fire-and-forget: Cloudflare Workers может остановить
+  // выполнение изолята сразу после того, как ответ ушёл, если запись не обёрнута в
+  // ctx.waitUntil (которого тут нет) — без ожидания запись иногда просто не успевала бы дойти.
+  if (firestore) await touchUserActivity(firestore, uid, todayKey(DEFAULT_TZ));
+  return uid;
 }
 
 const AI_CORS_HEADERS = {
@@ -453,7 +488,7 @@ async function handleAiChat(req, env, firestore) {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
   let uid;
   try {
-    uid = await requireFirebaseUid(req, env);
+    uid = await requireFirebaseUid(req, env, firestore);
   } catch (err) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
@@ -483,7 +518,7 @@ async function handleAiVoice(req, env, firestore) {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
   let uid;
   try {
-    uid = await requireFirebaseUid(req, env);
+    uid = await requireFirebaseUid(req, env, firestore);
   } catch (err) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
@@ -532,7 +567,7 @@ async function handleAiConfirm(req, env, firestore) {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
   let uid;
   try {
-    uid = await requireFirebaseUid(req, env);
+    uid = await requireFirebaseUid(req, env, firestore);
   } catch (err) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
@@ -549,7 +584,7 @@ async function handleAdminUnlock(req, env, firestore) {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
   let uid;
   try {
-    uid = await requireFirebaseUid(req, env);
+    uid = await requireFirebaseUid(req, env, firestore);
   } catch (err) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
@@ -558,24 +593,82 @@ async function handleAdminUnlock(req, env, firestore) {
   return json(result, result.ok ? 200 : 403, AI_CORS_HEADERS);
 }
 
-// Данные для панели разработчика: AI-траты (см. usage.js), обращения в поддержку, промокоды —
-// одним запросом, чтобы не плодить round-trips на каждый виджет панели.
+// Выход из режима разработчика — по просьбе пользователя. Не требует уже быть админом (снять
+// с себя то, чего и так нет — безобидный no-op), достаточно быть просто вошедшим пользователем.
+async function handleAdminLock(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env, firestore);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  const result = await lockAdmin(firestore, uid);
+  return json(result, 200, AI_CORS_HEADERS);
+}
+
+// Данные для панели разработчика: AI-траты (см. usage.js), обращения в поддержку, промокоды,
+// заметки для разработки, статистика пользователей — одним запросом, чтобы не плодить
+// round-trips на каждый виджет панели.
 async function handleAdminSummary(req, env, firestore) {
   if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
   let uid;
   try {
-    uid = await requireFirebaseUid(req, env);
+    uid = await requireFirebaseUid(req, env, firestore);
   } catch (err) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
   if (!(await isUserAdmin(firestore, uid))) return json({ error: 'forbidden' }, 403, AI_CORS_HEADERS);
-  const [usage, support, promoCodes] = await Promise.all([
+  const [usage, support, promoCodes, devRequests, userStats] = await Promise.all([
     getUsageOverview(firestore),
     listSupportMessages(firestore),
     listPromoCodes(firestore),
+    listDevRequests(firestore),
+    getUserStatsOverview(firestore),
   ]);
-  return json({ usage, support, promoCodes }, 200, AI_CORS_HEADERS);
+  return json({ usage, support, promoCodes, devRequests, userStats }, 200, AI_CORS_HEADERS);
+}
+
+async function handleAdminDevRequestSend(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env, firestore);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  if (!(await isUserAdmin(firestore, uid))) return json({ error: 'forbidden' }, 403, AI_CORS_HEADERS);
+  const body = await req.json().catch(() => ({}));
+  const result = await submitDevRequest(firestore, { uid, text: body.text });
+  return json(result, result.ok ? 200 : 400, AI_CORS_HEADERS);
+}
+
+// Список заметок для разработки — единственный эндпоинт, рассчитанный на то, что его будут
+// опрашивать не из самого приложения, а скриптом/расписанием (см. просьбу пользователя "чтобы
+// какие-то запросы присылались прямяком тебе" — Worker технически не может САМ дотянуться и
+// прислать сообщение в чужую переписку, поэтому вместо push — то, что можно periodически
+// забирать по секрету, минуя обычный вход через Firebase). Принимает ЛИБО обычный Firebase-токен
+// админа (как везде), ЛИБО заголовок X-Admin-Secret с тем же паролем, что и /admin/unlock —
+// для автоматизации, у которой нет и не должно быть настоящего пользовательского логина.
+async function handleAdminDevRequests(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  const secretHeader = req.headers.get('x-admin-secret');
+  let authorized = !!(env.ADMIN_SECRET && secretHeader && secretHeader === env.ADMIN_SECRET);
+  if (!authorized) {
+    try {
+      const uid = await requireFirebaseUid(req, env, firestore);
+      authorized = await isUserAdmin(firestore, uid);
+    } catch (err) {
+      authorized = false;
+    }
+  }
+  if (!authorized) return json({ error: 'forbidden' }, 403, AI_CORS_HEADERS);
+  const devRequests = await listDevRequests(firestore);
+  return json({ devRequests }, 200, AI_CORS_HEADERS);
 }
 
 async function handleAdminCreatePromo(req, env, firestore) {
@@ -583,7 +676,7 @@ async function handleAdminCreatePromo(req, env, firestore) {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
   let uid;
   try {
-    uid = await requireFirebaseUid(req, env);
+    uid = await requireFirebaseUid(req, env, firestore);
   } catch (err) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
@@ -600,7 +693,7 @@ async function handlePromoRedeem(req, env, firestore) {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
   let uid;
   try {
-    uid = await requireFirebaseUid(req, env);
+    uid = await requireFirebaseUid(req, env, firestore);
   } catch (err) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
@@ -623,7 +716,7 @@ async function handleSupportSend(req, env, firestore) {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
   let uid;
   try {
-    uid = await requireFirebaseUid(req, env);
+    uid = await requireFirebaseUid(req, env, firestore);
   } catch (err) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
@@ -654,10 +747,16 @@ export default {
         return handleAiConfirm(req, env, firestore);
       case '/admin/unlock':
         return handleAdminUnlock(req, env, firestore);
+      case '/admin/lock':
+        return handleAdminLock(req, env, firestore);
       case '/admin/summary':
         return handleAdminSummary(req, env, firestore);
       case '/admin/promo/create':
         return handleAdminCreatePromo(req, env, firestore);
+      case '/admin/devrequest/send':
+        return handleAdminDevRequestSend(req, env, firestore);
+      case '/admin/devrequests':
+        return handleAdminDevRequests(req, env, firestore);
       case '/promo/redeem':
         return handlePromoRedeem(req, env, firestore);
       case '/support/send':

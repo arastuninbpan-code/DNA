@@ -1871,7 +1871,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.27.1';
+  const APP_VERSION = '0.28.0';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -5811,6 +5811,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.28.0</div><p class="settings-note">Панель разработчика: кнопка выхода (сбрасывает доступ по-настоящему, не только визуально), статистика пользователей (всего/новых/активных за день-неделю-месяц, топ по частоте заходов), заметки «поправить/добавить» — доступны и в приложении, и в боте. Пароль панели теперь удаляется из чата бота сразу после разблокировки.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.27.1</div><p class="settings-note">Пароль панели разработчика теперь можно просто отправить как есть — текстом в Telegram или в поле «Промокод» в Настройках, без отдельной команды /admin.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.27.0</div><p class="settings-note">Промокоды: активируются полем в Настройках или просто отправкой кода в Telegram. Поддержка: форма «Написать в поддержку» в Настройках и в Telegram — сообщения видны в новой Панели разработчика (долгое удержание номера версии открывает вход по секретному паролю), вместе со сводкой трат на AI (SpeechKit/YandexGPT) за сегодня/7/30 дней.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.26.3</div><p class="settings-note">Голосовые сообщения AI-ассистенту (в приложении и в боте) ограничены 30 секундами — при превышении запись останавливается и не отправляется на распознавание.</p></div>
@@ -5945,18 +5946,34 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(!adminData)return '<p class="settings-note">Загрузка…</p>';
       if(adminData.error)return `<p class="settings-note">${esc(adminData.error)}</p>`;
       const u=adminData.usage;
+      const s=adminData.userStats;
       const line=(label,t)=>`<p><b>${label}</b>: ${rubText(t.gptCostRub+t.sttCostRub)} · GPT ${rubText(t.gptCostRub)} · STT ${rubText(t.sttCostRub)} · ${t.requests} запрос(ов)</p>`;
       const support=adminData.support.length
         ?adminData.support.map(m=>`<div class="settings-note" style="margin-bottom:8px">${m.status==='new'?'🆕 ':''}<i>${esc(m.source)}</i> · <code>${esc(m.uid)}</code><br>${esc(m.text)}</div>`).join('')
         :'<p class="settings-note">Пока пусто.</p>';
+      const devRequests=adminData.devRequests.length
+        ?adminData.devRequests.map(r=>`<div class="settings-note" style="margin-bottom:8px">${r.status==='new'?'🆕 ':''}${esc(r.text)}</div>`).join('')
+        :'<p class="settings-note">Пока пусто.</p>';
       const promo=adminData.promoCodes.length
         ?adminData.promoCodes.map(c=>`<div class="settings-note">${esc(c.code)} — использован ${c.usedCount||0}${c.maxUses!=null?`/${c.maxUses}`:''} раз</div>`).join('')
         :'<p class="settings-note">Пока нет ни одного кода.</p>';
+      const topActive=s.topActive.length
+        ?s.topActive.map((u2,i)=>`<div class="settings-note">${i+1}. ${esc(u2.name)} — ${u2.activeDaysCount} ${pluralDays(u2.activeDaysCount)} активности</div>`).join('')
+        :'<p class="settings-note">Пока нет данных.</p>';
       return `
+        <section class="settings-card"><h2>Пользователи</h2>
+          <p>Всего: ${s.total} · новых сегодня: ${s.newToday} · за 7 дней: ${s.newWeek}</p>
+          <p>Активны сегодня: ${s.activeToday} · за 7 дней: ${s.activeWeek} · за 30 дней: ${s.activeMonth}</p>
+          <p class="settings-note" style="margin-top:8px">По частоте заходов:</p>${topActive}
+        </section>
         <section class="settings-card"><h2>AI-траты</h2>${line('Сегодня',u.today)}${line('7 дней',u.week)}${line('30 дней',u.month)}
           <p class="settings-note">Тарифы приблизительные — см. cf-worker/src/ai/pricing.js</p></section>
         <section class="settings-card"><h2>Обращения в поддержку</h2>${support}</section>
-        <section class="settings-card"><h2>Промокоды</h2>${promo}<button type="button" class="text-btn" style="margin-top:8px" data-admin-promo-create>➕ Создать код</button></section>`;
+        <section class="settings-card"><h2>Заметки для разработки</h2>${devRequests}
+          <form data-devrequest-form style="margin-top:8px"><textarea data-devrequest-text rows="2" placeholder="Поправить/добавить…" style="width:100%;resize:vertical" required></textarea><button type="submit" class="text-btn" style="margin-top:8px">Добавить заметку</button></form>
+        </section>
+        <section class="settings-card"><h2>Промокоды</h2>${promo}<button type="button" class="text-btn" style="margin-top:8px" data-admin-promo-create>➕ Создать код</button></section>
+        <section class="settings-card"><button type="button" class="text-btn" data-admin-logout>🚪 Выйти из режима разработчика</button></section>`;
     })();
     return `<section class="screen home-settings" aria-labelledby="admin-title"><div class="settings-inner">
       <header class="settings-header"><button class="home-icon-button pressable" data-admin-back aria-label="Вернуться в настройки">${icon('chev-left')}</button><h1 id="admin-title">Панель разработчика</h1></header>
@@ -5982,6 +5999,28 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         alert(`Код создан: ${json.code}`);
         adminData=null; renderScreen();
       }catch(err){ alert(aiErrorMessage(err)); btn.disabled=false; }
+    });
+    $('[data-admin-logout]')?.addEventListener('click',async(e)=>{
+      const btn=e.currentTarget; btn.disabled=true;
+      try{
+        await backendJson('/admin/lock',{});
+        // Реальный выход, а не только UI: /admin/lock снимает isAdmin на сервере (см. lockAdmin
+        // в admin.js), локальный флаг просто отражает уже случившееся.
+        telegramProfile={...(telegramProfile||{}),isAdmin:false};
+        saveJSON('dna_telegram_profile_cache',telegramProfile);
+        adminData=null; homePanel='settings'; renderScreen();
+      }catch(err){ alert(aiErrorMessage(err)); btn.disabled=false; }
+    });
+    $('[data-devrequest-form]')?.addEventListener('submit',async(e)=>{
+      e.preventDefault();
+      const textarea=$('[data-devrequest-text]');
+      const text=(textarea?.value||'').trim();
+      if(!text)return;
+      try{
+        await backendJson('/admin/devrequest/send',{text});
+        if(textarea)textarea.value='';
+        adminData=null; renderScreen();
+      }catch(err){ alert(aiErrorMessage(err)); }
     });
     $('[data-promo-form]')?.addEventListener('submit',async(e)=>{
       e.preventDefault();

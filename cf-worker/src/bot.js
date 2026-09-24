@@ -22,7 +22,10 @@ import { computeHabitStreaks } from './streaks.js';
 import { sendMessage, editMessageText, pinChatMessage, getChat, unpinAllChatMessages, deleteMessage } from './telegram.js';
 import { confirmActions } from './ai/router.js';
 import { getUsageOverview } from './ai/usage.js';
-import { isUserAdmin, listSupportMessages, listPromoCodes, createPromoCode } from './admin.js';
+import {
+  isUserAdmin, lockAdmin, listSupportMessages, listPromoCodes, createPromoCode,
+  listDevRequests, getUserStatsOverview,
+} from './admin.js';
 
 const EVENT_LIST_CAP = 8;
 const HABIT_LIST_CAP = 12;
@@ -139,23 +142,72 @@ function rubText(n) {
 
 async function renderAdminScreen(firestore, uid) {
   if (!(await isUserAdmin(firestore, uid))) return renderHome(false);
-  const [usage, support, promoCodes] = await Promise.all([
+  const [usage, support, promoCodes, devRequests, userStats] = await Promise.all([
     getUsageOverview(firestore), listSupportMessages(firestore, 5), listPromoCodes(firestore),
+    listDevRequests(firestore, 5), getUserStatsOverview(firestore),
   ]);
   const newSupport = support.filter((m) => m.status === 'new').length;
+  const newDevRequests = devRequests.filter((r) => r.status === 'new').length;
   return {
     text: [
       '🛠 <b>Панель разработчика</b>', '',
+      `👥 Пользователей: ${userStats.total} · активны сегодня: ${userStats.activeToday}`,
       `💸 AI сегодня: ${rubText(usage.today.gptCostRub + usage.today.sttCostRub)} · ${usage.today.requests} запрос(ов)`,
       `✉️ Обращения: ${support.length}${newSupport ? ` (новых: ${newSupport})` : ''}`,
+      `📝 Заметки: ${devRequests.length}${newDevRequests ? ` (новых: ${newDevRequests})` : ''}`,
       `🎟 Промокодов: ${promoCodes.length}`,
     ].join('\n'),
     reply_markup: {
       inline_keyboard: [
+        [{ text: '👥 Пользователи', callback_data: 's:admin:stats' }],
         [{ text: '💸 AI-траты', callback_data: 's:admin:usage' }],
         [{ text: '✉️ Обращения', callback_data: 's:admin:support' }],
+        [{ text: '📝 Заметки для разработки', callback_data: 's:admin:devrequests' }],
         [{ text: '🎟 Промокоды', callback_data: 's:admin:promo' }],
+        [{ text: '🚪 Выйти из режима разработчика', callback_data: 'a:adminlogout' }],
         [{ text: '🏠 Главное меню', callback_data: 's:home' }],
+      ],
+    },
+  };
+}
+
+async function renderAdminStatsScreen(firestore, uid) {
+  if (!(await isUserAdmin(firestore, uid))) return renderHome(false);
+  const stats = await getUserStatsOverview(firestore);
+  const top = stats.topActive.length
+    ? stats.topActive.map((u, i) => `${i + 1}. ${escapeHtml(u.name)} — ${u.activeDaysCount} ${pluralRu(u.activeDaysCount, 'день', 'дня', 'дней')} активности`).join('\n')
+    : 'Пока нет данных.';
+  return {
+    text: [
+      '👥 <b>Пользователи</b>', '',
+      `Всего: ${stats.total}`,
+      `Новых сегодня: ${stats.newToday} · за 7 дней: ${stats.newWeek}`,
+      `Активны сегодня: ${stats.activeToday} · за 7 дней: ${stats.activeWeek} · за 30 дней: ${stats.activeMonth}`,
+      '', '<b>По частоте заходов:</b>', top,
+    ].join('\n'),
+    reply_markup: { inline_keyboard: [[{ text: '🛠 Назад', callback_data: 's:admin' }]] },
+  };
+}
+
+function renderDevRequestPromptScreen() {
+  return {
+    text: '📝 <b>Заметка для разработки</b>\n\nНапиши, что поправить или добавить — увидишь в этом же списке в панели.',
+    reply_markup: { inline_keyboard: [[{ text: '❌ Отмена', callback_data: 's:admin:devrequests' }]] },
+  };
+}
+
+async function renderAdminDevRequestsScreen(firestore, uid) {
+  if (!(await isUserAdmin(firestore, uid))) return renderHome(false);
+  const requests = await listDevRequests(firestore, 10);
+  const lines = requests.length
+    ? requests.map((r) => `${r.status === 'new' ? '🆕' : '·'} ${escapeHtml(r.text)}`).join('\n\n')
+    : 'Пока пусто.';
+  return {
+    text: `📝 <b>Заметки для разработки</b>\n\n${lines}`,
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '➕ Добавить заметку', callback_data: 'a:devrequestprompt' }],
+        [{ text: '🛠 Назад', callback_data: 's:admin' }],
       ],
     },
   };
@@ -539,8 +591,11 @@ export async function renderScreen(env, firestore, uid, screen) {
   if (screen === 'today') return renderTodayScreen(env, firestore, uid);
   if (screen === 'support') return renderSupportPromptScreen();
   if (screen === 'admin') return renderAdminScreen(firestore, uid);
+  if (screen === 'admin:stats') return renderAdminStatsScreen(firestore, uid);
   if (screen === 'admin:usage') return renderAdminUsageScreen(firestore, uid);
   if (screen === 'admin:support') return renderAdminSupportScreen(firestore, uid);
+  if (screen === 'admin:devrequests') return renderAdminDevRequestsScreen(firestore, uid);
+  if (screen === 'admin:devrequest') return renderDevRequestPromptScreen();
   if (screen === 'admin:promo') return renderAdminPromoScreen(firestore, uid);
   return renderHome(await isUserAdmin(firestore, uid));
 }
@@ -567,6 +622,19 @@ export async function runAction(firestore, uid, action) {
     if (!(await isUserAdmin(firestore, uid))) return { toast: 'Недоступно', nextScreen: 'home' };
     const code = await createPromoCode(firestore, {});
     return { toast: `Код создан: ${code}`, nextScreen: 'admin:promo' };
+  }
+  if (action === 'devrequestprompt') {
+    if (!(await isUserAdmin(firestore, uid))) return { toast: 'Недоступно', nextScreen: 'home' };
+    // Тот же паттерн, что supportprompt выше — следующее сообщение ловит pendingDevRequestInput
+    // в index.js#handleTelegramFreeText, а не уходит в AI.
+    await firestore.mergeDoc(`users/${uid}`, { pendingDevRequestInput: true });
+    return { toast: null, nextScreen: 'admin:devrequest' };
+  }
+  if (action === 'adminlogout') {
+    // Реальный выход, а не просто скрытие кнопки — снимает isAdmin на сервере (см. lockAdmin
+    // в admin.js), поэтому без повторного ввода пароля панель больше не откроется.
+    await lockAdmin(firestore, uid);
+    return { toast: 'Вышел из режима разработчика', nextScreen: 'home' };
   }
   if (action === 'aiconfirm') {
     // Список действий на подтверждение не помещается в callback_data (лимит Telegram — 64
