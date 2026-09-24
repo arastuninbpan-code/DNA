@@ -1868,7 +1868,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.26.2';
+  const APP_VERSION = '0.26.3';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -5804,6 +5804,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <section class="settings-card">${renderAccountCard()}</section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.26.3</div><p class="settings-note">Голосовые сообщения AI-ассистенту (в приложении и в боте) ограничены 30 секундами — при превышении запись останавливается и не отправляется на распознавание.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.26.2</div><p class="settings-note">В боте — голосовой AI теперь и там: любое текстовое или голосовое сообщение (кроме команд/кнопок) понимается ассистентом так же, как в приложении, с той же карточкой подтверждения перед применением. В «Финансах» — кнопки «➕ Пополнение»/«➖ Расход»: пишешь сумму и на что (например, «100 на шоколадку») — операция добавляется без AI, обычным разбором текста.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.26.1</div><p class="settings-note">Голосовой AI теперь прямо на главном экране, без лишнего тапа по микрофону. Запись — как в мессенджерах: держишь микрофон — идёт запись, отпустишь — останавливается; короткий тап — запись продолжается без удержания пальца до следующего тапа. Починено распознавание речи (раньше не работало из-за формата записи браузера). AI также умеет создавать разделы планера и отмечать события выполненными.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.26.0</div><p class="settings-note">Кнопка микрофона на главном экране открывает голосового AI-ассистента: можно говорить или писать текстом — создание событий, учёт расходов/доходов, отметка привычек выполненными, вопросы «что сегодня/завтра». Для нескольких действий сразу показывается карточка со списком — подтверждаешь одним нажатием, ничего не применяется без согласия.</p></div>
@@ -5888,6 +5889,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // и продолжается без удержания до следующего тапа (aiChat.locked). pointerdown/up вместо
   // click+touchstart — единая обработка мыши/тача/пера без дублирования логики под каждую.
   const MIC_HOLD_THRESHOLD_MS = 350;
+  const AI_VOICE_MAX_SECONDS = 30;
   let micPressAt = 0;
   function bindAiMicHold(el){
     if(!el)return;
@@ -6020,6 +6022,17 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       clearInterval(aiChat.timerHandle);
       aiChat.timerHandle=setInterval(()=>{
         if(aiChat.status!=='listening')return;
+        // Жёсткий потолок длины голосового — длинная запись означает и долгий STT, и длинный
+        // вход в YandexGPT (больше токенов = дороже), поэтому просто не даём записать больше
+        // 30 секунд: останавливаем и ОТБРАСЫВАЕМ запись (discard=true), запрос на распознавание
+        // вообще не уходит на сервер.
+        const secs=Math.floor((Date.now()-aiChat.recordStartedAt)/1000);
+        if(secs>=AI_VOICE_MAX_SECONDS){
+          stopAiRecording(true);
+          aiChat.messages.push({role:'error',text:`Голосовое сообщение не может быть длиннее ${AI_VOICE_MAX_SECONDS} секунд — запись остановлена, попробуй короче.`});
+          reRenderAi();
+          return;
+        }
         const hint=$('.ai-idle-hint')||$('.ai-msg-listening');
         if(hint)hint.innerHTML=`<span class="ai-listening-dot" aria-hidden="true"></span> ${aiListeningLabel()}`;
       },1000);

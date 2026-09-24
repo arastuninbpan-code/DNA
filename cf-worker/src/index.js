@@ -24,6 +24,11 @@ import { planTurn, confirmActions } from './ai/router.js';
 // одноразовая, см. handleTelegramLinkAuth).
 const LOGIN_TOKEN_TTL_MS = 30 * 60 * 1000;
 
+// Потолок длины голосового сообщения для AI — тот же лимит, что и в веб-клиенте
+// (AI_VOICE_MAX_SECONDS в index.html): длинная запись — это и долгий SpeechKit, и большой
+// вход в YandexGPT, а значит лишние деньги без видимой пользы для короткой команды/вопроса.
+const AI_VOICE_MAX_SECONDS = 30;
+
 function randomToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -207,6 +212,14 @@ async function handleAiTurn(env, firestore, token, uid, chatId, text) {
 // распознала система, прежде чем увидит реакцию на это).
 async function handleTelegramVoice(env, firestore, token, message) {
   const uid = uidForTelegramId(message.from.id);
+  // Telegram, в отличие от веб-клиента (см. AI_VOICE_MAX_SECONDS в index.html), сам запись не
+  // ограничивает — без этой проверки пользователь может прислать голосовое на несколько минут,
+  // что означает и длинный STT, и огромный вход в YandexGPT. duration Telegram присылает в самом
+  // апдейте, поэтому лимит проверяется ДО скачивания файла и ДО любого платного вызова.
+  if (Number(message.voice.duration) > AI_VOICE_MAX_SECONDS) {
+    await sendMessage(token, message.chat.id, `🎤 Голосовое сообщение длиннее ${AI_VOICE_MAX_SECONDS} секунд — не обработано, запиши покороче.`);
+    return;
+  }
   try {
     const filePath = await getFilePath(token, message.voice.file_id);
     if (!filePath) throw new Error('Telegram не отдал файл голосового сообщения');
@@ -415,6 +428,13 @@ async function handleAiVoice(req, env, firestore) {
   const sampleRateHertz = rateMatch ? Number(rateMatch[1]) : 16000;
   const audioBytes = await req.arrayBuffer();
   if (!audioBytes.byteLength) return json({ error: 'empty audio' }, 400, AI_CORS_HEADERS);
+  // Клиент уже сам не даёт записать больше AI_VOICE_MAX_SECONDS (см. index.html), но это только
+  // UX-ограничение — сам эндпоинт публичный по HTTP, поэтому лимит нужно проверить и тут:
+  // PCM16 моно — 2 байта на сэмпл, отсюда длительность в секундах без декодирования звука.
+  const durationSeconds = audioBytes.byteLength / 2 / sampleRateHertz;
+  if (durationSeconds > AI_VOICE_MAX_SECONDS) {
+    return json({ error: 'voice_too_long', message: `Голосовое сообщение длиннее ${AI_VOICE_MAX_SECONDS} секунд — не обработано` }, 400, AI_CORS_HEADERS);
+  }
   try {
     const provider = createYandexProvider(env);
     const transcript = await provider.transcribe(audioBytes, { format: 'lpcm', sampleRateHertz });
