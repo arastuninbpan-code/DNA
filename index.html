@@ -5765,6 +5765,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       case 'create_expense': return `Расход ${finMoney(Math.abs(num(a.amount)))}${a.category?' · '+a.category:''}`;
       case 'create_income': return `Доход ${finMoney(Math.abs(num(a.amount)))}${a.description?' · '+a.description:''}`;
       case 'complete_habit': return `Привычка «${a.name||''}» — выполнено`;
+      case 'complete_event': return `Событие «${a.title||''}» — выполнено`;
+      case 'delete_event': return `Удалить событие «${a.title||''}»`;
+      case 'create_section': return `Раздел «${a.name||''}»`;
       default: return a.action||'действие';
     }
   }
