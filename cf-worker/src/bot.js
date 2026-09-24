@@ -302,6 +302,10 @@ async function renderEventsScreen(env, firestore, uid, kind, sectionKey) {
     rows.push(...shown.map((e) => [{ text: eventButtonText(e, dateKey), callback_data: `a:eventtoggle:${e.id}:${key}:${kind}` }]));
   }
   rows.push(kind === 'tomorrow' ? [{ text: '📅 Сегодня', callback_data: scr('today') }] : [{ text: '📅 Завтра', callback_data: scr('tomorrow') }]);
+  // Самоссылка на этот же экран (см. просьбу пользователя: список открыт в боте, в приложении
+  // что-то поменялось — без этой кнопки увидеть свежие данные можно было только уйдя на "Разделы"
+  // и вернувшись обратно; теперь достаточно нажать "Обновить" прямо тут же).
+  rows.push([{ text: '🔄 Обновить', callback_data: scr(kind) }]);
   rows.push([{ text: '← Разделы', callback_data: 's:events' }, { text: '🏠 Главное', callback_data: 's:home' }]);
   return { text: lines.join('\n'), reply_markup: { inline_keyboard: rows } };
 }
@@ -358,6 +362,9 @@ async function renderHabitsScreen(env, firestore, uid) {
     }]));
     if (list.length > HABIT_LIST_CAP) lines.push(`…и ещё ${list.length - HABIT_LIST_CAP}`);
   }
+  // См. ту же самоссылку в renderEventsScreen выше — без неё обновить уже открытый список
+  // привычек после изменений в приложении можно было только уйдя на "Главное" и вернувшись.
+  rows.push([{ text: '🔄 Обновить', callback_data: 's:habits' }]);
   rows.push([{ text: '🏠 Главное', callback_data: 's:home' }]);
   return { text: lines.join('\n'), reply_markup: { inline_keyboard: rows } };
 }

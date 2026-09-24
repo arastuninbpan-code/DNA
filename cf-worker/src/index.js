@@ -223,7 +223,12 @@ async function handleTelegramFreeText(env, firestore, token, message) {
       // больше 48 часов — Telegram не даёт удалять старые чужие сообщения, но тут ровно только
       // что отправленное своё) не должен мешать самой разблокировке, поэтому отдельный catch.
       await deleteMessage(token, message.chat.id, message.message_id).catch((err) => console.error('deleteMessage (password) failed', err));
-      await sendMessage(token, message.chat.id, '✅ Панель разработчика разблокирована — она появится в Главном меню.');
+      // Раньше здесь только сообщали текстом, что пункт "появится в Главном меню" — на деле
+      // само меню не перерисовывалось, и пункт был виден лишь после отдельного захода куда-то
+      // и обратно (см. жалобу пользователя на синхронизацию). Теперь сразу показываем обновлённое
+      // меню с уже видимой кнопкой панели — так же, как /menu ниже (repair:true чинит пин).
+      await sendMessage(token, message.chat.id, '✅ Панель разработчика разблокирована.');
+      await renderToMainMenu(env, firestore, token, uid, message.chat.id, renderHome(true), { repair: true });
       return;
     }
   }
@@ -365,9 +370,14 @@ async function handleTelegramWebhook(req, env, firestore) {
       } else {
         const result = await tryUnlockAdmin(firestore, env, uid, password);
         await deleteMessage(token, update.message.chat.id, update.message.message_id).catch((err) => console.error('deleteMessage (/admin) failed', err));
-        await sendMessage(token, from.id, result.ok
-          ? '✅ Панель разработчика разблокирована — она появится в Главном меню.'
-          : `❌ ${escapeHtml(result.error || 'не удалось')}`);
+        if (result.ok) {
+          // См. аналогичный фикс выше в handleTelegramFreeText — меню перерисовывается сразу,
+          // без отдельного захода куда-то и обратно.
+          await sendMessage(token, from.id, '✅ Панель разработчика разблокирована.');
+          await renderToMainMenu(env, firestore, token, uid, update.message.chat.id, renderHome(true), { repair: true });
+        } else {
+          await sendMessage(token, from.id, `❌ ${escapeHtml(result.error || 'не удалось')}`);
+        }
       }
     } else if (update.callback_query && String(update.callback_query.data).startsWith('s:')) {
       const cq = update.callback_query;
