@@ -6,10 +6,11 @@ import {
   DEFAULT_TZ, todayKey, dateKeyAddDays, formatRub,
   getHabitsDoc, habitsOn, markHabitDoneByName,
   createPlannerEvent, addFinanceTransaction, createSection, completeEventByTitle, deleteEventByTitle,
+  findSectionIdByName,
 } from '../reminders.js';
 
 export const ACTION_SCHEMA = {
-  create_event: { required: ['title', 'date'], optional: ['time', 'duration'] },
+  create_event: { required: ['title', 'date'], optional: ['time', 'duration', 'section'] },
   create_expense: { required: ['amount'], optional: ['category', 'description'] },
   create_income: { required: ['amount'], optional: ['category', 'description'] },
   complete_habit: { required: ['name'], optional: [] },
@@ -52,8 +53,14 @@ function dayLabelShort(dateKey) {
 }
 
 async function execCreateEvent(firestore, uid, a) {
+  // a.section — НАЗВАНИЕ существующего раздела (не id — AI видит только имена в контексте, см.
+  // context.js), ищем совпадение среди уже созданных разделов пользователя. Если не нашли —
+  // событие создаётся БЕЗ раздела, а не с новым придуманным: раньше create_event вообще не умел
+  // принимать раздел, и модель в попытке выполнить просьбу "создай в разделе Х" отдельно вызывала
+  // create_section, даже если такой раздел уже существовал — на выходе плодились дубликаты.
+  const sectionId = await findSectionIdByName(firestore, uid, a.section);
   const ev = await createPlannerEvent(firestore, uid, {
-    title: a.title, date: a.date, time: a.time || null, duration: a.duration,
+    title: a.title, date: a.date, time: a.time || null, duration: a.duration, sectionId,
   });
   const when = `${dayLabelShort(ev.date)}${ev.time ? ' · ' + ev.time : ''}`;
   return { summary: `📅 ${ev.title} — ${when}` };

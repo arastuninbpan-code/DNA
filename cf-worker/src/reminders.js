@@ -203,7 +203,7 @@ export function generateId() {
 // (см. cf-worker/src/ai/actions.js#execCreateEvent). Та же форма объекта, что и ручное
 // сохранение в форме события (см. commitForm в index.html): минимальный набор полей,
 // остальное (блоки, повтор, цвет раздела) можно донастроить потом в самом приложении.
-export async function createPlannerEvent(firestore, uid, { title, date, time, duration }) {
+export async function createPlannerEvent(firestore, uid, { title, date, time, duration, sectionId }) {
   const path = `users/${uid}/appData/planner`;
   const data = (await firestore.getDoc(path)) || {};
   const events = Array.isArray(data.events) ? [...data.events] : [];
@@ -213,7 +213,10 @@ export async function createPlannerEvent(firestore, uid, { title, date, time, du
     date,
     time: time || null,
     duration: duration || 60,
-    sectionId: null,
+    sectionId: sectionId || null,
+    // color остаётся null (не копируется цвет раздела на само событие) — так же, как при ручном
+    // создании без выбора отдельного цвета: plannerEventColor() в index.html сама подставляет
+    // цвет раздела через sectionId, если у события своего color нет (см. e.sectionId ниже).
     color: null,
     blocks: [],
     repeat: null,
@@ -230,6 +233,20 @@ export async function createPlannerEvent(firestore, uid, { title, date, time, du
 // списке), что PL_COLORS в index.html — раздел, созданный голосовым/текстовым AI, должен
 // выглядеть так же, как созданный вручную в самом приложении, а не отдельным набором цветов.
 const PL_COLORS = ['#c9a84c', '#7fb8e0', '#e08fa0', '#8fd19e', '#d6a8e8', '#e0b17f', '#a3d9d3'];
+
+// Найти УЖЕ существующий раздел по названию (без учёта регистра/пробелов) — нужен голосовому/
+// текстовому AI, когда просят "создай событие в разделе Х": раньше create_event вообще не умел
+// принимать раздел, и модель в попытке выполнить просьбу дублировала его через create_section,
+// хотя такой раздел уже был. Возвращает id или null, если раздела с таким именем нет (тогда
+// событие создаётся без раздела, а не с придуманным новым — см. execCreateEvent в actions.js).
+export async function findSectionIdByName(firestore, uid, name) {
+  if (!name) return null;
+  const data = (await firestore.getDoc(`users/${uid}/appData/planner`)) || {};
+  const sections = Array.isArray(data.sections) ? data.sections : [];
+  const norm = (s) => String(s || '').trim().toLowerCase();
+  const match = sections.find((s) => s && norm(s.name) === norm(name));
+  return match ? match.id : null;
+}
 
 // Новый раздел планера — используется голосовым/текстовым AI-ассистентом (execCreateSection
 // в actions.js). Та же форма {id, name, color}, что и sections, которые создаёт сам клиент.

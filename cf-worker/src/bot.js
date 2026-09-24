@@ -299,16 +299,40 @@ function renderFinancePromptScreen(type) {
 // То же самое planTurn/confirmActions, что использует веб-приложение (см. handleAiChat/
 // handleAiVoice в index.js) — никакой отдельной AI-логики под Telegram, только своё
 // представление результата под интерфейс бота (одно закреплённое сообщение вместо чата).
-function aiActionSummaryText(a) {
+
+// "Сегодня"/"Завтра" с заглавной — так короче и читается как ярлык, а не часть предложения
+// (по референсу пользователя: "Сегодня · 16:00" отдельной строкой под названием события).
+function aiDayLabel(dateKey) {
+  if (!dateKey) return '';
+  const today = todayKey(DEFAULT_TZ);
+  if (dateKey === today) return 'Сегодня';
+  if (dateKey === dateKeyAddDays(today, 1)) return 'Завтра';
+  const [, m, d] = dateKey.split('-');
+  return `${d}.${m}`;
+}
+
+// Каждое действие — короткая "карточка" в две строки (иконка+название, затем деталь), а не одна
+// строка списком — по референсу пользователя (📅 Название \n Сегодня · 16:00).
+function aiActionCard(a) {
   switch (a.action) {
-    case 'create_event': return `Событие «${a.title || ''}»${a.date ? ', ' + a.date : ''}${a.time ? ' в ' + a.time : ''}`;
-    case 'create_expense': return `Расход ${formatRub(Math.abs(Number(a.amount) || 0))}${a.category ? ' · ' + a.category : ''}`;
-    case 'create_income': return `Доход ${formatRub(Math.abs(Number(a.amount) || 0))}${a.description ? ' · ' + a.description : ''}`;
-    case 'complete_habit': return `Привычка «${a.name || ''}» — выполнено`;
-    case 'complete_event': return `Событие «${a.title || ''}» — выполнено`;
-    case 'delete_event': return `Удалить событие «${a.title || ''}»`;
-    case 'create_section': return `Раздел «${a.name || ''}»`;
-    default: return a.action || 'действие';
+    case 'create_event': {
+      const when = [aiDayLabel(a.date), a.time].filter(Boolean).join(' · ');
+      return `📅 ${escapeHtml(a.title || '')}\n${when || 'Без даты'}`;
+    }
+    case 'complete_event':
+      return `📅 ${escapeHtml(a.title || '')}\nОтметить выполненным`;
+    case 'delete_event':
+      return `🗑️ ${escapeHtml(a.title || '')}\nУдалить`;
+    case 'create_expense':
+      return `💰 ${escapeHtml(a.category || a.description || 'Расход')}\n−${formatRub(Math.abs(Number(a.amount) || 0))}`;
+    case 'create_income':
+      return `💰 ${escapeHtml(a.category || a.description || 'Доход')}\n+${formatRub(Math.abs(Number(a.amount) || 0))}`;
+    case 'complete_habit':
+      return `🔥 ${escapeHtml(a.name || '')}\nОтметить выполненной`;
+    case 'create_section':
+      return `📁 ${escapeHtml(a.name || '')}\nНовый раздел`;
+    default:
+      return escapeHtml(a.action || 'действие');
   }
 }
 
@@ -316,18 +340,22 @@ function aiActionSummaryText(a) {
 // исходной просьбы: несколько действий сразу требуют явного подтверждения), только показаны на
 // подтверждение; сам список на этот момент уже сохранён в users/{uid}.pendingAiActions
 // (см. handleAiTurn/handleTelegramVoice в index.js) — кнопки ниже лишь ссылаются на него.
+// Когда actions есть, заголовок — фиксированная фраза "Хорошо, я понял так:" (не текст модели —
+// он бы дублировал уже показанные ниже карточки); reply модели показывается только когда action'ов
+// нет вовсе (обычный вопрос-ответ) — по референсу пользователя.
 export function renderAiPlanScreen(plan) {
-  const lines = ['🤖 ' + escapeHtml(plan.reply || 'Готово.')];
+  const hasActions = plan.actions && plan.actions.length;
+  const lines = [hasActions ? '🤖 Хорошо, я понял так:' : '🤖 ' + escapeHtml(plan.reply || 'Готово.')];
   if (plan.rejected && plan.rejected.length) {
     lines.push('', `⚠️ Не понял: ${plan.rejected.map((r) => escapeHtml(r.error || 'действие')).join('; ')}`);
   }
   const rows = [];
-  if (plan.actions && plan.actions.length) {
-    lines.push('', 'Добавить это?');
-    for (const a of plan.actions) lines.push(`• ${escapeHtml(aiActionSummaryText(a))}`);
-    rows.push([{ text: '✅ Добавить всё', callback_data: 'a:aiconfirm' }, { text: '❌ Отмена', callback_data: 'a:aicancel' }]);
+  if (hasActions) {
+    lines.push('', plan.actions.map((a) => aiActionCard(a)).join('\n\n'));
+    rows.push([{ text: '✅ Подтвердить', callback_data: 'a:aiconfirm' }]);
+    rows.push([{ text: '✕ Отмена', callback_data: 'a:aicancel' }]);
   }
-  rows.push([{ text: '🏠 Главное', callback_data: 's:home' }]);
+  rows.push([{ text: '🏠 Главное меню', callback_data: 's:home' }]);
   return { text: lines.join('\n'), reply_markup: { inline_keyboard: rows } };
 }
 
