@@ -43,14 +43,19 @@
    lnum/tnum (лайнинговых и табличных цифр) — она вообще не предлагает альтернативных начертаний
    цифр, только единственный старостильный набор. Запрос неподдерживаемой фичи браузер просто
    молча игнорирует, поэтому цифры визуально не менялись никогда. Подменяем ТОЛЬКО глифы цифр
-   (U+0030–U+0039) через тот же font-family "Georgia" на системный sans с нормальными
+   (U+0030–U+0039) через тот же font-family "Georgia" на другой шрифт с нормальными
    (лайнинговыми, одинаковой ширины) цифрами по умолчанию — вся остальная типографика и все
    буквы остаются Georgia без изменений, подмена работает исключительно по unicode-range.
    local() без сети/загрузки — цифры не покидают устройство, специально несколько имён под
-   разные ОС (iOS/macOS, Windows, Android, Linux). */
+   разные ОС (iOS/macOS, Windows, Android, Linux). Раньше тут стоял гротескный sans (Helvetica
+   Neue и т.п.) — цифры технически стали ровными, но визуально выбивались из атмосферы (весь
+   остальной текст — засечечный Georgia, а цифры внезапно рубленые). Теперь подставные шрифты —
+   тоже серифные, с лайнинговыми цифрами по умолчанию (в отличие от самой Georgia): Iowan Old
+   Style на iOS/macOS, Cambria на Windows, Noto Serif/Droid Serif на Android, DejaVu Serif на
+   Linux — цифры остаются засечечными и вписываются в общий вид, просто ровными по ширине. */
 @font-face {
   font-family: 'Georgia';
-  src: local('Helvetica Neue'), local('Segoe UI'), local('Roboto'), local('Arial'), local('Liberation Sans'), local('DejaVu Sans');
+  src: local('Iowan Old Style'), local('Cambria'), local('Noto Serif'), local('Droid Serif'), local('Times New Roman'), local('Liberation Serif'), local('DejaVu Serif');
   unicode-range: U+0030-0039;
   font-display: swap;
   /* Без явного диапазона font-weight описание по умолчанию match'ится только к обычному
@@ -839,7 +844,7 @@ select.field { appearance:none; }
    (.pl-header h1: 1.5rem, margin:0), из-за чего "Финансы" визуально сидело на другом уровне и
    другого размера. Выравниваем один в один. */
 .fin-heading {font-size:1.5rem;font-weight:400;margin:0;outline:none;}
-.fin-tabs {display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:22px;}
+.fin-tabs {display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:22px;touch-action:pan-y;}
 /* Вертикальный padding уменьшен с 10px до 7px — под высоту .pl-chip (тех же плашек-фильтров в
    Планере: "Все"/названия разделов), чтобы вкладки Финансов не были заметно выше соседних. */
 .fin-tab {padding:7px 4px;border-radius:14px;border:1px solid rgba(var(--ink),.1);background:var(--surface2);color:rgba(var(--ink),.55);font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -875,6 +880,11 @@ select.field { appearance:none; }
 .fin-totals span {color:rgba(var(--ink),.65);font-size:.875rem;}
 .fin-totals strong {font-size:clamp(1rem,3vw,1.35rem);font-weight:400;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;}
 .fin-income {color:#abc4b3;}
+/* Расход в списке операций раньше не получал цветового класса вовсе (оставался обычным
+   текстом) — теперь красный, как и кнопка "Расход". Перевод в цель — серый: это не трата и
+   не доход (см. totalTransfers — исключён из обоих итогов), красный/зелёный тут был бы враньём. */
+.fin-tx-expense {color:var(--red);}
+.fin-tx-transfer {color:rgba(var(--ink),.5);}
 .fin-comment {border-left:2px solid #8d7740;background:#12120f;padding:10px 12px;margin:20px 0 24px;border-radius:0 12px 12px 0;}
 .fin-comment summary {display:flex;gap:10px;align-items:center;cursor:pointer;font-size:.875rem;line-height:1.6;list-style:none;min-height:44px;}
 .fin-comment summary::-webkit-details-marker {display:none;}
@@ -946,6 +956,13 @@ select.field { appearance:none; }
    стандартных donut-графиках. Префикс fin-bal- (а не fin-ring/fin-ring-center) — эти имена уже
    заняты старым кольцом "Расходы по категориям" (см. renderFinSpending ниже по файлу), совпадение
    имён сделало бы мой круг некликабельным (унаследованный оттуда pointer-events:none). */
+/* Зона свайпа — вся горизонтальная полоса, где расположен круг (см. жалобу: "свапнуть можно
+   за сам круг, а не за область всю слева направо") — сам круг остаётся по центру внутри неё
+   через flex, а data-fin-month-swipe навешен на всю ширину. touch-action:pan-y — без него
+   браузер на телефоне перехватывает горизонтальный тач как нативный скролл раньше, чем JS
+   вообще увидит pointermove (тот же приём, что и у .fin-tx-swipe ниже по файлу) — это была
+   реальная причина, почему свайп "не работал" вовсе, а не только то, что зона была узкой. */
+.fin-ring-swipe-zone {display:flex;justify-content:center;touch-action:pan-y;}
 .fin-bal-ring-wrap {position:relative;width:200px;height:200px;max-width:60vw;max-height:60vw;margin:8px auto 4px;}
 .fin-bal-ring-svg {width:100%;height:100%;transform:rotate(-90deg);}
 .fin-bal-ring-track {fill:none;stroke:rgba(var(--ink),.08);stroke-width:14;}
@@ -1943,7 +1960,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.29.2';
+  const APP_VERSION = '0.29.3';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -5955,23 +5972,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v0.29.2</div><p class="settings-note">Карточка подтверждения Атласа в боте и в приложении показывала сырое имя действия ("delete_section") при удалении раздела вместо понятного описания — в свиче не хватало этого случая (был только для удаления событий). Теперь пишет «Удалить раздел «Название»».</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.29.1</div><p class="settings-note">Правки по фидбэку из панели разработчика: починена чёрная полоса снизу экрана «Финансы» (баг вёрстки, круг с балансом теперь кликабелен — раньше случайно унаследовал pointer-events:none от другого элемента). Тап по балансу — редактирование. Кнопка «Начальный остаток» убрана. «Расход» — красный, кнопки показывают суммы за месяц вместо статичных слов. Заголовок и вкладки выровнены по размеру с «Планер». Круг переключает месяц свайпом, между Главная/История/Цели/Инвестиции — тоже свайп по строке вкладок. Раздел «Динамика» убран (позже заменим на анализ трат). Панель разработчика: заметки можно отмечать «Готово» — убираются из списка.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.29.0</div><p class="settings-note">Начало переработки раздела «Финансы» (первый этап). Главная: круг с текущим балансом и кольцом доходов/расходов за месяц, переключатель месяца, «Результат месяца», «Обязательные платежи», «Ближайшая цель». Операции теперь умеют быть с датой в будущем (не трогают баланс, пока не подтверждены — «Оплачено»/«Получено») и повторяющимися («Повторять» — та же механика, что у событий планера). История: фильтр «ОП» (обязательные платежи), группировка по дням, переключатель месяца. Цели: кнопка «Отложить» — перевод денег в цель, не считается расходом.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.28.5</div><p class="settings-note">Подмена цифр не срабатывала для жирного начертания (баланс, крупные суммы) — из-за этого в одних местах цифры выглядели ровно, в других по-прежнему «прыгали». Теперь правило подмены отвечает за цифры при любой жирности, шрифт цифр везде одинаковый.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.28.4</div><p class="settings-note">Нашлась настоящая причина двух прошлых заметок, а не только симптомы: у шрифта Georgia физически нет ровных цифр — теперь цифры подменяются на системный шрифт с ровными по ширине и высоте начертаниями, буквы не затронуты. Системная тема: раньше JS сам себе мешал жить и переключался только после перезахода — теперь в режиме «системная» переключение отдано целиком браузеру (CSS), он делает это вживую и мгновенно.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.28.3</div><p class="settings-note">Доисправлены две прошлые заметки: цифры теперь не «прыгают» по высоте (5 больше не ниже 0), а системная тема переключается сразу, а не только после перезахода в приложение. Атлас научился удалять разделы планера — по названию или по цвету («удали зелёный раздел»).</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.28.2</div><p class="settings-note">Атлас понимает относительное время («напомни через час», «через 30 минут») — сам вычисляет точное время. Цифры теперь одинаковой ширины — не «прыгают» при обновлении. Системная тема переключается заметно быстрее при смене темы в ОС.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.28.1</div><p class="settings-note">Голосовой ассистент получил имя — Атлас: так теперь называется в приложении и в боте (заголовок экрана, поле ввода, сообщения об ошибках, карточка подтверждения действий в Telegram).</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.28.0</div><p class="settings-note">Панель разработчика: кнопка выхода (сбрасывает доступ по-настоящему, не только визуально), статистика пользователей (всего/новых/активных за день-неделю-месяц, топ по частоте заходов), заметки «поправить/добавить» — доступны и в приложении, и в боте. Пароль панели теперь удаляется из чата бота сразу после разблокировки.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.27.1</div><p class="settings-note">Пароль панели разработчика теперь можно просто отправить как есть — текстом в Telegram или в поле «Промокод» в Настройках, без отдельной команды /admin.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.27.0</div><p class="settings-note">Промокоды: активируются полем в Настройках или просто отправкой кода в Telegram. Поддержка: форма «Написать в поддержку» в Настройках и в Telegram — сообщения видны в новой Панели разработчика (долгое удержание номера версии открывает вход по секретному паролю), вместе со сводкой трат на AI (SpeechKit/YandexGPT) за сегодня/7/30 дней.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.26.3</div><p class="settings-note">Голосовые сообщения AI-ассистенту (в приложении и в боте) ограничены 30 секундами — при превышении запись останавливается и не отправляется на распознавание.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.26.2</div><p class="settings-note">В боте — голосовой AI теперь и там: любое текстовое или голосовое сообщение (кроме команд/кнопок) понимается ассистентом так же, как в приложении, с той же карточкой подтверждения перед применением. В «Финансах» — кнопки «➕ Пополнение»/«➖ Расход»: пишешь сумму и на что (например, «100 на шоколадку») — операция добавляется без AI, обычным разбором текста.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.26.1</div><p class="settings-note">Голосовой AI теперь прямо на главном экране, без лишнего тапа по микрофону. Запись — как в мессенджерах: держишь микрофон — идёт запись, отпустишь — останавливается; короткий тап — запись продолжается без удержания пальца до следующего тапа. Починено распознавание речи (раньше не работало из-за формата записи браузера). AI также умеет создавать разделы планера и отмечать события выполненными.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.26.0</div><p class="settings-note">Кнопка микрофона на главном экране открывает голосового AI-ассистента: можно говорить или писать текстом — создание событий, учёт расходов/доходов, отметка привычек выполненными, вопросы «что сегодня/завтра». Для нескольких действий сразу показывается карточка со списком — подтверждаешь одним нажатием, ничего не применяется без согласия.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.25.20</div><p class="settings-note">В боте — раздел «События» сначала предлагает выбрать раздел (как чипы в самом приложении), тап по строке события/привычки сразу отмечает выполненным без перехода в карточку, многодневные события видны на каждом дне, который затрагивают. Поле «Повторять» научилось понимать «каждое N число». Из Настроек убран блок «Напоминания в Telegram» (сами напоминания в боте продолжают работать). Привычки в светлой теме — обычный акцентный цвет вместо отдельного более яркого жёлтого.</p></div>
-        <div class="changelog-entry"><div class="changelog-version">v0.25.19</div><p class="settings-note">В боте — закреплённое «Главное меню» (Финансы/События/Привычки/Новости/Сегодня), навигация по разделам и карточкам событий/привычек редактирует одно сообщение, не засоряя чат; команда /menu открывает меню в любой момент. Поле «Повторять» у события/задачи теперь свободный текст («каждый день», «по вторникам и четвергам», «раз в 2 недели») вместо набора кнопок — понимает и опечатки, а при непонятном тексте поле трясётся красным, как при пустом названии.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Здесь показывается только текущая версия (см. ef591d4 — раньше уже было так же, но список снова разросся до полной истории). Свайпы в «Финансах» на круге и вкладках заработали — раньше нативный скролл телефона перехватывал жест раньше, чем его успевал увидеть JS; зона свайпа круга расширена на всю строку, а не только сам круг. Сумма операции — красным при расходе, серым при переводе в цель (раньше расход вообще не получал цвета). Подставной шрифт цифр сменился с гротескного на засечечный — вписывается в общую атмосферу Georgia, оставаясь ровным по ширине.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -6567,10 +6568,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const t=finTotals(finHomeMonthTx()),total=t.income+t.expense,balance=totalBalance();
     const r=80,c=2*Math.PI*r;
     const expenseLen=total>0?c*(t.expense/total):0,incomeLen=total>0?c-expenseLen:0;
-    return `<div class="fin-bal-ring-wrap" data-fin-month-swipe><svg viewBox="0 0 200 200" class="fin-bal-ring-svg" role="img" aria-label="Пополнения ${finMoney(t.income)}, расходы ${finMoney(t.expense)}">
+    return `<div class="fin-ring-swipe-zone" data-fin-month-swipe><div class="fin-bal-ring-wrap"><svg viewBox="0 0 200 200" class="fin-bal-ring-svg" role="img" aria-label="Пополнения ${finMoney(t.income)}, расходы ${finMoney(t.expense)}">
       <circle cx="100" cy="100" r="${r}" class="fin-bal-ring-track"></circle>
       ${total>0?`<circle cx="100" cy="100" r="${r}" class="fin-bal-ring-expense" stroke-dasharray="${expenseLen} ${c-expenseLen}"></circle><circle cx="100" cy="100" r="${r}" class="fin-bal-ring-income" stroke-dasharray="${incomeLen} ${c-incomeLen}" stroke-dashoffset="${-expenseLen}"></circle>`:''}
-    </svg><button type="button" class="fin-bal-ring-center" data-fin-balance-edit aria-label="Баланс ${finMoney(balance)}. Изменить"><strong class="fin-balance">${finMoney(balance)}</strong><span>Баланс</span></button></div>`;
+    </svg><button type="button" class="fin-bal-ring-center" data-fin-balance-edit aria-label="Баланс ${finMoney(balance)}. Изменить"><strong class="fin-balance">${finMoney(balance)}</strong><span>Баланс</span></button></div></div>`;
   }
   // Тап по балансу — не редактирование "начального остатка" напрямую (пользователь не обязан
   // помнить эту механику), а прямое "поправь баланс на актуальный": считаем, какой opening
@@ -6683,7 +6684,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         const label=income?'Получено':'Оплачено';
         return `<div class="fin-transaction fin-tx-planned"><span class="fin-tx-icon">${icon('today')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}${t.occurrenceOf?' · регулярный платёж':''}</small></span><span class="fin-tx-money fin-tx-muted">${income?'+':'−'}${finMoney(finAmount(t))}</span><button class="fin-tx-pay" data-fin-pay="${esc(t.id)}">${label}</button></div>`;
       }
-      const card=`<button class="fin-transaction" data-fin-tx="${t.id}"><span class="fin-tx-icon ${income?'fin-income':''}">${icon(income?'trend-up':categoryIcon[t.category]||'receipt')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}</small></span><span class="fin-tx-money ${income?'fin-income':''}">${income?'+':'−'}${finMoney(finAmount(t))}</span></button>`;
+      // Цвет суммы: зелёный — пополнение, серый — перевод в цель (не расход и не доход, см.
+      // totalBalance/totalTransfers — переводы не участвуют в доходах/расходах), красный — обычный
+      // расход. Раньше расход вообще не получал цветовой класс и оставался обычным текстом.
+      const isTransfer=t.type==='goal_transfer';
+      const moneyClass=isTransfer?'fin-tx-transfer':(income?'fin-income':'fin-tx-expense');
+      const card=`<button class="fin-transaction" data-fin-tx="${t.id}"><span class="fin-tx-icon ${income?'fin-income':''}">${icon(income?'trend-up':categoryIcon[t.category]||'receipt')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}</small></span><span class="fin-tx-money ${moneyClass}">${income?'+':'−'}${finMoney(finAmount(t))}</span></button>`;
       if(!swipeable)return card;
       // Свайп влево — тот же паттерн, что у привычек: карточка следует за пальцем, кнопки лежат
       // неподвижно под ней; удаление — через 5-секундный undo-тост, а не мгновенно.
