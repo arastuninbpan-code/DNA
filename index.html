@@ -925,6 +925,35 @@ select.field { appearance:none; }
 .fin-progress {display:block;height:6px;background:#2b291f;border-radius:6px;overflow:hidden;margin:14px 0;}
 .fin-progress>i {display:block;height:100%;background:linear-gradient(90deg,#998044,#e1c46d);border-radius:6px;transform-origin:left;transition:width .4s ease;}
 .fin-goal-detail {display:block;font-size:.875rem;color:#d7ceba;line-height:1.6;margin-bottom:5px;}
+.fin-goal-card {display:flex;align-items:center;gap:10px;border-bottom:1px solid #29281f;}
+.fin-goal-card .fin-goal {border-bottom:0;flex:1;min-width:0;}
+.fin-goal-add {flex-shrink:0;padding:8px 14px;border-radius:12px;border:1px solid rgba(201,168,76,.3);background:transparent;color:var(--gold);font-size:.8125rem;}
+/* Главная — круг с балансом и кольцом доходы/расходы (см. ТЗ п.1): SVG, не canvas — резкий на
+   retina без пересчёта размеров, повёрнут на -90deg чтобы старт кольца был сверху, как в
+   стандартных donut-графиках. */
+.fin-ring-wrap {position:relative;width:200px;height:200px;max-width:60vw;max-height:60vw;margin:8px auto 4px;}
+.fin-ring {width:100%;height:100%;transform:rotate(-90deg);}
+.fin-ring-track {fill:none;stroke:rgba(var(--ink),.08);stroke-width:14;}
+.fin-ring-expense {fill:none;stroke:var(--red);stroke-width:14;stroke-linecap:round;transition:stroke-dasharray .4s ease;}
+.fin-ring-income {fill:none;stroke:var(--green);stroke-width:14;stroke-linecap:round;transition:stroke-dasharray .4s ease,stroke-dashoffset .4s ease;}
+.fin-ring-center {position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;padding:0 12px;}
+.fin-ring-center .fin-balance {margin:0;font-size:clamp(1.5rem,7vw,2rem);}
+.fin-ring-center span {font-size:.75rem;color:rgba(var(--ink),.5);}
+.fin-month-switcher {display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:2px;}
+.fin-month-switcher button {background:none;border:0;color:var(--gold);padding:6px;display:flex;}
+.fin-month-switcher strong {font-weight:600;text-transform:capitalize;min-width:11ch;text-align:center;}
+.fin-opening-link {display:block;text-align:center;margin:2px auto 0;}
+.fin-month-result {text-align:center;}
+.fin-month-result strong {display:block;margin-top:4px;font-size:1.5rem;font-weight:600;}
+.fin-mandatory-sum {display:block;margin:4px 0;font-size:1.5rem;font-weight:600;color:#e0a344;}
+.fin-nearest-goal {display:block;width:100%;text-align:left;background:var(--surface2);border:1px solid rgba(201,168,76,.18);}
+.fin-nearest-goal h2 {margin:0 0 10px;}
+.fin-history-chips {margin:10px 0;justify-content:flex-start;}
+/* Запланированная/виртуальная операция — приглушённый (не зелёный/красный) цвет, как в ТЗ:
+   до подтверждения это не считается ни доходом, ни расходом. */
+.fin-transaction.fin-tx-planned {display:flex;align-items:center;gap:10px;width:100%;padding:10px 0;border-bottom:1px solid #29281f;opacity:.62;}
+.fin-tx-muted {color:rgba(var(--ink),.5) !important;}
+.fin-tx-pay {flex-shrink:0;padding:7px 12px;border-radius:10px;border:1px solid rgba(201,168,76,.3);background:transparent;color:var(--gold);font-size:.75rem;}
 .fin-portfolio-total {font-size:1.8rem;color:#eee5d1;overflow-wrap:anywhere;}
 .fin-portfolio-total span {display:block;font-size:.875rem;color:rgba(var(--ink),.65);margin-top:6px;}
 .fin-allocation {display:flex;height:10px;gap:2px;border-radius:6px;overflow:hidden;margin:22px 0 14px;}
@@ -1900,7 +1929,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.28.5';
+  const APP_VERSION = '0.29.0';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -2281,18 +2310,72 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
 
   // -------- Finance computed state --------
-  function totalBalance() { return openingBalance + totalIncome() - totalExpense(); }
-  function totalIncome() { return state.finance.transactions.filter(t=>t.type==='income').reduce((s,t)=>s+Math.abs(num(t.amount)),0); }
-  function totalExpense() { return state.finance.transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+Math.abs(num(t.amount)),0); }
+  // status: 'planned' | 'completed' — у операций без поля (все, что были созданы до этой
+  // фичи) считаем 'completed', иначе вся история до сегодняшнего дня разом стала бы "не
+  // учитываться". Планируемая (будущая или ещё не подтверждённая) операция не должна
+  // двигать баланс/статистику — см. ТЗ п.24 "Главное правило финансового учёта".
+  function txCompleted(t) { return (t.status||'completed')==='completed'; }
+  // goal_transfer/internal_transfer — перевод между своими деньгами, а не трата: уменьшает
+  // доступный баланс, но НЕ входит в totalExpense/totalIncome (иначе аналитика "расходов"
+  // считала бы отложенное в цель тратой дважды — и в переводе, и в целевом прогрессе).
+  function totalTransfers() { return state.finance.transactions.filter(t=>txCompleted(t)&&(t.type==='goal_transfer'||t.type==='internal_transfer')).reduce((s,t)=>s+Math.abs(num(t.amount)),0); }
+  function totalBalance() { return openingBalance + totalIncome() - totalExpense() - totalTransfers(); }
+  function totalIncome() { return state.finance.transactions.filter(t=>txCompleted(t)&&t.type==='income').reduce((s,t)=>s+Math.abs(num(t.amount)),0); }
+  function totalExpense() { return state.finance.transactions.filter(t=>txCompleted(t)&&t.type==='expense').reduce((s,t)=>s+Math.abs(num(t.amount)),0); }
   function freeMoney() { return totalIncome() - totalExpense(); }
   function expensesByCategory() {
     const out = {};
     for (const t of state.finance.transactions) {
-      if (t.type !== 'expense') continue;
+      if (t.type !== 'expense' || !txCompleted(t)) continue;
       const cat = t.category || 'Другое';
       out[cat] = (out[cat] || 0) + Math.abs(num(t.amount));
     }
     return out;
+  }
+  // -------- Повторяющиеся/запланированные операции --------
+  // Та же модель, что у повторяющихся событий планера (см. plannerEventRepeatsOn выше по
+  // файлу и комментарий там): операция хранится ОДНИМ объектом с якорной датой t.date, repeat
+  // лишь решает, на каких ЕЩЁ днях она тоже должна "виртуально" появляться — функция общая
+  // для планера и финансов, ничего домено-специфичного в ней нет (работает с любым {date,
+  // repeat}). t.paidDates — даты виртуальных вхождений, для которых уже создана настоящая
+  // операция через "Оплачено"/"Получено" (см. finPayOccurrence) — такие даты в списке
+  // предстоящих больше не показываем, иначе платёж после оплаты дублировался бы.
+  function finUpcomingOccurrences(windowDays=60) {
+    const today=isoDate(dateOnly());
+    const out=[];
+    for (const t of state.finance.transactions) {
+      if (!t.repeat) continue;
+      const paid=new Set(t.paidDates||[]);
+      for (let i=0;i<=windowDays;i++) {
+        const d=isoDate(addDays(dateOnly(),i));
+        if (d===t.date) continue; // якорная дата — уже настоящая запись в transactions
+        if (paid.has(d)) continue;
+        if (plannerEventRepeatsOn(t,d)) out.push({...t, date:d, status:'planned', occurrenceOf:t.id, id:`${t.id}:${d}`});
+      }
+    }
+    return out.sort((a,b)=>parseLocalDate(a.date)-parseLocalDate(b.date));
+  }
+  // Превращает запланированную/виртуальную операцию в настоящую completed-запись. occ — либо
+  // сама операция из state.finance.transactions (одноразовая будущая — просто меняем статус
+  // на месте), либо виртуальное вхождение повторяющейся серии из finUpcomingOccurrences (тогда
+  // создаём НОВУЮ запись на конкретную дату и отмечаем дату как оплаченную в якорной серии,
+  // саму серию не трогаем — она продолжает генерировать следующие вхождения).
+  function finPayOccurrence(occ) {
+    const list=state.finance.transactions;
+    if (occ.occurrenceOf) {
+      const anchor=list.find(t=>t.id===occ.occurrenceOf);
+      if (!anchor) return false;
+      const real={id:uid(),amount:anchor.amount,type:anchor.type,category:anchor.category,note:anchor.note,date:occ.date,status:'completed',mandatory:anchor.mandatory||false,recurringSourceId:anchor.id};
+      state.finance.transactions=[...list.map(t=>t.id===anchor.id?{...t,paidDates:[...(t.paidDates||[]),occ.date]}:t),real];
+    } else {
+      const existing=list.find(t=>t.id===occ.id);
+      if (!existing) return false;
+      state.finance.transactions=list.map(t=>t.id===occ.id?{...t,status:'completed'}:t);
+    }
+    return finSavePlain('transactions');
+  }
+  function finSavePlain(key) {
+    try {localStorage.setItem(key,JSON.stringify(state.finance[key]));return true;}catch(_){return false;}
   }
   function sortedTransactions() {
     return [...state.finance.transactions].sort((a,b)=>parseLocalDate(b.date)-parseLocalDate(a.date));
@@ -5857,6 +5940,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.29.0</div><p class="settings-note">Начало переработки раздела «Финансы» (первый этап). Главная: круг с текущим балансом и кольцом доходов/расходов за месяц, переключатель месяца, «Результат месяца», «Обязательные платежи», «Ближайшая цель». Операции теперь умеют быть с датой в будущем (не трогают баланс, пока не подтверждены — «Оплачено»/«Получено») и повторяющимися («Повторять» — та же механика, что у событий планера). История: фильтр «ОП» (обязательные платежи), группировка по дням, переключатель месяца. Цели: кнопка «Отложить» — перевод денег в цель, не считается расходом.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.5</div><p class="settings-note">Подмена цифр не срабатывала для жирного начертания (баланс, крупные суммы) — из-за этого в одних местах цифры выглядели ровно, в других по-прежнему «прыгали». Теперь правило подмены отвечает за цифры при любой жирности, шрифт цифр везде одинаковый.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.4</div><p class="settings-note">Нашлась настоящая причина двух прошлых заметок, а не только симптомы: у шрифта Georgia физически нет ровных цифр — теперь цифры подменяются на системный шрифт с ровными по ширине и высоте начертаниями, буквы не затронуты. Системная тема: раньше JS сам себе мешал жить и переключался только после перезахода — теперь в режиме «системная» переключение отдано целиком браузеру (CSS), он делает это вживую и мгновенно.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.3</div><p class="settings-note">Доисправлены две прошлые заметки: цифры теперь не «прыгают» по высоте (5 больше не ниже 0), а системная тема переключается сразу, а не только после перезахода в приложение. Атлас научился удалять разделы планера — по названию или по цвету («удали зелёный раздел»).</p></div>
@@ -6405,7 +6489,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   const FIN_BLOCKS = {spending:'Расходы по категориям', dynamics:'Доходы и расходы', goals:'Цели', investments:'Инвестиции'};
   const FIN_COLORS = ['#c9a84c','#809c9b','#b98d7f','#8985aa','#a6a77c','#8b9faf','#b993ad','#b2a293'];
   const financePrefs = readFinancePrefs(loadJSON('dna_finance_layout_v1', null));
-  const financeView = {page:'overview', period:'month', category:null, search:'', type:'all', rangePeriod:null};
+  const financeView = {page:'overview', period:'month', category:null, search:'', type:'all', rangePeriod:null, homeMonth:{y:new Date().getFullYear(),m:new Date().getMonth()}};
   let openingBalance = num(loadJSON('dna_finance_opening_v1', 0));
   let financeAnimated = new Set();
   function readFinancePrefs(raw) {
@@ -6442,10 +6526,70 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return [...m].filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
   }
   function finAnimation(key) {if(financeAnimated.has(key))return '';financeAnimated.add(key);return ' fin-enter';}
+  // -------- Главная: круг с балансом + переключатель месяца (ТЗ п.1) --------
+  function finHomeMonthRange() {const {y,m}=financeView.homeMonth;return {start:new Date(y,m,1),end:new Date(y,m+1,1)};}
+  function finHomeMonthLabel() {const {y,m}=financeView.homeMonth;return new Date(y,m,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});}
+  function finHomeMonthTx() {
+    const {start,end}=finHomeMonthRange();
+    return state.finance.transactions.filter(t=>txCompleted(t)&&(t.type==='income'||t.type==='expense')&&(()=>{const d=parseLocalDate(t.date);return d>=start&&d<end;})());
+  }
+  function renderFinMonthSwitcher() {
+    return `<div class="fin-month-switcher"><button type="button" data-fin-home-month="-1" aria-label="Предыдущий месяц">${icon('chev-left')}</button><strong>${esc(finHomeMonthLabel())}</strong><button type="button" data-fin-home-month="1" aria-label="Следующий месяц">${icon('chev-right')}</button></div>`;
+  }
+  // Кольцо — не расход/доход месяца минус, а ИХ ДОЛЯ друг относительно друга (см. ТЗ: "длина
+  // сегментов должна соответствовать соотношению доходов и расходов"); число в центре — текущий
+  // баланс целиком, а не результат за месяц, тоже отдельно оговорено в ТЗ.
+  function renderFinRing() {
+    const t=finTotals(finHomeMonthTx()),total=t.income+t.expense,balance=totalBalance();
+    const r=80,c=2*Math.PI*r;
+    const expenseLen=total>0?c*(t.expense/total):0,incomeLen=total>0?c-expenseLen:0;
+    return `<div class="fin-ring-wrap"><svg viewBox="0 0 200 200" class="fin-ring" role="img" aria-label="Пополнения ${finMoney(t.income)}, расходы ${finMoney(t.expense)}">
+      <circle cx="100" cy="100" r="${r}" class="fin-ring-track"></circle>
+      ${total>0?`<circle cx="100" cy="100" r="${r}" class="fin-ring-expense" stroke-dasharray="${expenseLen} ${c-expenseLen}"></circle><circle cx="100" cy="100" r="${r}" class="fin-ring-income" stroke-dasharray="${incomeLen} ${c-incomeLen}" stroke-dashoffset="${-expenseLen}"></circle>`:''}
+    </svg><div class="fin-ring-center"><strong class="fin-balance">${finMoney(balance)}</strong><span>Баланс</span></div></div>`;
+  }
+  function renderFinMonthResultCard() {
+    const t=finTotals(finHomeMonthTx()),result=t.income-t.expense;
+    return `<section class="fin-card fin-month-result"><p class="fin-muted">За месяц</p><strong class="${result>=0?'fin-income':''}">${result>=0?'+':''}${finMoney(result)}</strong></section>`;
+  }
+  // Обязательные платежи — регулярные (виртуальные вхождения finUpcomingOccurrences) и
+  // одноразовые запланированные с mandatory=true, объединяем в один список (см. ТЗ п.5/10).
+  function finMandatoryUpcoming(windowDays=45) {
+    const oneOff=state.finance.transactions.filter(t=>t.status==='planned'&&t.mandatory&&t.type==='expense');
+    const recurring=finUpcomingOccurrences(windowDays).filter(o=>o.mandatory&&o.type==='expense');
+    return [...oneOff,...recurring].sort((a,b)=>parseLocalDate(a.date)-parseLocalDate(b.date));
+  }
+  function renderFinMandatoryCard() {
+    const upcoming=finMandatoryUpcoming();
+    if(!upcoming.length)return '';
+    const {end}=finHomeMonthRange();
+    const dueThisMonth=upcoming.filter(o=>parseLocalDate(o.date)<end);
+    const sum=dueThisMonth.reduce((s,o)=>s+finAmount(o),0);
+    const next=upcoming[0],days=Math.round((parseLocalDate(next.date)-dateOnly())/86400000);
+    const daysLabel=days<=0?'сегодня':days===1?'завтра':`через ${days} дн.`;
+    return `<section class="fin-card fin-mandatory" data-fin-history-op><div class="fin-card-head"><h2>Обязательные платежи</h2></div><p class="fin-muted">До конца месяца</p><strong class="fin-mandatory-sum">${finMoney(sum)}</strong><p class="fin-muted">Ближайший: ${esc(next.note||next.category||'Платёж')} · ${finMoney(finAmount(next))} · ${daysLabel}</p></section>`;
+  }
+  function renderFinNearestGoalCard() {
+    const goals=state.finance.goals.filter(g=>num(g.target)>num(g.current));
+    if(!goals.length)return '';
+    const g=[...goals].sort((a,b)=>(num(a.target)-num(a.current))-(num(b.target)-num(b.current)))[0];
+    const p=clamp(num(g.current)/Math.max(1,num(g.target)),0,1),left=Math.max(0,num(g.target)-num(g.current));
+    return `<button class="fin-card fin-nearest-goal" data-fin-page="goals"><h2>${esc(g.name||'Цель')}</h2><span class="fin-progress"><i style="width:${p*100}%"></i></span><p class="fin-muted">${finMoney(g.current)} из ${finMoney(g.target)} · осталось ${finMoney(left)}</p></button>`;
+  }
+  // Дата операции/платежа человекочитаемо — "Сегодня"/"Завтра"/"Вчера" как в ТЗ-мокапе, иначе
+  // полная дата через уже существующий ruFinanceDateKey (используется старым фильтром истории,
+  // формат дня там тот же, что нужен здесь).
+  function finDayGroupLabel(dateIso) {
+    const today=isoDate(new Date());
+    if(dateIso===today)return 'Сегодня';
+    if(dateIso===isoDate(addDays(new Date(),1)))return 'Завтра';
+    if(dateIso===isoDate(addDays(new Date(),-1)))return 'Вчера';
+    return ruFinanceDateKey(parseLocalDate(dateIso));
+  }
   function finRefresh(focusSelector) {storeCurrentScroll();renderScreen();if(focusSelector)$(focusSelector)?.focus({preventScroll:true});}
   function finGo(page,category=null) {
     storeCurrentScroll();financeView.page=page;
-    if(page==='history'){financeView.category=category;financeView.rangePeriod=category?financeView.period:null;financeView.search='';financeView.type='all';financeView.filtersOpen=!!category;viewScroll.set('finance:history',0);}
+    if(page==='history'){financeView.category=category;financeView.search='';financeView.type='all';financeView.filtersOpen=!!category;viewScroll.set('finance:history',0);}
     renderScreen();$('.fin-heading')?.focus({preventScroll:true});
   }
   const FIN_TABS=[['overview','Главная'],['history','История'],['goals','Цели'],['investments','Инвестиции']];
@@ -6463,11 +6607,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function renderFinanceOverview() {
     const links=financePrefs.order.filter(k=>k!=='spending'&&k!=='goals'&&k!=='investments'&&!financePrefs.hidden.includes(k));
     return `<div class="fin-summary${finAnimation('summary')}">
-      <div class="fin-wallet"><button class="fin-balance-link" data-fin-history aria-label="Баланс ${finMoney(totalBalance())}. Открыть историю"><span class="fin-eyebrow">Баланс</span><strong class="fin-balance">${finMoney(totalBalance())}</strong><span class="fin-muted">История операций ${icon('chev-right')}</span></button><div class="fin-wallet-foot"><button class="fin-text" data-fin-opening>Начальный остаток</button></div></div>
+      ${renderFinMonthSwitcher()}
+      ${renderFinRing()}
+      <button class="fin-text fin-opening-link" data-fin-opening>Начальный остаток</button>
       <div class="fin-quick"><button class="fin-quick-expense" data-fin-add="expense"><span>−</span> Расход</button><button class="fin-quick-income" data-fin-add="income"><span>+</span> Пополнение</button></div>
     </div>
+    ${renderFinMonthResultCard()}
+    ${renderFinMandatoryCard()}
+    ${renderFinNearestGoalCard()}
+    <section class="fin-card fin-recent"><div class="fin-card-head"><h2>Последние операции</h2><button class="fin-text" data-fin-history>Все ${icon('chev-right')}</button></div>${renderFinTransactions(sortedTransactions().filter(txCompleted).slice(0,5))}</section>
     ${links.length?`<nav class="fin-destinations" aria-label="Дополнительные разделы финансов">${links.map(k=>`<button data-fin-page="${k}">${k==='dynamics'?'Динамика':FIN_BLOCKS[k]}${icon('chev-right')}</button>`).join('')}</nav>`:''}
-    <section class="fin-card fin-recent"><div class="fin-card-head"><h2>Последние операции</h2><button class="fin-text" data-fin-history>Все ${icon('chev-right')}</button></div>${renderFinTransactions(sortedTransactions().slice(0,3))}</section>
     ${!financePrefs.hidden.includes('spending')?`<section class="fin-card" data-fin-block="spending"><div class="fin-card-head"><h2>Расходы по категориям</h2></div>${renderFinancePeriod()}${renderFinSpending()}${renderFinComment(finTotals(finPeriodTx()))}</section>`:''}`;
   }
   function renderFinanceDetail(page) {
@@ -6485,6 +6634,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if(!tx.length)return '<div class="fin-empty">Здесь появятся твои операции.<br><span>Добавь расход или пополнение кнопками выше.</span></div>';
     return `<div class="fin-transactions">${tx.map(t=>{
       const income=t.type==='income';
+      // Запланированная/виртуальная операция (будущая одноразовая ИЛИ ещё не оплаченное
+      // вхождение повторяющейся серии, см. finUpcomingOccurrences) — тускло, без свайпа
+      // редактировать/удалить (виртуальная запись не хранится сама по себе), вместо суммы
+      // цветом — кнопка подтверждения (см. ТЗ п.10/20: до подтверждения цвет приглушённый,
+      // не красный/зелёный, статистика не трогается).
+      if(t.status==='planned') {
+        const label=income?'Получено':'Оплачено';
+        return `<div class="fin-transaction fin-tx-planned"><span class="fin-tx-icon">${icon('today')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}${t.occurrenceOf?' · регулярный платёж':''}</small></span><span class="fin-tx-money fin-tx-muted">${income?'+':'−'}${finMoney(finAmount(t))}</span><button class="fin-tx-pay" data-fin-pay="${esc(t.id)}">${label}</button></div>`;
+      }
       const card=`<button class="fin-transaction" data-fin-tx="${t.id}"><span class="fin-tx-icon ${income?'fin-income':''}">${icon(income?'trend-up':categoryIcon[t.category]||'receipt')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}</small></span><span class="fin-tx-money ${income?'fin-income':''}">${income?'+':'−'}${finMoney(finAmount(t))}</span></button>`;
       if(!swipeable)return card;
       // Свайп влево — тот же паттерн, что у привычек: карточка следует за пальцем, кнопки лежат
@@ -6493,21 +6651,34 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     }).join('')}</div>`;
   }
   function renderFinanceHistory() {
-    const active=financeView.type!=='all'||financeView.category||financeView.rangePeriod;
+    const active=financeView.category;
     return `<section class="fin-card fin-history-card">
+      ${renderFinMonthSwitcher()}
       <div class="fin-history-toolbar"><input class="fin-field" id="fin-search" type="search" aria-label="Поиск операций" placeholder="Поиск операций" value="${esc(financeView.search)}"><button class="fin-icon" data-fin-add="expense" aria-label="Добавить операцию">${icon('plus')}</button></div>
-      <details class="fin-filter-panel" ${financeView.filtersOpen?'open':''}><summary>${icon('filter')} Фильтры${active?' · применены':''}</summary><div class="fin-filter-content">
-      <div class="fin-history-filters"><label>Тип<select class="fin-field" id="fin-type"><option value="all">Все операции</option><option value="expense" ${financeView.type==='expense'?'selected':''}>Расходы</option><option value="income" ${financeView.type==='income'?'selected':''}>Пополнения</option></select></label><label>Категория<select class="fin-field" id="fin-category"><option value="">Все категории</option>${[...new Set([...categories,...state.finance.transactions.map(t=>t.category||'Другое')])].map(c=>`<option ${financeView.category===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label></div>
-      ${financeView.rangePeriod?'<button class="fin-text" data-fin-clear-period>Снять ограничение периода</button>':''}
+      <div class="filter-wrap fin-history-chips" role="tablist" aria-label="Тип операций">${[['all','Все'],['income','Доходы'],['expense','Расходы'],['mandatory','ОП']].map(([k,label])=>`<button type="button" class="filter-chip ${financeView.type===k?'active':''}" data-fin-type="${k}" role="tab" aria-selected="${financeView.type===k}">${label}</button>`).join('')}</div>
+      <details class="fin-filter-panel" ${financeView.filtersOpen?'open':''}><summary>${icon('filter')} Ещё фильтры${active?' · применены':''}</summary><div class="fin-filter-content">
+      <label>Категория<select class="fin-field" id="fin-category"><option value="">Все категории</option>${[...new Set([...categories,...state.finance.transactions.map(t=>t.category||'Другое')])].map(c=>`<option ${financeView.category===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label>
       <button class="fin-text" data-fin-import>${icon('pdf')} Импорт фото / PDF</button></div></details>
       <div id="fin-history-results">${renderFinHistoryResults()}</div>
     </section>`;
   }
-
+  // Реальные операции ЭТОГО месяца + виртуальные ещё не оплаченные вхождения повторяющихся
+  // серий (см. finUpcomingOccurrences) — единый список, ОП-фильтр отбирает mandatory=true
+  // (обязательные платежи, см. ТЗ п.8 — тип "ОП" в фильтрах вместо отдельной вкладки).
   function renderFinHistoryResults() {
     const q=financeView.search.toLocaleLowerCase('ru-RU').trim();
-    const tx=sortedTransactions().filter(t=>(!financeView.rangePeriod||(()=>{const r=finRange(financeView.rangePeriod),date=parseLocalDate(t.date);return date>=r.start&&date<r.end;})())&&(financeView.type==='all'||t.type===financeView.type)&&(!financeView.category||(t.category||'Другое')===financeView.category)&&(!q||`${t.note||''} ${t.category||''} ${finAmount(t)} ${finMoney(finAmount(t))}`.toLocaleLowerCase('ru-RU').includes(q)));
-    return `<p class="fin-muted" role="status">Операций: ${tx.length}</p>${tx.length?renderFinTransactions(tx,true):'<div class="fin-empty">Операций не найдено. Попробуй изменить фильтры.</div>'}`;
+    const {start,end}=finHomeMonthRange();
+    const real=state.finance.transactions.filter(t=>{const d=parseLocalDate(t.date);return d>=start&&d<end;});
+    const virtual=finUpcomingOccurrences(60).filter(o=>{const d=parseLocalDate(o.date);return d>=start&&d<end;});
+    const tx=[...real,...virtual].filter(t=>
+      (financeView.type==='all'||(financeView.type==='mandatory'?t.mandatory:t.type===financeView.type))&&
+      (!financeView.category||(t.category||'Другое')===financeView.category)&&
+      (!q||`${t.note||''} ${t.category||''} ${finAmount(t)} ${finMoney(finAmount(t))}`.toLocaleLowerCase('ru-RU').includes(q))
+    ).sort((a,b)=>parseLocalDate(b.date)-parseLocalDate(a.date));
+    if(!tx.length)return `<p class="fin-muted" role="status">Операций: 0</p><div class="fin-empty">Операций не найдено. Попробуй изменить фильтры или месяц.</div>`;
+    const groups=[];
+    for(const t of tx){const last=groups[groups.length-1];if(last&&last.date===t.date)last.items.push(t);else groups.push({date:t.date,items:[t]});}
+    return `<p class="fin-muted" role="status">Операций: ${tx.length}</p><div class="fin-history-groups">${groups.map(g=>`<div class="date-group-title">${esc(finDayGroupLabel(g.date))}</div>${renderFinTransactions(g.items,true)}`).join('')}</div>`;
   }
   function renderFinSpending() {
     const groups=finGroups(),total=groups.reduce((s,x)=>s+x[1],0);if(!total)return '<div class="fin-empty">Нет расходов за этот период.<br><span>Кольцо появится после добавления расхода.</span></div>';
@@ -6527,7 +6698,24 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   function renderFinanceGoals() {
     if(!state.finance.goals.length)return '<div class="fin-empty">На что хочешь накопить?<br><span>Добавь цель — например, новый ноутбук.</span></div>';
-    return `<div class="fin-goals">${state.finance.goals.map((g)=>{const current=Math.max(0,num(g.current)),target=Math.max(0,num(g.target)),p=target?clamp(current/target,0,1):0,left=Math.max(0,target-current);return `<button class="fin-goal" data-fin-goal="${esc(g.id)}"><span class="fin-goal-title"><strong>${esc(g.name||'Цель')}</strong><span>${Math.round(p*100)}%</span></span><span class="fin-progress"><i style="width:${p*100}%"></i></span><span class="fin-goal-detail">${finMoney(current)} из ${finMoney(target)}</span><span class="fin-muted">${left?`Осталось ${finMoney(left)}`:'Цель достигнута'}${g.deadline?` · до ${finDate(g.deadline)}`:''}</span></button>`;}).join('')}<p class="fin-muted">Накопления отмечаются вручную и не вычитаются из баланса повторно.</p></div>`;
+    return `<div class="fin-goals">${state.finance.goals.map((g)=>{const current=Math.max(0,num(g.current)),target=Math.max(0,num(g.target)),p=target?clamp(current/target,0,1):0,left=Math.max(0,target-current);return `<div class="fin-goal-card"><button class="fin-goal" data-fin-goal="${esc(g.id)}"><span class="fin-goal-title"><strong>${esc(g.name||'Цель')}</strong><span>${Math.round(p*100)}%</span></span><span class="fin-progress"><i style="width:${p*100}%"></i></span><span class="fin-goal-detail">${finMoney(current)} из ${finMoney(target)}</span><span class="fin-muted">${left?`Осталось ${finMoney(left)}`:'Цель достигнута'}${g.deadline?` · до ${finDate(g.deadline)}`:''}</span></button>${left?`<button class="fin-goal-add" data-fin-goal-add="${esc(g.id)}">Отложить</button>`:''}</div>`;}).join('')}<p class="fin-muted">«Отложить» переводит деньги из доступного баланса в цель — это не расход, общий капитал не меняется.</p></div>`;
+  }
+  // Перевод денег в цель (см. ТЗ п.14/15) — уменьшает доступный баланс (type:'goal_transfer',
+  // исключён из totalIncome/totalExpense) и увеличивает g.current; НЕ считается тратой.
+  function finGoalTransferForm(goalId) {
+    const g=state.finance.goals.find(x=>x.id===goalId);if(!g)return;
+    finModal('Отложить в цель',`<p class="fin-muted">${esc(g.name||'Цель')} · сейчас ${finMoney(num(g.current))} из ${finMoney(num(g.target))}</p><form id="fin-goal-transfer-form"><label class="fin-label" for="fin-goal-transfer-amount">Сумма, ₽</label><input class="fin-field" id="fin-goal-transfer-amount" type="number" step="0.01" min="0.01" max="1000000000000" required autofocus><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Отложить</button></form>`,(d)=>{
+      $('#fin-goal-transfer-form',d).onsubmit=e=>{e.preventDefault();
+        const amount=Number($('#fin-goal-transfer-amount',d).value);
+        if(!Number.isFinite(amount)||amount<=0){finError(d,'Укажи сумму больше нуля.');return;}
+        const tx={id:uid(),amount,type:'goal_transfer',category:'Цели',note:g.name||'Цель',date:isoDate(new Date()),status:'completed',goalId:g.id};
+        const oldTx=state.finance.transactions,oldGoals=state.finance.goals;
+        state.finance.transactions=[...oldTx,tx];
+        state.finance.goals=oldGoals.map(x=>x.id===g.id?{...x,current:num(x.current)+amount}:x);
+        if(!finSaveData(d,'transactions')||!finSaveData(d,'goals')){state.finance.transactions=oldTx;state.finance.goals=oldGoals;return;}
+        d.close();finRefresh();showToast('Отложено в цель',true);
+      };
+    });
   }
   function renderInvestments() {
     const assets=state.finance.assets,total=assets.reduce((s,a)=>s+Math.max(0,num(a.currentValue)),0);
@@ -6565,16 +6753,43 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function finTransactionForm(initial='expense',id=null) {
     const existing=id===null?null:state.finance.transactions.find(t=>t.id===id);if(id!==null&&!existing)return;
     let type=existing?.type||initial;
-    finModal(existing?'Операция':'Новая операция',`<form id="fin-tx-form"><div class="fin-switch">${['expense','income'].map(t=>`<button type="button" data-tx-type="${t}" aria-pressed="${type===t}">${t==='expense'?'− Расход':'+ Пополнение'}</button>`).join('')}</div><label class="fin-label" for="fin-amount">Сумма или короткая запись</label><input class="fin-field" id="fin-amount" required autocomplete="off" placeholder="60 тысяч на Турцию" value="${existing?finAmount(existing):''}"><div class="fin-preview" id="fin-tx-preview" aria-live="polite"></div><label class="fin-label" for="fin-note">Примечание</label><input class="fin-field" id="fin-note" maxlength="500" value="${esc(existing?.note||'')}" placeholder="Например, поездка в Турцию"><label class="fin-label" for="fin-tx-category">Категория</label><select class="fin-field" id="fin-tx-category">${[...new Set([...categories,existing?.category].filter(Boolean))].map(c=>`<option ${c===(existing?.category||(type==='income'?'Пополнение':'Другое'))?'selected':''}>${esc(c)}</option>`).join('')}</select><label class="fin-label" for="fin-tx-date">Дата</label>${appDateField('fin-tx-date',existing?.date?.slice(0,10)||isoDate(new Date()),true)}<p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary" type="submit">${existing?'Сохранить':'Добавить операцию'}</button>${existing?'<button class="fin-danger" type="button" id="fin-tx-delete">Удалить операцию</button>':''}</form>`,(d,close)=>{
+    const today=isoDate(new Date());
+    // Тумблер "Дата" выключен по умолчанию = операция сегодня (см. ТЗ: "по умолчанию операция
+    // создаётся сегодня"); включается, только если редактируем уже не сегодняшнюю запись — тумблер
+    // "Повторять" переиспользует ТУ ЖЕ механику и текстовый разбор, что и повторяемость событий
+    // планера (parseRepeatText/repeatToText/.pl-switch — см. форму события выше по файлу), чтобы
+    // не заводить вторую отдельную систему повторений в одном приложении.
+    const dateOnDefault=!!(existing&&existing.date!==today);
+    const repeatOnDefault=!!existing?.repeat;
+    const repeatTextDefault=existing?.repeat?repeatToText(existing.repeat):'';
+    finModal(existing?'Операция':'Новая операция',`<form id="fin-tx-form"><div class="fin-switch">${['expense','income'].map(t=>`<button type="button" data-tx-type="${t}" aria-pressed="${type===t}">${t==='expense'?'− Расход':'+ Пополнение'}</button>`).join('')}</div><label class="fin-label" for="fin-amount">Сумма или короткая запись</label><input class="fin-field" id="fin-amount" required autocomplete="off" placeholder="60 тысяч на Турцию" value="${existing?finAmount(existing):''}"><div class="fin-preview" id="fin-tx-preview" aria-live="polite"></div><label class="fin-label" for="fin-note">Примечание</label><input class="fin-field" id="fin-note" maxlength="500" value="${esc(existing?.note||'')}" placeholder="Например, поездка в Турцию"><label class="fin-label" for="fin-tx-category">Категория</label><select class="fin-field" id="fin-tx-category">${[...new Set([...categories,existing?.category].filter(Boolean))].map(c=>`<option ${c===(existing?.category||(type==='income'?'Пополнение':'Другое'))?'selected':''}>${esc(c)}</option>`).join('')}</select>
+    <div class="pl-toggle-row"><label for="fin-date-toggle">Дата</label><button class="pl-switch ${dateOnDefault?'on':''}" id="fin-date-toggle" type="button" aria-label="Дата" aria-pressed="${dateOnDefault}"></button></div>
+    <div class="pl-form-row" id="fin-date-row" ${dateOnDefault?'':'style="display:none"'}>${appDateField('fin-tx-date',existing?.date?.slice(0,10)||today,true)}</div>
+    <div class="pl-toggle-row" id="fin-repeat-toggle-row"><label for="fin-repeat-toggle">Повторять</label><button class="pl-switch ${repeatOnDefault?'on':''}" id="fin-repeat-toggle" type="button" aria-label="Повторять" aria-pressed="${repeatOnDefault}"></button></div>
+    <div class="pl-form-row" id="fin-repeat-row" ${repeatOnDefault?'':'style="display:none"'}><input class="fin-field pl-repeat-input" id="fin-repeat-text" type="text" placeholder="каждый месяц, 27 числа" autocomplete="off" value="${esc(repeatTextDefault)}"><p class="pl-repeat-hint" id="fin-repeat-hint">Например: «каждый месяц», «раз в 2 недели», «каждое 27 число»</p></div>
+    <p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary" type="submit">${existing?'Сохранить':'Добавить операцию'}</button>${existing?'<button class="fin-danger" type="button" id="fin-tx-delete">Удалить операцию</button>':''}</form>`,(d,close)=>{
       let noteEdited=false;const amount=$('#fin-amount',d),note=$('#fin-note',d),category=$('#fin-tx-category',d);
       function setType(t){type=t;$$('[data-tx-type]',d).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.txType===type)));}
       function preview(){const p=parseFinInput(amount.value);if(p.error){$('#fin-tx-preview',d).textContent=amount.value?p.error:'';return;}if(p.type)setType(p.type);if(!noteEdited&&!existing)note.value=p.note;$('#fin-tx-preview',d).textContent=`${type==='income'?'Пополнение':'Расход'}: ${finMoney(p.amount)}${note.value?' · '+note.value:''}`;}
       amount.addEventListener('input',preview);note.addEventListener('input',()=>{noteEdited=true;preview();});
       $$('[data-tx-type]',d).forEach(b=>b.onclick=()=>{setType(b.dataset.txType);const p=parseFinInput(amount.value);if(!p.error)$('#fin-tx-preview',d).textContent=`${type==='income'?'Пополнение':'Расход'}: ${finMoney(p.amount)}`;});
-      $('#fin-tx-form',d).onsubmit=e=>{e.preventDefault();const p=parseFinInput(amount.value),date=$('#fin-tx-date',d).value;if(p.error){finError(d,p.error);return;}if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||isoDate(parseLocalDate(date))!==date){finError(d,'Проверь дату операции.');return;}
-        const tx={...(existing||{id:uid()}),amount:type==='income'?p.amount:-p.amount,type,category:category.value,note:note.value.trim(),date};const old=state.finance.transactions;
+      $('#fin-date-toggle',d).onclick=()=>{const on=!$('#fin-date-toggle',d).classList.contains('on');$('#fin-date-toggle',d).classList.toggle('on',on);$('#fin-date-toggle',d).setAttribute('aria-pressed',String(on));$('#fin-date-row',d).style.display=on?'':'none';};
+      $('#fin-repeat-toggle',d).onclick=()=>{const on=!$('#fin-repeat-toggle',d).classList.contains('on');$('#fin-repeat-toggle',d).classList.toggle('on',on);$('#fin-repeat-toggle',d).setAttribute('aria-pressed',String(on));$('#fin-repeat-row',d).style.display=on?'':'none';if(on)$('#fin-repeat-text',d).focus({preventScroll:true});};
+      $('#fin-tx-form',d).onsubmit=e=>{e.preventDefault();const p=parseFinInput(amount.value);if(p.error){finError(d,p.error);return;}
+        const dateOn=$('#fin-date-toggle',d).classList.contains('on'),date=dateOn?$('#fin-tx-date',d).value:today;
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||isoDate(parseLocalDate(date))!==date){finError(d,'Проверь дату операции.');return;}
+        const repeatOn=$('#fin-repeat-toggle',d).classList.contains('on');
+        let repeat=null;
+        if(repeatOn){repeat=parseRepeatText($('#fin-repeat-text',d).value);if(!repeat){finError(d,'Не понял повторение. Например: «каждый месяц» или «раз в 2 недели».');return;}}
+        // Обязательный платёж — та же семантика, что и в ТЗ: регулярный РАСХОД считается
+        // обязательным автоматически (аренда/интернет/связь и т.п.), без отдельного тумблера.
+        const mandatory=!!(repeat&&type==='expense');
+        const status=date>today?'planned':'completed';
+        const tx={...(existing||{id:uid()}),amount:type==='income'?p.amount:-p.amount,type,category:category.value,note:note.value.trim(),date,status,mandatory,repeat};
+        if(!repeat)delete tx.repeat;
+        const old=state.finance.transactions;
         state.finance.transactions=id===null?[...old,tx]:old.map(t=>t.id===id?tx:t);
-        if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();showToast('Операция сохранена',true);
+        if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();showToast(status==='planned'?'Запланировано':'Операция сохранена',true);
       };
       $('#fin-tx-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить эту операцию?'))return;const old=state.finance.transactions;state.finance.transactions=old.filter(t=>t.id!==id);if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();});
       preview();amount.focus({preventScroll:true});
@@ -6632,13 +6847,26 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       $$('[data-fin-swipe-delete]').forEach(b=>b.onclick=()=>{closeFinTxSwipes();deleteFinTxWithUndo(b.dataset.finSwipeDelete);});
     };
     bindTxSwipe();
-    const updateHistory=()=>{storeCurrentScroll();financeView.search=$('#fin-search').value;financeView.type=$('#fin-type').value;financeView.category=$('#fin-category').value||null;$('#fin-history-results').innerHTML=renderFinHistoryResults();bindTx();bindTxSwipe();};
-    $('[data-fin-clear-period]')?.addEventListener('click',()=>{financeView.rangePeriod=null;finRefresh();});
+    const bindPay=()=>$$('[data-fin-pay]').forEach(b=>b.onclick=()=>{
+      const list=[...state.finance.transactions,...finUpcomingOccurrences(60)];
+      const occ=list.find(t=>t.id===b.dataset.finPay);if(!occ)return;
+      if(!finPayOccurrence(occ))return;
+      showToast(occ.type==='income'?'Отмечено как получено':'Отмечено как оплачено',true);
+      finRefresh();
+    });
+    bindPay();
+    const updateHistory=()=>{storeCurrentScroll();financeView.search=$('#fin-search').value;financeView.category=$('#fin-category').value||null;$('#fin-history-results').innerHTML=renderFinHistoryResults();bindTx();bindTxSwipe();bindPay();};
     $('.fin-filter-panel')?.addEventListener('toggle',e=>{financeView.filtersOpen=e.currentTarget.open;});
-    $('#fin-search')?.addEventListener('input',updateHistory);$('#fin-type')?.addEventListener('change',updateHistory);$('#fin-category')?.addEventListener('change',updateHistory);
+    $('#fin-search')?.addEventListener('input',updateHistory);$('#fin-category')?.addEventListener('change',updateHistory);
+    $$('[data-fin-type]').forEach(b=>b.onclick=()=>{financeView.type=b.dataset.finType;finRefresh();});
+    $$('[data-fin-home-month]').forEach(b=>b.onclick=()=>{
+      const dir=+b.dataset.finHomeMonth,d=new Date(financeView.homeMonth.y,financeView.homeMonth.m+dir,1);
+      financeView.homeMonth={y:d.getFullYear(),m:d.getMonth()};finRefresh();
+    });
     $$('[data-fin-sector]').forEach(b=>{const open=()=>{const g=finGroups()[+b.dataset.finSector];if(g)finGo('history',g[0]);};b.onclick=open;if(b.tagName.toLowerCase()==='circle')b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};});
     $$('[data-fin-point]').forEach(b=>b.onclick=()=>{const p=finBuckets()[+b.dataset.finPoint];if(p){$$('[data-fin-point]').forEach(x=>x.classList.toggle('selected',x===b));$('#fin-point-value').textContent=`${p.label} · Пополнения ${finMoney(p.income)} · Расходы ${finMoney(p.expense)}`;}});
     $('[data-fin-goal-new]')?.addEventListener('click',()=>finGoalForm());$$('[data-fin-goal]').forEach(b=>b.onclick=()=>finGoalForm(b.dataset.finGoal));
+    $$('[data-fin-goal-add]').forEach(b=>b.onclick=()=>finGoalTransferForm(b.dataset.finGoalAdd));
     $('[data-fin-asset-new]')?.addEventListener('click',()=>finAssetForm());$$('[data-fin-asset]').forEach(b=>b.onclick=()=>finAssetForm(b.dataset.finAsset));
     $('[data-fin-broker]')?.addEventListener('click',()=>finModal('Т‑Инвестиции',`${renderDnaLoader('Скоро',true)}<p>Безопасное подключение брокера ещё в разработке.</p><p class="fin-muted">Сохранённые активы доступны. Сейчас приложение не отправляет токен брокеру и не обновляет котировки автоматически. Не вводи секретный токен в публичные файлы проекта.</p>`));
     $('[data-fin-import]')?.addEventListener('click',finImportInfo);

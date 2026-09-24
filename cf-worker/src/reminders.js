@@ -356,10 +356,15 @@ export async function getFinanceDoc(firestore, uid) {
   return (await firestore.getDoc(`users/${uid}/appData/finance`)) || {};
 }
 
-// Новая финансовая операция — та же форма объекта, что кнопка "+ Расход/Доход" в приложении
-// (см. #tx-save в index.html): amount со знаком (отрицательный у расхода), type, category,
-// note, date. Используется голосовым/текстовым AI-ассистентом.
-export async function addFinanceTransaction(firestore, uid, { amount, type, category, note, date }) {
+// Новая финансовая операция — та же форма объекта, что тумблеры "Дата"/"Повторять" в приложении
+// (см. finTransactionForm в index.html): amount со знаком (отрицательный у расхода), type,
+// category, note, date, плюс новая модель planned/completed (см. ТЗ на переработку раздела
+// "Финансы", п.24 "Главное правило финансового учёта"). Используется голосовым/текстовым
+// AI-ассистентом — сейчас Atlas всегда создаёт СЕГОДНЯШНЮЮ completed-операцию (см. execCreateExpense/
+// execCreateIncome в actions.js, там date/repeat пока не прокинуты из ACTION_SCHEMA), но сама
+// функция уже принимает status/mandatory/repeat/goalId, чтобы расширение Atlas на "запланируй
+// платёж"/повторяемость не потребовало снова трогать backend-запись.
+export async function addFinanceTransaction(firestore, uid, { amount, type, category, note, date, status, mandatory, repeat, goalId }) {
   const path = `users/${uid}/appData/finance`;
   const data = (await firestore.getDoc(path)) || {};
   const transactions = Array.isArray(data.transactions) ? [...data.transactions] : [];
@@ -370,7 +375,11 @@ export async function addFinanceTransaction(firestore, uid, { amount, type, cate
     category: category || null,
     note: note || '',
     date,
+    status: status || (date > todayKey(DEFAULT_TZ) ? 'planned' : 'completed'),
   };
+  if (mandatory) tx.mandatory = true;
+  if (repeat) tx.repeat = repeat;
+  if (goalId) tx.goalId = goalId;
   transactions.push(tx);
   await firestore.mergeDoc(path, { transactions });
   return tx;
