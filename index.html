@@ -38,6 +38,22 @@
    rgba(var(--ink), АЛЬФА) везде, где раньше был захардкожен rgba(var(--ink), АЛЬФА) —
    один и тот же приглушённый/окаймляющий текст, but с плавающей прозрачностью на месте
    использования, а не фиксированным цветом на месте объявления. */
+/* Прошлая попытка (font-variant-numeric: tabular-nums lining-nums на body) не сработала не
+   из-за специфичности CSS, а потому что сама Georgia физически не содержит OpenType-таблиц
+   lnum/tnum (лайнинговых и табличных цифр) — она вообще не предлагает альтернативных начертаний
+   цифр, только единственный старостильный набор. Запрос неподдерживаемой фичи браузер просто
+   молча игнорирует, поэтому цифры визуально не менялись никогда. Подменяем ТОЛЬКО глифы цифр
+   (U+0030–U+0039) через тот же font-family "Georgia" на системный sans с нормальными
+   (лайнинговыми, одинаковой ширины) цифрами по умолчанию — вся остальная типографика и все
+   буквы остаются Georgia без изменений, подмена работает исключительно по unicode-range.
+   local() без сети/загрузки — цифры не покидают устройство, специально несколько имён под
+   разные ОС (iOS/macOS, Windows, Android, Linux). */
+@font-face {
+  font-family: 'Georgia';
+  src: local('Helvetica Neue'), local('Segoe UI'), local('Roboto'), local('Arial'), local('Liberation Sans'), local('DejaVu Sans');
+  unicode-range: U+0030-0039;
+  font-display: swap;
+}
 :root {
   --gold: #c9a84c;
   --gold2: #d6b756;
@@ -1875,7 +1891,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.28.3';
+  const APP_VERSION = '0.28.4';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -1983,6 +1999,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return readSystemTheme();
   }
   let themeMode=loadThemeMode();
+  // lastAppliedResolved — что реально сейчас применено (для сравнения при мониторинге системной
+  // темы); НЕ читаем это из dataset.theme, потому что в режиме system атрибут намеренно не
+  // ставится (см. ниже).
+  let lastAppliedResolved=null;
   function applyThemeMode(mode,animate){
     themeMode=mode;
     const root=document.documentElement;
@@ -1992,15 +2012,26 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       applyThemeMode._t=setTimeout(()=>root.classList.remove('theme-transition'),260);
     }
     const resolved=resolvedTheme(mode);
-    // Применяем обнаруженную палитру явно: не ждём, пока WebKit перекрасит @media.
-    // Режим system сохраняется отдельно, поэтому подписки на ОС продолжают работать.
-    root.dataset.theme=resolved;root.style.colorScheme=mode==='system'?'light dark':resolved;
+    // КЛЮЧЕВОЕ МЕСТО прошлого бага: раньше здесь БЕЗУСЛОВНО писался root.dataset.theme=resolved,
+    // даже в режиме "system". А вся раскраска в CSS (см. верх <style>) устроена так, что именно
+    // ОТСУТСТВИЕ атрибута data-theme включает чисто CSS-переключение через
+    // @media(prefers-color-scheme) — оно обновляется самим браузером вживую, без единой строчки
+    // JS. Как только атрибут явно проставлен ("dark"/"light"), CSS-селектор
+    // :not([data-theme="dark"]):not([data-theme="light"]) перестаёт совпадать, и смена темы
+    // становится ЦЕЛИКОМ обязанностью JS — а подписки на matchMedia('change')/focus/
+    // visibilitychange ненадёжны в части браузеров и особенно в standalone/PWA-режимах (это и
+    // была причина "работает только после перезахода": перезагрузка прогоняла ранний инлайн-
+    // скрипт в <head>, который атрибут для system как раз НЕ ставит — оттуда и бралась
+    // "правильная" тема при перезаходе, а не из этого блока). Теперь для system атрибут явно
+    // убирается, а не перезаписывается — CSS дальше живёт сам.
+    if(mode==='system'){root.removeAttribute('data-theme');}
+    else{root.dataset.theme=resolved;}
+    root.style.colorScheme=mode==='system'?'light dark':resolved;
     const metaTheme=document.querySelector('meta[name="theme-color"]');
     if(metaTheme)metaTheme.content=resolved==='light'?'#F7F4ED':'#0A0A0A';
-    // Canvas-графики (привычки/финансы) сами не подписаны на CSS var — перерисовываем их поверх
-    // смены темы, иначе они бы остались с цветами предыдущей темы до следующего явного redraw.
-    // GOLD тоже обновляем здесь же — иначе сам redraw ниже продолжил бы красить тем же
-    // зафиксированным тёмным оттенком независимо от темы (см. комментарий у объявления GOLD).
+    lastAppliedResolved=resolved;
+    // Canvas-графики (привычки/финансы) и GOLD — не CSS, сами не перекрасятся от @media, их
+    // перерисовываем явно здесь же, при каждом применении темы.
     if(typeof themeVar==='function')try{GOLD=themeVar('--gold')||GOLD;}catch(_){}
     if(typeof updateHabitUI==='function')try{updateHabitUI();}catch(_){}
     if(typeof drawFinanceCharts==='function')try{drawFinanceCharts();}catch(_){}
@@ -2013,14 +2044,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   applyThemeMode(themeMode,false);
   if(window.matchMedia){
-    // setThemeMode (явный выбор темы пользователем) всегда зовёт renderScreen() следом за
-    // applyThemeMode — иначе все цвета, вычисленные JS'ом прямо во время рендера (а не просто
-    // через CSS-переменные, которые сами перекрашиваются от @media), остаются старыми до
-    // следующей перерисовки. Смена СИСТЕМНОЙ темы — то же самое, renderScreen() нужен и тут.
+    // Основная раскраска (фон/текст/поверхности — почти весь визуальный вид) теперь переключается
+    // самим CSS через @media(prefers-color-scheme), без всякого JS, как только выбран режим
+    // system (см. applyThemeMode выше) — эта подписка нужна только для того, что CSS сам не
+    // умеет: перекрасить canvas-графики/GOLD и meta[theme-color], плюс перерисовать то, что JS
+    // вычислил во время рендера, а не через CSS-переменные.
     const syncSystemTheme=()=>{
       if(themeMode!=='system')return;
       const next=readSystemTheme();
-      if(document.documentElement.dataset.theme!==next){applyThemeMode('system',true);renderScreen();}
+      if(lastAppliedResolved!==next){applyThemeMode('system',true);renderScreen();}
     };
     const sysDarkQuery=window.matchMedia('(prefers-color-scheme: dark)');
     sysDarkQuery.addEventListener?sysDarkQuery.addEventListener('change',syncSystemTheme):sysDarkQuery.addListener?.(syncSystemTheme);
@@ -2030,7 +2062,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     document.addEventListener('pointerdown',syncSystemTheme,{passive:true});
     // Подстраховка для случаев, где 'change' у matchMedia не срабатывает (некоторые PWA/
     // standalone-окружения) — раз в секунду, пока вкладка видна; сравнение внутри
-    // syncSystemTheme дешёвое (dataset.theme!==next), лишней нагрузки не создаёт.
+    // syncSystemTheme дешёвое (lastAppliedResolved!==next), лишней нагрузки не создаёт. Основной
+    // визуальный вид эта подстраховка уже не чинит (это делает CSS сам) — только "догоняет"
+    // canvas/meta-детали.
     setInterval(()=>{if(!document.hidden)syncSystemTheme();},1000);
   }
   // Миграция: старые записи (транзакции/цели/активы) хранились по индексу массива, не по id —
@@ -5814,6 +5848,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.28.4</div><p class="settings-note">Нашлась настоящая причина двух прошлых заметок, а не только симптомы: у шрифта Georgia физически нет ровных цифр — теперь цифры подменяются на системный шрифт с ровными по ширине и высоте начертаниями, буквы не затронуты. Системная тема: раньше JS сам себе мешал жить и переключался только после перезахода — теперь в режиме «системная» переключение отдано целиком браузеру (CSS), он делает это вживую и мгновенно.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.3</div><p class="settings-note">Доисправлены две прошлые заметки: цифры теперь не «прыгают» по высоте (5 больше не ниже 0), а системная тема переключается сразу, а не только после перезахода в приложение. Атлас научился удалять разделы планера — по названию или по цвету («удали зелёный раздел»).</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.2</div><p class="settings-note">Атлас понимает относительное время («напомни через час», «через 30 минут») — сам вычисляет точное время. Цифры теперь одинаковой ширины — не «прыгают» при обновлении. Системная тема переключается заметно быстрее при смене темы в ОС.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.1</div><p class="settings-note">Голосовой ассистент получил имя — Атлас: так теперь называется в приложении и в боте (заголовок экрана, поле ввода, сообщения об ошибках, карточка подтверждения действий в Telegram).</p></div>
