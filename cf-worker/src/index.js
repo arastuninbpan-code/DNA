@@ -261,7 +261,7 @@ async function handleAiTurn(env, firestore, token, uid, chatId, text, source = '
     await renderToMainMenu(env, firestore, token, uid, chatId, renderAiPlanScreen(plan), { forceNew: true });
   } catch (err) {
     console.error('handleAiTurn failed', err);
-    await sendMessage(token, chatId, `🤖 AI сейчас недоступен: ${escapeHtml(String(err.message || err))}`);
+    await sendMessage(token, chatId, `🤖 Атлас сейчас недоступен: ${escapeHtml(String(err.message || err))}`);
   }
 }
 

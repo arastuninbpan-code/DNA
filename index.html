@@ -1871,7 +1871,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.28.0';
+  const APP_VERSION = '0.28.1';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -5699,7 +5699,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     if (homePanel==='settings') return renderHomeSettings();
     if (homePanel==='admin') return renderHomeAdmin();
     const hasMessages = aiChat.messages.length>0;
-    return `<section class="screen home-screen ai-home" aria-label="Главная — голосовой AI">
+    return `<section class="screen home-screen ai-home" aria-label="Главная — Атлас">
       <div class="home-toolbar"><button class="home-icon-button pressable" data-home-settings aria-label="Открыть настройки" title="Настройки">${icon('settings')}</button></div>
       ${renderTelegramLoginPrompt()}
       <div class="ai-body" data-ai-body>${hasMessages ? renderAiMessages() : renderAiIdle()}</div>
@@ -5711,7 +5711,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const listening = aiChat.status==='listening';
     return `<div class="ai-idle">
       <button class="home-mic ai-idle-mic pressable ${listening?'ai-mic-active':''} ${aiChat.locked?'ai-mic-locked':''}" data-ai-mic aria-label="${listening?'Остановить запись':'Зажми, чтобы наговорить, или коротко тапни для записи без удержания'}">${icon('mic')}</button>
-      <p class="ai-idle-title">Голосовой AI</p>
+      <p class="ai-idle-title">Атлас</p>
       <p class="ai-idle-hint">${listening?`<span class="ai-listening-dot" aria-hidden="true"></span> ${aiListeningLabel()}`:'Зажми микрофон и говори, или напиши внизу'}</p>
     </div>`;
   }
@@ -5789,7 +5789,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const busy = aiChat.status==='transcribing'||aiChat.status==='thinking';
     return `<form class="ai-inputbar" data-ai-form>
       <button type="button" class="ai-inputbar-mic pressable ${listening?'ai-mic-active':''} ${aiChat.locked?'ai-mic-locked':''}" data-ai-mic-inline aria-label="${listening?'Остановить запись':'Голосовой ввод'}" ${busy?'disabled':''}>${icon('mic')}</button>
-      <input type="text" class="ai-inputbar-text" data-ai-input placeholder="Написать AI…" autocomplete="off" ${busy||listening?'disabled':''}>
+      <input type="text" class="ai-inputbar-text" data-ai-input placeholder="Написать Атласу…" autocomplete="off" ${busy||listening?'disabled':''}>
       <button type="submit" class="ai-inputbar-send pressable" data-ai-send aria-label="Отправить" ${busy||listening?'disabled':''}>${icon('send')}</button>
     </form>`;
   }
@@ -5811,6 +5811,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.28.1</div><p class="settings-note">Голосовой ассистент получил имя — Атлас: так теперь называется в приложении и в боте (заголовок экрана, поле ввода, сообщения об ошибках, карточка подтверждения действий в Telegram).</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.0</div><p class="settings-note">Панель разработчика: кнопка выхода (сбрасывает доступ по-настоящему, не только визуально), статистика пользователей (всего/новых/активных за день-неделю-месяц, топ по частоте заходов), заметки «поправить/добавить» — доступны и в приложении, и в боте. Пароль панели теперь удаляется из чата бота сразу после разблокировки.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.27.1</div><p class="settings-note">Пароль панели разработчика теперь можно просто отправить как есть — текстом в Telegram или в поле «Промокод» в Настройках, без отдельной команды /admin.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.27.0</div><p class="settings-note">Промокоды: активируются полем в Настройках или просто отправкой кода в Telegram. Поддержка: форма «Написать в поддержку» в Настройках и в Telegram — сообщения видны в новой Панели разработчика (долгое удержание номера версии открывает вход по секретному паролю), вместе со сводкой трат на AI (SpeechKit/YandexGPT) за сегодня/7/30 дней.</p></div>
@@ -6175,10 +6176,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return err;
   }
   function aiErrorMessage(err){
-    if(err?.message==='no-auth')return 'Нужно войти через Telegram, чтобы пользоваться AI-ассистентом.';
-    if(err?.aiBackend)return `AI вернул ошибку: ${err.message}`;
+    if(err?.message==='no-auth')return 'Нужно войти через Telegram, чтобы пользоваться Атласом.';
+    if(err?.aiBackend)return `Атлас вернул ошибку: ${err.message}`;
     if(err?.name==='EncodingError'||/decod/i.test(err?.message||''))return 'Не удалось обработать запись — попробуй ещё раз.';
-    return 'Не получилось связаться с AI. Проверь соединение и попробуй ещё раз.';
+    return 'Не получилось связаться с Атласом. Проверь соединение и попробуй ещё раз.';
   }
 
   async function confirmAiActions(msgIndex){
@@ -6428,7 +6429,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function renderFinComment(totals) {
     const groups=finGroups(),has=totals.income||totals.expense;
     const title=!has?'Добавь первую операцию за этот период':totals.expense>totals.income?`Расходы больше пополнений на ${finMoney(totals.expense-totals.income)}`:`Разница пополнений и расходов: ${finMoney(totals.income-totals.expense)}`;
-    return `<details class="fin-comment"><summary>${icon('sparkles')}<span>${esc(title)}</span>${icon('chev-down')}</summary><div class="fin-detail">${groups.length?`Больше всего потрачено в категории «${esc(groups[0][0])}»: ${finMoney(groups[0][1])}. `:''}Это расчёт по внесённым операциям за выбранный период, а не AI-рекомендация. Переводы и неполная история могут влиять на результат.</div></details>`;
+    return `<details class="fin-comment"><summary>${icon('sparkles')}<span>${esc(title)}</span>${icon('chev-down')}</summary><div class="fin-detail">${groups.length?`Больше всего потрачено в категории «${esc(groups[0][0])}»: ${finMoney(groups[0][1])}. `:''}Это расчёт по внесённым операциям за выбранный период, а не рекомендация Атласа. Переводы и неполная история могут влиять на результат.</div></details>`;
   }
   function renderFinTransactions(tx, swipeable=false) {
     if(!tx.length)return '<div class="fin-empty">Здесь появятся твои операции.<br><span>Добавь расход или пополнение кнопками выше.</span></div>';

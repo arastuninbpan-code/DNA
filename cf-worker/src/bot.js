@@ -486,7 +486,7 @@ function aiActionCard(a) {
 // нет вовсе (обычный вопрос-ответ) — по референсу пользователя.
 export function renderAiPlanScreen(plan) {
   const hasActions = plan.actions && plan.actions.length;
-  const lines = [hasActions ? '🤖 Хорошо, я понял так:' : '🤖 ' + escapeHtml(plan.reply || 'Готово.')];
+  const lines = [hasActions ? '🤖 Атлас понял так:' : '🤖 ' + escapeHtml(plan.reply || 'Готово.')];
   if (plan.rejected && plan.rejected.length) {
     lines.push('', `⚠️ Не понял: ${plan.rejected.map((r) => escapeHtml(r.error || 'действие')).join('; ')}`);
   }
