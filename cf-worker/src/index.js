@@ -200,6 +200,18 @@ async function handleTelegramFreeText(env, firestore, token, message) {
   // тратим AI-вызов на распознавание того, что это вообще такое, и не путаем обычные вопросы к
   // ассистенту (в них почти всегда есть пробелы/пунктуация) с кодом.
   const trimmedText = String(message.text || '').trim();
+  // Секретный пароль панели разработчика — тоже просто присланным текстом, без команды
+  // /admin (по просьбе пользователя: тот же принцип, что и у промокодов ниже). Сравнение
+  // строгое (===), поэтому почти никогда не совпадёт со случайным сообщением; когда НЕ
+  // совпало — молча идём дальше к промокоду/AI, а не отвечаем "неверный пароль" на каждое
+  // обычное сообщение (это заодно не палит посторонним, что подбор пароля вообще возможен).
+  if (env.ADMIN_SECRET && trimmedText === env.ADMIN_SECRET) {
+    const result = await tryUnlockAdmin(firestore, env, uid, trimmedText);
+    if (result.ok) {
+      await sendMessage(token, message.chat.id, '✅ Панель разработчика разблокирована — она появится в Главном меню.');
+      return;
+    }
+  }
   if (/^[A-Za-z0-9-]{4,20}$/.test(trimmedText)) {
     const promo = await firestore.getDoc(`promoCodes/${trimmedText.toUpperCase()}`);
     if (promo) {
@@ -593,7 +605,16 @@ async function handlePromoRedeem(req, env, firestore) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
   const body = await req.json().catch(() => ({}));
-  const result = await redeemPromoCode(firestore, uid, body.code);
+  const code = String(body.code || '').trim();
+  // То же поле "Промокод" в приложении удваивается и как вход в панель разработчика — по
+  // просьбе пользователя не заводить для пароля отдельное поле. Сравнение строгое, поэтому
+  // реальный промокод никогда с ним не перепутается (см. такую же логику в
+  // handleTelegramFreeText для Telegram).
+  if (env.ADMIN_SECRET && code === env.ADMIN_SECRET) {
+    const result = await tryUnlockAdmin(firestore, env, uid, code);
+    return json({ ...result, admin: true }, result.ok ? 200 : 403, AI_CORS_HEADERS);
+  }
+  const result = await redeemPromoCode(firestore, uid, code);
   return json(result, result.ok ? 200 : 400, AI_CORS_HEADERS);
 }
 

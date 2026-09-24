@@ -1871,7 +1871,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.27.0';
+  const APP_VERSION = '0.27.1';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -5811,6 +5811,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.27.1</div><p class="settings-note">Пароль панели разработчика теперь можно просто отправить как есть — текстом в Telegram или в поле «Промокод» в Настройках, без отдельной команды /admin.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.27.0</div><p class="settings-note">Промокоды: активируются полем в Настройках или просто отправкой кода в Telegram. Поддержка: форма «Написать в поддержку» в Настройках и в Telegram — сообщения видны в новой Панели разработчика (долгое удержание номера версии открывает вход по секретному паролю), вместе со сводкой трат на AI (SpeechKit/YandexGPT) за сегодня/7/30 дней.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.26.3</div><p class="settings-note">Голосовые сообщения AI-ассистенту (в приложении и в боте) ограничены 30 секундами — при превышении запись останавливается и не отправляется на распознавание.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.26.2</div><p class="settings-note">В боте — голосовой AI теперь и там: любое текстовое или голосовое сообщение (кроме команд/кнопок) понимается ассистентом так же, как в приложении, с той же карточкой подтверждения перед применением. В «Финансах» — кнопки «➕ Пополнение»/«➖ Расход»: пишешь сумму и на что (например, «100 на шоколадку») — операция добавляется без AI, обычным разбором текста.</p></div>
@@ -5990,6 +5991,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(status)status.textContent='Проверяю…';
       try{
         const json=await backendJson('/promo/redeem',{code});
+        // Это же поле удваивается как вход в панель разработчика — совпало с секретным
+        // паролем (см. /promo/redeem на Worker'е) вместо обычного промокода.
+        if(json.admin){
+          if(status)status.textContent=json.ok?'🛠 Панель разработчика разблокирована!':(json.error||'Не удалось разблокировать');
+          if(json.ok){
+            telegramProfile={...(telegramProfile||{}),isAdmin:true};
+            saveJSON('dna_telegram_profile_cache',telegramProfile);
+            if(input)input.value='';
+            renderScreen();
+          }
+          return;
+        }
         if(status)status.textContent=json.ok?'🎉 Промокод активирован!':(json.error||'Не удалось активировать');
         if(json.ok){
           telegramProfile={...(telegramProfile||{}),premium:true,premiumCode:code.toUpperCase()};
