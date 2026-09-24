@@ -139,10 +139,12 @@ html, body { margin: 0; width: 100%; height: 100%; background: var(--shell-bg); 
 body {
   color: var(--white);
   font-family: Georgia, 'Times New Roman', serif;
-  /* Georgia — не моноширинный шрифт: цифры в нём разной ширины, из-за чего таймеры/суммы/счётчики
-     визуально "прыгают" при каждом обновлении текста. tabular-nums не меняет сам шрифт и рисунок
-     цифр (риска задеть вёрстку нет) — только выравнивает их ширину между собой. */
-  font-variant-numeric: tabular-nums;
+  /* У Georgia по умолчанию "старостильные" цифры (old-style figures) — у части (3,4,5,7,9) есть
+     свес ниже базовой линии, у других (0,1,2,6,8) его нет, из-за чего при смене цифры видно, как
+     она "прыгает" по высоте (не только по ширине). tabular-nums выравнивает ширину, lining-nums —
+     ставит все цифры на одну высоту (как заглавные буквы, без свеса); вместе решают обе жалобы
+     разом, не меняя сам шрифт и не трогая буквы — свойство относится только к цифрам. */
+  font-variant-numeric: tabular-nums lining-nums;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
@@ -1841,8 +1843,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   .pl-event-title{font-size:10px;}
   .pl-event-extra{padding:3px;}
 }
-:root{--system-theme:dark;}
-@media(prefers-color-scheme:light){:root{--system-theme:light;}}
 </style>
 <script async src="https://telegram.org/js/telegram-widget.js?22"></script>
 </head>
@@ -1875,7 +1875,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.28.2';
+  const APP_VERSION = '0.28.3';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -1968,20 +1968,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   const THEME_MODES=['light','dark','system'];
   const THEME_STORAGE_KEY='dna_theme_mode';
   function loadThemeMode(){const m=localStorage.getItem(THEME_STORAGE_KEY);return THEME_MODES.includes(m)?m:'system';}
-  let systemThemeSample=null;
-  function readSystemTheme(forced){
-    const query=window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light';
-    const css=getComputedStyle(document.documentElement).getPropertyValue('--system-theme').trim()||query;
-    const old=systemThemeSample;
-    const value=forced||(old?(query!==old.query?query:css!==old.css?css:old.value):query);
-    systemThemeSample={query,css,value};return value;
+  // Раньше здесь был "дебаунс" — сравнение matchMedia() с CSS custom property (--system-theme),
+  // вычисленной через getComputedStyle. Двойной источник истины оказался ровно тем, что ломало
+  // живое переключение: на части браузеров/движков computed style в момент чтения физически
+  // отставал от уже сработавшего matchMedia, из-за чего смена темы не просто задерживалась, а
+  // иногда не подхватывалась вовсе — помогал только полный перезаход (перезагрузка страницы,
+  // где всё считалось заново с нуля). Теперь источник один: matchMedia(...).matches напрямую,
+  // без кэша и без сравнения с CSS.
+  function readSystemTheme(){
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light';
   }
   function resolvedTheme(mode){
     if(mode==='light'||mode==='dark')return mode;
     return readSystemTheme();
   }
   let themeMode=loadThemeMode();
-  function applyThemeMode(mode,animate,systemTheme){
+  function applyThemeMode(mode,animate){
     themeMode=mode;
     const root=document.documentElement;
     if(animate&&!reducedMotion()){
@@ -1989,11 +1991,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       clearTimeout(applyThemeMode._t);
       applyThemeMode._t=setTimeout(()=>root.classList.remove('theme-transition'),260);
     }
-    const resolved=mode==='system'&&systemTheme?readSystemTheme(systemTheme):resolvedTheme(mode);
+    const resolved=resolvedTheme(mode);
     // Применяем обнаруженную палитру явно: не ждём, пока WebKit перекрасит @media.
     // Режим system сохраняется отдельно, поэтому подписки на ОС продолжают работать.
     root.dataset.theme=resolved;root.style.colorScheme=mode==='system'?'light dark':resolved;
-    applyThemeMode.resolved=resolved;
     const metaTheme=document.querySelector('meta[name="theme-color"]');
     if(metaTheme)metaTheme.content=resolved==='light'?'#F7F4ED':'#0A0A0A';
     // Canvas-графики (привычки/финансы) сами не подписаны на CSS var — перерисовываем их поверх
@@ -2012,31 +2013,25 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   applyThemeMode(themeMode,false);
   if(window.matchMedia){
-    const sysDarkQuery=window.matchMedia('(prefers-color-scheme: dark)');
     // setThemeMode (явный выбор темы пользователем) всегда зовёт renderScreen() следом за
     // applyThemeMode — иначе все цвета, вычисленные JS'ом прямо во время рендера (а не просто
     // через CSS-переменные, которые сами перекрашиваются от @media), остаются старыми до
-    // следующей перерисовки. У смены СИСТЕМНОЙ темы (эта подписка) renderScreen() не хватало —
-    // ровно поэтому "системная" тема визуально не успевала подхватить живое переключение ОС,
-    // хотя applyThemeMode технически отрабатывал (canvas/GOLD/meta обновлялись, а всё остальное
-    // — нет, до следующего непричастного к теме рендера).
-    const onSystemChange=event=>{
-      const next=typeof event?.matches==='boolean'?readSystemTheme((event.media||'dark').includes('dark')?(event.matches?'dark':'light'):(event.matches?'light':'dark')):resolvedTheme('system');
-      if(themeMode==='system'&&applyThemeMode.resolved!==next){applyThemeMode('system',true,next);renderScreen();}
+    // следующей перерисовки. Смена СИСТЕМНОЙ темы — то же самое, renderScreen() нужен и тут.
+    const syncSystemTheme=()=>{
+      if(themeMode!=='system')return;
+      const next=readSystemTheme();
+      if(document.documentElement.dataset.theme!==next){applyThemeMode('system',true);renderScreen();}
     };
-    const resumeTheme=()=>{onSystemChange();requestAnimationFrame(onSystemChange);setTimeout(onSystemChange,250);};
-    sysDarkQuery.addEventListener?sysDarkQuery.addEventListener('change',onSystemChange):sysDarkQuery.addListener?.(onSystemChange);
-    const sysLightQuery=window.matchMedia('(prefers-color-scheme: light)');
-    sysLightQuery.addEventListener?sysLightQuery.addEventListener('change',onSystemChange):sysLightQuery.addListener?.(onSystemChange);
-    window.addEventListener('pageshow',resumeTheme);
-    window.addEventListener('focus',resumeTheme);
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeTheme();});
-    document.addEventListener('pointerdown',()=>{if(themeMode==='system')onSystemChange();},{passive:true});
-    // 500мс ощущались как заметная задержка ("не сразу") — на части устройств событие 'change'
-    // у matchMedia не срабатывает надёжно (сам поллинг тут как раз и есть основной сработавший
-    // механизм, не подстраховка), поэтому 150мс — тот компромисс, где переключение уже
-    // воспринимается мгновенным, а лишней нагрузки от частого сравнения ещё не заметно.
-    setInterval(()=>{if(!document.hidden&&themeMode==='system')onSystemChange();},150);
+    const sysDarkQuery=window.matchMedia('(prefers-color-scheme: dark)');
+    sysDarkQuery.addEventListener?sysDarkQuery.addEventListener('change',syncSystemTheme):sysDarkQuery.addListener?.(syncSystemTheme);
+    window.addEventListener('pageshow',syncSystemTheme);
+    window.addEventListener('focus',syncSystemTheme);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncSystemTheme();});
+    document.addEventListener('pointerdown',syncSystemTheme,{passive:true});
+    // Подстраховка для случаев, где 'change' у matchMedia не срабатывает (некоторые PWA/
+    // standalone-окружения) — раз в секунду, пока вкладка видна; сравнение внутри
+    // syncSystemTheme дешёвое (dataset.theme!==next), лишней нагрузки не создаёт.
+    setInterval(()=>{if(!document.hidden)syncSystemTheme();},1000);
   }
   // Миграция: старые записи (транзакции/цели/активы) хранились по индексу массива, не по id —
   // после удаления/сортировки индексы «плывут» и легко зацепить не ту запись. Добиваем id всем,
@@ -5819,6 +5814,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.28.3</div><p class="settings-note">Доисправлены две прошлые заметки: цифры теперь не «прыгают» по высоте (5 больше не ниже 0), а системная тема переключается сразу, а не только после перезахода в приложение. Атлас научился удалять разделы планера — по названию или по цвету («удали зелёный раздел»).</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.2</div><p class="settings-note">Атлас понимает относительное время («напомни через час», «через 30 минут») — сам вычисляет точное время. Цифры теперь одинаковой ширины — не «прыгают» при обновлении. Системная тема переключается заметно быстрее при смене темы в ОС.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.1</div><p class="settings-note">Голосовой ассистент получил имя — Атлас: так теперь называется в приложении и в боте (заголовок экрана, поле ввода, сообщения об ошибках, карточка подтверждения действий в Telegram).</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.0</div><p class="settings-note">Панель разработчика: кнопка выхода (сбрасывает доступ по-настоящему, не только визуально), статистика пользователей (всего/новых/активных за день-неделю-месяц, топ по частоте заходов), заметки «поправить/добавить» — доступны и в приложении, и в боте. Пароль панели теперь удаляется из чата бота сразу после разблокировки.</p></div>

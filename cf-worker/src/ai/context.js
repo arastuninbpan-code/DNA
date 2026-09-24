@@ -4,7 +4,7 @@
 // придумывает цифры сама; для create_event/create_expense и т.п. backend всё равно исполняет
 // только провалидированные действия (см. actions.js), а не то, что "сказала" модель о контексте.
 import {
-  getHabitsDoc, habitsOn, getPlannerDoc, plannerOn, getFinanceDoc,
+  getHabitsDoc, habitsOn, getPlannerDoc, plannerOn, getFinanceDoc, nearestColorName,
 } from '../reminders.js';
 import { computeHabitStreaks } from '../streaks.js';
 
@@ -34,8 +34,10 @@ export async function buildDayContext(firestore, uid, dateKey) {
     events: events.map((e) => ({ id: e.id, title: e.title, time: e.time || null, done: !!e.done })),
     // Список уже существующих разделов — чтобы AI не плодил дубликат "Спорт"/"спорт" вторым
     // раздела с тем же смыслом, а сначала свериться, нет ли уже подходящего (см. create_section
-    // в actions.js/provider.js).
-    sections: sections.map((s) => s && s.name).filter(Boolean),
+    // в actions.js/provider.js). colorName — приблизительное русское название цвета (см.
+    // nearestColorName в reminders.js), чтобы можно было сослаться на раздел по цвету
+    // ("удали зелёный раздел"), а не только по точному имени.
+    sections: sections.filter(Boolean).map((s) => ({ name: s.name, colorName: nearestColorName(s.color) })),
     finance: { spent, earned, transactions: transactions.map((t) => ({ amount: t.amount, category: t.category, type: t.type })) },
   };
 }

@@ -6,7 +6,7 @@ import {
   DEFAULT_TZ, todayKey, dateKeyAddDays, formatRub,
   getHabitsDoc, habitsOn, markHabitDoneByName,
   createPlannerEvent, addFinanceTransaction, createSection, completeEventByTitle, deleteEventByTitle,
-  findSectionIdByName,
+  findSectionIdByName, deleteSectionByName,
 } from '../reminders.js';
 
 export const ACTION_SCHEMA = {
@@ -17,6 +17,7 @@ export const ACTION_SCHEMA = {
   complete_event: { required: ['title'], optional: ['date'] },
   delete_event: { required: ['title'], optional: ['date'] },
   create_section: { required: ['name'], optional: ['color'] },
+  delete_section: { required: ['name'], optional: [] },
 };
 
 export function validateAction(action) {
@@ -115,6 +116,15 @@ async function execCreateSection(firestore, uid, a) {
   return { summary: `📁 Раздел «${section.name}» создан` };
 }
 
+// a.name может быть как точным именем раздела, так и названием цвета ("зелёный") — сопоставление
+// по цвету модель делает сама на основе colorName из контекста (см. context.js) и присылает то же
+// название, что видела там, так что здесь достаточно точного совпадения по имени.
+async function execDeleteSection(firestore, uid, a) {
+  const removed = await deleteSectionByName(firestore, uid, a.name);
+  if (!removed) return { error: `Не нашёл раздел «${a.name}»` };
+  return { summary: `🗑️ Раздел «${removed.name}»` };
+}
+
 const EXECUTORS = {
   create_event: execCreateEvent,
   create_expense: execCreateExpense,
@@ -123,6 +133,7 @@ const EXECUTORS = {
   complete_event: execCompleteEvent,
   delete_event: execDeleteEvent,
   create_section: execCreateSection,
+  delete_section: execDeleteSection,
 };
 
 // Единственная точка, которая реально пишет в Firestore от лица AI — вызывается только для

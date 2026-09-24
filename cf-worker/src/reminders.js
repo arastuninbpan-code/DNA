@@ -260,6 +260,62 @@ export async function createSection(firestore, uid, { name, color }) {
   return section;
 }
 
+// Удалить раздел планера по НАЗВАНИЮ (без учёта регистра/пробелов — та же логика сопоставления,
+// что и у findSectionIdByName выше) — используется голосовым/текстовым AI (execDeleteSection в
+// actions.js). Сами события раздела не удаляются, только отвязываются (sectionId:null) — точно
+// то же поведение, что и у ручного удаления раздела через форму в приложении (см. #pl-section-
+// delete в index.html: "События останутся без раздела"). Возвращает удалённый раздел или null,
+// если раздела с таким именем нет — тогда исполнитель отвечает отказом, а не тихо ничего не делает.
+export async function deleteSectionByName(firestore, uid, name) {
+  const path = `users/${uid}/appData/planner`;
+  const data = (await firestore.getDoc(path)) || {};
+  const sections = Array.isArray(data.sections) ? [...data.sections] : [];
+  const events = Array.isArray(data.events) ? [...data.events] : [];
+  const norm = (s) => String(s || '').trim().toLowerCase();
+  const idx = sections.findIndex((s) => s && norm(s.name) === norm(name));
+  if (idx === -1) return null;
+  const [removed] = sections.splice(idx, 1);
+  const patchedEvents = events.map((e) => (e && e.sectionId === removed.id ? { ...e, sectionId: null } : e));
+  await firestore.mergeDoc(path, { sections, events: patchedEvents });
+  return removed;
+}
+
+// Ближайшее к hex-цвету раздела название цвета по-русски (грубый nearest-match по RGB-дистанции,
+// та же идея, что у SECTION_COLOR_SWATCHES в bot.js для цветных квадратов-эмодзи, только тут
+// текстовое имя, а не эмодзи) — нужно голосовому/текстовому AI, когда пользователь называет
+// раздел по цвету ("удали зелёный раздел"), а не по имени: цвета в приложении свободные (палитра
+// выбора цвета шире исходных семи), поэтому точного попадания в конкретный hex не будет — важно
+// не точное совпадение, а разумное "к какому базовому цвету это ближе всего".
+const NAMED_COLOR_SWATCHES = [
+  ['красный', [229, 49, 44]],
+  ['оранжевый', [244, 144, 12]],
+  ['жёлтый', [253, 203, 88]],
+  ['зелёный', [120, 177, 89]],
+  ['синий', [85, 172, 238]],
+  ['фиолетовый', [170, 122, 192]],
+  ['розовый', [224, 143, 160]],
+  ['коричневый', [150, 109, 74]],
+  ['чёрный', [30, 30, 30]],
+  ['белый', [240, 240, 240]],
+];
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+export function nearestColorName(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  let best = null;
+  let bestDist = Infinity;
+  for (const [name, ref] of NAMED_COLOR_SWATCHES) {
+    const dist = (rgb[0] - ref[0]) ** 2 + (rgb[1] - ref[1]) ** 2 + (rgb[2] - ref[2]) ** 2;
+    if (dist < bestDist) { bestDist = dist; best = name; }
+  }
+  return best;
+}
+
 // Отметить событие выполненным по НАЗВАНИЮ (не по id — AI не знает внутренний id, только то, что
 // видел в контексте дня, см. context.js), на заданную дату (по умолчанию сегодня). Сопоставление
 // без учёта регистра/пробелов по краям; если событие уже выполнено или не найдено — вернёт null,
