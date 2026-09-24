@@ -115,6 +115,17 @@ export async function listDevRequests(firestore, limit = 50) {
   return docs.map((d) => ({ id: d.id, ...d.data })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, limit);
 }
 
+// Убрать заметку из панели после того, как правки по ней сделаны — прямая просьба владельца
+// ("если ты что-то сделал из панели разработчика, то надо задачи эти убирать"): раньше заметки
+// копились в списке навсегда (submit/list, без удаления), из-за чего уже решённые вопросы
+// продолжали висеть как новые. Просто удаляем документ — не "статус done", список и так должен
+// показывать только реально открытое.
+export async function resolveDevRequest(firestore, id) {
+  if (!id) return { ok: false, error: 'нет id' };
+  await firestore.deleteDoc(`devRequests/${id}`);
+  return { ok: true };
+}
+
 // -------- Статистика пользователей --------
 // lastSeenAt обновляет touchUserActivity (index.js — вызывается из requireFirebaseUid на КАЖДОМ
 // аутентифицированном запросе и из handleTelegramWebhook на каждом апдейте бота), поэтому

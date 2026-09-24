@@ -468,7 +468,11 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 
 /* Finance */
 .finance-screen {
-  min-height: 100%;
+  /* Было min-height:100% — внутри flex-колонки с overflow:hidden это НЕ то же самое, что
+     height:100% (как у рабочего .habits-screen): при коротком контенте секция могла оказаться
+     ниже высоты экрана, а под ней/за прижатым к низу nav — просвечивал чёрный фон обёртки
+     (.screen-host/body), это и была "чёрная полоска снизу". */
+  height: 100%;
   background:
     radial-gradient(ellipse 120% 55% at 50% -5%, rgba(214,183,86,.08), rgba(214,183,86,0) 60%),
     var(--bg-deep);
@@ -492,7 +496,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 }
 .finance-tab.active { border-color:transparent; background:linear-gradient(135deg,var(--gold2),#c9a94e); color:var(--bg); }
 .finance-content { flex:1; min-height:0; margin-top:24px; overflow:hidden; }
-.finance-scroll { height:100%; overflow-y:auto; scrollbar-width:none; padding:8px 24px 32px; }
+.finance-scroll { flex:1; min-height:0; overflow-y:auto; scrollbar-width:none; padding:8px 24px calc(32px + var(--safe-bottom)); }
 .finance-scroll::-webkit-scrollbar { display:none; }
 .balance-card {
   padding:24px; border-radius:24px; background:linear-gradient(135deg,var(--surface3),var(--bg));
@@ -831,9 +835,14 @@ select.field { appearance:none; }
 .fin-header,.fin-heading-wrap,.fin-card-head {display:flex;align-items:center;justify-content:space-between;gap:14px;}
 .fin-header {margin-bottom:16px;}
 .fin-heading-wrap {justify-content:flex-start;}
-.fin-heading {font-size:1.75rem;font-weight:400;margin:6px 0 0;outline:none;}
+/* Раньше 1.75rem + margin:6px 0 0 — крупнее и со сдвигом вниз относительно заголовка "Планер"
+   (.pl-header h1: 1.5rem, margin:0), из-за чего "Финансы" визуально сидело на другом уровне и
+   другого размера. Выравниваем один в один. */
+.fin-heading {font-size:1.5rem;font-weight:400;margin:0;outline:none;}
 .fin-tabs {display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:22px;}
-.fin-tab {padding:10px 4px;border-radius:14px;border:1px solid rgba(var(--ink),.1);background:var(--surface2);color:rgba(var(--ink),.55);font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Вертикальный padding уменьшен с 10px до 7px — под высоту .pl-chip (тех же плашек-фильтров в
+   Планере: "Все"/названия разделов), чтобы вкладки Финансов не были заметно выше соседних. */
+.fin-tab {padding:7px 4px;border-radius:14px;border:1px solid rgba(var(--ink),.1);background:var(--surface2);color:rgba(var(--ink),.55);font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .fin-tab.active {border-color:var(--gold);background:rgba(201,168,76,.14);color:var(--gold2);}
 .fin-eyebrow {display:block;margin:0;color:#b5a477;font-size:.75rem;letter-spacing:.13em;line-height:1.6;}
 .fin-text {display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:6px 0;border:0;background:none;color:var(--gold);text-align:left;line-height:1.4;}
@@ -849,9 +858,13 @@ select.field { appearance:none; }
 .fin-wallet-foot {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 12px;padding:8px 24px;border-top:1px solid rgba(201,168,76,.18);}
 .fin-wallet-foot>span {font-size:.75rem;line-height:1.5;color:rgba(var(--ink),.65);}
 .fin-quick {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 22px;}
-.fin-quick button {display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;border-radius:15px;font-size:1rem;border:1px solid rgba(201,168,76,.3);background:var(--surface2);color:var(--gold);}
-.fin-quick .fin-quick-income {background:var(--surface2);border-color:rgba(76,175,80,.35);color:var(--green);}
-.fin-quick span {font-size:1.7rem;font-family:system-ui;line-height:1;}
+/* Раньше вместо суммы были статичные слова "− Расход"/"+ Пополнение" (везде золотой цвет, у
+   Расхода не было даже красного акцента). Теперь кнопка показывает реальную сумму за месяц —
+   вместо статичного лейбла — и оба акцентных цвета есть по умолчанию: красный/зелёный. */
+.fin-quick button {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:56px;border-radius:15px;border:1px solid rgba(255,90,90,.35);background:var(--surface2);color:var(--red);}
+.fin-quick strong {font-size:1.125rem;font-weight:600;font-variant-numeric:tabular-nums;}
+.fin-quick span {font-size:.75rem;font-family:Georgia,'Times New Roman',serif;color:rgba(var(--ink),.5);}
+.fin-quick .fin-quick-income {border-color:rgba(76,175,80,.35);color:var(--green);}
 .fin-period {display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
 .fin-period button {padding:10px 15px;min-height:44px;background:none;color:rgba(var(--ink),.6);border:1px solid transparent;border-radius:24px;}
 .fin-period button[aria-pressed=true] {background:rgba(201,168,76,.14);color:var(--gold2);border-color:rgba(201,168,76,.35);}
@@ -930,19 +943,20 @@ select.field { appearance:none; }
 .fin-goal-add {flex-shrink:0;padding:8px 14px;border-radius:12px;border:1px solid rgba(201,168,76,.3);background:transparent;color:var(--gold);font-size:.8125rem;}
 /* Главная — круг с балансом и кольцом доходы/расходы (см. ТЗ п.1): SVG, не canvas — резкий на
    retina без пересчёта размеров, повёрнут на -90deg чтобы старт кольца был сверху, как в
-   стандартных donut-графиках. */
-.fin-ring-wrap {position:relative;width:200px;height:200px;max-width:60vw;max-height:60vw;margin:8px auto 4px;}
-.fin-ring {width:100%;height:100%;transform:rotate(-90deg);}
-.fin-ring-track {fill:none;stroke:rgba(var(--ink),.08);stroke-width:14;}
-.fin-ring-expense {fill:none;stroke:var(--red);stroke-width:14;stroke-linecap:round;transition:stroke-dasharray .4s ease;}
-.fin-ring-income {fill:none;stroke:var(--green);stroke-width:14;stroke-linecap:round;transition:stroke-dasharray .4s ease,stroke-dashoffset .4s ease;}
-.fin-ring-center {position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;padding:0 12px;}
-.fin-ring-center .fin-balance {margin:0;font-size:clamp(1.5rem,7vw,2rem);}
-.fin-ring-center span {font-size:.75rem;color:rgba(var(--ink),.5);}
+   стандартных donut-графиках. Префикс fin-bal- (а не fin-ring/fin-ring-center) — эти имена уже
+   заняты старым кольцом "Расходы по категориям" (см. renderFinSpending ниже по файлу), совпадение
+   имён сделало бы мой круг некликабельным (унаследованный оттуда pointer-events:none). */
+.fin-bal-ring-wrap {position:relative;width:200px;height:200px;max-width:60vw;max-height:60vw;margin:8px auto 4px;}
+.fin-bal-ring-svg {width:100%;height:100%;transform:rotate(-90deg);}
+.fin-bal-ring-track {fill:none;stroke:rgba(var(--ink),.08);stroke-width:14;}
+.fin-bal-ring-expense {fill:none;stroke:var(--red);stroke-width:14;stroke-linecap:round;transition:stroke-dasharray .4s ease;}
+.fin-bal-ring-income {fill:none;stroke:var(--green);stroke-width:14;stroke-linecap:round;transition:stroke-dasharray .4s ease,stroke-dashoffset .4s ease;}
+.fin-bal-ring-center {position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;padding:0 12px;border:0;background:none;cursor:pointer;font-family:inherit;color:inherit;width:100%;}
+.fin-bal-ring-center .fin-balance {margin:0;font-size:clamp(1.5rem,7vw,2rem);}
+.fin-bal-ring-center span {font-size:.75rem;color:rgba(var(--ink),.5);}
 .fin-month-switcher {display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:2px;}
 .fin-month-switcher button {background:none;border:0;color:var(--gold);padding:6px;display:flex;}
 .fin-month-switcher strong {font-weight:600;text-transform:capitalize;min-width:11ch;text-align:center;}
-.fin-opening-link {display:block;text-align:center;margin:2px auto 0;}
 .fin-month-result {text-align:center;}
 .fin-month-result strong {display:block;margin-top:4px;font-size:1.5rem;font-weight:600;}
 .fin-mandatory-sum {display:block;margin:4px 0;font-size:1.5rem;font-weight:600;color:#e0a344;}
@@ -1929,7 +1943,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.29.0';
+  const APP_VERSION = '0.29.1';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -5940,6 +5954,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
+        <div class="changelog-entry"><div class="changelog-version">v0.29.1</div><p class="settings-note">Правки по фидбэку из панели разработчика: починена чёрная полоса снизу экрана «Финансы» (баг вёрстки, круг с балансом теперь кликабелен — раньше случайно унаследовал pointer-events:none от другого элемента). Тап по балансу — редактирование. Кнопка «Начальный остаток» убрана. «Расход» — красный, кнопки показывают суммы за месяц вместо статичных слов. Заголовок и вкладки выровнены по размеру с «Планер». Круг переключает месяц свайпом, между Главная/История/Цели/Инвестиции — тоже свайп по строке вкладок. Раздел «Динамика» убран (позже заменим на анализ трат). Панель разработчика: заметки можно отмечать «Готово» — убираются из списка.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.29.0</div><p class="settings-note">Начало переработки раздела «Финансы» (первый этап). Главная: круг с текущим балансом и кольцом доходов/расходов за месяц, переключатель месяца, «Результат месяца», «Обязательные платежи», «Ближайшая цель». Операции теперь умеют быть с датой в будущем (не трогают баланс, пока не подтверждены — «Оплачено»/«Получено») и повторяющимися («Повторять» — та же механика, что у событий планера). История: фильтр «ОП» (обязательные платежи), группировка по дням, переключатель месяца. Цели: кнопка «Отложить» — перевод денег в цель, не считается расходом.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.5</div><p class="settings-note">Подмена цифр не срабатывала для жирного начертания (баланс, крупные суммы) — из-за этого в одних местах цифры выглядели ровно, в других по-прежнему «прыгали». Теперь правило подмены отвечает за цифры при любой жирности, шрифт цифр везде одинаковый.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.28.4</div><p class="settings-note">Нашлась настоящая причина двух прошлых заметок, а не только симптомы: у шрифта Georgia физически нет ровных цифр — теперь цифры подменяются на системный шрифт с ровными по ширине и высоте начертаниями, буквы не затронуты. Системная тема: раньше JS сам себе мешал жить и переключался только после перезахода — теперь в режиме «системная» переключение отдано целиком браузеру (CSS), он делает это вживую и мгновенно.</p></div>
@@ -6087,7 +6102,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         ?adminData.support.map(m=>`<div class="settings-note" style="margin-bottom:8px">${m.status==='new'?'🆕 ':''}<i>${esc(m.source)}</i> · <code>${esc(m.uid)}</code><br>${esc(m.text)}</div>`).join('')
         :'<p class="settings-note">Пока пусто.</p>';
       const devRequests=adminData.devRequests.length
-        ?adminData.devRequests.map(r=>`<div class="settings-note" style="margin-bottom:8px">${r.status==='new'?'🆕 ':''}${esc(r.text)}</div>`).join('')
+        ?adminData.devRequests.map(r=>`<div class="settings-note" style="margin-bottom:8px;display:flex;gap:8px;align-items:flex-start;justify-content:space-between"><span>${r.status==='new'?'🆕 ':''}${esc(r.text)}</span><button type="button" class="text-btn" style="flex:none" data-devrequest-resolve="${esc(r.id)}">Готово</button></div>`).join('')
         :'<p class="settings-note">Пока пусто.</p>';
       const promo=adminData.promoCodes.length
         ?adminData.promoCodes.map(c=>`<div class="settings-note">${esc(c.code)} — использован ${c.usedCount||0}${c.maxUses!=null?`/${c.maxUses}`:''} раз</div>`).join('')
@@ -6146,6 +6161,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         adminData=null; homePanel='settings'; renderScreen();
       }catch(err){ alert(aiErrorMessage(err)); btn.disabled=false; }
     });
+    $$('[data-devrequest-resolve]').forEach(b=>b.addEventListener('click',async()=>{
+      b.disabled=true;
+      try{
+        await backendJson('/admin/devrequest/resolve',{id:b.dataset.devrequestResolve});
+        adminData=null; renderScreen();
+      }catch(err){ alert(aiErrorMessage(err)); b.disabled=false; }
+    }));
     $('[data-devrequest-form]')?.addEventListener('submit',async(e)=>{
       e.preventDefault();
       const textarea=$('[data-devrequest-text]');
@@ -6543,10 +6565,24 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const t=finTotals(finHomeMonthTx()),total=t.income+t.expense,balance=totalBalance();
     const r=80,c=2*Math.PI*r;
     const expenseLen=total>0?c*(t.expense/total):0,incomeLen=total>0?c-expenseLen:0;
-    return `<div class="fin-ring-wrap"><svg viewBox="0 0 200 200" class="fin-ring" role="img" aria-label="Пополнения ${finMoney(t.income)}, расходы ${finMoney(t.expense)}">
-      <circle cx="100" cy="100" r="${r}" class="fin-ring-track"></circle>
-      ${total>0?`<circle cx="100" cy="100" r="${r}" class="fin-ring-expense" stroke-dasharray="${expenseLen} ${c-expenseLen}"></circle><circle cx="100" cy="100" r="${r}" class="fin-ring-income" stroke-dasharray="${incomeLen} ${c-incomeLen}" stroke-dashoffset="${-expenseLen}"></circle>`:''}
-    </svg><div class="fin-ring-center"><strong class="fin-balance">${finMoney(balance)}</strong><span>Баланс</span></div></div>`;
+    return `<div class="fin-bal-ring-wrap" data-fin-month-swipe><svg viewBox="0 0 200 200" class="fin-bal-ring-svg" role="img" aria-label="Пополнения ${finMoney(t.income)}, расходы ${finMoney(t.expense)}">
+      <circle cx="100" cy="100" r="${r}" class="fin-bal-ring-track"></circle>
+      ${total>0?`<circle cx="100" cy="100" r="${r}" class="fin-bal-ring-expense" stroke-dasharray="${expenseLen} ${c-expenseLen}"></circle><circle cx="100" cy="100" r="${r}" class="fin-bal-ring-income" stroke-dasharray="${incomeLen} ${c-incomeLen}" stroke-dashoffset="${-expenseLen}"></circle>`:''}
+    </svg><button type="button" class="fin-bal-ring-center" data-fin-balance-edit aria-label="Баланс ${finMoney(balance)}. Изменить"><strong class="fin-balance">${finMoney(balance)}</strong><span>Баланс</span></button></div>`;
+  }
+  // Тап по балансу — не редактирование "начального остатка" напрямую (пользователь не обязан
+  // помнить эту механику), а прямое "поправь баланс на актуальный": считаем, какой opening
+  // нужен, чтобы totalBalance() стал равен введённому числу — та же идея, что у сверки счёта в
+  // банковских приложениях. Кнопка "Начальный остаток" убрана — эту роль теперь выполняет тап
+  // по кругу (см. ТЗ по правкам финансов).
+  function finBalanceEditForm() {
+    finModal('Изменить баланс',`<p class="fin-muted">Укажи актуальный баланс — сумма подстроится, прошлые операции не изменятся.</p><form id="fin-balance-form"><label class="fin-label" for="fin-balance-input">Баланс, ₽</label><input class="fin-field" id="fin-balance-input" type="number" step="0.01" min="-1000000000000" max="1000000000000" required value="${totalBalance()}"><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Сохранить</button></form>`,d=>{
+      $('#fin-balance-form',d).onsubmit=e=>{e.preventDefault();const value=Number($('#fin-balance-input',d).value);if(!Number.isFinite(value)){finError(d,'Введи число.');return;}
+        const newOpening=value-(totalIncome()-totalExpense()-totalTransfers());
+        try{localStorage.setItem('dna_finance_opening_v1',JSON.stringify(newOpening));}catch(_){finError(d,'Не удалось сохранить баланс.');return;}
+        openingBalance=newOpening;d.close();finRefresh();showToast('Баланс обновлён',true);
+      };
+    });
   }
   function renderFinMonthResultCard() {
     const t=finTotals(finHomeMonthTx()),result=t.income-t.expense;
@@ -6605,12 +6641,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `<div class="fin-period" aria-label="Период аналитики">${[['week','7 дней'],['month','Месяц'],['year','Год']].map(([k,label])=>`<button data-fin-period="${k}" aria-pressed="${financeView.period===k}">${label}</button>`).join('')}</div>`;
   }
   function renderFinanceOverview() {
-    const links=financePrefs.order.filter(k=>k!=='spending'&&k!=='goals'&&k!=='investments'&&!financePrefs.hidden.includes(k));
+    // 'dynamics' убран из ссылок насовсем (не просто спрятан в настройках) — пользователь прямо
+    // попросил убрать этот раздел, потом заменим на нормальный анализ трат отдельным заходом.
+    const links=financePrefs.order.filter(k=>k!=='spending'&&k!=='goals'&&k!=='investments'&&k!=='dynamics'&&!financePrefs.hidden.includes(k));
+    const homeT=finTotals(finHomeMonthTx());
     return `<div class="fin-summary${finAnimation('summary')}">
       ${renderFinMonthSwitcher()}
       ${renderFinRing()}
-      <button class="fin-text fin-opening-link" data-fin-opening>Начальный остаток</button>
-      <div class="fin-quick"><button class="fin-quick-expense" data-fin-add="expense"><span>−</span> Расход</button><button class="fin-quick-income" data-fin-add="income"><span>+</span> Пополнение</button></div>
+      <div class="fin-quick"><button class="fin-quick-expense" data-fin-add="expense"><strong>${finMoney(homeT.expense)}</strong><span>Расход</span></button><button class="fin-quick-income" data-fin-add="income"><strong>${finMoney(homeT.income)}</strong><span>Пополнение</span></button></div>
     </div>
     ${renderFinMonthResultCard()}
     ${renderFinMandatoryCard()}
@@ -6795,9 +6833,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       preview();amount.focus({preventScroll:true});
     });
   }
-  function finOpeningForm() {
-    finModal('Начальный остаток',`<p class="fin-muted">Сумма, которая была у тебя до первой внесённой операции. Это не доход и не стоимость инвестиций.</p><form id="fin-opening-form"><label class="fin-label" for="fin-opening">Начальный остаток, ₽</label><input class="fin-field" type="number" step="0.01" min="-1000000000000" max="1000000000000" required id="fin-opening" value="${openingBalance}"><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Сохранить</button></form>`,d=>{$('#fin-opening-form',d).onsubmit=e=>{e.preventDefault();const value=Number($('#fin-opening',d).value);if(!Number.isFinite(value))return;try{localStorage.setItem('dna_finance_opening_v1',JSON.stringify(value));}catch(_){finError(d,'Не удалось сохранить остаток.');return;}openingBalance=value;d.close();finRefresh();};});
-  }
   function finGoalForm(id=null) {
     const old=id===null?null:state.finance.goals.find(g=>g.id===id);
     finModal(old?'Цель':'Новая цель',`<form id="fin-goal-form"><label class="fin-label" for="fin-goal-name">Название</label><input class="fin-field" id="fin-goal-name" required maxlength="120" value="${esc(old?.name||'')}" placeholder="Ноутбук"><label class="fin-label" for="fin-goal-target">Нужно накопить, ₽</label><input class="fin-field" id="fin-goal-target" type="number" step="0.01" min="0.01" max="1000000000000" required value="${old?num(old.target):''}"><label class="fin-label" for="fin-goal-current">Уже отложено, ₽</label><input class="fin-field" id="fin-goal-current" type="number" step="0.01" min="0" max="1000000000000" required value="${num(old?.current)}"><label class="fin-label" for="fin-goal-deadline">Срок — необязательно</label>${appDateField('fin-goal-deadline',old?.deadline||'')}<p id="fin-goal-plan" class="fin-preview" aria-live="polite"></p><p class="fin-muted">Изменение накоплений не создаёт расход или пополнение.</p><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Сохранить цель</button>${old?'<button class="fin-danger" type="button" id="fin-goal-delete">Удалить цель</button>':''}</form>`,d=>{
@@ -6833,11 +6868,42 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function finImportInfo() {
     finModal('Фото и банковские выписки',`${renderDnaLoader('Распознавание фото — скоро',true)}<p>Распознавание скриншотов и универсальный импорт PDF ещё не подключены.</p><p class="fin-muted">Экспериментальный PDF-импорт умеет читать только отдельные текстовые выписки Т‑Банка. Он не распознаёт сканы. Проверь суммы и даты перед добавлением; перевод между своими счетами не считай расходом.</p><button class="fin-primary" id="fin-pdf-experimental">Попробовать текстовый PDF</button><button class="fin-text" id="fin-import-manual">Добавить вручную</button>`,d=>{$('#fin-pdf-experimental',d).onclick=()=>{d.close();pickDocuments();};$('#fin-import-manual',d).onclick=()=>{d.close();finTransactionForm();};});
   }
+  // Минимальный горизонтальный свайп: не претендует на вертикальный скролл (axis решается по
+  // первому заметному сдвигу, не preventDefault нигде — родной скролл продолжает работать),
+  // навешивается на маленькие, заведомо не скроллящиеся по вертикали элементы (круг баланса,
+  // строка вкладок), а не на весь экран — иначе конфликтовал бы со скроллом контента ниже.
+  function bindHorizontalSwipe(el,onLeft,onRight){
+    if(!el)return;
+    let sx=0,sy=0,tracking=false,axis=null;
+    el.addEventListener('pointerdown',e=>{if(e.isPrimary===false||e.button!==0)return;sx=e.clientX;sy=e.clientY;tracking=true;axis=null;},{passive:true});
+    el.addEventListener('pointermove',e=>{
+      if(!tracking)return;
+      const dx=e.clientX-sx,dy=e.clientY-sy;
+      if(axis===null&&(Math.abs(dx)>8||Math.abs(dy)>8))axis=Math.abs(dx)>Math.abs(dy)*1.3?'x':'y';
+    },{passive:true});
+    const finish=e=>{
+      if(!tracking)return;tracking=false;
+      if(axis!=='x')return;
+      const dx=e.clientX-sx;
+      if(dx<=-50)onLeft?.();else if(dx>=50)onRight?.();
+    };
+    el.addEventListener('pointerup',finish,{passive:true});
+    el.addEventListener('pointercancel',()=>{tracking=false;},{passive:true});
+  }
   function bindFinanceEvents() {
     $$('[data-fin-add]').forEach(b=>b.onclick=()=>finTransactionForm(b.dataset.finAdd));
     $$('[data-fin-history]').forEach(b=>b.onclick=()=>finGo('history'));
     $$('[data-fin-page]').forEach(b=>b.onclick=()=>finGo(b.dataset.finPage));
-    $('[data-fin-opening]')?.addEventListener('click',finOpeningForm);
+    $('[data-fin-balance-edit]')?.addEventListener('click',finBalanceEditForm);
+    // Свайп по кругу — месяц вперёд/назад (см. правки: "круг при свапе влево-вправо переключается
+    // на след./прошлый месяц"); свайп по строке вкладок — переключение между Главная/История/
+    // Цели/Инвестиции, тем же жестом, что и между разделами планера.
+    bindHorizontalSwipe($('[data-fin-month-swipe]'),
+      ()=>{const d=new Date(financeView.homeMonth.y,financeView.homeMonth.m+1,1);financeView.homeMonth={y:d.getFullYear(),m:d.getMonth()};finRefresh();},
+      ()=>{const d=new Date(financeView.homeMonth.y,financeView.homeMonth.m-1,1);financeView.homeMonth={y:d.getFullYear(),m:d.getMonth()};finRefresh();});
+    bindHorizontalSwipe($('.fin-tabs'),
+      ()=>{const idx=FIN_TABS.findIndex(([k])=>k===financeView.page),next=FIN_TABS[idx+1];if(next)finGo(next[0]);},
+      ()=>{const idx=FIN_TABS.findIndex(([k])=>k===financeView.page),prev=FIN_TABS[idx-1];if(prev)finGo(prev[0]);});
     $('[data-fin-customize]')?.addEventListener('click',finCustomize);
     $$('[data-fin-period]').forEach(b=>b.onclick=()=>{financeView.period=b.dataset.finPeriod;finRefresh(`[data-fin-period="${financeView.period}"]`);});
     const bindTx=()=>$$('[data-fin-tx]').forEach(b=>b.onclick=()=>finTransactionForm('expense',b.dataset.finTx));bindTx();

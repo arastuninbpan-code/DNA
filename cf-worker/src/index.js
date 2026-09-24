@@ -21,7 +21,7 @@ import { planTurn, confirmActions } from './ai/router.js';
 import { logAiUsage, getUsageOverview } from './ai/usage.js';
 import {
   tryUnlockAdmin, lockAdmin, isUserAdmin, redeemPromoCode, createPromoCode, listPromoCodes,
-  submitSupportMessage, listSupportMessages, submitDevRequest, listDevRequests,
+  submitSupportMessage, listSupportMessages, submitDevRequest, listDevRequests, resolveDevRequest,
   touchUserActivity, getUserStatsOverview,
 } from './admin.js';
 
@@ -646,6 +646,28 @@ async function handleAdminDevRequestSend(req, env, firestore) {
   return json(result, result.ok ? 200 : 400, AI_CORS_HEADERS);
 }
 
+// Убрать заметку из списка после того, как правки сделаны — та же двойная авторизация, что и у
+// /admin/devrequests (обычный админ-токен ИЛИ X-Admin-Secret), чтобы внешняя автоматизация,
+// которая читает заметки по секрету, могла ими же и убирать закрытые, не открывая приложение.
+async function handleAdminDevRequestResolve(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  const secretHeader = req.headers.get('x-admin-secret');
+  let authorized = !!(env.ADMIN_SECRET && secretHeader && secretHeader === env.ADMIN_SECRET);
+  if (!authorized) {
+    try {
+      const uid = await requireFirebaseUid(req, env, firestore);
+      authorized = await isUserAdmin(firestore, uid);
+    } catch (err) {
+      authorized = false;
+    }
+  }
+  if (!authorized) return json({ error: 'forbidden' }, 403, AI_CORS_HEADERS);
+  const body = await req.json().catch(() => ({}));
+  const result = await resolveDevRequest(firestore, body.id);
+  return json(result, result.ok ? 200 : 400, AI_CORS_HEADERS);
+}
+
 // Список заметок для разработки — единственный эндпоинт, рассчитанный на то, что его будут
 // опрашивать не из самого приложения, а скриптом/расписанием (см. просьбу пользователя "чтобы
 // какие-то запросы присылались прямяком тебе" — Worker технически не может САМ дотянуться и
@@ -755,6 +777,8 @@ export default {
         return handleAdminCreatePromo(req, env, firestore);
       case '/admin/devrequest/send':
         return handleAdminDevRequestSend(req, env, firestore);
+      case '/admin/devrequest/resolve':
+        return handleAdminDevRequestResolve(req, env, firestore);
       case '/admin/devrequests':
         return handleAdminDevRequests(req, env, firestore);
       case '/promo/redeem':
