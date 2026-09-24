@@ -1019,6 +1019,10 @@ select.field { appearance:none; }
 /* Запланированная/виртуальная операция — приглушённый (не зелёный/красный) цвет, как в ТЗ:
    до подтверждения это не считается ни доходом, ни расходом. */
 .fin-transaction.fin-tx-planned {display:flex;align-items:center;gap:10px;width:100%;padding:10px 0;border-bottom:1px solid #29281f;opacity:.62;}
+/* Обязательный будущий платёж — спокойный янтарный акцент (тонкая левая полоска), не яркая
+   карточка: строка остаётся такой же приглушённой, как обычный planned, просто с меткой "это
+   счёт, а не разовая трата". См. ТЗ: "без яркой тяжёлой карточки". */
+.fin-transaction.fin-tx-mandatory {border-left:2px solid rgba(201,168,76,.45);padding-left:8px;}
 .fin-tx-muted {color:rgba(var(--ink),.5) !important;}
 .fin-tx-pay {flex-shrink:0;padding:7px 12px;border-radius:10px;border:1px solid rgba(201,168,76,.3);background:transparent;color:var(--gold);font-size:.75rem;}
 .fin-portfolio-total {font-size:1.8rem;color:#eee5d1;overflow-wrap:anywhere;}
@@ -1042,6 +1046,11 @@ select.field { appearance:none; }
 .fin-switch button {min-height:46px;border:1px solid rgba(201,168,76,.22);border-radius:12px;background:var(--field-bg);color:rgba(var(--ink),.65);}
 .fin-switch button[aria-pressed=true] {background:rgba(201,168,76,.16);color:var(--gold2);border-color:var(--gold);}
 .fin-preview {color:#d1bd86;font-size:.875rem;line-height:1.6;min-height:24px;margin:10px 0;}
+/* Быстрые варианты периодичности в форме операции (ежедневно/еженедельно/ежемесячно/ежегодно) —
+   просто подставляют фразу в существующее текстовое поле повторения, см. finTransactionForm. */
+.fin-repeat-presets {display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.fin-repeat-preset {padding:6px 12px;border-radius:14px;border:1px solid rgba(201,168,76,.25);background:var(--field-bg);color:rgba(var(--ink),.6);font-size:.75rem;}
+.fin-repeat-preset:active {background:rgba(201,168,76,.12);}
 .fin-error {color:#e1a89d;min-height:16px;}
 .fin-primary {display:block;min-height:50px;width:100%;border:1px solid #d0b565;border-radius:12px;background:#c9a84c;color:#11120f;font-size:1rem!important;margin-top:18px;padding:12px;}
 .fin-danger {display:block;min-height:48px;width:100%;background:none;border:0;color:#d6a094;margin-top:8px;}
@@ -1996,7 +2005,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.30.0';
+  const APP_VERSION = '0.30.1';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6088,7 +6097,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Редизайн экрана Atlas по новому фирменному знаку: буква A с орбитой и сферой — настоящая иллюстрация вместо иконки микрофона, с живой медленной орбитой в покое, реальной реакцией свечения на громкость голоса во время записи и плавным переходом в маленький знак над перепиской после первого сообщения. Знак в нижней навигации тоже сменился с иконки микрофона на фирменную марку. На главном экране появились 4 кнопки быстрых команд.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Фундамент операций Финансов: «Обязательный платёж» теперь явный переключатель у повторяющегося расхода (был автоматическим), в форме появились быстрые варианты периодичности (ежедневно/еженедельно/ежемесячно/ежегодно), запланированный обязательный платёж в истории отмечен спокойным янтарным акцентом. Модель «план → подтверждение → факт» (обычная/будущая/повторяющаяся операция, баланс только по завершённым) проверена целиком.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -6838,7 +6847,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       // не красный/зелёный, статистика не трогается).
       if(t.status==='planned') {
         const label=income?'Получено':'Оплачено';
-        return `<div class="fin-transaction fin-tx-planned"><span class="fin-tx-icon">${icon('today')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}${t.occurrenceOf?' · регулярный платёж':''}</small></span><span class="fin-tx-money fin-tx-muted">${income?'+':'−'}${finMoney(finAmount(t))}</span><button class="fin-tx-pay" data-fin-pay="${esc(t.id)}">${label}</button></div>`;
+        return `<div class="fin-transaction fin-tx-planned${t.mandatory?' fin-tx-mandatory':''}"><span class="fin-tx-icon">${icon('today')}</span><span class="fin-tx-main"><strong>${esc(t.note||t.category||'Операция')}</strong><small>${esc(t.category||'Другое')} · ${finDate(t.date)}${t.occurrenceOf?' · регулярный платёж':''}</small></span><span class="fin-tx-money fin-tx-muted">${income?'+':'−'}${finMoney(finAmount(t))}</span><button class="fin-tx-pay" data-fin-pay="${esc(t.id)}">${label}</button></div>`;
       }
       // Цвет суммы: зелёный — пополнение, серый — перевод в цель (не расход и не доход, см.
       // totalBalance/totalTransfers — переводы не участвуют в доходах/расходах), красный — обычный
@@ -6964,28 +6973,46 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const dateOnDefault=!!(existing&&existing.date!==today);
     const repeatOnDefault=!!existing?.repeat;
     const repeatTextDefault=existing?.repeat?repeatToText(existing.repeat):'';
+    // Обязательный платёж — теперь явный переключатель (было: автоматически true для любого
+    // повторяющегося расхода), см. ТЗ: "для повторяемого расхода добавить возможность отметить".
+    // По умолчанию включён при первом создании (сохраняет прежнее поведение как разумный дефолт —
+    // большинство регулярных расходов это счета), но пользователь может выключить.
+    const mandatoryDefault=existing?!!existing.mandatory:true;
+    // Быстрые варианты периодичности (см. ТЗ: "показать варианты: ежедневно/еженедельно/
+    // ежемесячно/ежегодно") — просто подставляют каноническую фразу в то же текстовое поле,
+    // а не заводят вторую систему повторения рядом со свободным текстом планера.
+    const REPEAT_PRESETS=[['ежедневно','каждый день'],['еженедельно','каждую неделю'],['ежемесячно','каждый месяц'],['ежегодно','каждый год']];
     finModal(existing?'Операция':'Новая операция',`<form id="fin-tx-form"><div class="fin-switch">${['expense','income'].map(t=>`<button type="button" data-tx-type="${t}" aria-pressed="${type===t}">${t==='expense'?'− Расход':'+ Пополнение'}</button>`).join('')}</div><label class="fin-label" for="fin-amount">Сумма или короткая запись</label><input class="fin-field" id="fin-amount" required autocomplete="off" placeholder="60 тысяч на Турцию" value="${existing?finAmount(existing):''}"><div class="fin-preview" id="fin-tx-preview" aria-live="polite"></div><label class="fin-label" for="fin-note">Примечание</label><input class="fin-field" id="fin-note" maxlength="500" value="${esc(existing?.note||'')}" placeholder="Например, поездка в Турцию"><label class="fin-label" for="fin-tx-category">Категория</label><select class="fin-field" id="fin-tx-category">${[...new Set([...categories,existing?.category].filter(Boolean))].map(c=>`<option ${c===(existing?.category||(type==='income'?'Пополнение':'Другое'))?'selected':''}>${esc(c)}</option>`).join('')}</select>
     <div class="pl-toggle-row"><label for="fin-date-toggle">Дата</label><button class="pl-switch ${dateOnDefault?'on':''}" id="fin-date-toggle" type="button" aria-label="Дата" aria-pressed="${dateOnDefault}"></button></div>
     <div class="pl-form-row" id="fin-date-row" ${dateOnDefault?'':'style="display:none"'}>${appDateField('fin-tx-date',existing?.date?.slice(0,10)||today,true)}</div>
     <div class="pl-toggle-row" id="fin-repeat-toggle-row"><label for="fin-repeat-toggle">Повторять</label><button class="pl-switch ${repeatOnDefault?'on':''}" id="fin-repeat-toggle" type="button" aria-label="Повторять" aria-pressed="${repeatOnDefault}"></button></div>
-    <div class="pl-form-row" id="fin-repeat-row" ${repeatOnDefault?'':'style="display:none"'}><input class="fin-field pl-repeat-input" id="fin-repeat-text" type="text" placeholder="каждый месяц, 27 числа" autocomplete="off" value="${esc(repeatTextDefault)}"><p class="pl-repeat-hint" id="fin-repeat-hint">Например: «каждый месяц», «раз в 2 недели», «каждое 27 число»</p></div>
+    <div class="pl-form-row" id="fin-repeat-row" ${repeatOnDefault?'':'style="display:none"'}>
+      <div class="fin-repeat-presets">${REPEAT_PRESETS.map(([label,phrase])=>`<button type="button" class="fin-repeat-preset" data-repeat-preset="${esc(phrase)}">${label}</button>`).join('')}</div>
+      <input class="fin-field pl-repeat-input" id="fin-repeat-text" type="text" placeholder="каждый месяц, 27 числа" autocomplete="off" value="${esc(repeatTextDefault)}"><p class="pl-repeat-hint" id="fin-repeat-hint">Например: «каждый месяц», «раз в 2 недели», «каждое 27 число»</p>
+      <div class="pl-toggle-row" id="fin-mandatory-row" ${type==='expense'?'':'style="display:none"'}><label for="fin-mandatory-toggle">Обязательный платёж</label><button class="pl-switch ${mandatoryDefault?'on':''}" id="fin-mandatory-toggle" type="button" aria-label="Обязательный платёж" aria-pressed="${mandatoryDefault}"></button></div>
+    </div>
     <p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary" type="submit">${existing?'Сохранить':'Добавить операцию'}</button>${existing?'<button class="fin-danger" type="button" id="fin-tx-delete">Удалить операцию</button>':''}</form>`,(d,close)=>{
       let noteEdited=false;const amount=$('#fin-amount',d),note=$('#fin-note',d),category=$('#fin-tx-category',d);
-      function setType(t){type=t;$$('[data-tx-type]',d).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.txType===type)));}
+      function updateMandatoryVisibility(){$('#fin-mandatory-row',d).style.display=type==='expense'?'':'none';}
+      function setType(t){type=t;$$('[data-tx-type]',d).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.txType===type)));updateMandatoryVisibility();}
       function preview(){const p=parseFinInput(amount.value);if(p.error){$('#fin-tx-preview',d).textContent=amount.value?p.error:'';return;}if(p.type)setType(p.type);if(!noteEdited&&!existing)note.value=p.note;$('#fin-tx-preview',d).textContent=`${type==='income'?'Пополнение':'Расход'}: ${finMoney(p.amount)}${note.value?' · '+note.value:''}`;}
       amount.addEventListener('input',preview);note.addEventListener('input',()=>{noteEdited=true;preview();});
       $$('[data-tx-type]',d).forEach(b=>b.onclick=()=>{setType(b.dataset.txType);const p=parseFinInput(amount.value);if(!p.error)$('#fin-tx-preview',d).textContent=`${type==='income'?'Пополнение':'Расход'}: ${finMoney(p.amount)}`;});
       $('#fin-date-toggle',d).onclick=()=>{const on=!$('#fin-date-toggle',d).classList.contains('on');$('#fin-date-toggle',d).classList.toggle('on',on);$('#fin-date-toggle',d).setAttribute('aria-pressed',String(on));$('#fin-date-row',d).style.display=on?'':'none';};
       $('#fin-repeat-toggle',d).onclick=()=>{const on=!$('#fin-repeat-toggle',d).classList.contains('on');$('#fin-repeat-toggle',d).classList.toggle('on',on);$('#fin-repeat-toggle',d).setAttribute('aria-pressed',String(on));$('#fin-repeat-row',d).style.display=on?'':'none';if(on)$('#fin-repeat-text',d).focus({preventScroll:true});};
+      $('#fin-mandatory-toggle',d).onclick=()=>{const on=!$('#fin-mandatory-toggle',d).classList.contains('on');$('#fin-mandatory-toggle',d).classList.toggle('on',on);$('#fin-mandatory-toggle',d).setAttribute('aria-pressed',String(on));};
+      $$('[data-repeat-preset]',d).forEach(b=>b.onclick=()=>{$('#fin-repeat-text',d).value=b.dataset.repeatPreset;$('#fin-repeat-text',d).focus({preventScroll:true});});
       $('#fin-tx-form',d).onsubmit=e=>{e.preventDefault();const p=parseFinInput(amount.value);if(p.error){finError(d,p.error);return;}
         const dateOn=$('#fin-date-toggle',d).classList.contains('on'),date=dateOn?$('#fin-tx-date',d).value:today;
         if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||isoDate(parseLocalDate(date))!==date){finError(d,'Проверь дату операции.');return;}
         const repeatOn=$('#fin-repeat-toggle',d).classList.contains('on');
         let repeat=null;
         if(repeatOn){repeat=parseRepeatText($('#fin-repeat-text',d).value);if(!repeat){finError(d,'Не понял повторение. Например: «каждый месяц» или «раз в 2 недели».');return;}}
-        // Обязательный платёж — та же семантика, что и в ТЗ: регулярный РАСХОД считается
-        // обязательным автоматически (аренда/интернет/связь и т.п.), без отдельного тумблера.
-        const mandatory=!!(repeat&&type==='expense');
+        // Обязательный платёж — только для ПОВТОРЯЮЩЕГОСЯ расхода (см. ТЗ), читаем явный
+        // тумблер (а не выводим автоматически из одного факта наличия повторения) — repeatOn
+        // в условии на случай, если тумблер "Обязательный" остался включённым в скрытой части
+        // формы после выключения "Повторять".
+        const mandatory=repeatOn&&type==='expense'&&$('#fin-mandatory-toggle',d).classList.contains('on');
         const status=date>today?'planned':'completed';
         const tx={...(existing||{id:uid()}),amount:type==='income'?p.amount:-p.amount,type,category:category.value,note:note.value.trim(),date,status,mandatory,repeat};
         if(!repeat)delete tx.repeat;
