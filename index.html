@@ -890,10 +890,14 @@ select.field { appearance:none; }
 .fin-heading-wrap,.fin-card-head {align-items:center;}
 .fin-heading-wrap {justify-content:flex-start;}
 .fin-heading {font-size:1.5rem;font-weight:400;margin:0;outline:none;}
+/* Ширина — как и была, 4 равные колонки на всю ширину (это осознанно оставляем). Рамка/фон
+   теперь как у .pl-chip в Планере (1.5px рамка вместо 1px, var(--surface) вместо --surface2) —
+   раньше плашка по этим параметрам заметно отличалась, что и читалось как "не такого размера". */
 .fin-tabs {display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:22px;touch-action:pan-y;}
-/* Вертикальный padding уменьшен с 10px до 7px — под высоту .pl-chip (тех же плашек-фильтров в
-   Планере: "Все"/названия разделов), чтобы вкладки Финансов не были заметно выше соседних. */
-.fin-tab {padding:7px 4px;border-radius:14px;border:1px solid rgba(var(--ink),.1);background:var(--surface2);color:rgba(var(--ink),.55);font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* .fin-tabs .fin-tab (а не просто .fin-tab) — у общего правила .fin-v3 button{font-size:.875rem}
+   специфичность выше одного класса (класс+тег > один класс), оно и перебивало здесь 13px на
+   14px, из-за чего текст вкладок был заметно крупнее, чем у .pl-chip в Планере. */
+.fin-tabs .fin-tab {padding:7px 4px;border-radius:14px;border:1.5px solid rgba(var(--ink),.12);background:var(--surface);color:rgba(var(--ink),.6);font-family:Georgia,'Times New Roman',serif;font-size:.8125rem;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .fin-tab.active {border-color:var(--gold);background:rgba(201,168,76,.14);color:var(--gold2);}
 .fin-eyebrow {display:block;margin:0;color:#b5a477;font-size:.75rem;letter-spacing:.13em;line-height:1.6;}
 .fin-text {display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:6px 0;border:0;background:none;color:var(--gold);text-align:left;line-height:1.4;}
@@ -1125,7 +1129,10 @@ select.fin-field {min-height:48px;height:auto;padding:12px 40px 12px 12px;font-s
    не было НИЖНЕГО отступа вообще (только верхний — margin-top у .fin-label над ним), из-за
    чего select буквально впритык касался следующего пункта и выглядело криво/тесно. */
 #fin-tx-category {margin-bottom:14px;}
-.fin-header {margin-bottom:18px;}
+/* 14px — ровно тот же отступ, что у "Планер" до плашек-фильтров (там его даёт padding-top
+   у .pl-sections, тут аналогичную роль играет margin-bottom заголовка) — раньше здесь было
+   18px, на 4px больше, из-за чего расстояние от "Финансы" до вкладок заметно отличалось. */
+.fin-header {margin-bottom:14px;}
 .fin-heading {font-size:1.5rem;}
 .fin-header .fin-eyebrow {display:none;}
 .fin-card {border-color:rgba(var(--ink),.08);background:var(--surface2);padding:18px;border-radius:16px;}
@@ -2046,7 +2053,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.30.8';
+  const APP_VERSION = '0.30.9';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6149,7 +6156,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Кнопка настройки разделов Финансов убрана с главного экрана Финансов — теперь она в Настройках (Главная → Настройки → «Финансы»), там же, где остальные общие настройки приложения.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Вкладки Главная/История/Цели/Инвестиции в Финансах отличались от плашек-фильтров в Планере — текст был заметно крупнее (перебивало более общее правило шрифта кнопок) и стояли дальше от заголовка. Приведено один в один: тот же размер шрифта, та же рамка, тот же отступ от «Финансы», что и у «Планер».</p></div>
       </div></section>
     </div></section>`;
   }
