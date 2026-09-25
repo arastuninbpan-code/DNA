@@ -262,6 +262,10 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   align-items: center;
+  /* Свайп между разделами (см. bindHorizontalSwipe на #bottom-nav) — без этого на реальном
+     устройстве ОС может забрать горизонтальный жест раньше, чем наш JS его увидит (тот же
+     класс проблемы, что и у .fin-tabs/.fin-ring-swipe-zone). */
+  touch-action: pan-y;
   background: var(--bg);
   border-top: .5px solid var(--gold);
   z-index: 20;
@@ -867,18 +871,24 @@ select.field { appearance:none; }
 
   /* Finance 0.3.0 — restrained gold, readable charts, touch-first controls. */
 .fin-v3 {display:block;background:var(--bg);padding:0;}
-.fin-v3 .finance-scroll {padding: max(20px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 40px max(20px, env(safe-area-inset-left, 0px));height:100%;}
+/* Top padding — было 20px, у .pl-screen (Планер) 16px (max(16px,env(...))): та же лишняя
+   разница добавлялась к сдвигу заголовка "Финансы" вниз относительно "Планер", см. .fin-header
+   ниже. */
+.fin-v3 .finance-scroll {padding: max(16px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 40px max(20px, env(safe-area-inset-left, 0px));height:100%;}
 .fin-container {max-width:1160px;margin:auto;}
 .fin-v3 button,.fin-dialog button {font-size:.875rem;transition:background .18s ease,border-color .18s ease,transform .18s ease;}
 .fin-v3 button:active,.fin-dialog button:active {transform:scale(.98);}
 .fin-v3 button:focus-visible,.fin-dialog :is(button,input,select):focus-visible,.fin-arc:focus-visible {outline:2px solid var(--gold2);outline-offset:4px;}
 .fin-v3 button:disabled,.fin-dialog button:disabled {opacity:.25;cursor:default;transform:none;}
-.fin-header,.fin-heading-wrap,.fin-card-head {display:flex;align-items:center;justify-content:space-between;gap:14px;}
+/* align-items:flex-start (не center) — у .pl-header (Планер) в строке только один h1, и его
+   верх совпадает с верхом строки. У .fin-header на Главной есть ещё круглая кнопка настроек
+   44px — с center она "тянула" строку выше себя и текст h1 центрировался НИЖЕ своего
+   натурального верха (визуально "Финансы" сидело заметно ниже "Планер"). flex-start держит
+   верх h1 всегда на верху строки независимо от высоты соседней кнопки. */
+.fin-header,.fin-heading-wrap,.fin-card-head {display:flex;align-items:flex-start;justify-content:space-between;gap:14px;}
 .fin-header {margin-bottom:16px;}
+.fin-heading-wrap,.fin-card-head {align-items:center;}
 .fin-heading-wrap {justify-content:flex-start;}
-/* Раньше 1.75rem + margin:6px 0 0 — крупнее и со сдвигом вниз относительно заголовка "Планер"
-   (.pl-header h1: 1.5rem, margin:0), из-за чего "Финансы" визуально сидело на другом уровне и
-   другого размера. Выравниваем один в один. */
 .fin-heading {font-size:1.5rem;font-weight:400;margin:0;outline:none;}
 .fin-tabs {display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:22px;touch-action:pan-y;}
 /* Вертикальный padding уменьшен с 10px до 7px — под высоту .pl-chip (тех же плашек-фильтров в
@@ -1040,18 +1050,27 @@ select.field { appearance:none; }
 .fin-dialog {width:min(520px,calc(100% - 24px));max-height:88dvh;overflow:auto;border:1px solid #53452a;border-radius:24px;padding:24px;background:#11120f;color:#eee8dc;animation:finReveal .24s ease both;}
 .fin-dialog::backdrop {background:rgba(0,0,0,.78);backdrop-filter:blur(5px);}
 .fin-dialog p {font-size:.9375rem;line-height:1.7;}
-.fin-dialog-head {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;}
-.fin-dialog h2 {font-size:1.375rem;font-weight:400;margin:0;}
+/* Ручка (как .sheet-handle у Планера) вместо крестика — закрытие теперь только смахиванием
+   вниз за ручку/заголовок или тапом по фону, см. bindFinDialogDismiss. */
+.fin-dialog-head {margin-bottom:14px;}
+.fin-dialog-handle {position:sticky;top:-24px;z-index:2;margin:-8px 0 2px;width:100%;height:22px;display:flex;align-items:center;justify-content:center;touch-action:none;}
+.fin-dialog-handle::after {content:'';width:36px;height:4px;border-radius:2px;background:rgba(238,232,220,.18);}
+.fin-dialog h2 {font-size:1.375rem;font-weight:400;margin:0;text-align:center;}
 .fin-switch {display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .fin-switch button {min-height:46px;border:1px solid rgba(201,168,76,.22);border-radius:12px;background:var(--field-bg);color:rgba(var(--ink),.65);}
 .fin-switch button[aria-pressed=true] {background:rgba(201,168,76,.16);color:var(--gold2);border-color:var(--gold);}
+/* Как на Главной (.fin-quick-expense/.fin-quick-income): расход красный, пополнение зелёный —
+   а не общий золотой для обоих, см. devRequest. */
+.fin-switch button[data-tx-type=expense][aria-pressed=true] {background:rgba(255,90,90,.14);color:var(--red);border-color:rgba(255,90,90,.5);}
+.fin-switch button[data-tx-type=income][aria-pressed=true] {background:rgba(76,175,80,.14);color:var(--green);border-color:rgba(76,175,80,.5);}
 .fin-preview {color:#d1bd86;font-size:.875rem;line-height:1.6;min-height:24px;margin:10px 0;}
-/* Быстрые варианты периодичности в форме операции (ежедневно/еженедельно/ежемесячно/ежегодно) —
-   просто подставляют фразу в существующее текстовое поле повторения, см. finTransactionForm. */
-.fin-repeat-presets {display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
-.fin-repeat-preset {padding:6px 12px;border-radius:14px;border:1px solid rgba(201,168,76,.25);background:var(--field-bg);color:rgba(var(--ink),.6);font-size:.75rem;}
-.fin-repeat-preset:active {background:rgba(201,168,76,.12);}
 .fin-error {color:#e1a89d;min-height:16px;}
+/* Та же анимация тряски невалидного поля, что и у обязательных полей формы события
+   (.field.shake-invalid, keyframes habitShakeInvalid) — поля Финансов используют свой класс
+   .fin-field, а не .field, поэтому дублируем селектор на тех же keyframes, а не заводим новую
+   анимацию. */
+.fin-field.shake-invalid {animation:habitShakeInvalid .5s cubic-bezier(.36,.07,.19,.97) both;border-color:#c94a50!important;box-shadow:0 0 0 2px rgba(201,74,80,.25);}
+@media(prefers-reduced-motion:reduce){.fin-field.shake-invalid{animation:none;}}
 .fin-primary {display:block;min-height:50px;width:100%;border:1px solid #d0b565;border-radius:12px;background:#c9a84c;color:#11120f;font-size:1rem!important;margin-top:18px;padding:12px;}
 .fin-danger {display:block;min-height:48px;width:100%;background:none;border:0;color:#d6a094;margin-top:8px;}
 .fin-layout-row {display:flex;align-items:center;gap:8px;border:1px solid #373126;border-radius:12px;padding:8px;margin-top:10px;transition:background .2s,border-color .2s;}
@@ -1088,7 +1107,9 @@ html {-webkit-text-size-adjust:100%;text-size-adjust:100%;}
 .ui-date {display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;height:48px;text-align:center;padding:10px 12px;font-size:16px;line-height:26px;appearance:none;-webkit-appearance:none;}
 .ui-date::-webkit-date-and-time-value {text-align:center;min-height:26px;}
 .fin-field {box-sizing:border-box;max-width:100%;line-height:1.5;}
-select.fin-field {min-height:48px;height:auto;padding:10px 28px 10px 12px;font-size:16px;}
+/* min-height/padding теперь ровно как у текстовых .fin-field (48px+border=50px), а не свои
+   чуть меньшие значения — раньше select едва заметно отличался по высоте от полей над ним. */
+select.fin-field {min-height:48px;height:auto;padding:12px 28px 12px 12px;font-size:16px;}
 .fin-header {margin-bottom:18px;}
 .fin-heading {font-size:1.5rem;}
 .fin-header .fin-eyebrow {display:none;}
@@ -2005,7 +2026,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.30.1';
+  const APP_VERSION = '0.30.2';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6097,7 +6118,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Фундамент операций Финансов: «Обязательный платёж» теперь явный переключатель у повторяющегося расхода (был автоматическим), в форме появились быстрые варианты периодичности (ежедневно/еженедельно/ежемесячно/ежегодно), запланированный обязательный платёж в истории отмечен спокойным янтарным акцентом. Модель «план → подтверждение → факт» (обычная/будущая/повторяющаяся операция, баланс только по завершённым) проверена целиком.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Форма операции Финансов доведена до ума: убрано отдельное поле «Примечание» (текст разбирается прямо из поля суммы) и быстрые варианты периодичности (осталось одно поле «Повторять» свободным текстом); переключатель Расход/Пополнение теперь красный/зелёный и виден только при редактировании операции; закрытие формы — как у события в Планере (свайп вниз или ручка, крестика больше нет); невалидное поле трясётся; заголовок «Финансы» выровнен по «Планер» день в день. Добавлен свайп по нижней навигации — переключает разделы влево/вправо.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -6688,6 +6709,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return {order:[...order,...known.filter(k=>!order.includes(k))],hidden};
   }
   function finAmount(t) {return Math.abs(num(t.amount));}
+  // Реконструирует "сумма + короткая запись" (как её ввёл бы пользователь) для предзаполнения
+  // единственного поля формы при редактировании — отдельного поля "Примечание" в форме больше
+  // нет (см. devRequest: убрать), note всегда получаем обратно через parseFinInput.
+  function finAmountText(t) {return finAmount(t)+(t.note?' '+t.note:'');}
   function finMoney(v) {return new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:2}).format(num(v));}
   let finBalanceFrame=0;
   function animateFinBalance() {
@@ -6936,15 +6961,55 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const root=$('#fin-dialog-root');if(!root)return;
     const previous=document.activeElement,originKey=currentViewKey(),originTop=currentScroller()?.scrollTop||0;
     storeCurrentScroll();
-    root.innerHTML=`<dialog class="fin-dialog" aria-labelledby="fin-dialog-title"><div class="fin-dialog-head"><h2 id="fin-dialog-title">${esc(title)}</h2><button class="fin-icon" data-fin-close aria-label="Закрыть">${icon('close')}</button></div>${body}</dialog>`;
+    root.innerHTML=`<dialog class="fin-dialog" aria-labelledby="fin-dialog-title"><div class="fin-dialog-head"><div class="fin-dialog-handle"></div><h2 id="fin-dialog-title">${esc(title)}</h2></div>${body}</dialog>`;
     const d=$('dialog',root);d.addEventListener('close',()=>{if(d.parentElement===root)root.innerHTML='';if(previous?.isConnected&&!$('dialog[open]',root))previous.focus({preventScroll:true});if(currentViewKey()===originKey&&!$('dialog[open]')){viewScroll.set(originKey,originTop);const sc=currentScroller();if(sc)sc.scrollTop=originTop;}});
     const close=()=>{if(d.dataset.closing)return;d.dataset.closing='1';d.classList.add('fin-leaving');setTimeout(()=>{if(d.open)d.close();},window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:160);};
-    $('[data-fin-close]',d).onclick=close;
     d.addEventListener('cancel',e=>{e.preventDefault();close();});
     d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close();}});
+    bindFinDialogDismiss(d,close);
     d.showModal();if(setup)setup(d,close);
   }
+  // Смахивание вниз за ручку/заголовок закрывает окно — тот же жест, что у карточки события
+  // (bindSheetDismiss), но адаптирован под <dialog>: тянем сам элемент диалога (а не отдельную
+  // "шторку" внутри), крестика для закрытия больше нет — только свайп вниз, тап по ручке или
+  // тап по фону (последнее уже обрабатывает click-обработчик в finModal).
+  function bindFinDialogDismiss(d,close){
+    const handle=$('.fin-dialog-handle',d),grabZone=$('.fin-dialog-head',d);
+    if(!handle)return;
+    let startY=0,pointerId=null,dragging=false,moved=0;
+    const onDown=e=>{
+      if(e.isPrimary===false||e.button!==0||e.target.closest('button,input,textarea,select,a'))return;
+      pointerId=e.pointerId;startY=e.clientY;dragging=true;moved=0;
+      d.style.transition='';
+      e.currentTarget.setPointerCapture?.(pointerId);
+    };
+    const onMove=e=>{
+      if(!dragging||e.pointerId!==pointerId)return;
+      const dy=Math.max(0,e.clientY-startY);
+      moved=Math.max(moved,Math.abs(e.clientY-startY));
+      if(dy>0)e.preventDefault();
+      d.style.transform='translate3d(0,'+dy+'px,0)';
+    };
+    const onUp=e=>{
+      if(!dragging||e.pointerId!==pointerId)return;
+      dragging=false;
+      const dy=Math.max(0,e.clientY-startY);
+      if(e.type!=='pointercancel'&&dy>80){close();return;}
+      d.style.transition='transform .2s ease';d.style.transform='';
+    };
+    [handle,grabZone].forEach(el=>{
+      el?.addEventListener('pointerdown',onDown,{passive:true});
+      el?.addEventListener('pointermove',onMove,{passive:false});
+      el?.addEventListener('pointerup',onUp,{passive:true});
+      el?.addEventListener('pointercancel',onUp,{passive:true});
+    });
+    handle.addEventListener('click',()=>{if(moved<8)close();});
+  }
   function finError(d,text) {const e=$('[data-fin-error]',d);if(e)e.textContent=text;}
+  // Тряска невалидного поля — та же анимация/класс, что у обязательных полей формы события
+  // (см. titleInput.classList.add('shake-invalid') в showPlannerEditSheet), только на классе
+  // .fin-field (см. .fin-field.shake-invalid в CSS).
+  function finShake(el) {if(!el)return;el.classList.remove('shake-invalid');void el.offsetWidth;el.classList.add('shake-invalid');el.addEventListener('animationend',()=>el.classList.remove('shake-invalid'),{once:true});}
   function finSaveData(d,key) {
     try {localStorage.setItem(key,JSON.stringify(state.finance[key]));return true;}catch(e){finError(d,'Не удалось сохранить в браузере. Освободи место и повтори.');return false;}
   }
@@ -6978,43 +7043,42 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // По умолчанию включён при первом создании (сохраняет прежнее поведение как разумный дефолт —
     // большинство регулярных расходов это счета), но пользователь может выключить.
     const mandatoryDefault=existing?!!existing.mandatory:true;
-    // Быстрые варианты периодичности (см. ТЗ: "показать варианты: ежедневно/еженедельно/
-    // ежемесячно/ежегодно") — просто подставляют каноническую фразу в то же текстовое поле,
-    // а не заводят вторую систему повторения рядом со свободным текстом планера.
-    const REPEAT_PRESETS=[['ежедневно','каждый день'],['еженедельно','каждую неделю'],['ежемесячно','каждый месяц'],['ежегодно','каждый год']];
-    finModal(existing?'Операция':'Новая операция',`<form id="fin-tx-form"><div class="fin-switch">${['expense','income'].map(t=>`<button type="button" data-tx-type="${t}" aria-pressed="${type===t}">${t==='expense'?'− Расход':'+ Пополнение'}</button>`).join('')}</div><label class="fin-label" for="fin-amount">Сумма или короткая запись</label><input class="fin-field" id="fin-amount" required autocomplete="off" placeholder="60 тысяч на Турцию" value="${existing?finAmount(existing):''}"><div class="fin-preview" id="fin-tx-preview" aria-live="polite"></div><label class="fin-label" for="fin-note">Примечание</label><input class="fin-field" id="fin-note" maxlength="500" value="${esc(existing?.note||'')}" placeholder="Например, поездка в Турцию"><label class="fin-label" for="fin-tx-category">Категория</label><select class="fin-field" id="fin-tx-category">${[...new Set([...categories,existing?.category].filter(Boolean))].map(c=>`<option ${c===(existing?.category||(type==='income'?'Пополнение':'Другое'))?'selected':''}>${esc(c)}</option>`).join('')}</select>
+    // Переключатель Расход/Пополнение теперь показываем только при РЕДАКТИРОВАНИИ существующей
+    // операции — при создании тип и так уже выбран тем, какую кнопку нажали ("+ Пополнение" или
+    // "− Расход" на главном экране), см. devRequest: "убрать переключатель при добавлении".
+    finModal(existing?'Операция':'Новая операция',`<form id="fin-tx-form">${existing?`<div class="fin-switch">${['expense','income'].map(t=>`<button type="button" data-tx-type="${t}" aria-pressed="${type===t}">${t==='expense'?'− Расход':'+ Пополнение'}</button>`).join('')}</div>`:''}<label class="fin-label" for="fin-amount">Сумма или короткая запись</label><input class="fin-field" id="fin-amount" required autocomplete="off" placeholder="60 тысяч на Турцию" value="${existing?finAmountText(existing):''}"><div class="fin-preview" id="fin-tx-preview" aria-live="polite"></div><label class="fin-label" for="fin-tx-category">Категория</label><select class="fin-field" id="fin-tx-category">${[...new Set([...categories,existing?.category].filter(Boolean))].map(c=>`<option ${c===(existing?.category||(type==='income'?'Пополнение':'Другое'))?'selected':''}>${esc(c)}</option>`).join('')}</select>
     <div class="pl-toggle-row"><label for="fin-date-toggle">Дата</label><button class="pl-switch ${dateOnDefault?'on':''}" id="fin-date-toggle" type="button" aria-label="Дата" aria-pressed="${dateOnDefault}"></button></div>
     <div class="pl-form-row" id="fin-date-row" ${dateOnDefault?'':'style="display:none"'}>${appDateField('fin-tx-date',existing?.date?.slice(0,10)||today,true)}</div>
     <div class="pl-toggle-row" id="fin-repeat-toggle-row"><label for="fin-repeat-toggle">Повторять</label><button class="pl-switch ${repeatOnDefault?'on':''}" id="fin-repeat-toggle" type="button" aria-label="Повторять" aria-pressed="${repeatOnDefault}"></button></div>
     <div class="pl-form-row" id="fin-repeat-row" ${repeatOnDefault?'':'style="display:none"'}>
-      <div class="fin-repeat-presets">${REPEAT_PRESETS.map(([label,phrase])=>`<button type="button" class="fin-repeat-preset" data-repeat-preset="${esc(phrase)}">${label}</button>`).join('')}</div>
       <input class="fin-field pl-repeat-input" id="fin-repeat-text" type="text" placeholder="каждый месяц, 27 числа" autocomplete="off" value="${esc(repeatTextDefault)}"><p class="pl-repeat-hint" id="fin-repeat-hint">Например: «каждый месяц», «раз в 2 недели», «каждое 27 число»</p>
       <div class="pl-toggle-row" id="fin-mandatory-row" ${type==='expense'?'':'style="display:none"'}><label for="fin-mandatory-toggle">Обязательный платёж</label><button class="pl-switch ${mandatoryDefault?'on':''}" id="fin-mandatory-toggle" type="button" aria-label="Обязательный платёж" aria-pressed="${mandatoryDefault}"></button></div>
     </div>
     <p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary" type="submit">${existing?'Сохранить':'Добавить операцию'}</button>${existing?'<button class="fin-danger" type="button" id="fin-tx-delete">Удалить операцию</button>':''}</form>`,(d,close)=>{
-      let noteEdited=false;const amount=$('#fin-amount',d),note=$('#fin-note',d),category=$('#fin-tx-category',d);
+      const amount=$('#fin-amount',d),category=$('#fin-tx-category',d);
       function updateMandatoryVisibility(){$('#fin-mandatory-row',d).style.display=type==='expense'?'':'none';}
       function setType(t){type=t;$$('[data-tx-type]',d).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.txType===type)));updateMandatoryVisibility();}
-      function preview(){const p=parseFinInput(amount.value);if(p.error){$('#fin-tx-preview',d).textContent=amount.value?p.error:'';return;}if(p.type)setType(p.type);if(!noteEdited&&!existing)note.value=p.note;$('#fin-tx-preview',d).textContent=`${type==='income'?'Пополнение':'Расход'}: ${finMoney(p.amount)}${note.value?' · '+note.value:''}`;}
-      amount.addEventListener('input',preview);note.addEventListener('input',()=>{noteEdited=true;preview();});
-      $$('[data-tx-type]',d).forEach(b=>b.onclick=()=>{setType(b.dataset.txType);const p=parseFinInput(amount.value);if(!p.error)$('#fin-tx-preview',d).textContent=`${type==='income'?'Пополнение':'Расход'}: ${finMoney(p.amount)}`;});
+      // Отдельного поля "Примечание" больше нет — note всегда разбирается из этого же поля
+      // (см. parseFinInput), как и при создании операции.
+      function preview(){const p=parseFinInput(amount.value);if(p.error){$('#fin-tx-preview',d).textContent=amount.value?p.error:'';return;}if(p.type&&!existing)setType(p.type);$('#fin-tx-preview',d).textContent=`${type==='income'?'Пополнение':'Расход'}: ${finMoney(p.amount)}${p.note?' · '+p.note:''}`;}
+      amount.addEventListener('input',preview);
+      $$('[data-tx-type]',d).forEach(b=>b.onclick=()=>{setType(b.dataset.txType);preview();});
       $('#fin-date-toggle',d).onclick=()=>{const on=!$('#fin-date-toggle',d).classList.contains('on');$('#fin-date-toggle',d).classList.toggle('on',on);$('#fin-date-toggle',d).setAttribute('aria-pressed',String(on));$('#fin-date-row',d).style.display=on?'':'none';};
       $('#fin-repeat-toggle',d).onclick=()=>{const on=!$('#fin-repeat-toggle',d).classList.contains('on');$('#fin-repeat-toggle',d).classList.toggle('on',on);$('#fin-repeat-toggle',d).setAttribute('aria-pressed',String(on));$('#fin-repeat-row',d).style.display=on?'':'none';if(on)$('#fin-repeat-text',d).focus({preventScroll:true});};
       $('#fin-mandatory-toggle',d).onclick=()=>{const on=!$('#fin-mandatory-toggle',d).classList.contains('on');$('#fin-mandatory-toggle',d).classList.toggle('on',on);$('#fin-mandatory-toggle',d).setAttribute('aria-pressed',String(on));};
-      $$('[data-repeat-preset]',d).forEach(b=>b.onclick=()=>{$('#fin-repeat-text',d).value=b.dataset.repeatPreset;$('#fin-repeat-text',d).focus({preventScroll:true});});
-      $('#fin-tx-form',d).onsubmit=e=>{e.preventDefault();const p=parseFinInput(amount.value);if(p.error){finError(d,p.error);return;}
+      $('#fin-tx-form',d).onsubmit=e=>{e.preventDefault();const p=parseFinInput(amount.value);if(p.error){finError(d,p.error);finShake(amount);return;}
         const dateOn=$('#fin-date-toggle',d).classList.contains('on'),date=dateOn?$('#fin-tx-date',d).value:today;
-        if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||isoDate(parseLocalDate(date))!==date){finError(d,'Проверь дату операции.');return;}
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||isoDate(parseLocalDate(date))!==date){finError(d,'Проверь дату операции.');finShake($('#fin-tx-date',d));return;}
         const repeatOn=$('#fin-repeat-toggle',d).classList.contains('on');
         let repeat=null;
-        if(repeatOn){repeat=parseRepeatText($('#fin-repeat-text',d).value);if(!repeat){finError(d,'Не понял повторение. Например: «каждый месяц» или «раз в 2 недели».');return;}}
+        if(repeatOn){repeat=parseRepeatText($('#fin-repeat-text',d).value);if(!repeat){finError(d,'Не понял повторение. Например: «каждый месяц» или «раз в 2 недели».');finShake($('#fin-repeat-text',d));return;}}
         // Обязательный платёж — только для ПОВТОРЯЮЩЕГОСЯ расхода (см. ТЗ), читаем явный
         // тумблер (а не выводим автоматически из одного факта наличия повторения) — repeatOn
         // в условии на случай, если тумблер "Обязательный" остался включённым в скрытой части
         // формы после выключения "Повторять".
         const mandatory=repeatOn&&type==='expense'&&$('#fin-mandatory-toggle',d).classList.contains('on');
         const status=date>today?'planned':'completed';
-        const tx={...(existing||{id:uid()}),amount:type==='income'?p.amount:-p.amount,type,category:category.value,note:note.value.trim(),date,status,mandatory,repeat};
+        const tx={...(existing||{id:uid()}),amount:type==='income'?p.amount:-p.amount,type,category:category.value,note:p.note,date,status,mandatory,repeat};
         if(!repeat)delete tx.repeat;
         const old=state.finance.transactions;
         state.finance.transactions=id===null?[...old,tx]:old.map(t=>t.id===id?tx:t);
@@ -8772,6 +8836,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   }
   $('#bottom-nav').addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(b)onNavTap(+b.dataset.nav);});
   $('#bottom-nav').addEventListener('keydown',e=>{if(e.key==='Home'&&e.target.closest('[data-nav]')){e.preventDefault();scrollSectionToTop();}});
+  // Свайп по самой нижней панели навигации переключает раздел (влево — следующий, вправо —
+  // предыдущий). Намеренно повешен только на #bottom-nav, а не на весь экран — у Финансов/
+  // Планера/Привычек уже есть свои горизонтальные свайпы ВНУТРИ контента (месяц/вкладки/день),
+  // и общий свайп по всему экрану конфликтовал бы с ними непредсказуемо. Полоска навигации сама
+  // не скроллится ни в одну сторону, поэтому конфликтов с bindHorizontalSwipe тут нет.
+  bindHorizontalSwipe($('#bottom-nav'),()=>switchNav(state.nav+1),()=>switchNav(state.nav-1));
 
   renderNav();
   renderScreen();
