@@ -2028,6 +2028,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   </div>
 
   <div id="overlay-root"></div>
+  <div id="fin-dialog-root"></div>
   <div id="toast-root" class="toast-root" aria-live="assertive"></div>
   <input id="file-input" type="file" hidden />
 
@@ -2045,7 +2046,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.30.7';
+  const APP_VERSION = '0.30.8';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6143,11 +6144,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       </section>
       <section class="settings-card">${renderAccountCard()}</section>
       <section class="settings-card"><h2>Данные на устройстве</h2><p>${telegramProfile?'Привычки синхронизируются с облаком и доступны боту в Telegram.':'Привычки и финансовые записи сохраняются в этом браузере. Облачной синхронизации пока нет.'}</p><p class="settings-note">Не очищай данные сайта: локальные записи могут быть потеряны.</p></section>
+      <section class="settings-card"><h2>Финансы</h2><p>Скрывай ненужные блоки обзора и меняй их порядок.</p><button type="button" class="text-btn" style="padding:10px 0" data-fin-customize>${icon('settings')} Настроить разделы</button></section>
       ${telegramProfile?renderPromoCard():''}
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">На узких iPhone заголовок «Финансы» заезжал под строку состояния — переопределение отступа для маленьких экранов сбрасывало учёт выреза/чёлки. Свайп вниз для закрытия окна операции теперь работает из любой точки формы, а не только за ручку сверху — так же, как у карточки события в Планере.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Кнопка настройки разделов Финансов убрана с главного экрана Финансов — теперь она в Настройках (Главная → Настройки → «Финансы»), там же, где остальные общие настройки приложения.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -6319,6 +6321,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('[data-version-tile]')?.addEventListener('click',handleVersionTileTap);
     bindVersionLongPress($('[data-version-tile]'));
     $('[data-open-admin]')?.addEventListener('click',()=>{ homePanel='admin'; adminData=null; renderScreen(); });
+    $('[data-fin-customize]')?.addEventListener('click',finCustomize);
     $('[data-admin-back]')?.addEventListener('click',()=>{ homePanel='settings'; renderScreen(); });
     $('[data-admin-promo-create]')?.addEventListener('click',async(e)=>{
       const btn=e.currentTarget; btn.disabled=true;
@@ -6854,10 +6857,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function renderFinance() {
     const page=financeView.page,overview=page==='overview',titles={history:'История',goals:'Цели',investments:'Инвестиции',dynamics:'Динамика'};
     return `<section class="screen finance-screen fin-v3"><div class="finance-scroll"><div class="fin-container">
-      <header class="fin-header"><h1 class="fin-heading" tabindex="-1">${overview?'Финансы':titles[page]||'Финансы'}</h1>${overview?`<button class="fin-icon" data-fin-customize aria-label="Настроить разделы финансов">${icon('settings')}</button>`:''}</header>
+      <header class="fin-header"><h1 class="fin-heading" tabindex="-1">${overview?'Финансы':titles[page]||'Финансы'}</h1></header>
       <nav class="fin-tabs" role="tablist" aria-label="Разделы финансов">${FIN_TABS.map(([k,label])=>`<button class="fin-tab ${page===k?'active':''}" data-fin-page="${k}" role="tab" aria-selected="${page===k}">${esc(label)}</button>`).join('')}</nav>
       ${overview?renderFinanceOverview():page==='history'?renderFinanceHistory():renderFinanceDetail(page)}
-    </div></div><div id="fin-dialog-root"></div></section>`;
+    </div></div></section>`;
   }
   function renderFinancePeriod() {
     return `<div class="fin-period" aria-label="Период аналитики">${[['week','7 дней'],['month','Месяц'],['year','Год']].map(([k,label])=>`<button data-fin-period="${k}" aria-pressed="${financeView.period===k}">${label}</button>`).join('')}</div>`;
@@ -7270,7 +7273,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     bindHorizontalSwipe($('.fin-tabs'),
       ()=>{const idx=FIN_TABS.findIndex(([k])=>k===financeView.page),next=FIN_TABS[idx+1];if(next)finGo(next[0]);},
       ()=>{const idx=FIN_TABS.findIndex(([k])=>k===financeView.page),prev=FIN_TABS[idx-1];if(prev)finGo(prev[0]);});
-    $('[data-fin-customize]')?.addEventListener('click',finCustomize);
     $$('[data-fin-period]').forEach(b=>b.onclick=()=>{financeView.period=b.dataset.finPeriod;finRefresh(`[data-fin-period="${financeView.period}"]`);});
     const bindTx=()=>$$('[data-fin-tx]').forEach(b=>b.onclick=()=>finTransactionForm('expense',b.dataset.finTx));bindTx();
     const bindTxSwipe=()=>{
