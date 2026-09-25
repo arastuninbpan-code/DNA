@@ -1229,7 +1229,11 @@ select.fin-field {min-height:48px;height:auto;padding:12px 40px 12px 12px;font-s
 .toast.toast-exit {animation:toastOut .18s ease both;}
 @keyframes toastOut {to{opacity:0;transform:translateY(6px)}}
 @media(min-width:901px){.hb-layout{grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:36px}.hb-stats{border-top:0;border-left:1px solid #24241e;padding:16px 0 0 28px}.hb-days{max-width:820px;margin-left:auto;margin-right:auto}.hb-header{margin-bottom:24px}}
-@media(max-width:380px){.fin-history-filters{grid-template-columns:1fr}.fin-v3 .finance-scroll{padding:16px 16px 32px}.fin-history-card{padding:0}.hb-screen{padding-left:16px;padding-right:16px}.hb-progress-row{gap:12px}.hb-progress-ring{width:76px;height:76px;flex-basis:76px}}
+/* padding (шорткат на все 4 стороны) здесь раньше сбрасывал верх в плоские 16px, теряя
+   max(16px,env(safe-area-inset-top)) из базового правила .fin-v3 .finance-scroll — на узких
+   iPhone (эта самая media-query!) "Финансы" заезжало под чёлку/статус-бар, пока "Планер"
+   (там такого узкого переопределения нет) оставался на месте. Трогаем только низ. */
+@media(max-width:380px){.fin-history-filters{grid-template-columns:1fr}.fin-v3 .finance-scroll{padding-bottom:32px}.fin-history-card{padding:0}.hb-screen{padding-left:16px;padding-right:16px}.hb-progress-row{gap:12px}.hb-progress-ring{width:76px;height:76px;flex-basis:76px}}
 @media(prefers-reduced-motion:reduce){.hb-screen *,.toast,.toast-exit,.fin-filter-content{transition:none!important;animation:none!important}}
 
 /* Preserve the original Habits composition; only fit and interaction fixes. */
@@ -2041,7 +2045,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.30.6';
+  const APP_VERSION = '0.30.7';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6143,7 +6147,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Поле «Сумма или короткая запись» теперь понимает точку и запятую как разделитель тысяч — «80.000» и «80,000» распознаются как 80 000 ₽, а не как 80 рублей с копейками. Обычная дробная сумма («80,5», «80.50») по-прежнему работает как раньше.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">На узких iPhone заголовок «Финансы» заезжал под строку состояния — переопределение отступа для маленьких экранов сбрасывало учёт выреза/чёлки. Свайп вниз для закрытия окна операции теперь работает из любой точки формы, а не только за ручку сверху — так же, как у карточки события в Планере.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -6994,10 +6998,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     bindFinDialogDismiss(d,close);
     d.showModal();if(setup)setup(d,close);
   }
-  // Смахивание вниз за ручку/заголовок закрывает окно — тот же жест, что у карточки события
-  // (bindSheetDismiss), но адаптирован под <dialog>: тянем сам элемент диалога (а не отдельную
-  // "шторку" внутри), крестика для закрытия больше нет — только свайп вниз, тап по ручке или
-  // тап по фону (последнее уже обрабатывает click-обработчик в finModal).
+  // Смахивание вниз закрывает окно — тот же жест и та же техника, что у карточки события
+  // (bindSheetDismiss), адаптированные под <dialog>: тянем сам элемент диалога (он же и
+  // скроллится сам, overflow:auto — там ov/sheetEl были двумя разными узлами, тут один и тот
+  // же d). Крестика для закрытия больше нет — свайп вниз (с ручки/заголовка ВСЕГДА, с любого
+  // места контента — только если он уже проскроллен до самого верха), тап по ручке или тап по
+  // фону (последнее уже обрабатывает click-обработчик в finModal).
   function bindFinDialogDismiss(d,close){
     const handle=$('.fin-dialog-handle',d),grabZone=$('.fin-dialog-head',d);
     if(!handle)return;
@@ -7036,6 +7042,66 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       el?.addEventListener('pointercancel',onUp,{passive:true});
     });
     handle.addEventListener('click',()=>{if(moved<8)close();});
+    // Свайп с ЛЮБОЙ точки тела диалога — только когда сам диалог уже проскроллен до самого
+    // верха (d.scrollTop<=0 в момент касания), иначе это обычный скролл длинной формы, а не
+    // попытка закрыть. Ось (закрытие или скролл) решаем по первому заметному движению: вниз от
+    // самого верха — закрытие, вверх/в сторону — обычный скролл, не перехватываем.
+    let bodyPid=null,bodySY=0,bodySX=0,bodyAxis=null,bodyCanClose=false;
+    d.addEventListener('pointerdown',e=>{
+      if(e.pointerType==='touch'||dragging||e.target.closest('button,input,textarea,select,a')||e.target.closest('.fin-dialog-handle')||(grabZone&&grabZone.contains(e.target)))return;
+      bodyPid=e.pointerId;bodySY=e.clientY;bodySX=e.clientX;bodyAxis=null;
+      bodyCanClose=d.scrollTop<=0;
+    },{passive:true});
+    d.addEventListener('pointermove',e=>{
+      if(e.pointerId!==bodyPid)return;
+      const dy=e.clientY-bodySY,dx=e.clientX-bodySX;
+      if(bodyAxis===null){
+        if(Math.abs(dy)<10&&Math.abs(dx)<10)return;
+        bodyAxis=Math.abs(dy)>Math.abs(dx)*1.2?'y':'x';
+        if(bodyAxis==='y'&&dy>0&&bodyCanClose){d.style.animation='none';d.style.transition='';d.setPointerCapture?.(bodyPid);}
+      }
+      if(bodyAxis!=='y'||dy<0||!bodyCanClose)return;
+      e.preventDefault();
+      d.style.transform='translate3d(0,'+dy+'px,0)';
+    },{passive:false});
+    const finishBody=e=>{
+      if(e.pointerId!==bodyPid)return;
+      const dy=Math.max(0,e.clientY-bodySY),wasClosing=bodyAxis==='y'&&bodyCanClose&&dy>0;
+      if(d.hasPointerCapture?.(bodyPid))d.releasePointerCapture(bodyPid);
+      bodyPid=null;bodyAxis=null;bodyCanClose=false;
+      if(!wasClosing)return;
+      if(e.type!=='pointercancel'&&dy>80){close();return;}
+      d.style.transition='transform .2s ease';d.style.transform='';
+    };
+    d.addEventListener('pointerup',finishBody,{passive:true});
+    d.addEventListener('pointercancel',finishBody,{passive:true});
+    // На телефоне нативный pan-y отменяет Pointer Events до достижения порога (тот же приём и
+    // комментарий, что у bindSheetDismiss) — Touch Events оставляют обычный скролл браузеру и
+    // перехватывают только тягу вниз от самого верха.
+    let touch=null,ignoreClickUntil=0;
+    d.addEventListener('touchstart',e=>{
+      if(e.touches.length!==1){touch=null;return;}
+      if(e.target.closest('.fin-dialog-handle,button,input,textarea,select,a')||(grabZone&&grabZone.contains(e.target)))return;
+      const t=e.touches[0];touch={x:t.clientX,y:t.clientY,dy:0,canClose:d.scrollTop<=0,axis:null};
+    },{passive:true});
+    d.addEventListener('touchmove',e=>{
+      if(!touch||e.touches.length!==1)return;
+      const t=e.touches[0],dx=t.clientX-touch.x,dy=t.clientY-touch.y;
+      if(!touch.axis&&Math.max(Math.abs(dx),Math.abs(dy))>10)touch.axis=touch.canClose&&dy>Math.abs(dx)*1.5?'close':'scroll';
+      if(touch.axis)ignoreClickUntil=performance.now()+500;
+      if(touch.axis!=='close')return;
+      if(!e.cancelable){touch.axis='scroll';return;}
+      e.preventDefault();touch.dy=Math.max(0,dy);
+      d.style.animation='none';d.style.transition='none';d.style.transform=`translate3d(0,${touch.dy}px,0)`;
+    },{passive:false});
+    const endTouch=e=>{
+      const t=touch;touch=null;if(!t||t.axis!=='close')return;
+      if(e.type==='touchend'&&t.dy>80){close();return;}
+      d.style.transition='transform .2s ease';d.style.transform='';
+    };
+    d.addEventListener('touchend',endTouch,{passive:true});
+    d.addEventListener('touchcancel',endTouch,{passive:true});
+    d.addEventListener('click',e=>{if(performance.now()<ignoreClickUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
   }
   function finError(d,text) {const e=$('[data-fin-error]',d);if(e)e.textContent=text;}
   // Тряска невалидного поля — та же анимация/класс, что у обязательных полей формы события
