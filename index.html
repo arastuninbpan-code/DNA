@@ -1019,6 +1019,39 @@ select.field { appearance:none; }
 .fin-goal-card {display:flex;align-items:center;gap:10px;border-bottom:1px solid #29281f;}
 .fin-goal-card .fin-goal {border-bottom:0;flex:1;min-width:0;}
 .fin-goal-add {flex-shrink:0;padding:8px 14px;border-radius:12px;border:1px solid rgba(201,168,76,.3);background:transparent;color:var(--gold);font-size:.8125rem;}
+/* Мини-график "Движение денег" на главной Финансов (см. ТЗ: компактная плашка сразу под кругом
+   баланса). .fin-flow сама по себе — обычная .fin-card (наследует фон/границу/скругление), так
+   что уже существующее правило ".fin-container>.fin-card:not(.fin-recent){grid-column:1/-1}"
+   (десктопная 2-колоночная сетка) подхватывает её без отдельного исключения — тот же баг, что
+   недавно чинили у .fin-tabs, здесь заранее не воспроизводится. */
+.fin-flow {padding-bottom:14px;}
+.fin-flow-scroll {overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);}
+.fin-flow-scroll::-webkit-scrollbar {display:none;}
+.fin-flow-track {display:flex;align-items:flex-start;gap:7px;padding:2px 6px 0;width:max-content;}
+.fin-flow-day {flex:none;width:20px;display:flex;flex-direction:column;align-items:center;background:none;border:0;padding:4px 0;font:inherit;color:inherit;cursor:pointer;border-radius:8px;-webkit-tap-highlight-color:transparent;}
+.fin-flow-day.is-today {background:rgba(var(--ink),.05);}
+.fin-flow-day.is-active {background:rgba(var(--ink),.09);}
+.fin-flow-day:focus-visible {outline:2px solid var(--gold2);outline-offset:2px;}
+.fin-flow-up,.fin-flow-down {width:100%;height:42px;display:flex;flex-direction:column;align-items:center;}
+.fin-flow-up {justify-content:flex-end;}
+.fin-flow-down {justify-content:flex-start;}
+.fin-flow-seg {width:9px;min-height:0;transition:height .35s cubic-bezier(.2,.8,.2,1);}
+.fin-flow-up .fin-flow-seg:first-child {border-radius:4px 4px 0 0;}
+.fin-flow-up .fin-flow-seg:last-child {border-radius:0 0 2px 2px;}
+.fin-flow-down .fin-flow-seg:first-child {border-radius:2px 2px 0 0;}
+.fin-flow-down .fin-flow-seg:last-child {border-radius:0 0 4px 4px;}
+.fin-flow-up .fin-flow-seg:only-child,.fin-flow-down .fin-flow-seg:only-child {border-radius:4px;}
+.fin-flow-green {background:var(--green);}
+.fin-flow-red {background:var(--red);}
+.fin-flow-yellow {background:var(--gold2);opacity:.55;}
+.fin-flow-axis {width:100%;height:1px;flex:none;background:rgba(var(--ink),.14);}
+.fin-flow-day.is-today .fin-flow-axis {background:var(--gold2);}
+.fin-flow-label {margin-top:6px;font-size:.6875rem;line-height:1;color:rgba(var(--ink),.48);white-space:nowrap;}
+.fin-flow-day.is-today .fin-flow-label {color:var(--gold2);}
+.fin-flow-detail {margin:12px 2px 0;min-height:1.3em;font-size:.8125rem;line-height:1.5;color:rgba(var(--ink),.65);}
+.fin-flow-legend {display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:.75rem;color:rgba(var(--ink),.5);}
+.fin-flow-legend span {display:inline-flex;align-items:center;gap:6px;}
+.fin-flow-legend i {width:7px;height:7px;border-radius:50%;flex:none;}
 /* Главная — круг с балансом и кольцом доходы/расходы (см. ТЗ п.1): SVG, не canvas — резкий на
    retina без пересчёта размеров, повёрнут на -90deg чтобы старт кольца был сверху, как в
    стандартных donut-графиках. Префикс fin-bal- (а не fin-ring/fin-ring-center) — эти имена уже
@@ -2087,7 +2120,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.32.0';
+  const APP_VERSION = '0.33.0';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6190,7 +6223,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Приложение на широком экране ноутбука/монитора больше не растягивается на всю ширину — Финансы, Планер, Привычки и Атлас теперь укладываются в удобную колонку по центру, как и было задумано, а не расползаются на весь монитор. Мобильная версия не менялась.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">На главном экране Финансов появился компактный график «Движение денег» под кругом баланса — по дням показывает фактические доходы (зелёным) и расходы (красным), а также ожидаемые пополнения и обязательные будущие платежи (жёлтым). Лента листается горизонтально, масштаб подстраивается под твои суммы, а тап по дню показывает разбивку.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.32.0</div><p class="settings-note">Приложение на широком экране ноутбука/монитора больше не растягивается на всю ширину — Финансы, Планер, Привычки и Атлас теперь укладываются в удобную колонку по центру, как и было задумано, а не расползаются на весь монитор. Мобильная версия не менялась.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.31.3</div><p class="settings-note">Иконки нижнего меню всё ещё стояли выше, чем в других приложениях — предыдущая правка (по центру полосы) сдвигала их недостаточно. Теперь они заметно ближе к нижнему краю экрана.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.31.2</div><p class="settings-note">Иконки нижнего меню стояли слишком близко к верху своей полосы, оставляя пустой отступ снизу — сдвинуты ближе к центру полосы.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.31.1</div><p class="settings-note">Внизу экрана в тёмной теме иногда была заметна чёрная полоса, отличающаяся по тону от остального приложения (на некоторых устройствах — там, где нижняя safe-зона отрисовывается не до конца). Подложка под приложением теперь того же тёмного оттенка, что и сам фон — эта полоса больше не выделяется.</p></div>
@@ -6814,6 +6848,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   const financeView = {page:'overview', period:'month', category:null, search:'', type:'all', rangePeriod:null, homeMonth:{y:new Date().getFullYear(),m:new Date().getMonth()}};
   let openingBalance = num(loadJSON('dna_finance_opening_v1', 0));
   let financeAnimated = new Set();
+  // Позиция скролла мини-графика "Движение денег" — храним между ре-рендерами (finRefresh
+  // дёргает ЛЮБОЕ действие на экране финансов, не только сам график), иначе лента при каждом
+  // чихе телепортировалась бы обратно к сегодняшнему дню, как раньше было с .graph-scroller
+  // привычек до починки (см. комментарий там же).
+  let financeFlowScrollLeft = null;
   function readFinancePrefs(raw) {
     const known=Object.keys(FIN_BLOCKS), order=Array.isArray(raw?.order)?raw.order.filter((k,i,a)=>known.includes(k)&&a.indexOf(k)===i):[];
     const hidden=Array.isArray(raw?.hidden)?raw.hidden.filter(k=>known.includes(k)):['investments'];
@@ -6909,6 +6948,98 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const daysLabel=days<=0?'сегодня':days===1?'завтра':`через ${days} дн.`;
     return `<section class="fin-card fin-mandatory" data-fin-history-op><div class="fin-card-head"><h2>Обязательные платежи</h2></div><p class="fin-muted">До конца месяца</p><strong class="fin-mandatory-sum">${finMoney(sum)}</strong><p class="fin-muted">Ближайший: ${esc(next.note||next.category||'Платёж')} · ${finMoney(finAmount(next))} · ${daysLabel}</p></section>`;
   }
+  // -------- Мини-график движения денег (плашка на главной Финансов) --------
+  // Переиспользуемая бизнес-функция (см. CLAUDE.md — важная логика не должна жить только внутри
+  // рендера): по дням сводит факт (уже завершённые операции) и ожидание (одноразовые запланированные
+  // + виртуальные вхождения повторов из finUpcomingOccurrences — та же модель, что у
+  // finMandatoryUpcoming выше) в чистые числа, без единого обращения к DOM. Atlas/бот позже смогут
+  // звать её же, а не пересчитывать то же самое своей копией.
+  const FIN_FLOW_PAST_DAYS = 21, FIN_FLOW_FUTURE_DAYS = 14;
+  function finFlowDays(pastDays=FIN_FLOW_PAST_DAYS, futureDays=FIN_FLOW_FUTURE_DAYS) {
+    const start=addDays(dateOnly(),-pastDays);
+    const map=new Map();
+    for(let i=0;i<=pastDays+futureDays;i++){
+      const d=isoDate(addDays(start,i));
+      map.set(d,{date:d,actualIncome:0,actualExpense:0,expectedIncome:0,mandatoryExpense:0});
+    }
+    for(const t of state.finance.transactions){
+      if(t.type!=='income'&&t.type!=='expense')continue;
+      const bucket=map.get(t.date);if(!bucket)continue;
+      if(txCompleted(t)){
+        if(t.type==='income')bucket.actualIncome+=finAmount(t);else bucket.actualExpense+=finAmount(t);
+      } else if(t.status==='planned') {
+        if(t.type==='income')bucket.expectedIncome+=finAmount(t);
+        else if(t.mandatory)bucket.mandatoryExpense+=finAmount(t);
+      }
+    }
+    for(const occ of finUpcomingOccurrences(futureDays)){
+      if(occ.type!=='income'&&occ.type!=='expense')continue;
+      const bucket=map.get(occ.date);if(!bucket)continue;
+      if(occ.type==='income')bucket.expectedIncome+=finAmount(occ);
+      else if(occ.mandatory)bucket.mandatoryExpense+=finAmount(occ);
+    }
+    return [...map.values()];
+  }
+  // Адаптивный масштаб одного направления графика (вверх ИЛИ вниз — вызывается дважды раздельно,
+  // см. ТЗ: "доходы и расходы должны визуально ощущаться пропорционально", у расходов обычно много
+  // мелких операций, у доходов — редкие крупные, единая шкала для обеих исказила бы обе).
+  // Опорная точка — 75-й перцентиль НЕНУЛЕВЫХ дней окна, а не абсолютный максимум за период (прямой
+  // запрет из ТЗ): типичный день получает читаемую высоту независимо от того, затесался ли где-то в
+  // окне один резкий выброс — выброс просто утыкается в потолок (clamp в finFlowFrac), а не тянет
+  // шкалу за собой и не превращает всё остальное в почти нулевые столбики.
+  function finFlowScale(values) {
+    const nz=values.filter(v=>v>0).sort((a,b)=>a-b);
+    if(!nz.length)return 1;
+    const p75=nz[clamp(Math.round(.75*(nz.length-1)),0,nz.length-1)];
+    return Math.max(p75*1.6,1);
+  }
+  const FIN_FLOW_MIN_FRAC=.06; // минимальная видимая высота ненулевого столбика — иначе мелкая операция пропадает совсем
+  function finFlowFrac(value,scaleMax) {
+    if(value<=0)return 0;
+    return clamp(Math.max(value/scaleMax,FIN_FLOW_MIN_FRAC),0,1);
+  }
+  // Разбивка конкретного дня для лёгкого тап-конспекта под графиком (см. ТЗ п. "необязательно, но
+  // если не усложнит") — пересчитывает finFlowDays() и ищет один день, а не хранит отдельное
+  // состояние: обращение к ней только по тапу, частота вызовов ничтожна.
+  function finFlowSummaryText(day) {
+    const parts=[];
+    if(day.actualIncome)parts.push(`доход ${finMoney(day.actualIncome)}`);
+    if(day.expectedIncome)parts.push(`ожидается ${finMoney(day.expectedIncome)}`);
+    if(day.actualExpense)parts.push(`расход ${finMoney(day.actualExpense)}`);
+    if(day.mandatoryExpense)parts.push(`обязательно ${finMoney(day.mandatoryExpense)}`);
+    return `${finDayGroupLabel(day.date)}: ${parts.length?parts.join(', '):'операций нет'}`;
+  }
+  function finFlowDaySummary(dateIso) {
+    const day=finFlowDays().find(d=>d.date===dateIso);
+    return day?finFlowSummaryText(day):'';
+  }
+  const FIN_FLOW_MONTHS_SHORT=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  // Сам рендер плашки — вертикально стекованные сегменты вокруг центральной оси (см. ТЗ: жёлтый
+  // должен быть "продолжением" зелёного/красного, а не наложением): для каждого дня и каждого
+  // направления сперва считаем ОБЩУЮ высоту (факт+ожидание) по общей шкале направления, а затем
+  // делим её пропорционально между fact- и expected-частью — так жёлтый сегмент физически стоит
+  // на зелёном/красном, и общая высота столбика не увеличивается только из-за добавления ожидания.
+  function renderFinFlowStrip() {
+    const days=finFlowDays();
+    const scaleUp=finFlowScale(days.map(d=>d.actualIncome+d.expectedIncome));
+    const scaleDown=finFlowScale(days.map(d=>d.actualExpense+d.mandatoryExpense));
+    const todayIso=isoDate(dateOnly());
+    const bars=days.map(d=>{
+      const upTotal=d.actualIncome+d.expectedIncome,downTotal=d.actualExpense+d.mandatoryExpense;
+      const upFrac=finFlowFrac(upTotal,scaleUp),downFrac=finFlowFrac(downTotal,scaleDown);
+      const greenFrac=upTotal>0?upFrac*(d.actualIncome/upTotal):0,yellowUpFrac=upFrac-greenFrac;
+      const redFrac=downTotal>0?downFrac*(d.actualExpense/downTotal):0,yellowDownFrac=downFrac-redFrac;
+      const dt=parseLocalDate(d.date),isToday=d.date===todayIso;
+      const label=dt.getDate()===1?`${dt.getDate()} ${FIN_FLOW_MONTHS_SHORT[dt.getMonth()]}`:String(dt.getDate());
+      return `<button type="button" class="fin-flow-day${isToday?' is-today':''}" data-flow-day="${d.date}" aria-label="${finFlowSummaryText(d)}">
+        <span class="fin-flow-up"><i class="fin-flow-seg fin-flow-yellow" style="height:${(yellowUpFrac*100).toFixed(1)}%"></i><i class="fin-flow-seg fin-flow-green" style="height:${(greenFrac*100).toFixed(1)}%"></i></span>
+        <span class="fin-flow-axis"></span>
+        <span class="fin-flow-down"><i class="fin-flow-seg fin-flow-red" style="height:${(redFrac*100).toFixed(1)}%"></i><i class="fin-flow-seg fin-flow-yellow" style="height:${(yellowDownFrac*100).toFixed(1)}%"></i></span>
+        <span class="fin-flow-label">${label}</span>
+      </button>`;
+    }).join('');
+    return `<section class="fin-card fin-flow"><div class="fin-card-head"><h2>Движение денег</h2></div><div class="fin-flow-scroll" data-flow-scroll><div class="fin-flow-track">${bars}</div></div><p class="fin-flow-detail" data-flow-detail aria-live="polite">Нажми на день, чтобы увидеть подробности.</p><div class="fin-flow-legend"><span><i class="fin-flow-green"></i>Доход</span><span><i class="fin-flow-yellow"></i>Ожидается</span><span><i class="fin-flow-red"></i>Расход</span><span><i class="fin-flow-yellow"></i>Обязательно</span></div></section>`;
+  }
   function renderFinNearestGoalCard() {
     const goals=state.finance.goals.filter(g=>num(g.target)>num(g.current));
     if(!goals.length)return '';
@@ -6954,6 +7085,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${renderFinRing()}
       <div class="fin-quick"><button class="fin-quick-expense" data-fin-add="expense"><strong>${finMoney(homeT.expense)}</strong><span>Расход</span></button><button class="fin-quick-income" data-fin-add="income"><strong>${finMoney(homeT.income)}</strong><span>Пополнение</span></button></div>
     </div>
+    ${renderFinFlowStrip()}
     ${renderFinMonthResultCard()}
     ${renderFinMandatoryCard()}
     ${renderFinNearestGoalCard()}
@@ -7383,6 +7515,32 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $('[data-fin-asset-new]')?.addEventListener('click',()=>finAssetForm());$$('[data-fin-asset]').forEach(b=>b.onclick=()=>finAssetForm(b.dataset.finAsset));
     $('[data-fin-broker]')?.addEventListener('click',()=>finModal('Т‑Инвестиции',`${renderDnaLoader('Скоро',true)}<p>Безопасное подключение брокера ещё в разработке.</p><p class="fin-muted">Сохранённые активы доступны. Сейчас приложение не отправляет токен брокеру и не обновляет котировки автоматически. Не вводи секретный токен в публичные файлы проекта.</p>`));
     $('[data-fin-import]')?.addEventListener('click',finImportInfo);
+    bindFinFlowStrip();
+  }
+  // Тап по дню — лёгкий конспект строкой под графиком (без модалки, см. ТЗ: "если усложнит —
+  // сначала база без перегруза"), повторный тап по тому же дню снова сворачивает подсказку.
+  // Восстановление scrollLeft — тот же приём, что у .graph-scroller привычек (см. комментарий у
+  // объявления financeFlowScrollLeft): при первом показе центрируем на "сегодня" чуть левее
+  // середины (чтобы сразу было видно ближайшее будущее — главное, ради чего плашка вообще
+  // нужна), а на любом последующем ре-рендере просто возвращаем ту позицию, где пользователь
+  // сам оставил ленту.
+  function bindFinFlowStrip() {
+    const scroller=$('[data-flow-scroll]');
+    if(!scroller)return;
+    if(financeFlowScrollLeft==null){
+      const todayEl=$('.fin-flow-day.is-today',scroller);
+      financeFlowScrollLeft=todayEl?clamp(todayEl.offsetLeft-scroller.offsetLeft-scroller.clientWidth*.32,0,Math.max(0,scroller.scrollWidth-scroller.clientWidth)):0;
+    }
+    scroller.scrollLeft=financeFlowScrollLeft;
+    scroller.addEventListener('scroll',()=>{financeFlowScrollLeft=scroller.scrollLeft;},{passive:true});
+    const detail=$('[data-flow-detail]');
+    $$('[data-flow-day]',scroller).forEach(b=>b.onclick=()=>{
+      const wasActive=b.classList.contains('is-active');
+      $$('[data-flow-day].is-active',scroller).forEach(x=>x.classList.remove('is-active'));
+      if(wasActive){if(detail)detail.textContent='Нажми на день, чтобы увидеть подробности.';return;}
+      b.classList.add('is-active');
+      if(detail)detail.textContent=finFlowDaySummary(b.dataset.flowDay);
+    });
   }
   function closeFinTxSwipes(except) {$$('.fin-tx-swipe').forEach(row=>{if(row!==except)row.closeSwipe?.();});}
   function bindFinTxSwipe(row) {
