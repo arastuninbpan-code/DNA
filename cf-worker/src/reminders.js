@@ -179,13 +179,21 @@ export async function reschedulePlannerEvent(firestore, uid, eventId, newDate) {
 // для переименования/сопоставления между днями — см. renameHabit в index.html), а не по индексу
 // в дневном массиве: индекс сегодняшнего списка нестабилен и не подходит для callback_data,
 // который переживает несколько независимых нажатий.
+// Для числовой привычки (h.quantity={value,target}) "выполнено" в клиенте значит value===target
+// (см. changeHabitValue/toggleHabit в index.html — там toggle сразу выставляет и value, и done
+// вместе, одним действием). Раньше эта функция трогала только done, оставляя value как было —
+// бот отмечал привычку выполненной, а карточка в приложении по-прежнему показывала "0/7"
+// (прогресс читается из quantity.value/target, а не из done, см. habitFraction в index.html).
 export async function markHabitDoneByName(firestore, uid, dateKey, name, done = true) {
   const path = `users/${uid}/appData/habits`;
   const data = (await firestore.getDoc(path)) || {};
   const list = Array.isArray(data[dateKey]) ? [...data[dateKey]] : [];
   const idx = list.findIndex((h) => h && h.name === name);
   if (idx === -1) return null;
-  list[idx] = { ...list[idx], done };
+  const h = { ...list[idx] };
+  if (h.quantity) h.quantity = { ...h.quantity, value: done ? h.quantity.target : 0 };
+  h.done = done;
+  list[idx] = h;
   await firestore.mergeDoc(path, { [dateKey]: list });
   return list[idx];
 }
