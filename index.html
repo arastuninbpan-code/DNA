@@ -1110,6 +1110,11 @@ html {-webkit-text-size-adjust:100%;text-size-adjust:100%;}
 /* min-height/padding теперь ровно как у текстовых .fin-field (48px+border=50px), а не свои
    чуть меньшие значения — раньше select едва заметно отличался по высоте от полей над ним. */
 select.fin-field {min-height:48px;height:auto;padding:12px 28px 12px 12px;font-size:16px;}
+/* В форме операции после категории сразу идёт .pl-toggle-row ("Дата") без своего отступа
+   сверху (сам toggle-row держит только margin-bottom, см. .pl-toggle-row) — у поля категории
+   не было НИЖНЕГО отступа вообще (только верхний — margin-top у .fin-label над ним), из-за
+   чего select буквально впритык касался следующего пункта и выглядело криво/тесно. */
+#fin-tx-category {margin-bottom:14px;}
 .fin-header {margin-bottom:18px;}
 .fin-heading {font-size:1.5rem;}
 .fin-header .fin-eyebrow {display:none;}
@@ -2026,7 +2031,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.30.2';
+  const APP_VERSION = '0.30.3';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -2053,19 +2058,29 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   let lastSyncedCloudJson = {};
   // Meta-теги Cache-Control ненадёжны — особенно в standalone-режиме на iOS (Добавить на экран
   // «Домой»), где страница может закешироваться на уровне WKWebView и не обновиться даже после
-  // полного перезапуска приложения. Раз за сессию тихо сверяем реально загруженный APP_VERSION с
-  // тем, что реально лежит на сервере (fetch в обход кеша), и если они разошлись — один раз
-  // перезагружаем страницу, чтобы гарантированно подтянуть актуальный код.
-  (function checkForFreshVersion(){
+  // полного перезапуска приложения. Тихо сверяем реально загруженный APP_VERSION с тем, что
+  // реально лежит на сервере (fetch в обход кеша), и если они разошлись — перезагружаем
+  // страницу, чтобы гарантированно подтянуть актуальный код.
+  // Раньше проверка была один раз за sessionStorage-сессию — но на iOS в standalone-режиме
+  // возврат из фона (домой и назад) НЕ создаёт новую сессию, тот же WKWebView просто оживает,
+  // так что после деплоя пользователь мог не увидеть обновление, пока сам вручную не перезапустит
+  // приложение полностью (см. жалобы "фикс всё ещё не работает" сразу после деплоя). Теперь
+  // проверяем и при каждом возврате вкладки/приложения на передний план — throttle в 20с
+  // защищает от повторных fetch при частом мелькании visibilitychange.
+  let lastFreshCheckAt = 0;
+  function checkForFreshVersion(){
     try{
-      if(sessionStorage.getItem('dna_update_checked'))return;
-      sessionStorage.setItem('dna_update_checked','1');
+      const now = Date.now();
+      if (now - lastFreshCheckAt < 20000) return;
+      lastFreshCheckAt = now;
       fetch(location.href,{cache:'no-store'}).then(r=>r.text()).then(text=>{
         const m=text.match(/APP_VERSION\s*=\s*'([^']+)'/);
         if(m&&m[1]&&m[1]!==APP_VERSION)location.reload();
       }).catch(()=>{});
     }catch(_){}
-  })();
+  }
+  checkForFreshVersion();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForFreshVersion(); });
   let homePanel = 'main';
   // Состояние экрана AI-ассистента (п.31 ТЗ) — переписка живёт только в памяти вкладки (не
   // персистится и не синкается), потому что это черновик диалога, а не пользовательские данные:
@@ -6118,7 +6133,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Форма операции Финансов доведена до ума: убрано отдельное поле «Примечание» (текст разбирается прямо из поля суммы) и быстрые варианты периодичности (осталось одно поле «Повторять» свободным текстом); переключатель Расход/Пополнение теперь красный/зелёный и виден только при редактировании операции; закрытие формы — как у события в Планере (свайп вниз или ручка, крестика больше нет); невалидное поле трясётся; заголовок «Финансы» выровнен по «Планер» день в день. Добавлен свайп по нижней навигации — переключает разделы влево/вправо.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Поле категории в операции больше не впритык к следующему пункту — добавлен отступ. Приложение теперь дополнительно сверяет версию при каждом возврате на передний план (не только один раз при загрузке) — на iOS в standalone-режиме обновление раньше могло не подхватываться, пока не перезапустить приложение полностью.</p></div>
       </div></section>
     </div></section>`;
   }
