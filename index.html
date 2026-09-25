@@ -2053,7 +2053,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.30.9';
+  const APP_VERSION = '0.31.0';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6156,7 +6156,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Вкладки Главная/История/Цели/Инвестиции в Финансах отличались от плашек-фильтров в Планере — текст был заметно крупнее (перебивало более общее правило шрифта кнопок) и стояли дальше от заголовка. Приведено один в один: тот же размер шрифта, та же рамка, тот же отступ от «Финансы», что и у «Планер».</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Атлас теперь отвечает на частые команды («100р шоколадка», «такси 700», «сколько потратил сегодня» и т.п.) мгновенно, без обращения к серверу AI — как раньше, но быстрее и без лишних расходов. Убрана лишняя внутренняя работа, из-за которой обычные команды делали больше запросов, чем нужно.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.30.9</div><p class="settings-note">Вкладки Главная/История/Цели/Инвестиции в Финансах отличались от плашек-фильтров в Планере — текст был заметно крупнее (перебивало более общее правило шрифта кнопок) и стояли дальше от заголовка. Приведено один в один: тот же размер шрифта, та же рамка, тот же отступ от «Финансы», что и у «Планер».</p></div>
       </div></section>
     </div></section>`;
   }
@@ -6285,6 +6286,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const u=adminData.usage;
       const s=adminData.userStats;
       const line=(label,t)=>`<p><b>${label}</b>: ${rubText(t.gptCostRub+t.sttCostRub)} · GPT ${rubText(t.gptCostRub)} · STT ${rubText(t.sttCostRub)} · ${t.requests} запрос(ов)</p>`;
+      const cohort=u.perUser?.month?.total;
+      const cohortLine=cohort&&cohort.users
+        ?`<p>Среднее ${rubText(cohort.avgRub)} · медиана ${rubText(cohort.medianRub)} · P90 ${rubText(cohort.p90Rub)} · P95 ${rubText(cohort.p95Rub)} (${cohort.users} польз.)</p>`
+        :'<p class="settings-note">Пока нет данных.</p>';
+      const opsEntries=u.byOperation?.month?Object.entries(u.byOperation.month):[];
+      const topOps=opsEntries.length
+        ?opsEntries.sort((a,b)=>b[1].avgCostRub*b[1].requests-a[1].avgCostRub*a[1].requests).slice(0,8)
+          .map(([op,t])=>`<div class="settings-note">${esc(op)}: ${t.requests} раз · ~${rubText(t.avgCostRub)}/раз · P95 ${rubText(t.p95CostRub)}</div>`).join('')
+        :'<p class="settings-note">Пока нет данных.</p>';
       const support=adminData.support.length
         ?adminData.support.map(m=>`<div class="settings-note" style="margin-bottom:8px">${m.status==='new'?'🆕 ':''}<i>${esc(m.source)}</i> · <code>${esc(m.uid)}</code><br>${esc(m.text)}</div>`).join('')
         :'<p class="settings-note">Пока пусто.</p>';
@@ -6304,6 +6314,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
           <p class="settings-note" style="margin-top:8px">По частоте заходов:</p>${topActive}
         </section>
         <section class="settings-card"><h2>AI-траты</h2>${line('Сегодня',u.today)}${line('7 дней',u.week)}${line('30 дней',u.month)}
+          <p class="settings-note" style="margin-top:8px">На пользователя (30 дней):</p>${cohortLine}
+          <p class="settings-note" style="margin-top:8px">По операциям (30 дней):</p>${topOps}
           <p class="settings-note">Тарифы приблизительные — см. cf-worker/src/ai/pricing.js</p></section>
         <section class="settings-card"><h2>Обращения в поддержку</h2>${support}</section>
         <section class="settings-card"><h2>Заметки для разработки</h2>${devRequests}
@@ -6671,6 +6683,28 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(maybe && typeof maybe.then==='function')maybe.then(resolve,reject);
     });
   }
+  // Обрезаем тишину по краям записи ДО отправки на SpeechKit — сервер (handleAiVoice в
+  // cf-worker) считает оплачиваемые секунды напрямую из длины присланного PCM16 (байты/2/частота),
+  // а пользователь почти всегда оставляет паузу до и после нажатия кнопки записи — чистый "воздух",
+  // за который SpeechKit всё равно выставит счёт (см. п.14 аудита AI-себестоимости). Внутренние
+  // паузы МЕЖДУ словами не трогаем (риск отрезать часть речи) — только край записи, с запасом
+  // (PADDING), чтобы не откусить начало/конец слова. Если вся запись тише порога (пользователь
+  // нажал и сразу отпустил) — возвращаем как есть, пусть решает существующая обработка
+  // empty_transcript на сервере, а не пытаемся угадать здесь.
+  function trimSilence(data, sampleRate) {
+    const THRESHOLD = 0.02;
+    const PADDING = Math.round(sampleRate * 0.15);
+    const MIN_SAMPLES = Math.round(sampleRate * 0.3);
+    let start = 0;
+    while (start < data.length && Math.abs(data[start]) < THRESHOLD) start++;
+    let end = data.length - 1;
+    while (end > start && Math.abs(data[end]) < THRESHOLD) end--;
+    if (start >= end) return data;
+    const from = Math.max(0, start - PADDING);
+    const to = Math.min(data.length, end + PADDING + 1);
+    if (to - from < MIN_SAMPLES || to - from >= data.length) return data;
+    return data.subarray(from, to);
+  }
   async function audioBlobToPcm16(blob,targetRate=16000){
     const Ctx=window.AudioContext||window.webkitAudioContext;
     if(!Ctx)throw new Error('Web Audio API недоступен в этом браузере');
@@ -6685,7 +6719,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     src.connect(offline.destination);
     src.start();
     const rendered=await offline.startRendering();
-    const data=rendered.getChannelData(0);
+    const data=trimSilence(rendered.getChannelData(0),targetRate);
     const pcm16=new Int16Array(data.length);
     for(let i=0;i<data.length;i++){
       const s=Math.max(-1,Math.min(1,data[i]));

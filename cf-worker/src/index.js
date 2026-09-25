@@ -19,6 +19,7 @@ import { renderScreen, runAction, renderHome, renderToMainMenu, renderAiPlanScre
 import { createYandexProvider } from './ai/provider.js';
 import { planTurn, confirmActions } from './ai/router.js';
 import { logAiUsage, getUsageOverview } from './ai/usage.js';
+import { isDuplicateTurn } from './ai/idempotency.js';
 import {
   tryUnlockAdmin, lockAdmin, isUserAdmin, redeemPromoCode, createPromoCode, listPromoCodes,
   submitSupportMessage, listSupportMessages, submitDevRequest, listDevRequests, resolveDevRequest,
@@ -251,14 +252,20 @@ async function handleTelegramFreeText(env, firestore, token, message) {
 // AI нашёл действия, они кладутся в users/{uid}.pendingAiActions и ждут подтверждения кнопками
 // "✅ Добавить всё"/"❌ Отмена" (см. runAction#aiconfirm в bot.js) — тот же принцип "ничего не
 // применяется без явного согласия", что и в приложении.
-async function handleAiTurn(env, firestore, token, uid, chatId, text, source = 'telegram_text') {
+async function handleAiTurn(env, firestore, token, uid, chatId, text, source = 'telegram_text', traceId = crypto.randomUUID()) {
+  // Двойное сообщение/ретрай с тем же текстом в узком окне — не второй платный AI-вызов (см.
+  // п.15 аудита AI-себестоимости, idempotency.js); молча выходим, ответ на первый вызов уже идёт
+  // своим чередом.
+  if (isDuplicateTurn(uid, text)) return;
   try {
     const provider = createYandexProvider(env);
     const plan = await planTurn(provider, firestore, uid, text);
-    await logAiUsage(firestore, {
-      uid, source, kind: 'gpt', model: plan.usage?.model,
-      inputTokens: plan.usage?.inputTokens, outputTokens: plan.usage?.outputTokens,
-    });
+    if (plan.usage) {
+      await logAiUsage(firestore, {
+        uid, source, kind: 'gpt', model: plan.usage.model, operation: plan.operation, proReason: plan.proReason,
+        traceId, inputTokens: plan.usage.inputTokens, outputTokens: plan.usage.outputTokens, cachedTokens: plan.usage.cachedTokens,
+      });
+    }
     await firestore.mergeDoc(`users/${uid}`, { pendingAiActions: plan.actions.length ? plan.actions : null });
     // forceNew — ответ AI всегда заново отправляется внизу чата, у самого поля ввода, а не
     // редактирует старое сообщение на его прежнем месте (оно могло уже уйти вверх под новыми
@@ -293,14 +300,17 @@ async function handleTelegramVoice(env, firestore, token, message) {
     if (!file) throw new Error('не удалось скачать голосовое сообщение');
     const audioBytes = await new Response(file.body).arrayBuffer();
     const provider = createYandexProvider(env);
+    // Один trace_id на весь ход (STT + возможный GPT-вызов внутри handleAiTurn) — см. п.17
+    // аудита: "SpeechKit и YandexGPT одного действия должны иметь один trace_id".
+    const traceId = crypto.randomUUID();
     const transcript = await provider.transcribe(audioBytes, { format: 'oggopus' });
-    await logAiUsage(firestore, { uid, source: 'telegram_voice', kind: 'stt', speechSeconds: message.voice.duration });
+    await logAiUsage(firestore, { uid, source: 'telegram_voice', kind: 'stt', traceId, speechSeconds: message.voice.duration });
     if (!transcript.trim()) {
       await sendMessage(token, message.chat.id, 'Не удалось распознать речь — попробуй ещё раз или напиши текстом.');
       return;
     }
     await sendMessage(token, message.chat.id, `🎤 <i>${escapeHtml(transcript)}</i>`);
-    await handleAiTurn(env, firestore, token, uid, message.chat.id, transcript, 'telegram_voice');
+    await handleAiTurn(env, firestore, token, uid, message.chat.id, transcript, 'telegram_voice', traceId);
   } catch (err) {
     console.error('handleTelegramVoice failed', err);
     await sendMessage(token, message.chat.id, `🤖 Не получилось распознать голос: ${escapeHtml(String(err.message || err))}`);
@@ -505,13 +515,18 @@ async function handleAiChat(req, env, firestore) {
   const body = await req.json().catch(() => ({}));
   const text = String(body.text || '').trim();
   if (!text) return json({ error: 'missing text' }, 400, AI_CORS_HEADERS);
+  // См. п.15 аудита AI-себестоимости / idempotency.js — двойной сабмит/сетевой ретрай с тем же
+  // текстом в узком окне не должен стоить второго AI-вызова.
+  if (isDuplicateTurn(uid, text)) return json({ error: 'duplicate_request', message: 'Предыдущий запрос ещё обрабатывается' }, 429, AI_CORS_HEADERS);
   try {
     const provider = createYandexProvider(env);
     const plan = await planTurn(provider, firestore, uid, text);
-    await logAiUsage(firestore, {
-      uid, source: 'web_text', kind: 'gpt', model: plan.usage?.model,
-      inputTokens: plan.usage?.inputTokens, outputTokens: plan.usage?.outputTokens,
-    });
+    if (plan.usage) {
+      await logAiUsage(firestore, {
+        uid, source: 'web_text', kind: 'gpt', model: plan.usage.model, operation: plan.operation, proReason: plan.proReason,
+        inputTokens: plan.usage.inputTokens, outputTokens: plan.usage.outputTokens, cachedTokens: plan.usage.cachedTokens,
+      });
+    }
     return json(plan, 200, AI_CORS_HEADERS);
   } catch (err) {
     console.error('handleAiChat failed', err);
@@ -551,16 +566,25 @@ async function handleAiVoice(req, env, firestore) {
   }
   try {
     const provider = createYandexProvider(env);
+    // Один trace_id на весь ход (STT + возможный GPT-вызов) — см. п.17 аудита.
+    const traceId = crypto.randomUUID();
     const transcript = await provider.transcribe(audioBytes, { format: 'lpcm', sampleRateHertz });
-    await logAiUsage(firestore, { uid, source: 'web_voice', kind: 'stt', speechSeconds: durationSeconds });
+    await logAiUsage(firestore, { uid, source: 'web_voice', kind: 'stt', traceId, speechSeconds: durationSeconds });
     if (!transcript.trim()) {
       return json({ transcript: '', error: 'empty_transcript' }, 200, AI_CORS_HEADERS);
     }
+    // См. п.15 аудита — дубль распознанного текста (например повторная отправка того же
+    // аудио) не должен стоить второго GPT-вызова.
+    if (isDuplicateTurn(uid, transcript)) {
+      return json({ transcript, error: 'duplicate_request', message: 'Предыдущий запрос ещё обрабатывается' }, 429, AI_CORS_HEADERS);
+    }
     const plan = await planTurn(provider, firestore, uid, transcript);
-    await logAiUsage(firestore, {
-      uid, source: 'web_voice', kind: 'gpt', model: plan.usage?.model,
-      inputTokens: plan.usage?.inputTokens, outputTokens: plan.usage?.outputTokens,
-    });
+    if (plan.usage) {
+      await logAiUsage(firestore, {
+        uid, source: 'web_voice', kind: 'gpt', model: plan.usage.model, operation: plan.operation, proReason: plan.proReason,
+        traceId, inputTokens: plan.usage.inputTokens, outputTokens: plan.usage.outputTokens, cachedTokens: plan.usage.cachedTokens,
+      });
+    }
     return json({ transcript, ...plan }, 200, AI_CORS_HEADERS);
   } catch (err) {
     console.error('handleAiVoice failed', err);

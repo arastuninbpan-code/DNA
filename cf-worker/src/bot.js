@@ -217,12 +217,26 @@ async function renderAdminUsageScreen(firestore, uid) {
   if (!(await isUserAdmin(firestore, uid))) return renderHome(false);
   const usage = await getUsageOverview(firestore);
   const line = (label, t) => `<b>${label}</b>: ${rubText(t.gptCostRub + t.sttCostRub)} · GPT ${rubText(t.gptCostRub)} · STT ${rubText(t.sttCostRub)} · ${t.requests} запрос(ов) · ${t.inputTokens + t.outputTokens} токенов`;
+  // Себестоимость НА ПЛАТЯЩЕГО ПОЛЬЗОВАТЕЛЯ за месяц (см. economics.js: цель 30-40₽, средний
+  // максимум по базе — 50₽) — то самое число, ради которого затевался весь аудит, а не просто
+  // сумма трат по всем пользователям сразу.
+  const cohort = usage.perUser.month.total;
+  const cohortLine = cohort.users
+    ? `👤 <b>На пользователя (30 дней)</b>: среднее ${rubText(cohort.avgRub)} · медиана ${rubText(cohort.medianRub)} · P90 ${rubText(cohort.p90Rub)} · P95 ${rubText(cohort.p95Rub)} (${cohort.users} польз.)`
+    : '👤 На пользователя (30 дней): пока нет данных';
+  const topOps = Object.entries(usage.byOperation.month)
+    .sort((a, b) => b[1].avgCostRub * b[1].requests - a[1].avgCostRub * a[1].requests)
+    .slice(0, 6)
+    .map(([op, t]) => `· ${op}: ${t.requests} раз, ~${rubText(t.avgCostRub)}/раз, P95 ${rubText(t.p95CostRub)}`)
+    .join('\n');
   return {
     text: [
       '💸 <b>AI-траты</b>', '',
       line('Сегодня', usage.today),
       line('7 дней', usage.week),
       line('30 дней', usage.month),
+      '', cohortLine,
+      '', topOps ? `📊 <b>По операциям (30 дней)</b>:\n${topOps}` : '📊 По операциям: пока нет данных',
       '', 'Тарифы приблизительные — см. cf-worker/src/ai/pricing.js',
     ].join('\n'),
     reply_markup: { inline_keyboard: [[{ text: '🛠 Назад', callback_data: 's:admin' }]] },

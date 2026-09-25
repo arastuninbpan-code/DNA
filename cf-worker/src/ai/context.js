@@ -41,3 +41,11 @@ export async function buildDayContext(firestore, uid, dateKey) {
     finance: { spent, earned, transactions: transactions.map((t) => ({ amount: t.amount, category: t.category, type: t.type })) },
   };
 }
+
+// Заглушка того же формата, что и buildDayContext — используется, когда конкретный ход диалога
+// не требует данных завтрашнего дня (см. п.10/11 аудита AI-себестоимости: не тянуть в промпт то,
+// что не нужно для этого запроса) — вместо второго чтения Firestore и второй порции JSON в
+// system prompt (см. router.js#planTurn) модель получает пустой, но валидный по форме объект.
+export function emptyDayContext(dateKey) {
+  return { dateKey, habits: [], events: [], sections: [], finance: { spent: 0, earned: 0, transactions: [] } };
+}
