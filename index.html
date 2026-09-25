@@ -1121,7 +1121,7 @@ select.field { appearance:none; }
 @keyframes finProgressIn {from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes finLeave {to{opacity:0;transform:translateY(8px)}}
 @media(min-width:600px){.fin-spending{grid-template-columns:minmax(180px,1fr) 1fr}.fin-tx-money{font-size:1rem}}
-@media(min-width:901px){.fin-container{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}.fin-header,.fin-blocks,.fin-footer,.fin-container>.fin-card:not(.fin-recent){grid-column:1/-1}.fin-blocks{grid-template-columns:1fr 1fr}.fin-recent{align-self:start}.fin-spending{grid-template-columns:1fr}.fin-summary{min-width:0}}
+@media(min-width:901px){.fin-container{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}.fin-header,.fin-blocks,.fin-footer,.fin-container>.fin-card:not(.fin-recent){grid-column:1/-1}.fin-blocks{grid-template-columns:1fr 1fr}.fin-recent,.fin-tabs{align-self:start}.fin-spending{grid-template-columns:1fr}.fin-summary{min-width:0}}
 @media(max-width:380px){.fin-v3 .finance-scroll{padding-left:14px;padding-right:14px}.fin-card{padding:16px}.fin-tx-icon{display:none}.fin-dialog{padding:18px}.fin-period>span{width:100%;margin:5px 0 0}.fin-header>.fin-text>span{display:none}.fin-history-filters{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.fin-v3 *,.fin-dialog,.fin-dialog *{animation:none!important;transition:none!important;scroll-behavior:auto!important}.fin-v3 button:active,.fin-dialog button:active{transform:none}}
 
@@ -1306,6 +1306,22 @@ select.fin-field {min-height:48px;height:auto;padding:12px 40px 12px 12px;font-s
 .fin-quick button:active,.fin-destinations button:active {transform:scale(.98);}
 @media(max-height:650px){.habits-screen{--discipline-size:140px;padding-top:max(8px,env(safe-area-inset-top,0px))}.discipline-wrap{margin-top:12px}.habits-workspace{margin-top:10px}.motivation{margin-top:8px;font-size:13px;max-height:36px}.streak-badge{padding:6px 10px}.add-habit-btn{font-size:14px}}
 @media(prefers-reduced-motion:reduce){.fin-quick button,.fin-destinations button,.nav-item{transition:none!important}}
+/* Широкий экран (ноутбук/десктоп) — .habits-screen раньше не имел ограничения по ширине вообще
+   (в отличие от Финансов, у которых уже был .fin-container{max-width:1160px}), поэтому на 1920px
+   всё растягивалось: .habits-left (40% от родителя) становился ~770px, лента дат — ~1150px, а
+   кольцо дисциплины плавало по центру всей ширины с гигантскими пустыми полями вокруг. Тот же
+   принцип, что и у Финансов — ограничить и центрировать, не трогая внутреннюю раскладку. */
+@media(min-width:901px){.habits-screen{max-width:1160px;margin:0 auto}}
+/* Планер — та же самая проблема и то же решение: .pl-screen без ограничения по ширине на 1920px
+   растягивает часовую сетку дня на весь экран, событие/лента дня шириной с монитор. Ширина
+   контейнера самой ленты (--pl-canvas-width) считается в JS из sc.clientWidth (см. код панорамиро-
+   вания дня) — то есть сама подстроится под новую ширину .pl-screen, отдельно трогать не нужно. */
+@media(min-width:901px){.pl-screen{max-width:1160px;margin:0 auto}}
+/* Атлас — приветственный экран сам по себе уже центрируется (.home-stage:place-items:center
+   внутри .home-screen), а вот .ai-inputbar (поле ввода снизу) ничем не ограничен и растягивается
+   на весь экран — на 1920px получается на глаз нестыковка: контент по центру ~960px, а поле
+   ввода на всю ширину монитора. Тот же max-width и центрирование, что у .home-toolbar. */
+@media(min-width:901px){.ai-inputbar{max-width:960px;margin:0 auto;width:100%}}
 
 /* App surfaces act like controls; editing fields retain native text selection. */
 .app-shell,.overlay,.fin-dialog,.toast,.splash {-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
@@ -2071,7 +2087,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.31.3';
+  const APP_VERSION = '0.32.0';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6174,7 +6190,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Иконки нижнего меню всё ещё стояли выше, чем в других приложениях — предыдущая правка (по центру полосы) сдвигала их недостаточно. Теперь они заметно ближе к нижнему краю экрана.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Приложение на широком экране ноутбука/монитора больше не растягивается на всю ширину — Финансы, Планер, Привычки и Атлас теперь укладываются в удобную колонку по центру, как и было задумано, а не расползаются на весь монитор. Мобильная версия не менялась.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.31.3</div><p class="settings-note">Иконки нижнего меню всё ещё стояли выше, чем в других приложениях — предыдущая правка (по центру полосы) сдвигала их недостаточно. Теперь они заметно ближе к нижнему краю экрана.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.31.2</div><p class="settings-note">Иконки нижнего меню стояли слишком близко к верху своей полосы, оставляя пустой отступ снизу — сдвинуты ближе к центру полосы.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.31.1</div><p class="settings-note">Внизу экрана в тёмной теме иногда была заметна чёрная полоса, отличающаяся по тону от остального приложения (на некоторых устройствах — там, где нижняя safe-зона отрисовывается не до конца). Подложка под приложением теперь того же тёмного оттенка, что и сам фон — эта полоса больше не выделяется.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.31.0</div><p class="settings-note">Атлас теперь отвечает на частые команды («100р шоколадка», «такси 700», «сколько потратил сегодня» и т.п.) мгновенно, без обращения к серверу AI — как раньше, но быстрее и без лишних расходов. Убрана лишняя внутренняя работа, из-за которой обычные команды делали больше запросов, чем нужно.</p></div>
