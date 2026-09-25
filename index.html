@@ -1052,7 +1052,11 @@ select.field { appearance:none; }
 .fin-dialog p {font-size:.9375rem;line-height:1.7;}
 /* Ручка (как .sheet-handle у Планера) вместо крестика — закрытие теперь только смахиванием
    вниз за ручку/заголовок или тапом по фону, см. bindFinDialogDismiss. */
-.fin-dialog-head {margin-bottom:14px;}
+/* touch-action:none — как у .sheet-title/.pl-detail-head (тот же жест в Планере): без него
+   на реальном устройстве ОС может забрать вертикальный жест на скролл (сам .fin-dialog
+   скроллится, overflow:auto) раньше, чем pointermove/preventDefault в bindFinDialogDismiss
+   успеют её перехватить — свайп вниз тогда просто не сработает. */
+.fin-dialog-head {margin-bottom:14px;touch-action:none;}
 .fin-dialog-handle {position:sticky;top:-24px;z-index:2;margin:-8px 0 2px;width:100%;height:22px;display:flex;align-items:center;justify-content:center;touch-action:none;}
 .fin-dialog-handle::after {content:'';width:36px;height:4px;border-radius:2px;background:rgba(238,232,220,.18);}
 .fin-dialog h2 {font-size:1.375rem;font-weight:400;margin:0;text-align:center;}
@@ -2037,7 +2041,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.30.4';
+  const APP_VERSION = '0.30.5';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6139,7 +6143,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Поле категории в операции визуально не совпадало по размеру с полем суммы на iPhone — Safari рисовал его своим нативным видом поверх нашего стиля. Теперь оно оформлено полностью вручную (своя золотая стрелка вместо системной) и выглядит как обычное поле формы. Убраны лишние всплывающие подписи «Баланс обновлён», «Операция сохранена» и подобные — само изменение уже видно в интерфейсе.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Свайп вниз для закрытия окна операции на реальном устройстве не работал — заголовок окна не был защищён от перехвата жеста системой (то же самое, что раньше чинили для свайпов в Финансах вообще), а анимация открытия окна перетягивала на себя движение пальца. Оба случая устранены. Поле суммы больше не блокирует отправку формы браузером молча — при пустой сумме теперь всегда видно тряску и подсказку, как и у остальных полей.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -7001,6 +7005,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const onDown=e=>{
       if(e.isPrimary===false||e.button!==0||e.target.closest('button,input,textarea,select,a'))return;
       pointerId=e.pointerId;startY=e.clientY;dragging=true;moved=0;
+      // .fin-dialog открывается через CSS animation:finReveal ... both — fill-mode "both"
+      // держит transform:none (конечный кадр анимации) поверх ЛЮБОГО inline transform, который
+      // мы выставим ниже через JS, пока анимация не снята явно (см. тот же приём и комментарий
+      // у bindSheetDismiss). Без этой строки палец тянет d.style.transform, а реально
+      // применённый (computed) transform остаётся identity — диалог визуально не следует за
+      // пальцем.
+      d.style.animation='none';
       d.style.transition='';
       e.currentTarget.setPointerCapture?.(pointerId);
     };
@@ -7067,7 +7078,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // Переключатель Расход/Пополнение теперь показываем только при РЕДАКТИРОВАНИИ существующей
     // операции — при создании тип и так уже выбран тем, какую кнопку нажали ("+ Пополнение" или
     // "− Расход" на главном экране), см. devRequest: "убрать переключатель при добавлении".
-    finModal(existing?'Операция':'Новая операция',`<form id="fin-tx-form">${existing?`<div class="fin-switch">${['expense','income'].map(t=>`<button type="button" data-tx-type="${t}" aria-pressed="${type===t}">${t==='expense'?'− Расход':'+ Пополнение'}</button>`).join('')}</div>`:''}<label class="fin-label" for="fin-amount">Сумма или короткая запись</label><input class="fin-field" id="fin-amount" required autocomplete="off" placeholder="60 тысяч на Турцию" value="${existing?finAmountText(existing):''}"><div class="fin-preview" id="fin-tx-preview" aria-live="polite"></div><label class="fin-label" for="fin-tx-category">Категория</label><select class="fin-field" id="fin-tx-category">${[...new Set([...categories,existing?.category].filter(Boolean))].map(c=>`<option ${c===(existing?.category||(type==='income'?'Пополнение':'Другое'))?'selected':''}>${esc(c)}</option>`).join('')}</select>
+    finModal(existing?'Операция':'Новая операция',`<form id="fin-tx-form">${existing?`<div class="fin-switch">${['expense','income'].map(t=>`<button type="button" data-tx-type="${t}" aria-pressed="${type===t}">${t==='expense'?'− Расход':'+ Пополнение'}</button>`).join('')}</div>`:''}<label class="fin-label" for="fin-amount">Сумма или короткая запись</label><input class="fin-field" id="fin-amount" autocomplete="off" placeholder="60 тысяч на Турцию" value="${existing?finAmountText(existing):''}"><div class="fin-preview" id="fin-tx-preview" aria-live="polite"></div><label class="fin-label" for="fin-tx-category">Категория</label><select class="fin-field" id="fin-tx-category">${[...new Set([...categories,existing?.category].filter(Boolean))].map(c=>`<option ${c===(existing?.category||(type==='income'?'Пополнение':'Другое'))?'selected':''}>${esc(c)}</option>`).join('')}</select>
     <div class="pl-toggle-row"><label for="fin-date-toggle">Дата</label><button class="pl-switch ${dateOnDefault?'on':''}" id="fin-date-toggle" type="button" aria-label="Дата" aria-pressed="${dateOnDefault}"></button></div>
     <div class="pl-form-row" id="fin-date-row" ${dateOnDefault?'':'style="display:none"'}>${appDateField('fin-tx-date',existing?.date?.slice(0,10)||today,true)}</div>
     <div class="pl-toggle-row" id="fin-repeat-toggle-row"><label for="fin-repeat-toggle">Повторять</label><button class="pl-switch ${repeatOnDefault?'on':''}" id="fin-repeat-toggle" type="button" aria-label="Повторять" aria-pressed="${repeatOnDefault}"></button></div>
