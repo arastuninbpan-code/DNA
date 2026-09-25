@@ -50,7 +50,7 @@ export async function planTurn(provider, firestore, uid, text, opts = {}) {
   const tomorrow = dateKeyAddDays(today, 1);
   const todayCtx = await buildDayContext(firestore, uid, today);
 
-  const local = tryLocalParse(text, todayCtx);
+  const local = tryLocalParse(text, todayCtx, dateKeyAddDays, todayKey);
   if (local) {
     const actions = [];
     const rejected = [];
