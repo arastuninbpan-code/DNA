@@ -2041,7 +2041,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.30.5';
+  const APP_VERSION = '0.30.6';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6143,7 +6143,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Свайп вниз для закрытия окна операции на реальном устройстве не работал — заголовок окна не был защищён от перехвата жеста системой (то же самое, что раньше чинили для свайпов в Финансах вообще), а анимация открытия окна перетягивала на себя движение пальца. Оба случая устранены. Поле суммы больше не блокирует отправку формы браузером молча — при пустой сумме теперь всегда видно тряску и подсказку, как и у остальных полей.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Поле «Сумма или короткая запись» теперь понимает точку и запятую как разделитель тысяч — «80.000» и «80,000» распознаются как 80 000 ₽, а не как 80 рублей с копейками. Обычная дробная сумма («80,5», «80.50») по-прежнему работает как раньше.</p></div>
       </div></section>
     </div></section>`;
   }
@@ -7045,13 +7045,26 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function finSaveData(d,key) {
     try {localStorage.setItem(key,JSON.stringify(state.finance[key]));return true;}catch(e){finError(d,'Не удалось сохранить в браузере. Освободи место и повтори.');return false;}
   }
+  // Группы разрядов через пробел, точку ИЛИ запятую ("80 000"/"80.000"/"80,000") — если после
+  // точки/запятой идут ровно 3 цифры, это однозначно разряд тысяч, а не дробная часть: у денег
+  // дробная часть — это копейки, максимум 2 цифры, 3 цифр после точки/запятой у суммы не бывает.
+  // Значит "80.000"/"80,000" — это 80 тысяч, а "80.50"/"80,5" — по-прежнему 80 руб. 50 коп./80.5.
+  function finAmountFromDigits(str) {
+    const neg=str.startsWith('-');
+    const parts=str.replace(/^[+-]/,'').split(/[ ,.]/);
+    let intPart,fracPart='';
+    if(parts.length>1&&parts[parts.length-1].length<=2){fracPart=parts.pop();intPart=parts.join('');}
+    else intPart=parts.join('');
+    const n=Number(intPart+(fracPart?'.'+fracPart:''));
+    return neg?-n:n;
+  }
   function parseFinInput(raw) {
     const s=String(raw).trim().replace(/\u00a0|\u202f/g,' ').replace(/−/g,'-');
-    const re=/[+-]?\d+(?:[ ]\d{3})*(?:[.,]\d{1,2})?(?:\s*(?:тысяч(?:а|и|у)?|тыс\.?|[кk]|млн|миллион(?:а|ов)?)(?![a-zа-яё]))?/gi;
+    const re=/[+-]?\d+(?:[ .,]\d{3})*(?:[.,]\d{1,2})?(?:\s*(?:тысяч(?:а|и|у)?|тыс\.?|[кk]|млн|миллион(?:а|ов)?)(?![a-zа-яё]))?/gi;
     const matches=[...s.matchAll(re)];if(matches.length!==1)return {error:matches.length?'В записи несколько чисел. Оставь одну сумму, остальные детали перенеси в примечание.':'Введи сумму, например 60 000 или 60 тысяч на Турцию.'};
-    const token=matches[0][0],match=token.match(/^([+-]?\d+(?:[ ]\d{3})*(?:[.,]\d{1,2})?)\s*(.*)$/i);
+    const token=matches[0][0],match=token.match(/^([+-]?\d+(?:[ .,]\d{3})*(?:[.,]\d{1,2})?)\s*(.*)$/i);
     const unit=match[2].toLowerCase(),factor=/млн|миллион/.test(unit)?1000000:unit?1000:1;
-    const amount=Math.round(Math.abs(Number(match[1].replace(/ /g,'').replace(',','.')))*factor*100)/100;
+    const amount=Math.round(Math.abs(finAmountFromDigits(match[1]))*factor*100)/100;
     if(!Number.isFinite(amount)||amount<=0||amount>1e12)return {error:'Укажи положительную сумму до 1 трлн ₽.'};
     const expense=/(?:потрат|оплат|купил|купила|расход)/i.test(s),income=/(?:получил|получила|поступил|пополнил|пополнила|зарплат|доход)/i.test(s);
     if(expense&&income)return {error:'Неясно, расход это или пополнение. Уточни запись.'};
