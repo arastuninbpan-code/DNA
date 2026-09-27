@@ -1075,8 +1075,6 @@ select.field { appearance:none; }
 .fin-month-switcher {display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:2px;}
 .fin-month-switcher button {background:none;border:0;color:var(--gold);padding:6px;display:flex;}
 .fin-month-switcher strong {font-weight:600;text-transform:capitalize;min-width:11ch;text-align:center;}
-.fin-month-result {text-align:center;}
-.fin-month-result strong {display:block;margin-top:4px;font-size:1.5rem;font-weight:600;}
 .fin-mandatory-sum {display:block;margin:4px 0;font-size:1.5rem;font-weight:600;color:#e0a344;}
 .fin-nearest-goal {display:block;width:100%;text-align:left;background:var(--surface2);border:1px solid rgba(201,168,76,.18);}
 .fin-nearest-goal h2 {margin:0 0 10px;}
@@ -2120,7 +2118,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.33.0';
+  const APP_VERSION = '0.33.1';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6223,7 +6221,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">На главном экране Финансов появился компактный график «Движение денег» под кругом баланса — по дням показывает фактические доходы (зелёным) и расходы (красным), а также ожидаемые пополнения и обязательные будущие платежи (жёлтым). Лента листается горизонтально, масштаб подстраивается под твои суммы, а тап по дню показывает разбивку.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">С главного экрана Финансов убрана плашка «За месяц» — итог месяца и так виден в круге баланса и в кнопках «Расход»/«Пополнение».</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.33.0</div><p class="settings-note">На главном экране Финансов появился компактный график «Движение денег» под кругом баланса — по дням показывает фактические доходы (зелёным) и расходы (красным), а также ожидаемые пополнения и обязательные будущие платежи (жёлтым). Лента листается горизонтально, масштаб подстраивается под твои суммы, а тап по дню показывает разбивку.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.32.0</div><p class="settings-note">Приложение на широком экране ноутбука/монитора больше не растягивается на всю ширину — Финансы, Планер, Привычки и Атлас теперь укладываются в удобную колонку по центру, как и было задумано, а не расползаются на весь монитор. Мобильная версия не менялась.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.31.3</div><p class="settings-note">Иконки нижнего меню всё ещё стояли выше, чем в других приложениях — предыдущая правка (по центру полосы) сдвигала их недостаточно. Теперь они заметно ближе к нижнему краю экрана.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.31.2</div><p class="settings-note">Иконки нижнего меню стояли слишком близко к верху своей полосы, оставляя пустой отступ снизу — сдвинуты ближе к центру полосы.</p></div>
@@ -6927,10 +6926,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       };
     });
   }
-  function renderFinMonthResultCard() {
-    const t=finTotals(finHomeMonthTx()),result=t.income-t.expense;
-    return `<section class="fin-card fin-month-result"><p class="fin-muted">За месяц</p><strong class="${result>=0?'fin-income':''}">${result>=0?'+':''}${finMoney(result)}</strong></section>`;
-  }
   // Обязательные платежи — регулярные (виртуальные вхождения finUpcomingOccurrences) и
   // одноразовые запланированные с mandatory=true, объединяем в один список (см. ТЗ п.5/10).
   function finMandatoryUpcoming(windowDays=45) {
@@ -7086,7 +7081,6 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       <div class="fin-quick"><button class="fin-quick-expense" data-fin-add="expense"><strong>${finMoney(homeT.expense)}</strong><span>Расход</span></button><button class="fin-quick-income" data-fin-add="income"><strong>${finMoney(homeT.income)}</strong><span>Пополнение</span></button></div>
     </div>
     ${renderFinFlowStrip()}
-    ${renderFinMonthResultCard()}
     ${renderFinMandatoryCard()}
     ${renderFinNearestGoalCard()}
     <section class="fin-card fin-recent"><div class="fin-card-head"><h2>Последние операции</h2><button class="fin-text" data-fin-history>Все ${icon('chev-right')}</button></div>${renderFinTransactions(sortedTransactions().filter(txCompleted).slice(0,5))}</section>
