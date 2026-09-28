@@ -12,7 +12,7 @@
 import { validateAction, executeAction } from './actions.js';
 import { buildDayContext, emptyDayContext } from './context.js';
 import { DEFAULT_TZ, todayKey, dateKeyAddDays, currentMinutesInTz, getFinanceDoc } from '../reminders.js';
-import { tryLocalParse } from './localParser.js';
+import { tryLocalParse, resolveDayReference, QUESTION_LIKE } from './localParser.js';
 import { chooseModel } from './modelRouter.js';
 import { getClassificationRules } from './classify.js';
 import { getEntitiesDoc } from './entities.js';
@@ -23,6 +23,17 @@ import { parseQueryIntent, runFinanceQuery, formatQueryAnswer, goalComparisonNot
 // сообщение, только когда это осмысленно). Если не совпало — ни одного лишнего чтения Firestore
 // сверх того, что и так делает buildDayContext.
 const FINANCE_QUERY_HINT = /потрат|расход|доход|заработ|получил|перевод|перевел|перевёл|скинул|отправил|бюджет|сколько|средн|за\s+(?:год|месяц|недел)/i;
+
+// "какие у меня планы на среду?" / "что у меня завтра?" — слова, при которых это НЕ вопрос про
+// план дня, а что-то другое (финансы/создание/удаление/отметка) — такие фразы пропускаем, даже
+// если в них есть день недели, чтобы не перехватить чужое намерение.
+const DAY_PLAN_QUERY_EXCLUDE = /потрат|расход|доход|заработ|получил|перевод|перевел|перевёл|скинул|напомни|удали|сотри|убери|отмет|выполнил|заверш|создай|добавь|запиши|поставь|запланируй|назначь/i;
+// Одного упоминания дня в вопросе НЕДОСТАТОЧНО — "какая сегодня погода?" тоже содержит "сегодня"
+// и знак вопроса, но это не вопрос про план дня (тест, поймавший это, см. day-plan-query-bench).
+// Нужен ЕЩЁ и явный сигнал "это про мой день/расписание" — "у меня" (тот же оборот, что уже
+// требовала старая tryFactualQuery для "что у меня сегодня") или прямое слово план/событ/дела/
+// расписание/занятость.
+const DAY_PLAN_QUERY_HINT = /у\s+меня|план(?:ы|ов)?|событ|расписан|дела\b|занят/i;
 
 // "HH:MM" сейчас в DEFAULT_TZ — без этого модель не может посчитать относительное время
 // ("напомни через час"): дата у неё уже есть (today/tomorrow), а часов и минут не было вовсе,
@@ -73,6 +84,33 @@ export async function planTurn(provider, firestore, uid, text, opts = {}) {
       reply: local.reply || '', actions, rejected, usage: null,
       route: 'local', proReason: null, operation: deriveOperation('local', actions),
     };
+  }
+
+  // "какие у меня планы на среду?" / "что у меня завтра?" — тот же принцип, что у "что у меня
+  // сегодня?" внутри tryLocalParse (см. localParser.js#tryFactualQuery), только для ЛЮБОГО
+  // распознаваемого дня, не только сегодняшнего. Раньше такой вопрос уходил в Lite вместе с
+  // ТОЛЬКО today/tomorrow контекстом (см. context ниже) — реальный живой баг: спрошенная про
+  // среду, модель не получала про неё вообще никаких данных и отвечала данными сегодняшнего дня,
+  // выдавая их за среду. Здесь дата считается кодом (resolveDayReference — та же арифметика,
+  // что чинит create_event, см. localParser.js), а сам ответ — прямое чтение того же документа
+  // Планера/Привычек, что видит сам пользователь на экране — 0 ₽ и не может "перепутать" день.
+  if (QUESTION_LIKE.test(text) && DAY_PLAN_QUERY_HINT.test(text) && !DAY_PLAN_QUERY_EXCLUDE.test(text)) {
+    const dayRef = resolveDayReference(text, todayKey, dateKeyAddDays);
+    if (dayRef) {
+      const dayCtx = dayRef.dateKey === today ? todayCtx : await buildDayContext(firestore, uid, dayRef.dateKey);
+      const label = dayRef.offset === 0 ? 'Сегодня' : dayRef.offset === 1 ? 'Завтра' : dayRef.offset === 2 ? 'Послезавтра'
+        : `${dayRef.dateKey.slice(8, 10)}.${dayRef.dateKey.slice(5, 7)}`;
+      const events = dayCtx.events.length
+        ? dayCtx.events.map((e) => `${e.time ? e.time + ' ' : ''}${e.title}${e.done ? ' ✓' : ''}`).join('; ')
+        : 'событий нет';
+      const habits = dayCtx.habits.length
+        ? dayCtx.habits.map((h) => `${h.name}${h.done ? ' ✓' : ''}`).join('; ')
+        : 'привычек нет';
+      return {
+        reply: `${label}: ${events}. Привычки: ${habits}.`, actions: [], rejected: [], usage: null,
+        route: 'local', proReason: null, operation: 'day_plan_query',
+      };
+    }
   }
 
   // Local Finance Query Engine (см. ТЗ п.11-17) — "сколько я потратил на кофе за год?" и т.п.
