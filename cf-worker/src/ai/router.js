@@ -13,6 +13,7 @@ import { validateAction, executeAction } from './actions.js';
 import { buildDayContext, emptyDayContext } from './context.js';
 import { DEFAULT_TZ, todayKey, dateKeyAddDays, currentMinutesInTz, getFinanceDoc } from '../reminders.js';
 import { tryLocalParse, resolveDayReference, QUESTION_LIKE } from './localParser.js';
+import { tryParseGoodwinMessage } from './goodwinParser.js';
 import { chooseModel } from './modelRouter.js';
 import { getClassificationRules } from './classify.js';
 import { getEntitiesDoc } from './entities.js';
@@ -68,6 +69,25 @@ function deriveOperation(route, actions) {
 export async function planTurn(provider, firestore, uid, text, opts = {}) {
   const today = todayKey(DEFAULT_TZ);
   const tomorrow = dateKeyAddDays(today, 1);
+
+  // Пересланное уведомление бота "Гудвин" о назначенных играх (см. goodwinParser.js) — жёсткая,
+  // легко узнаваемая сигнатура, поэтому пробуется первым, раньше даже todayCtx/classificationRules
+  // (этому пути они не нужны — дата берётся прямо из текста сообщения, а не из "сегодня/завтра").
+  const goodwin = tryParseGoodwinMessage(text, todayKey);
+  if (goodwin) {
+    const actions = [];
+    const rejected = [];
+    for (const raw of goodwin.actions || []) {
+      const validation = validateAction(raw);
+      if (validation.ok) actions.push(raw);
+      else rejected.push({ action: raw, error: validation.error });
+    }
+    return {
+      reply: goodwin.reply || '', actions, rejected, usage: null,
+      route: 'local', proReason: null, operation: 'goodwin_import',
+    };
+  }
+
   const todayCtx = await buildDayContext(firestore, uid, today);
   const classificationRules = await getClassificationRules(firestore, uid);
 

@@ -17,7 +17,7 @@ import { resolveOrCreateEntity } from './entities.js';
 const SEMANTIC_OPTIONAL = ['subcategory', 'item', 'merchant', 'counterparty', 'purpose', 'tags', 'title', 'classificationSource'];
 
 export const ACTION_SCHEMA = {
-  create_event: { required: ['title', 'date'], optional: ['time', 'duration', 'section'] },
+  create_event: { required: ['title', 'date'], optional: ['time', 'duration', 'section', 'note'] },
   create_expense: { required: ['amount'], optional: ['category', 'description', ...SEMANTIC_OPTIONAL] },
   create_income: { required: ['amount'], optional: ['category', 'description', ...SEMANTIC_OPTIONAL] },
   complete_habit: { required: ['name'], optional: [] },
@@ -41,6 +41,9 @@ export function validateAction(action) {
   for (const field of schema.required) {
     const v = action[field];
     if (v === undefined || v === null || v === '') return { ok: false, error: `missing field: ${field}` };
+  }
+  if (action.action === 'create_event' && action.note !== undefined && action.note !== null && typeof action.note !== 'string') {
+    return { ok: false, error: 'note must be a string' };
   }
   if (action.action === 'create_expense' || action.action === 'create_income') {
     if (!(Number(action.amount) > 0) || Number(action.amount) > MAX_AMOUNT) {
@@ -85,7 +88,7 @@ async function execCreateEvent(firestore, uid, a) {
   // create_section, даже если такой раздел уже существовал — на выходе плодились дубликаты.
   const sectionId = await findSectionIdByName(firestore, uid, a.section);
   const ev = await createPlannerEvent(firestore, uid, {
-    title: a.title, date: a.date, time: a.time || null, duration: a.duration, sectionId,
+    title: a.title, date: a.date, time: a.time || null, duration: a.duration, sectionId, note: a.note || null,
   });
   const when = `${dayLabelShort(ev.date)}${ev.time ? ' · ' + ev.time : ''}`;
   return { summary: `📅 ${ev.title} — ${when}` };

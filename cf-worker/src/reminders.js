@@ -211,7 +211,11 @@ export function generateId() {
 // (см. cf-worker/src/ai/actions.js#execCreateEvent). Та же форма объекта, что и ручное
 // сохранение в форме события (см. commitForm в index.html): минимальный набор полей,
 // остальное (блоки, повтор, цвет раздела) можно донастроить потом в самом приложении.
-export async function createPlannerEvent(firestore, uid, { title, date, time, duration, sectionId }) {
+// note — необязательный текст, который ложится ОДНИМ блоком-примечанием (тот же {id,type:'note',
+// text} блок, что форма события создаёт в index.html — см. PL_BLOCK_META/'note' там), а не
+// отдельным полем: у события нет своего "description", только blocks[] — это тот же способ
+// прикрепить подробности, которым пользуется сам пользователь через "+ Примечание" в форме.
+export async function createPlannerEvent(firestore, uid, { title, date, time, duration, sectionId, note }) {
   const path = `users/${uid}/appData/planner`;
   const data = (await firestore.getDoc(path)) || {};
   const events = Array.isArray(data.events) ? [...data.events] : [];
@@ -226,7 +230,7 @@ export async function createPlannerEvent(firestore, uid, { title, date, time, du
     // создании без выбора отдельного цвета: plannerEventColor() в index.html сама подставляет
     // цвет раздела через sectionId, если у события своего color нет (см. e.sectionId ниже).
     color: null,
-    blocks: [],
+    blocks: note ? [{ id: generateId(), type: 'note', text: note }] : [],
     repeat: null,
     done: false,
     comments: [],
