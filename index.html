@@ -1035,7 +1035,8 @@ select.field { appearance:none; }
    (десктопная 2-колоночная сетка) подхватывает её без отдельного исключения — тот же баг, что
    недавно чинили у .fin-tabs, здесь заранее не воспроизводится. */
 .fin-flow {padding-bottom:14px;}
-.fin-flow-scroll {overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);}
+.fin-flow-scroll {overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x;cursor:grab;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);}
+.fin-flow-scroll.is-dragging {cursor:grabbing;scroll-snap-type:none;}
 .fin-flow-scroll::-webkit-scrollbar {display:none;}
 .fin-flow-track {display:flex;align-items:flex-start;gap:7px;padding:2px 6px 0;width:max-content;}
 .fin-flow-day {flex:none;width:20px;display:flex;flex-direction:column;align-items:center;background:none;border:0;padding:4px 0;font:inherit;color:inherit;cursor:pointer;border-radius:8px;-webkit-tap-highlight-color:transparent;}
@@ -7165,13 +7166,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     }
     return [...map.values()];
   }
-  // Адаптивный масштаб одного направления графика (вверх ИЛИ вниз — вызывается дважды раздельно,
-  // см. ТЗ: "доходы и расходы должны визуально ощущаться пропорционально", у расходов обычно много
-  // мелких операций, у доходов — редкие крупные, единая шкала для обеих исказила бы обе).
-  // Опорная точка — 75-й перцентиль НЕНУЛЕВЫХ дней окна, а не абсолютный максимум за период (прямой
-  // запрет из ТЗ): типичный день получает читаемую высоту независимо от того, затесался ли где-то в
-  // окне один резкий выброс — выброс просто утыкается в потолок (clamp в finFlowFrac), а не тянет
-  // шкалу за собой и не превращает всё остальное в почти нулевые столбики.
+  // Адаптивный масштаб — ОДИН ОБЩИЙ для вверх и вниз (раньше здесь были две раздельные шкалы —
+  // ошибка: если доход в день вдвое больше расхода, зелёный столбик должен быть визуально вдвое
+  // выше красного, а с раздельными шкалами высоты вообще не были сопоставимы друг с другом, см.
+  // жалобу "доход в 2 раза больше расхода — значит и зелёный должен быть в 2 раза больше красного").
+  // Опорная точка — 75-й перцентиль НЕНУЛЕВЫХ дней окна (по обоим направлениям вместе), а не
+  // абсолютный максимум за период (прямой запрет из ТЗ): типичный день получает читаемую высоту
+  // независимо от того, затесался ли где-то в окне один резкий выброс — выброс просто утыкается в
+  // потолок (clamp в finFlowFrac), не утягивая шкалу за собой. Внутри "нормального" диапазона (ниже
+  // потолка) frac строго пропорционален сумме — сравнение доход/расход и между днями остаётся честным.
   function finFlowScale(values) {
     const nz=values.filter(v=>v>0).sort((a,b)=>a-b);
     if(!nz.length)return 1;
@@ -7206,12 +7209,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // на зелёном/красном, и общая высота столбика не увеличивается только из-за добавления ожидания.
   function renderFinFlowStrip() {
     const days=finFlowDays();
-    const scaleUp=finFlowScale(days.map(d=>d.actualIncome+d.expectedIncome));
-    const scaleDown=finFlowScale(days.map(d=>d.actualExpense+d.mandatoryExpense));
+    const scale=finFlowScale(days.flatMap(d=>[d.actualIncome+d.expectedIncome,d.actualExpense+d.mandatoryExpense]));
     const todayIso=isoDate(dateOnly());
     const bars=days.map(d=>{
       const upTotal=d.actualIncome+d.expectedIncome,downTotal=d.actualExpense+d.mandatoryExpense;
-      const upFrac=finFlowFrac(upTotal,scaleUp),downFrac=finFlowFrac(downTotal,scaleDown);
+      const upFrac=finFlowFrac(upTotal,scale),downFrac=finFlowFrac(downTotal,scale);
       const greenFrac=upTotal>0?upFrac*(d.actualIncome/upTotal):0,yellowUpFrac=upFrac-greenFrac;
       const redFrac=downTotal>0?downFrac*(d.actualExpense/downTotal):0,yellowDownFrac=downFrac-redFrac;
       const dt=parseLocalDate(d.date),isToday=d.date===todayIso;
@@ -7819,6 +7821,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     }
     scroller.scrollLeft=financeFlowScrollLeft;
     scroller.addEventListener('scroll',()=>{financeFlowScrollLeft=scroller.scrollLeft;},{passive:true});
+    bindFinFlowDragScroll(scroller);
     const detail=$('[data-flow-detail]');
     $$('[data-flow-day]',scroller).forEach(b=>b.onclick=()=>{
       const wasActive=b.classList.contains('is-active');
@@ -7827,6 +7830,45 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       b.classList.add('is-active');
       if(detail)detail.textContent=finFlowDaySummary(b.dataset.flowDay);
     });
+  }
+  // Протягивание МЫШЬЮ по плашке (touch-action:pan-x уже даёт нативный скролл пальцем, но
+  // overflow-x:auto сам по себе не умеет скроллиться зажатой мышью — тот же приём "тянуть
+  // ленту курсором", что уже есть у planner-риббона, см. scrollLeft-=e.clientX-lastX там же).
+  // Не мешает тапу по дню: короткий клик без сдвига проходит как обычно, а после реального
+  // протягивания (>4px) следующий клик один раз подавляется, чтобы день под курсором в момент
+  // отпускания не засчитался как случайный тап.
+  function bindFinFlowDragScroll(el) {
+    if(!el)return;
+    let tracking=false,dragging=false,startX=0,startScroll=0,moved=false,pointerId=null;
+    el.addEventListener('pointerdown',e=>{
+      if(e.pointerType!=='mouse'||e.button!==0)return;
+      tracking=true;dragging=false;moved=false;startX=e.clientX;startScroll=el.scrollLeft;pointerId=e.pointerId;
+    });
+    el.addEventListener('pointermove',e=>{
+      if(!tracking||e.pointerId!==pointerId)return;
+      const dx=e.clientX-startX;
+      // setPointerCapture откладываем до реального сдвига (тот же приём, что у
+      // bindLongPressDrag/chip.setPointerCapture в разделах планера, см. там же) — если захватывать
+      // указатель сразу на pointerdown, у Chromium клик по кнопке дня внутри переставал доходить
+      // даже без единого пикселя движения (реальный баг, пойман тестом на живом взаимодействии,
+      // не только программным scrollBy).
+      if(!dragging){
+        if(Math.abs(dx)<4)return;
+        dragging=true;moved=true;el.setPointerCapture?.(pointerId);el.classList.add('is-dragging');
+      }
+      el.scrollLeft=startScroll-dx;
+    });
+    const stop=e=>{
+      if(!tracking||e.pointerId!==pointerId)return;
+      tracking=false;dragging=false;el.classList.remove('is-dragging');
+      if(moved){
+        moved=false;
+        const suppress=ev=>{ev.stopPropagation();ev.preventDefault();};
+        el.addEventListener('click',suppress,{capture:true,once:true});
+      }
+    };
+    el.addEventListener('pointerup',stop);
+    el.addEventListener('pointercancel',stop);
   }
   function closeFinTxSwipes(except) {$$('.fin-tx-swipe').forEach(row=>{if(row!==except)row.closeSwipe?.();});}
   function bindFinTxSwipe(row) {
