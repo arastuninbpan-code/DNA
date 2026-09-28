@@ -397,7 +397,16 @@ export async function getFinanceDoc(firestore, uid) {
 // execCreateIncome в actions.js, там date/repeat пока не прокинуты из ACTION_SCHEMA), но сама
 // функция уже принимает status/mandatory/repeat/goalId, чтобы расширение Atlas на "запланируй
 // платёж"/повторяемость не потребовало снова трогать backend-запись.
-export async function addFinanceTransaction(firestore, uid, { amount, type, category, note, date, status, mandatory, repeat, goalId }) {
+// Семантические поля (см. ТЗ "расширить модель транзакции") — ВСЕ опциональные, старые вызовы
+// без них продолжают работать один в один (только id/amount/type/category/note/date/status, как
+// раньше). classificationSource — кто заполнил семантику: 'local' (localParser.js), 'user_rule'
+// (сработало сохранённое исправление пользователя), 'ai' (дозаполнил Lite), 'manual' (форма
+// приложения) — используется и для UI ("это определил Атлас"), и как сигнал для обучения правил.
+export async function addFinanceTransaction(firestore, uid, {
+  amount, type, category, note, date, status, mandatory, repeat, goalId,
+  title, subcategory, item, merchant, merchantId, counterparty, counterpartyId, purpose, tags,
+  originalText, classificationSource, classificationConfidence,
+}) {
   const path = `users/${uid}/appData/finance`;
   const data = (await firestore.getDoc(path)) || {};
   const transactions = Array.isArray(data.transactions) ? [...data.transactions] : [];
@@ -413,6 +422,18 @@ export async function addFinanceTransaction(firestore, uid, { amount, type, cate
   if (mandatory) tx.mandatory = true;
   if (repeat) tx.repeat = repeat;
   if (goalId) tx.goalId = goalId;
+  if (title) tx.title = title;
+  if (subcategory) tx.subcategory = subcategory;
+  if (item) tx.item = item;
+  if (merchant) tx.merchant = merchant;
+  if (merchantId) tx.merchantId = merchantId;
+  if (counterparty) tx.counterparty = counterparty;
+  if (counterpartyId) tx.counterpartyId = counterpartyId;
+  if (purpose) tx.purpose = purpose;
+  if (Array.isArray(tags) && tags.length) tx.tags = tags.slice(0, 5);
+  if (originalText) tx.originalText = String(originalText).slice(0, 200);
+  if (classificationSource) tx.classificationSource = classificationSource;
+  if (classificationConfidence != null) tx.classificationConfidence = classificationConfidence;
   transactions.push(tx);
   await firestore.mergeDoc(path, { transactions });
   return tx;

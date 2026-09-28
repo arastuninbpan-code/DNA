@@ -396,6 +396,13 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .settings-inline-form { display: flex; gap: 8px; align-items: center; }
 .settings-inline-form input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(var(--ink),.15); background: var(--surface); color: rgba(var(--ink),.92); font-size: .9375rem; }
 .settings-inline-form .text-btn { padding: 10px 12px; flex-shrink: 0; }
+.admin-users-list { display: flex; flex-direction: column; margin-top: 6px; max-height: 320px; overflow-y: auto; }
+.admin-user-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid rgba(var(--ink),.08); padding: 12px 2px; font: inherit; color: inherit; }
+.admin-user-row:first-child { border-top: 0; }
+.admin-user-row-name { font-size: .9375rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-user-row-sub { flex: none; font-size: .8125rem; color: var(--gold2); }
+.admin-user-grant-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.admin-user-grant-row .text-btn { padding: 8px 12px; border: 1px solid rgba(201,168,76,.3); border-radius: 12px; }
 /* Раньше все версии дописывались в один нарастающий абзац — было не видно, что именно
    изменилось В ЭТОЙ версии, только сплошное полотно текста. Теперь список по версиям, новее
    сверху, у каждой — свой заголовок с номером и короткое описание только её изменений. */
@@ -435,6 +442,9 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .ai-quick-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 4px; max-width: 360px; }
 .ai-quick-chip { padding: 8px 14px; border-radius: 16px; border: 1px solid rgba(201,168,76,.3); background: var(--surface); color: rgba(var(--ink),.75); font-size: .8125rem; font-family: inherit; }
 .ai-quick-chip:active { transform: scale(.96); }
+.ai-locked { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px 24px 56px; text-align: center; }
+.ai-locked h2 { margin: 0; font-size: 1.0625rem; font-weight: 400; color: var(--gold2); }
+.ai-locked-note { margin: 0; max-width: 320px; color: rgba(var(--ink),.65); font-size: .875rem; line-height: 1.6; }
 /* Atlas — фирменный знак (assets/atlas/mark.png — точная обрезка утверждённого референса:
    буква A + орбита + сфера как одна нетронутая иллюстрация). Этот растр НИГДЕ не меняется —
    единственный НОВЫЙ анимируемый элемент поверх него — .atlas-mark-dot: маленькая золотая
@@ -1080,6 +1090,16 @@ select.field { appearance:none; }
 .fin-mandatory-sum {display:block;margin:4px 0;font-size:1.5rem;font-weight:600;color:#e0a344;}
 .fin-nearest-goal {display:block;width:100%;text-align:left;background:var(--surface2);border:1px solid rgba(201,168,76,.18);}
 .fin-nearest-goal h2 {margin:0 0 10px;}
+.fin-limits,.fin-limits-empty {display:block;width:100%;text-align:left;}
+.fin-limit-row {margin-top:14px;}
+.fin-limit-row:first-of-type {margin-top:0;}
+.fin-limit-row-head {display:flex;justify-content:space-between;gap:10px;font-size:.875rem;margin-bottom:6px;}
+.fin-limit-row-head span:last-child {color:rgba(var(--ink),.65);font-variant-numeric:tabular-nums;}
+.fin-limit-over {color:#e0546a !important;}
+.fin-limit-bar-over {background:#e0546a !important;}
+.fin-limit-edit-row {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid rgba(var(--ink),.08);}
+.fin-limit-edit-row:first-child {border-top:0;}
+.fin-limit-edit-row strong {font-weight:400;}
 .fin-history-chips {margin:10px 0;justify-content:flex-start;}
 /* Запланированная/виртуальная операция — приглушённый (не зелёный/красный) цвет, как в ТЗ:
    до подтверждения это не считается ни доходом, ни расходом. */
@@ -2120,7 +2140,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.33.0';
+  const APP_VERSION = '0.34.0';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -2136,6 +2156,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // всё равно сверяет и поправляет это состояние сразу после восстановления сессии (см.
   // handleTelegramAuthChange) — кеш только убирает ложный "разлогинен" на старте.
   let telegramProfile = loadJSON('dna_telegram_profile_cache', null); // { telegramFirstName, telegramUsername, telegramId } из users/{uid} после входа
+  // Зеркало SubscriptionService.subscriptionStatus (см. cf-worker/src/subscription.js) — здесь
+  // используется ТОЛЬКО для UI (показать чат Atlas или locked-плашку), реальная блокировка
+  // платных вызовов всегда проверяется заново на backend (см. ТЗ п.24/33) — если это поле устареет
+  // (например Premium выдали с другого устройства до следующего логина), максимум что случится —
+  // пользователь на секунду увидит недоступную кнопку, которая тут же вернёт понятную ошибку.
+  function hasAtlasAccess() {
+    const sub = telegramProfile?.subscription;
+    if (!sub || sub.status === 'cancelled') return false;
+    if (sub.lifetime) return true;
+    if (sub.expiresAt != null && sub.expiresAt < Date.now()) return false;
+    return sub.status === 'active';
+  }
   let telegramAuthPending = false;
   // Баннер-приглашение войти через Telegram на главном экране — для тех, кто открыл сайт
   // напрямую (не по ссылке от бота), поэтому ещё не привязан. Показывается, пока не привязан
@@ -2183,6 +2215,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     recordStartedAt: 0,
     timerHandle: null,
     locked: false, // запись идёт без удержания пальца — остановится по повторному тапу, не по отпусканию
+    queryContext: null, // {intent,filters} последнего ответа Query Engine — см. sendAiText/ТЗ п.16
   };
   // -------- Atlas — фирменный знак (assets/atlas/mark.png), см. CSS-комментарий у .atlas-mark --------
   // Геометрия орбиты замерена по самому референсному файлу (crop 307×246): эллипс с центром
@@ -2389,6 +2422,26 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   const categoryColors = {
     'Продукты':'#4CAF50','Транспорт':'#2196F3','Рестораны':'#FF9800','Здоровье':'#E91E63','Развлечения':'#9C27B0','Образование':'#3F51B5','Одежда':'#00BCD4','Дом':'#795548','Подарки':'#FF5722','Переводы':'#607D8B','Пополнение':'#4CAF50','Инвестиции':'#FFD700','Связь':'#00E5FF','Другое':'#9E9E9E'
   };
+  // Подкатегории — то же дерево, что и в cf-worker/src/ai/classify.js (SUBCATEGORIES): frontend и
+  // backend не делят общий модуль (разные рантаймы), поэтому дублируется намеренно, как и другие
+  // такие пары в проекте (parseFinInput/parseAmountAndNote). Используется формой лимитов (см. ТЗ
+  // п.20) и подсказкой уточнения при редактировании операции.
+  const SUBCATEGORIES = {
+    'Продукты': ['Продукты', 'Доставка еды'],
+    'Рестораны': ['Кафе и кофе', 'Рестораны и бары'],
+    'Транспорт': ['Такси', 'Общественный транспорт', 'Топливо и авто'],
+    'Здоровье': ['Аптека', 'Врачи и клиники', 'Спорт'],
+    'Развлечения': ['Кино и события', 'Игры и подписки', 'Хобби'],
+    'Образование': ['Курсы', 'Книги'],
+    'Одежда': ['Одежда и обувь', 'Аксессуары'],
+    'Дом': ['Коммуналка', 'Ремонт и мебель', 'Бытовые товары'],
+    'Подарки': ['Подарки'],
+    'Переводы': ['Личные переводы', 'Между своими счетами'],
+    'Пополнение': ['Зарплата', 'Прочие пополнения'],
+    'Инвестиции': ['Инвестиции'],
+    'Связь': ['Мобильная связь', 'Интернет и ТВ'],
+    'Другое': [],
+  };
   const categoryIcon = {
     'Продукты':'cart','Транспорт':'car','Рестораны':'restaurant','Здоровье':'health','Развлечения':'movie','Образование':'school','Одежда':'shirt','Дом':'home','Подарки':'gift','Переводы':'swap','Пополнение':'plus-circle','Инвестиции':'trend-up','Связь':'phone','Другое':'more'
   };
@@ -2399,6 +2452,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       tab: 0,
       transactions: withIds(loadJSON('transactions', [])),
       goals: withIds(loadJSON('goals', [])),
+      limits: withIds(loadJSON('limits', [])), // {id,category,subcategory?,amountRub} — см. ТЗ п.20
+      limitAlertsSent: loadJSON('dna_finance_limit_alerts_v1', {}), // {[limitId+"_"+YYYY-MM]: [80,100,...]}
       // Активы с Тинькофф уже опознаются по figi — используем его же как id, чтобы не задваивать identity.
       assets: (Array.isArray(loadJSON('assets', [])) ? loadJSON('assets', []) : []).map(a=>a&&!a.id?{...a,id:a.figi||uid()}:a),
       token: localStorage.getItem('tinkoff_token'),
@@ -2643,7 +2698,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return finSavePlain('transactions');
   }
   function finSavePlain(key) {
-    try {localStorage.setItem(key,JSON.stringify(state.finance[key]));return true;}catch(_){return false;}
+    try {localStorage.setItem(key,JSON.stringify(state.finance[key]));queueCloudSync('finance',financeSnapshot);return true;}catch(_){return false;}
   }
   function sortedTransactions() {
     return [...state.finance.transactions].sort((a,b)=>parseLocalDate(b.date)-parseLocalDate(a.date));
@@ -2713,7 +2768,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // Токен брокера (tinkoff_token) сознательно не включён в снапшот — это чувствительный
   // доступ к реальному счёту, ему незачем лежать в Firestore, достаточно операций/целей/активов.
   function financeSnapshot(){
-    return {transactions: state.finance.transactions, goals: state.finance.goals, assets: state.finance.assets};
+    return {transactions: state.finance.transactions, goals: state.finance.goals, assets: state.finance.assets, limits: state.finance.limits};
   }
 
   // -------- Habits computed state --------
@@ -2848,6 +2903,18 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     storeCurrentScroll();cancelAnimationFrame(habitAnimationFrame);
     state.habits.animatingDate=null;state.habits.circleDisplay=progressForDate(state.habits.selectedDate);
     state.nav=index;renderNav();renderScreen();
+    // Заход на Atlas — лёгкий повторный getDoc профиля (см. hasAtlasAccess), чтобы Premium,
+    // выданный/отозванный через Developer Panel с другого устройства, отразился без полного
+    // релогина; сам AI-эндпоинт всё равно проверяет подписку заново на backend при каждом вызове
+    // (см. ТЗ п.33/34) — это только про свежесть UI, не про реальную защиту.
+    if(index===2&&window.DNAFirebase?.currentUid){
+      window.DNAFirebase.loadTelegramProfileOnce(window.DNAFirebase.currentUid).then(profile=>{
+        if(!profile)return;
+        const changed=JSON.stringify(profile.subscription||null)!==JSON.stringify(telegramProfile?.subscription||null);
+        telegramProfile=profile;saveJSON('dna_telegram_profile_cache',profile);
+        if(changed&&state.nav===2)renderScreen();
+      }).catch(()=>{});
+    }
   }
   function storeCurrentScroll() {
     const host=$('#screen'),sc=currentScroller();if(!sc)return;
@@ -6099,12 +6166,31 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function renderHome() {
     if (homePanel==='settings') return renderHomeSettings();
     if (homePanel==='admin') return renderHomeAdmin();
+    if (homePanel==='admin-user') return renderHomeAdminUser();
+    // Без Premium Atlas недоступен целиком (см. ТЗ п.24/25) — простая locked-плашка вместо
+    // полноценного paywall, остальные разделы приложения (Finance/Planner/Habits/News) работают
+    // как обычно, эту проверку не затрагивает.
+    if (telegramProfile && !hasAtlasAccess()) return renderAtlasLocked();
     const hasMessages = aiChat.messages.length>0;
     return `<section class="screen home-screen ai-home" aria-label="Главная — Атлас">
       <div class="home-toolbar"><button class="home-icon-button pressable" data-home-settings aria-label="Открыть настройки" title="Настройки">${icon('settings')}</button></div>
       ${renderTelegramLoginPrompt()}
       <div class="ai-body" data-ai-body>${hasMessages ? renderAiMessages() : renderAiIdle()}</div>
       ${renderAiInputBar()}
+    </section>`;
+  }
+
+  // telegramProfile отсутствует (не вошёл через Telegram вообще) — показываем обычный экран с
+  // предложением войти (renderTelegramLoginPrompt уже это делает); locked-плашка — только для уже
+  // вошедших, но без активной подписки, чтобы не путать "не вошёл" с "вошёл, но нет Premium".
+  function renderAtlasLocked() {
+    return `<section class="screen home-screen ai-home ai-locked-screen" aria-label="Главная — Атлас">
+      <div class="home-toolbar"><button class="home-icon-button pressable" data-home-settings aria-label="Открыть настройки" title="Настройки">${icon('settings')}</button></div>
+      <div class="ai-locked">
+        ${renderAtlasMark({size:120,withGlow:false})}
+        <h2>Atlas — по подписке Premium</h2>
+        <p class="ai-locked-note">Голосовой и текстовый помощник, который понимает финансы, события и привычки, доступен с активной подпиской Premium. Остальные разделы D.N.A. — Финансы, Планер, Привычки, Новости — работают без ограничений.</p>
+      </div>
     </section>`;
   }
 
@@ -6223,7 +6309,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">На главном экране Финансов появился компактный график «Движение денег» под кругом баланса — по дням показывает фактические доходы (зелёным) и расходы (красным), а также ожидаемые пополнения и обязательные будущие платежи (жёлтым). Лента листается горизонтально, масштаб подстраивается под твои суммы, а тап по дню показывает разбивку.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Атлас теперь понимает операции глубже, чем «сумма + категория» — распознаёт место траты, получателя перевода и цель платежа, а большинство вопросов о финансах («сколько я потратил на кофе за год?», «когда я последний раз переводил Мише?») считает мгновенно и бесплатно, без обращения к ИИ. Появились месячные лимиты расходов по категориям на главном экране Финансов. Atlas стал доступен по подписке Premium — управлять доступом можно из панели разработчика, выдавая пользователям +30/+90 дней или бессрочный доступ.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.33.0</div><p class="settings-note">На главном экране Финансов появился компактный график «Движение денег» под кругом баланса — по дням показывает фактические доходы (зелёным) и расходы (красным), а также ожидаемые пополнения и обязательные будущие платежи (жёлтым). Лента листается горизонтально, масштаб подстраивается под твои суммы, а тап по дню показывает разбивку.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.32.0</div><p class="settings-note">Приложение на широком экране ноутбука/монитора больше не растягивается на всю ширину — Финансы, Планер, Привычки и Атлас теперь укладываются в удобную колонку по центру, как и было задумано, а не расползаются на весь монитор. Мобильная версия не менялась.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.31.3</div><p class="settings-note">Иконки нижнего меню всё ещё стояли выше, чем в других приложениях — предыдущая правка (по центру полосы) сдвигала их недостаточно. Теперь они заметно ближе к нижнему краю экрана.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.31.2</div><p class="settings-note">Иконки нижнего меню стояли слишком близко к верху своей полосы, оставляя пустой отступ снизу — сдвинуты ближе к центру полосы.</p></div>
@@ -6349,6 +6436,73 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(homePanel==='admin')renderScreen();
     });
   }
+  // -------- Пользователи в панели разработчика (см. ТЗ п.27-30) --------
+  let adminUsers=null, adminUsersLoading=false;
+  function loadAdminUsers(){
+    if(adminUsersLoading)return;
+    adminUsersLoading=true;
+    backendJson('/admin/users/list',{}).then(json=>{
+      adminUsers=json.users||[];
+    }).catch(err=>{
+      adminUsers={error:aiErrorMessage(err)};
+    }).finally(()=>{
+      adminUsersLoading=false;
+      if(homePanel==='admin')renderScreen();
+    });
+  }
+  let adminUserDetailUid=null, adminUserDetail=null, adminUserDetailLoading=false;
+  function openAdminUser(uid){
+    adminUserDetailUid=uid; adminUserDetail=null; homePanel='admin-user'; renderScreen();
+    loadAdminUserDetail(uid);
+  }
+  function loadAdminUserDetail(uid){
+    if(adminUserDetailLoading)return;
+    adminUserDetailLoading=true;
+    backendJson('/admin/users/detail',{uid}).then(json=>{
+      if(adminUserDetailUid===uid)adminUserDetail=json;
+    }).catch(err=>{
+      if(adminUserDetailUid===uid)adminUserDetail={error:aiErrorMessage(err)};
+    }).finally(()=>{
+      adminUserDetailLoading=false;
+      if(homePanel==='admin-user')renderScreen();
+    });
+  }
+  function subscriptionLabel(sub){
+    if(!sub||sub.status==='cancelled')return sub&&sub.status==='cancelled'?'Отозвана':'Нет';
+    if(sub.lifetime)return 'Бессрочно';
+    if(sub.expiresAt==null)return 'Активна';
+    if(sub.expiresAt<Date.now())return `Истекла ${new Date(sub.expiresAt).toLocaleDateString('ru-RU')}`;
+    return `До ${new Date(sub.expiresAt).toLocaleDateString('ru-RU')}`;
+  }
+  function renderHomeAdminUser(){
+    if(!adminUserDetail&&!adminUserDetailLoading)loadAdminUserDetail(adminUserDetailUid);
+    const body=(()=>{
+      if(!adminUserDetail)return '<p class="settings-note">Загрузка…</p>';
+      if(adminUserDetail.error)return `<p class="settings-note">${esc(adminUserDetail.error)}</p>`;
+      const d=adminUserDetail, sub=d.subscription;
+      const active=sub&&sub.status!=='cancelled'&&(sub.lifetime||sub.expiresAt==null||sub.expiresAt>=Date.now())&&sub.status==='active';
+      const usageLine=(label,t)=>`<p>${label}: ${rubText(t.costRub)} · Lite ${rubText(t.liteCostRub)} · Pro ${rubText(t.proCostRub)} · STT ${rubText(t.sttCostRub)} · ${t.requests} запрос(ов)</p>`;
+      return `
+        <section class="settings-card">
+          <h2>${esc(d.name)}</h2>
+          <p class="settings-note">${d.telegramUsername?'@'+esc(d.telegramUsername)+' · ':''}<code>${esc(d.uid)}</code></p>
+          <p style="margin-top:8px"><b>Premium</b>: ${esc(subscriptionLabel(sub))}${sub?.source?` · источник: ${esc(sub.source)}`:''}</p>
+        </section>
+        <section class="settings-card"><h2>AI-траты</h2>${usageLine('7 дней',d.usage.week)}${usageLine('30 дней',d.usage.month)}</section>
+        <section class="settings-card"><h2>Premium</h2>
+          <div class="admin-user-grant-row">
+            <button type="button" class="text-btn" data-admin-grant="30">+30 дней</button>
+            <button type="button" class="text-btn" data-admin-grant="90">+90 дней</button>
+            <button type="button" class="text-btn" data-admin-grant="lifetime">Бессрочно</button>
+            ${active?'<button type="button" class="text-btn" data-admin-revoke>Отозвать</button>':''}
+          </div>
+        </section>`;
+    })();
+    return `<section class="screen home-settings" aria-labelledby="admin-user-title"><div class="settings-inner">
+      <header class="settings-header"><button class="home-icon-button pressable" data-admin-user-back aria-label="Назад к пользователям">${icon('chev-left')}</button><h1 id="admin-user-title">Пользователь</h1></header>
+      ${body}
+    </div></section>`;
+  }
   function rubText(n){return `${(Math.round((n||0)*100)/100).toLocaleString('ru-RU')} ₽`;}
   function renderHomeAdmin(){
     if(!adminData)loadAdminData();
@@ -6376,14 +6530,21 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const promo=adminData.promoCodes.length
         ?adminData.promoCodes.map(c=>`<div class="settings-note">${esc(c.code)} — использован ${c.usedCount||0}${c.maxUses!=null?`/${c.maxUses}`:''} раз</div>`).join('')
         :'<p class="settings-note">Пока нет ни одного кода.</p>';
-      const topActive=s.topActive.length
-        ?s.topActive.map((u2,i)=>`<div class="settings-note">${i+1}. ${esc(u2.name)} — ${u2.activeDaysCount} ${pluralDays(u2.activeDaysCount)} активности</div>`).join('')
-        :'<p class="settings-note">Пока нет данных.</p>';
+      if(!adminUsers&&!adminUsersLoading)loadAdminUsers();
+      const usersList=(()=>{
+        if(!adminUsers)return '<p class="settings-note">Загрузка…</p>';
+        if(adminUsers.error)return `<p class="settings-note">${esc(adminUsers.error)}</p>`;
+        if(!adminUsers.length)return '<p class="settings-note">Пока нет пользователей.</p>';
+        return `<div class="admin-users-list">${adminUsers.map(u2=>`<button type="button" class="admin-user-row" data-admin-user="${esc(u2.uid)}">
+          <span class="admin-user-row-name">${esc(u2.name)}${u2.isAdmin?' · admin':''}</span>
+          <span class="admin-user-row-sub">${esc(subscriptionLabel(u2.subscription))}</span>
+        </button>`).join('')}</div>`;
+      })();
       return `
         <section class="settings-card"><h2>Пользователи</h2>
           <p>Всего: ${s.total} · новых сегодня: ${s.newToday} · за 7 дней: ${s.newWeek}</p>
           <p>Активны сегодня: ${s.activeToday} · за 7 дней: ${s.activeWeek} · за 30 дней: ${s.activeMonth}</p>
-          <p class="settings-note" style="margin-top:8px">По частоте заходов:</p>${topActive}
+          <p class="settings-note" style="margin-top:8px">Нажми на пользователя, чтобы открыть карточку и выдать/отозвать Premium:</p>${usersList}
         </section>
         <section class="settings-card"><h2>AI-траты</h2>${line('Сегодня',u.today)}${line('7 дней',u.week)}${line('30 дней',u.month)}
           <p class="settings-note" style="margin-top:8px">На пользователя (30 дней):</p>${cohortLine}
@@ -6431,6 +6592,24 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         telegramProfile={...(telegramProfile||{}),isAdmin:false};
         saveJSON('dna_telegram_profile_cache',telegramProfile);
         adminData=null; homePanel='settings'; renderScreen();
+      }catch(err){ alert(aiErrorMessage(err)); btn.disabled=false; }
+    });
+    $$('[data-admin-user]').forEach(b=>b.addEventListener('click',()=>openAdminUser(b.dataset.adminUser)));
+    $('[data-admin-user-back]')?.addEventListener('click',()=>{ homePanel='admin'; renderScreen(); });
+    $$('[data-admin-grant]').forEach(b=>b.addEventListener('click',async()=>{
+      const val=b.dataset.adminGrant;
+      b.disabled=true;
+      try{
+        const body=val==='lifetime'?{uid:adminUserDetailUid,lifetime:true}:{uid:adminUserDetailUid,days:Number(val)};
+        await backendJson('/admin/users/grant',body);
+        adminUsers=null; adminUserDetail=null; renderScreen();
+      }catch(err){ alert(aiErrorMessage(err)); b.disabled=false; }
+    }));
+    $('[data-admin-revoke]')?.addEventListener('click',async(e)=>{
+      const btn=e.currentTarget; btn.disabled=true;
+      try{
+        await backendJson('/admin/users/revoke',{uid:adminUserDetailUid});
+        adminUsers=null; adminUserDetail=null; renderScreen();
       }catch(err){ alert(aiErrorMessage(err)); btn.disabled=false; }
     });
     $$('[data-devrequest-resolve]').forEach(b=>b.addEventListener('click',async()=>{
@@ -6586,10 +6765,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const res=await fetch(`${TELEGRAM_WORKER_ORIGIN}/ai/chat`,{
         method:'POST',
         headers:{...headers,'content-type':'application/json'},
-        body:JSON.stringify({text}),
+        // queryContext — компактный {intent,filters} прошлого ответа Query Engine (см. ТЗ п.16:
+        // короткие продолжения вроде "а за год?"), НЕ вся история чата — сервер сам решает, нужен
+        // ли он новому сообщению (см. financeQuery.js#mergeQueryContext).
+        body:JSON.stringify({text,queryContext:aiChat.queryContext||null}),
       });
       const json=await res.json();
       if(!res.ok)throw aiBackendError(json,res.status);
+      aiChat.queryContext=json.queryContext||null;
       aiChat.messages.push({role:'ai',text:json.reply||'',pendingActions:json.actions||[],rejected:json.rejected||[]});
     }catch(err){
       aiChat.messages.push({role:'error',text:aiErrorMessage(err)});
@@ -6605,10 +6788,12 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function aiBackendError(json,status){
     const err=new Error(json?.message||json?.error||`ai_${status}`);
     err.aiBackend=true;
+    err.premiumRequired=status===402||json?.error==='premium_required';
     return err;
   }
   function aiErrorMessage(err){
     if(err?.message==='no-auth')return 'Нужно войти через Telegram, чтобы пользоваться Атласом.';
+    if(err?.premiumRequired)return 'Атлас доступен только с активной подпиской Premium.';
     if(err?.aiBackend)return `Атлас вернул ошибку: ${err.message}`;
     if(err?.name==='EncodingError'||/decod/i.test(err?.message||''))return 'Не удалось обработать запись — попробуй ещё раз.';
     return 'Не получилось связаться с Атласом. Проверь соединение и попробуй ещё раз.';
@@ -7047,6 +7232,85 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const p=clamp(num(g.current)/Math.max(1,num(g.target)),0,1),left=Math.max(0,num(g.target)-num(g.current));
     return `<button class="fin-card fin-nearest-goal" data-fin-page="goals"><h2>${esc(g.name||'Цель')}</h2><span class="fin-progress"><i style="width:${p*100}%"></i></span><p class="fin-muted">${finMoney(g.current)} из ${finMoney(g.target)} · осталось ${finMoney(left)}</p></button>`;
   }
+  // -------- Лимиты расходов (см. ТЗ п.20-21) — целиком локальный расчёт, без единого AI-вызова.
+  function finCurrentMonthRange() {
+    const now=new Date();
+    return {start:new Date(now.getFullYear(),now.getMonth(),1),end:addDays(dateOnly(now),1)};
+  }
+  function finLimitSpent(limit) {
+    const {start,end}=finCurrentMonthRange();
+    return state.finance.transactions.filter(t=>txCompleted(t)&&t.type==='expense'&&t.category===limit.category
+      &&(!limit.subcategory||t.subcategory===limit.subcategory)
+      &&(()=>{const d=parseLocalDate(t.date);return d>=start&&d<end;})()
+    ).reduce((s,t)=>s+finAmount(t),0);
+  }
+  function renderFinLimitsCard() {
+    const limits=state.finance.limits;
+    if(!limits.length)return `<button type="button" class="fin-card fin-limits-empty" data-fin-limits-open><h2>Лимиты расходов</h2><p class="fin-muted">Задай месячный лимит по категории, например «Кафе и кофе» — 4 000 ₽, и здесь будет видно, сколько уже потрачено.</p></button>`;
+    const rows=limits.map(l=>{
+      const spent=finLimitSpent(l),amount=num(l.amountRub),pct=clamp(spent/Math.max(1,amount),0,1),over=spent>amount;
+      return `<div class="fin-limit-row"><div class="fin-limit-row-head"><span>${esc(l.subcategory||l.category)}</span><span class="${over?'fin-limit-over':''}">${finMoney(spent)} из ${finMoney(amount)}</span></div><span class="fin-progress"><i style="width:${pct*100}%" class="${over?'fin-limit-bar-over':''}"></i></span></div>`;
+    }).join('');
+    return `<button type="button" class="fin-card fin-limits" data-fin-limits-open><div class="fin-card-head"><h2>Лимиты расходов</h2></div>${rows}</button>`;
+  }
+  // Пороги уведомлений — см. ТЗ п.21: не спамить после каждой покупки, достаточно логических
+  // порогов (80%/100%/существенное превышение). limitAlertsSent — {[id_YYYY-MM]: [80,100,150]} —
+  // каждый порог показывается максимум один раз за месяц на лимит, сбрасывается сам по себе новым
+  // месяцем (ключ меняется вместе с ним).
+  const FIN_LIMIT_THRESHOLDS=[80,100,150];
+  function checkFinanceLimits() {
+    if(!state.finance.limits.length)return;
+    const monthKey=isoDate(new Date()).slice(0,7);
+    const sent=state.finance.limitAlertsSent||{};
+    let changed=false;
+    for(const l of state.finance.limits) {
+      const amount=num(l.amountRub);if(!(amount>0))continue;
+      const pct=Math.round((finLimitSpent(l)/amount)*100);
+      const key=`${l.id}_${monthKey}`;
+      const already=new Set(sent[key]||[]);
+      const crossed=[...FIN_LIMIT_THRESHOLDS].reverse().find(th=>pct>=th&&!already.has(th));
+      if(crossed==null)continue;
+      already.add(crossed);sent[key]=[...already];changed=true;
+      const label=l.subcategory||l.category;
+      const text=crossed>=150?`Лимит «${label}» превышен более чем в полтора раза`:crossed>=100?`Лимит «${label}» исчерпан`:`«${label}»: потрачено ${crossed}% лимита`;
+      showToast(text);
+    }
+    if(changed){state.finance.limitAlertsSent=sent;try{localStorage.setItem('dna_finance_limit_alerts_v1',JSON.stringify(sent));}catch(_){}}
+  }
+  function finLimitsForm() {
+    finModal('Лимиты расходов',`<p class="fin-muted">Месячный лимит по категории или подкатегории — расход считается автоматически по завершённым тратам текущего месяца, без ИИ.</p><div id="fin-limits-list"></div><div id="fin-limits-add"></div>`,d=>{
+      function draw(){
+        const list=$('#fin-limits-list',d);
+        list.innerHTML=state.finance.limits.length?state.finance.limits.map(l=>{
+          const spent=finLimitSpent(l);
+          return `<div class="fin-limit-edit-row"><div><strong>${esc(l.subcategory||l.category)}</strong><span class="fin-muted"> · ${finMoney(spent)} из ${finMoney(l.amountRub)}</span></div><button type="button" class="fin-icon" data-limit-delete="${l.id}" aria-label="Удалить лимит">${icon('trash')}</button></div>`;
+        }).join(''):'<p class="fin-muted">Лимитов пока нет.</p>';
+        $$('[data-limit-delete]',d).forEach(b=>b.onclick=()=>{
+          const old=state.finance.limits;
+          state.finance.limits=old.filter(l=>l.id!==b.dataset.limitDelete);
+          if(!finSaveData(d,'limits')){state.finance.limits=old;return;}
+          draw();finRefresh();
+        });
+      }
+      $('#fin-limits-add',d).innerHTML=`<form id="fin-limit-add-form"><label class="fin-label" for="fin-limit-category">Категория</label><select class="fin-field" id="fin-limit-category">${categories.map(c=>`<option>${esc(c)}</option>`).join('')}</select><label class="fin-label" for="fin-limit-subcategory">Подкатегория — необязательно</label><select class="fin-field" id="fin-limit-subcategory"><option value="">Вся категория</option></select><label class="fin-label" for="fin-limit-amount">Лимит в месяц, ₽</label><input class="fin-field" id="fin-limit-amount" type="number" step="0.01" min="1" max="1000000000" required><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary" type="submit">Добавить лимит</button></form>`;
+      const catSelect=$('#fin-limit-category',d),subSelect=$('#fin-limit-subcategory',d);
+      function updateSubOptions(){const subs=SUBCATEGORIES[catSelect.value]||[];subSelect.innerHTML=`<option value="">Вся категория</option>${subs.map(s=>`<option>${esc(s)}</option>`).join('')}`;}
+      catSelect.addEventListener('change',updateSubOptions);updateSubOptions();
+      $('#fin-limit-add-form',d).onsubmit=e=>{
+        e.preventDefault();
+        const amount=Number($('#fin-limit-amount',d).value);
+        if(!Number.isFinite(amount)||amount<=0){finError(d,'Укажи сумму лимита больше нуля.');return;}
+        const category=catSelect.value,subcategory=subSelect.value||null;
+        const old=state.finance.limits;
+        const existingIdx=old.findIndex(l=>l.category===category&&(l.subcategory||null)===subcategory);
+        const limit={id:existingIdx>=0?old[existingIdx].id:uid(),category,subcategory,amountRub:amount};
+        state.finance.limits=existingIdx>=0?old.map((l,i)=>i===existingIdx?limit:l):[...old,limit];
+        if(!finSaveData(d,'limits')){state.finance.limits=old;return;}
+        $('#fin-limit-amount',d).value='';draw();finRefresh();
+      };
+      draw();
+    });
+  }
   // Дата операции/платежа человекочитаемо — "Сегодня"/"Завтра"/"Вчера" как в ТЗ-мокапе, иначе
   // полная дата через уже существующий ruFinanceDateKey (используется старым фильтром истории,
   // формат дня там тот же, что нужен здесь).
@@ -7088,6 +7352,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     ${renderFinFlowStrip()}
     ${renderFinMonthResultCard()}
     ${renderFinMandatoryCard()}
+    ${renderFinLimitsCard()}
     ${renderFinNearestGoalCard()}
     <section class="fin-card fin-recent"><div class="fin-card-head"><h2>Последние операции</h2><button class="fin-text" data-fin-history>Все ${icon('chev-right')}</button></div>${renderFinTransactions(sortedTransactions().filter(txCompleted).slice(0,5))}</section>
     ${links.length?`<nav class="fin-destinations" aria-label="Дополнительные разделы финансов">${links.map(k=>`<button data-fin-page="${k}">${k==='dynamics'?'Динамика':FIN_BLOCKS[k]}${icon('chev-right')}</button>`).join('')}</nav>`:''}
@@ -7322,8 +7587,15 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // (см. titleInput.classList.add('shake-invalid') в showPlannerEditSheet), только на классе
   // .fin-field (см. .fin-field.shake-invalid в CSS).
   function finShake(el) {if(!el)return;el.classList.remove('shake-invalid');void el.offsetWidth;el.classList.add('shake-invalid');el.addEventListener('animationend',()=>el.classList.remove('shake-invalid'),{once:true});}
+  // Реально используемый путь сохранения для finTransactionForm/finGoalForm/finAssetForm и т.п.
+  // (в отличие от localStorage-only saveFinance() выше — тот вызывается только из старых overlay-
+  // форм tx-save/goal-save/asset-save, которых уже нет в текущем UI). Раньше эта функция НЕ звала
+  // queueCloudSync вообще — значит операции, добавленные вручную через реальную форму приложения,
+  // никогда не долетали в Firestore, хотя вся инфраструктура синка (CLOUD_DATA_TYPES.finance,
+  // подписка через onSnapshot) давно на месте и рассчитана именно на них. Нашлось при проверке
+  // того, что Atlas и Finance-вкладка видят одни и те же данные (см. ТЗ про единый источник правды).
   function finSaveData(d,key) {
-    try {localStorage.setItem(key,JSON.stringify(state.finance[key]));return true;}catch(e){finError(d,'Не удалось сохранить в браузере. Освободи место и повтори.');return false;}
+    try {localStorage.setItem(key,JSON.stringify(state.finance[key]));queueCloudSync('finance',financeSnapshot);return true;}catch(e){finError(d,'Не удалось сохранить в браузере. Освободи место и повтори.');return false;}
   }
   // Группы разрядов через пробел, точку ИЛИ запятую ("80 000"/"80.000"/"80,000") — если после
   // точки/запятой идут ровно 3 цифры, это однозначно разряд тысяч, а не дробная часть: у денег
@@ -7403,11 +7675,23 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         // формы после выключения "Повторять".
         const mandatory=repeatOn&&type==='expense'&&$('#fin-mandatory-toggle',d).classList.contains('on');
         const status=date>today?'planned':'completed';
+        // Пользователь вручную поправил категорию, автоматически определённую Атласом/локальным
+        // парсером (см. ТЗ п.10) — запоминаем это как правило (fire-and-forget, не блокирует
+        // сохранение) и помечаем саму операцию classificationSource:'manual', чтобы повторное
+        // открытие формы больше не считало её "предположением", которое можно молча переписать.
+        const wasClassified=existing&&existing.classificationSource&&existing.classificationSource!=='manual';
+        const categoryChanged=existing&&category.value!==existing.category;
         const tx={...(existing||{id:uid()}),amount:type==='income'?p.amount:-p.amount,type,category:category.value,note:p.note,date,status,mandatory,repeat};
         if(!repeat)delete tx.repeat;
+        if(wasClassified&&categoryChanged){
+          tx.classificationSource='manual';
+          const keyText=existing.item||existing.merchant||existing.originalText||p.note||'';
+          if(keyText)backendJson('/finance/classification-rule',{keyText,category:category.value}).catch(()=>{});
+        }
         const old=state.finance.transactions;
         state.finance.transactions=id===null?[...old,tx]:old.map(t=>t.id===id?tx:t);
         if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();
+        checkFinanceLimits();
       };
       $('#fin-tx-delete',d)?.addEventListener('click',()=>{if(!confirm('Удалить эту операцию?'))return;const old=state.finance.transactions;state.finance.transactions=old.filter(t=>t.id!==id);if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}d.close();finRefresh();});
       preview();amount.focus({preventScroll:true});
@@ -7497,6 +7781,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       const occ=list.find(t=>t.id===b.dataset.finPay);if(!occ)return;
       if(!finPayOccurrence(occ))return;
       showToast(occ.type==='income'?'Отмечено как получено':'Отмечено как оплачено',true);
+      checkFinanceLimits();
       finRefresh();
     });
     bindPay();
@@ -7511,6 +7796,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     $$('[data-fin-sector]').forEach(b=>{const open=()=>{const g=finGroups()[+b.dataset.finSector];if(g)finGo('history',g[0]);};b.onclick=open;if(b.tagName.toLowerCase()==='circle')b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};});
     $$('[data-fin-point]').forEach(b=>b.onclick=()=>{const p=finBuckets()[+b.dataset.finPoint];if(p){$$('[data-fin-point]').forEach(x=>x.classList.toggle('selected',x===b));$('#fin-point-value').textContent=`${p.label} · Пополнения ${finMoney(p.income)} · Расходы ${finMoney(p.expense)}`;}});
     $('[data-fin-goal-new]')?.addEventListener('click',()=>finGoalForm());$$('[data-fin-goal]').forEach(b=>b.onclick=()=>finGoalForm(b.dataset.finGoal));
+    $('[data-fin-limits-open]')?.addEventListener('click',finLimitsForm);
     $$('[data-fin-goal-add]').forEach(b=>b.onclick=()=>finGoalTransferForm(b.dataset.finGoalAdd));
     $('[data-fin-asset-new]')?.addEventListener('click',()=>finAssetForm());$$('[data-fin-asset]').forEach(b=>b.onclick=()=>finAssetForm(b.dataset.finAsset));
     $('[data-fin-broker]')?.addEventListener('click',()=>finModal('Т‑Инвестиции',`${renderDnaLoader('Скоро',true)}<p>Безопасное подключение брокера ещё в разработке.</p><p class="fin-muted">Сохранённые активы доступны. Сейчас приложение не отправляет токен брокеру и не обновляет котировки автоматически. Не вводи секретный токен в публичные файлы проекта.</p>`));
@@ -9257,9 +9543,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         if(Array.isArray(data.transactions))state.finance.transactions=withIds(data.transactions);
         if(Array.isArray(data.goals))state.finance.goals=data.goals;
         if(Array.isArray(data.assets))state.finance.assets=data.assets;
+        if(Array.isArray(data.limits))state.finance.limits=withIds(data.limits);
         saveJSON('transactions',state.finance.transactions);
         saveJSON('goals',state.finance.goals);
         saveJSON('assets',state.finance.assets);
+        saveJSON('limits',state.finance.limits);
       },
     },
   };

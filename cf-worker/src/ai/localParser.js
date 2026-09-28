@@ -16,6 +16,7 @@
 // результат на 100% случаев). Везде ниже, где нужна граница слова, используются явные
 // (?<![a-zа-яё0-9]) / (?![a-zа-яё0-9]) вместо \b — см. wholeWordEdge.
 import { parseAmountAndNote } from '../reminders.js';
+import { classifyByDictionary, findClassificationRule } from './classify.js';
 
 const INCOME_KEYWORDS = /(зарплат|аванс|премия|гонорар|стипенди|доход|возврат|вернул|верну\b|перевели\s+мне|поступил|пополнил|получил)/i;
 // Слова, которые указывают на СОВСЕМ другое действие (событие/привычка/раздел) или на то, что
@@ -173,7 +174,10 @@ function tryCreateEventNarrow(text, dateKeyAddDays, todayKey) {
 // (расход/доход) определяем по ключевым словам, а не спрашиваем; без явного income-слова
 // по умолчанию расход (см. примеры в аудите — "такси 500"/"кофе 350" без слова "расход" всё
 // равно расход, ровно то же допущение уже делает parseFinInput в index.html для формы).
-function tryExpenseIncome(text) {
+// rules — уже загруженные пользовательские исправления классификации (см. classify.js,
+// getClassificationRules в router.js) — порядок обогащения строго USER RULE -> словарь (см. ТЗ
+// п.6): если правило совпало, оно перекрывает то, что предложил бы словарь по умолчанию.
+function tryExpenseIncome(text, rules) {
   const t = text.trim();
   if (t.length > 80) return null; // длинное сообщение — выше риск, что это не простая команда
   if (QUESTION_LIKE.test(t)) return null; // похоже на вопрос, не на команду создания
@@ -187,8 +191,30 @@ function tryExpenseIncome(text) {
   const isIncome = INCOME_KEYWORDS.test(t);
   const action = isIncome ? 'create_income' : 'create_expense';
   const label = isIncome ? 'Пополнение' : 'Расход';
+
+  // Обогащение — опционально и не влияет на решение "это точно сумма+описание" выше (та логика
+  // уже прошла все guard rails); здесь только подбор category/subcategory/item/merchant/
+  // counterparty/purpose/tags, и она НЕ обязана быть уверенной, чтобы транзакция всё равно была
+  // создана локально (см. ТЗ п.7 — классификация "лучше", а не "решает, создавать ли").
+  const rule = findClassificationRule(rules || [], parsed.note || t);
+  const dict = classifyByDictionary(parsed.note || t, isIncome);
+  const classified = rule
+    ? { category: rule.category, subcategory: rule.subcategory || dict.subcategory, item: dict.item, merchant: dict.merchant, counterparty: dict.counterparty, purpose: dict.purpose }
+    : dict;
+  const source = rule ? 'user_rule' : (Object.keys(dict).length ? 'local' : null);
+
+  const actionObj = { action, amount: parsed.amount, description: parsed.note || undefined };
+  if (classified.category) actionObj.category = classified.category;
+  if (classified.subcategory) actionObj.subcategory = classified.subcategory;
+  if (classified.item) actionObj.item = classified.item;
+  if (classified.merchant) actionObj.merchant = classified.merchant;
+  if (classified.counterparty) actionObj.counterparty = classified.counterparty;
+  if (classified.purpose) actionObj.purpose = classified.purpose;
+  if (source) actionObj.classificationSource = source;
+  actionObj.originalText = t;
+
   return {
-    actions: [{ action, amount: parsed.amount, description: parsed.note || undefined }],
+    actions: [actionObj],
     reply: `Вот что сделаю: ${label} ${parsed.amount.toLocaleString('ru-RU')} ₽${parsed.note ? ' · ' + parsed.note : ''}.`,
   };
 }
@@ -207,7 +233,7 @@ function tryExactlyOne(candidates) {
 // привычек/событий не требовали повторного чтения Firestore. dateKeyAddDays/todayKey — те же
 // функции из reminders.js, что использует router.js, передаются параметрами, а не импортируются
 // здесь напрямую, чтобы не плодить второй способ узнать "какой сегодня день" в проекте.
-export function tryLocalParse(text, todayCtx, dateKeyAddDays, todayKey) {
+export function tryLocalParse(text, todayCtx, dateKeyAddDays, todayKey, classificationRules = []) {
   const raw = String(text || '').trim();
   if (!raw) return null;
   const factual = tryFactualQuery(raw, todayCtx);
@@ -217,5 +243,5 @@ export function tryLocalParse(text, todayCtx, dateKeyAddDays, todayKey) {
     tryCompleteEvent(raw, todayCtx),
     tryCreateEventNarrow(raw, dateKeyAddDays, todayKey),
   ]);
-  return actionMatch || tryExpenseIncome(raw);
+  return actionMatch || tryExpenseIncome(raw, classificationRules);
 }

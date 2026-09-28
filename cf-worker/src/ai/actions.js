@@ -8,17 +8,29 @@ import {
   createPlannerEvent, addFinanceTransaction, createSection, completeEventByTitle, deleteEventByTitle,
   findSectionIdByName, deleteSectionByName,
 } from '../reminders.js';
+import { resolveOrCreateEntity } from './entities.js';
+
+// Семантические поля транзакции (см. ТЗ "расширить модель транзакции") — все optional, ни один
+// вызывающий код (ни local parser, ни Lite) не обязан их присылать. subcategory/item/purpose/tags —
+// просто текст, category уже проверяется отдельно нигде (модель присылает то же, что видела в
+// системном промпте, см. buildSystemPrompt), поэтому здесь только длины/типы, не белый список.
+const SEMANTIC_OPTIONAL = ['subcategory', 'item', 'merchant', 'counterparty', 'purpose', 'tags', 'title', 'classificationSource'];
 
 export const ACTION_SCHEMA = {
   create_event: { required: ['title', 'date'], optional: ['time', 'duration', 'section'] },
-  create_expense: { required: ['amount'], optional: ['category', 'description'] },
-  create_income: { required: ['amount'], optional: ['category', 'description'] },
+  create_expense: { required: ['amount'], optional: ['category', 'description', ...SEMANTIC_OPTIONAL] },
+  create_income: { required: ['amount'], optional: ['category', 'description', ...SEMANTIC_OPTIONAL] },
   complete_habit: { required: ['name'], optional: [] },
   complete_event: { required: ['title'], optional: ['date'] },
   delete_event: { required: ['title'], optional: ['date'] },
   create_section: { required: ['name'], optional: ['color'] },
   delete_section: { required: ['name'], optional: [] },
 };
+
+// Верхняя граница суммы — раньше проверялась только внутри localParser.js (parsed.amount>1e9), но
+// НЕ для действий, пришедших от Lite/Pro — модель теоретически может прислать любое число. Один
+// триллион ₽ — тот же потолок, что уже используют формы в index.html (parseFinInput/поле "Баланс").
+const MAX_AMOUNT = 1e12;
 
 export function validateAction(action) {
   if (!action || typeof action !== 'object' || typeof action.action !== 'string') {
@@ -30,8 +42,20 @@ export function validateAction(action) {
     const v = action[field];
     if (v === undefined || v === null || v === '') return { ok: false, error: `missing field: ${field}` };
   }
-  if ((action.action === 'create_expense' || action.action === 'create_income') && !(Number(action.amount) > 0)) {
-    return { ok: false, error: 'amount must be a positive number' };
+  if (action.action === 'create_expense' || action.action === 'create_income') {
+    if (!(Number(action.amount) > 0) || Number(action.amount) > MAX_AMOUNT) {
+      return { ok: false, error: 'amount must be a positive number within range' };
+    }
+    if (action.tags !== undefined && action.tags !== null) {
+      if (!Array.isArray(action.tags) || action.tags.some((tag) => typeof tag !== 'string')) {
+        return { ok: false, error: 'tags must be an array of strings' };
+      }
+    }
+    for (const field of ['subcategory', 'item', 'merchant', 'counterparty', 'purpose', 'title']) {
+      if (action[field] !== undefined && action[field] !== null && typeof action[field] !== 'string') {
+        return { ok: false, error: `${field} must be a string` };
+      }
+    }
   }
   // date — не только у create_event: complete_event тоже принимает его опционально, обе схемы
   // требуют одинаковый формат, поэтому проверка общая, а не привязана к конкретному action.
@@ -67,24 +91,53 @@ async function execCreateEvent(firestore, uid, a) {
   return { summary: `📅 ${ev.title} — ${when}` };
 }
 
+// merchant/counterparty приходят как СВОБОДНЫЙ ТЕКСТ (от словаря localParser.js или от модели) —
+// resolveOrCreateEntity сводит его к стабильному id (см. entities.js: "Мише"/"Миша Андреев" и т.п.
+// → один и тот же person_id), это и даёт Query Engine возможность искать "сколько переводил
+// Мише?" независимо от формы, в которой имя встретилось в КОНКРЕТНОЙ операции.
+async function resolveSemanticFields(firestore, uid, a) {
+  const out = {
+    title: a.title || undefined, subcategory: a.subcategory || undefined, item: a.item || undefined,
+    purpose: a.purpose || undefined, tags: Array.isArray(a.tags) ? a.tags : undefined,
+    originalText: a.originalText || undefined,
+    classificationSource: a.classificationSource || 'ai',
+    classificationConfidence: a.classificationConfidence,
+  };
+  if (a.merchant) {
+    const entity = await resolveOrCreateEntity(firestore, uid, 'merchant', a.merchant);
+    out.merchant = entity?.canonicalName || a.merchant;
+    out.merchantId = entity?.id;
+  }
+  if (a.counterparty) {
+    const entity = await resolveOrCreateEntity(firestore, uid, 'person', a.counterparty);
+    out.counterparty = entity?.canonicalName || a.counterparty;
+    out.counterpartyId = entity?.id;
+  }
+  return out;
+}
+
 async function execCreateExpense(firestore, uid, a) {
+  const semantic = await resolveSemanticFields(firestore, uid, a);
   const tx = await addFinanceTransaction(firestore, uid, {
     amount: -Math.abs(Number(a.amount)),
     type: 'expense',
     category: a.category || null,
     note: a.description || '',
     date: todayKey(DEFAULT_TZ),
+    ...semantic,
   });
   return { summary: `💰 −${formatRub(Math.abs(tx.amount))} · ${tx.category || tx.note || 'Расход'}` };
 }
 
 async function execCreateIncome(firestore, uid, a) {
+  const semantic = await resolveSemanticFields(firestore, uid, a);
   const tx = await addFinanceTransaction(firestore, uid, {
     amount: Math.abs(Number(a.amount)),
     type: 'income',
     category: a.category || null,
     note: a.description || '',
     date: todayKey(DEFAULT_TZ),
+    ...semantic,
   });
   return { summary: `💰 +${formatRub(Math.abs(tx.amount))} · ${tx.category || tx.note || 'Доход'}` };
 }

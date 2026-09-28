@@ -211,6 +211,28 @@ function perUserCohort(dailyDocs) {
   };
 }
 
+// Себестоимость AI ОДНОГО конкретного пользователя (см. ТЗ п.27 — карточка пользователя в
+// Developer Panel) — тот же приём чтения дневных документов, что и getUsageOverview ниже, просто
+// вытаскивает byUser[uid] вместо агрегата по всей базе; отдельная функция, а не переиспользование
+// getUsageOverview, потому что той дневные документы читать заново незачем ради одного uid.
+export async function getUserUsage(firestore, uid, days = 30) {
+  const today = todayKey(DEFAULT_TZ);
+  const dayKeys = [];
+  for (let i = 0; i < days; i++) dayKeys.push(dateKeyAddDays(today, -i));
+  const docs = await Promise.all(dayKeys.map((k) => firestore.getDoc(`aiUsageDaily/${k}`)));
+  const pick = (list) => {
+    const t = emptyUserTotals();
+    for (const d of list) {
+      const u = d && d.byUser && d.byUser[uid];
+      if (!u) continue;
+      t.requests += u.requests; t.costRub += u.costRub;
+      t.liteCostRub += u.liteCostRub; t.proCostRub += u.proCostRub; t.sttCostRub += u.sttCostRub;
+    }
+    return t;
+  };
+  return { week: pick(docs.slice(0, 7)), month: pick(docs) };
+}
+
 // today/7 дней/30 дней — прямые чтения по известным путям (aiUsageDaily/{dateKey}), без query
 // API (которого у этого клиента нет, см. выше) — до 30 отдельных getDoc, приемлемо: вызывается
 // только при открытии панели разработчика, не на каждый AI-запрос.

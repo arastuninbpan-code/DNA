@@ -149,6 +149,27 @@ export async function touchUserActivity(firestore, uid, todayDateKey) {
   }
 }
 
+// Полный список пользователей для панели разработчика (см. ТЗ п.27 — "сделать каждого
+// пользователя кликабельным"; раньше был только топ-5 самых активных внутри getUserStatsOverview).
+// listCollection уже читает ВСЕ users одним постраничным проходом (см. firestore.js) — этот же
+// примитив, просто возвращает больше полей и без обрезки до 5.
+export async function listAllUsers(firestore) {
+  const rows = await firestore.listCollection('users');
+  return rows
+    .map((r) => ({
+      uid: r.id,
+      name: r.data.telegramFirstName || r.data.telegramUsername || r.id,
+      telegramUsername: r.data.telegramUsername || null,
+      isAdmin: !!r.data.isAdmin,
+      premium: !!r.data.premium,
+      subscription: r.data.subscription || null,
+      lastSeenAt: r.data.lastSeenAt || 0,
+      activeDaysCount: r.data.activeDaysCount || 0,
+      firstSeenAt: r.data.firstSeenAt || r.data.linkedAt || 0,
+    }))
+    .sort((a, b) => b.lastSeenAt - a.lastSeenAt);
+}
+
 export async function getUserStatsOverview(firestore) {
   const rows = await firestore.listCollection('users');
   const now = Date.now();

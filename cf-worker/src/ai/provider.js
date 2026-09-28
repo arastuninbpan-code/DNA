@@ -113,7 +113,7 @@ export function buildSystemPrompt(context) {
     '',
     'actions:',
     '- create_event {title,date:"YYYY-MM-DD",time?:"HH:MM",section?}: time не указывай, если пользователь его не назвал (не придумывай "по умолчанию"). section — точное имя из списка разделов ниже; если такой уже есть, НЕ вызывай отдельно create_section.',
-    '- create_expense / create_income {amount,category?,description?}',
+    '- create_expense / create_income {amount,category?,description?,subcategory?,item?,merchant?,counterparty?,purpose?,tags?}: category — как в примерах пользователя, не выдумывай новые. counterparty — ФИО/имя человека, если это перевод конкретному человеку ("перевёл Мише 1000", "5000 Мише за билеты" — тогда counterparty="Миша", purpose="Билеты", category="Переводы"). merchant — название места/магазина, если названо явно. item — краткое обозначение того, что купили ("кофе", "такси"), НЕ придумывай, если не очевидно из текста.',
     '- complete_habit {name} — name строго из списка привычек на сегодня ниже',
     '- complete_event {title,date?=сегодня} — отмечает выполненным, событие остаётся в списке (не путать с delete_event)',
     '- delete_event {title,date?=сегодня} — полностью удаляет событие',

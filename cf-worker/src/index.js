@@ -18,13 +18,15 @@ import { runDailyDigests } from './digest.js';
 import { renderScreen, runAction, renderHome, renderToMainMenu, renderAiPlanScreen } from './bot.js';
 import { createYandexProvider } from './ai/provider.js';
 import { planTurn, confirmActions } from './ai/router.js';
-import { logAiUsage, getUsageOverview } from './ai/usage.js';
+import { logAiUsage, getUsageOverview, getUserUsage } from './ai/usage.js';
 import { isDuplicateTurn } from './ai/idempotency.js';
 import {
   tryUnlockAdmin, lockAdmin, isUserAdmin, redeemPromoCode, createPromoCode, listPromoCodes,
   submitSupportMessage, listSupportMessages, submitDevRequest, listDevRequests, resolveDevRequest,
-  touchUserActivity, getUserStatsOverview,
+  touchUserActivity, getUserStatsOverview, listAllUsers,
 } from './admin.js';
+import { hasPremium, getSubscription, grantPremium, revokePremium } from './subscription.js';
+import { saveClassificationRule } from './ai/classify.js';
 
 // Полчаса — достаточно, чтобы спокойно открыть одну и ту же ссылку и с телефона, и с
 // компьютера, не отправляя /start заново под каждое устройство (ссылка теперь не
@@ -257,6 +259,12 @@ async function handleAiTurn(env, firestore, token, uid, chatId, text, source = '
   // п.15 аудита AI-себестоимости, idempotency.js); молча выходим, ответ на первый вызов уже идёт
   // своим чередом.
   if (isDuplicateTurn(uid, text)) return;
+  // См. requirePremiumOrDeny в handleAiChat — тот же принцип для Telegram-канала (см. ТЗ п.24:
+  // Atlas недоступен без Premium одинаково и в приложении, и в боте).
+  if (!(await hasPremium(firestore, uid))) {
+    await sendMessage(token, chatId, '🔒 Атлас доступен только с активной подпиской Premium.');
+    return;
+  }
   try {
     const provider = createYandexProvider(env);
     const plan = await planTurn(provider, firestore, uid, text);
@@ -291,6 +299,12 @@ async function handleTelegramVoice(env, firestore, token, message) {
   // апдейте, поэтому лимит проверяется ДО скачивания файла и ДО любого платного вызова.
   if (Number(message.voice.duration) > AI_VOICE_MAX_SECONDS) {
     await sendMessage(token, message.chat.id, `🎤 Голосовое сообщение длиннее ${AI_VOICE_MAX_SECONDS} секунд — не обработано, запиши покороче.`);
+    return;
+  }
+  // До скачивания файла и до любого платного вызова SpeechKit — та же причина, что и в
+  // handleAiVoice: голос сам по себе платный, отдельно от последующего planTurn.
+  if (!(await hasPremium(firestore, uid))) {
+    await sendMessage(token, message.chat.id, '🔒 Атлас доступен только с активной подпиской Premium.');
     return;
   }
   try {
@@ -500,6 +514,16 @@ const AI_CORS_HEADERS = {
   'access-control-allow-headers': 'content-type, authorization',
 };
 
+// Единственная точка отказа "нет Premium" для веб-эндпоинтов /ai/* — см. ТЗ п.24/33: подписка
+// проверяется ДО AI-роутера (даже до local-парсера — тот тоже часть Atlas, а не просто "если
+// платный вызов"), поэтому вызывается сразу после requireFirebaseUid и раньше createYandexProvider/
+// planTurn/provider.transcribe в каждом из /ai/chat, /ai/voice. 402 Payment Required — самый точный
+// HTTP-код для "нужна подписка", не 403 (это не про права, а про её отсутствие/истечение).
+async function requirePremiumOrDeny(firestore, uid) {
+  if (await hasPremium(firestore, uid)) return null;
+  return json({ error: 'premium_required', message: 'Atlas доступен только с активной подпиской Premium.' }, 402, AI_CORS_HEADERS);
+}
+
 // Текстовый ход диалога с AI-ассистентом: {text} -> {reply, actions, rejected}. actions —
 // уже провалидированные (см. actions.js), но НЕ применённые действия — клиент показывает их
 // пользователю как карточку подтверждения и, если он согласен, шлёт их же на /ai/confirm.
@@ -512,6 +536,11 @@ async function handleAiChat(req, env, firestore) {
   } catch (err) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
+  // Порядок строго auth -> subscription -> AI-роутер (см. ТЗ п.33) — ДО чтения тела на текст,
+  // не только до самого дорогого вызова: пользователь без Premium не должен запускать даже
+  // local-парсер/Query Engine через этот эндпоинт (см. ТЗ п.24: "Atlas недоступен" целиком).
+  const denied = await requirePremiumOrDeny(firestore, uid);
+  if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const text = String(body.text || '').trim();
   if (!text) return json({ error: 'missing text' }, 400, AI_CORS_HEADERS);
@@ -520,7 +549,10 @@ async function handleAiChat(req, env, firestore) {
   if (isDuplicateTurn(uid, text)) return json({ error: 'duplicate_request', message: 'Предыдущий запрос ещё обрабатывается' }, 429, AI_CORS_HEADERS);
   try {
     const provider = createYandexProvider(env);
-    const plan = await planTurn(provider, firestore, uid, text);
+    // queryContext — компактный {intent,filters} от ПРЕДЫДУЩЕГО ответа Query Engine (см. ТЗ п.16:
+    // "а за год?"), а не история переписки — клиент присылает его сам, эхом того, что получил в
+    // прошлый раз (см. financeQuery.js#mergeQueryContext).
+    const plan = await planTurn(provider, firestore, uid, text, { queryContext: body.queryContext || null });
     if (plan.usage) {
       await logAiUsage(firestore, {
         uid, source: 'web_text', kind: 'gpt', model: plan.usage.model, operation: plan.operation, proReason: plan.proReason,
@@ -547,6 +579,11 @@ async function handleAiVoice(req, env, firestore) {
   } catch (err) {
     return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
   }
+  // См. requirePremiumOrDeny в handleAiChat — здесь ЕЩЁ важнее: без этой проверки SpeechKit
+  // (платный ДО планирования, сам по себе) вызывался бы для любого вошедшего пользователя вообще
+  // без подписки (см. ТЗ п.24/34: "нельзя вызвать YandexGPT/SpeechKit даже напрямую").
+  const denied = await requirePremiumOrDeny(firestore, uid);
+  if (denied) return denied;
   // Фронтенд (index.html) всегда шлёт сюда сырой PCM16 моно (декодированный из записи браузера
   // через Web Audio API — см. audioBlobToPcm16), а не оригинальный webm/ogg от MediaRecorder:
   // раньше это поле бралось из mime-типа MediaRecorder напрямую и лейблилось как "oggopus", хотя
@@ -744,6 +781,107 @@ async function handleAdminCreatePromo(req, env, firestore) {
 
 // Активация промокода — доступна любому вошедшему пользователю (не только админу), это же
 // действие доступно и прямо в Telegram простой отправкой кода текстом (см. handleTelegramFreeText).
+// -------- Пользователи в панели разработчика (см. ТЗ п.27-30) --------
+async function handleAdminUsersList(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env, firestore);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  if (!(await isUserAdmin(firestore, uid))) return json({ error: 'forbidden' }, 403, AI_CORS_HEADERS);
+  const users = await listAllUsers(firestore);
+  return json({ users }, 200, AI_CORS_HEADERS);
+}
+
+// Карточка одного пользователя (см. ТЗ п.27: имя/email/id/Premium статус/дата окончания/источник/
+// AI usage) — email у Telegram-входа нет, показываем то, что реально есть (имя/username/uid).
+async function handleAdminUserDetail(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env, firestore);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  if (!(await isUserAdmin(firestore, uid))) return json({ error: 'forbidden' }, 403, AI_CORS_HEADERS);
+  const body = await req.json().catch(() => ({}));
+  const targetUid = String(body.uid || '');
+  if (!targetUid) return json({ error: 'missing uid' }, 400, AI_CORS_HEADERS);
+  const [user, usage] = await Promise.all([
+    firestore.getDoc(`users/${targetUid}`),
+    getUserUsage(firestore, targetUid),
+  ]);
+  if (!user) return json({ error: 'not found' }, 404, AI_CORS_HEADERS);
+  return json({
+    uid: targetUid,
+    name: user.telegramFirstName || user.telegramUsername || targetUid,
+    telegramUsername: user.telegramUsername || null,
+    isAdmin: !!user.isAdmin,
+    subscription: user.subscription || null,
+    usage,
+  }, 200, AI_CORS_HEADERS);
+}
+
+// +30/+90/бессрочно (см. ТЗ п.28/29) — days ИЛИ lifetime:true, одна и та же функция
+// SubscriptionService.grantPremium, которой позже будет пользоваться и payment webhook (ТЗ п.26/31).
+async function handleAdminUserGrant(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env, firestore);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  if (!(await isUserAdmin(firestore, uid))) return json({ error: 'forbidden' }, 403, AI_CORS_HEADERS);
+  const body = await req.json().catch(() => ({}));
+  const targetUid = String(body.uid || '');
+  if (!targetUid) return json({ error: 'missing uid' }, 400, AI_CORS_HEADERS);
+  const days = body.lifetime ? null : Number(body.days) || null;
+  if (!body.lifetime && !days) return json({ error: 'need days or lifetime' }, 400, AI_CORS_HEADERS);
+  const subscription = await grantPremium(firestore, targetUid, { days, lifetime: !!body.lifetime, source: 'admin', grantedBy: uid });
+  return json({ ok: true, subscription }, 200, AI_CORS_HEADERS);
+}
+
+async function handleAdminUserRevoke(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env, firestore);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  if (!(await isUserAdmin(firestore, uid))) return json({ error: 'forbidden' }, 403, AI_CORS_HEADERS);
+  const body = await req.json().catch(() => ({}));
+  const targetUid = String(body.uid || '');
+  if (!targetUid) return json({ error: 'missing uid' }, 400, AI_CORS_HEADERS);
+  const subscription = await revokePremium(firestore, targetUid);
+  return json({ ok: true, subscription }, 200, AI_CORS_HEADERS);
+}
+
+// Сохранение правила классификации после ручного исправления категории пользователем (см. ТЗ
+// п.10) — вызывается из формы редактирования операции в index.html, не из AI-пайплайна напрямую.
+async function handleFinanceClassificationRule(req, env, firestore) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
+  let uid;
+  try {
+    uid = await requireFirebaseUid(req, env, firestore);
+  } catch (err) {
+    return json({ error: 'unauthorized' }, 401, AI_CORS_HEADERS);
+  }
+  const body = await req.json().catch(() => ({}));
+  const result = await saveClassificationRule(firestore, uid, {
+    keyText: body.keyText, category: body.category, subcategory: body.subcategory,
+  });
+  return json(result, result.ok ? 200 : 400, AI_CORS_HEADERS);
+}
+
 async function handlePromoRedeem(req, env, firestore) {
   if (req.method === 'OPTIONS') return new Response(null, { headers: AI_CORS_HEADERS });
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, AI_CORS_HEADERS);
@@ -809,6 +947,16 @@ export default {
         return handleAdminSummary(req, env, firestore);
       case '/admin/promo/create':
         return handleAdminCreatePromo(req, env, firestore);
+      case '/admin/users/list':
+        return handleAdminUsersList(req, env, firestore);
+      case '/admin/users/detail':
+        return handleAdminUserDetail(req, env, firestore);
+      case '/admin/users/grant':
+        return handleAdminUserGrant(req, env, firestore);
+      case '/admin/users/revoke':
+        return handleAdminUserRevoke(req, env, firestore);
+      case '/finance/classification-rule':
+        return handleFinanceClassificationRule(req, env, firestore);
       case '/admin/devrequest/send':
         return handleAdminDevRequestSend(req, env, firestore);
       case '/admin/devrequest/resolve':

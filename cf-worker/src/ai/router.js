@@ -11,9 +11,18 @@
 // паттерн; здесь один route() сразу возвращает и actions, и reply).
 import { validateAction, executeAction } from './actions.js';
 import { buildDayContext, emptyDayContext } from './context.js';
-import { DEFAULT_TZ, todayKey, dateKeyAddDays, currentMinutesInTz } from '../reminders.js';
+import { DEFAULT_TZ, todayKey, dateKeyAddDays, currentMinutesInTz, getFinanceDoc } from '../reminders.js';
 import { tryLocalParse } from './localParser.js';
 import { chooseModel } from './modelRouter.js';
+import { getClassificationRules } from './classify.js';
+import { getEntitiesDoc } from './entities.js';
+import { parseQueryIntent, runFinanceQuery, formatQueryAnswer, goalComparisonNote, mergeQueryContext } from './financeQuery.js';
+
+// Дешёвая проверка "похоже ли вообще на вопрос про деньги" — до того, как читать финансовый
+// документ и справочник сущностей (см. ТЗ п.11/17: Query Engine не должен работать на КАЖДОЕ
+// сообщение, только когда это осмысленно). Если не совпало — ни одного лишнего чтения Firestore
+// сверх того, что и так делает buildDayContext.
+const FINANCE_QUERY_HINT = /потрат|расход|доход|заработ|получил|перевод|перевел|перевёл|скинул|отправил|бюджет|сколько|средн|за\s+(?:год|месяц|недел)/i;
 
 // "HH:MM" сейчас в DEFAULT_TZ — без этого модель не может посчитать относительное время
 // ("напомни через час"): дата у неё уже есть (today/tomorrow), а часов и минут не было вовсе,
@@ -49,8 +58,9 @@ export async function planTurn(provider, firestore, uid, text, opts = {}) {
   const today = todayKey(DEFAULT_TZ);
   const tomorrow = dateKeyAddDays(today, 1);
   const todayCtx = await buildDayContext(firestore, uid, today);
+  const classificationRules = await getClassificationRules(firestore, uid);
 
-  const local = tryLocalParse(text, todayCtx, dateKeyAddDays, todayKey);
+  const local = tryLocalParse(text, todayCtx, dateKeyAddDays, todayKey, classificationRules);
   if (local) {
     const actions = [];
     const rejected = [];
@@ -63,6 +73,35 @@ export async function planTurn(provider, firestore, uid, text, opts = {}) {
       reply: local.reply || '', actions, rejected, usage: null,
       route: 'local', proReason: null, operation: deriveOperation('local', actions),
     };
+  }
+
+  // Local Finance Query Engine (см. ТЗ п.11-17) — "сколько я потратил на кофе за год?" и т.п.
+  // отвечаются обычным кодом по уже загруженным транзакциям, БЕЗ обращения к LLM: ни сами
+  // транзакции, ни промежуточный результат подсчёта в модель не передаются (см. ТЗ п.17). Если
+  // движок не уверен (parseQueryIntent вернул null) — тихо идём дальше, к Lite, как раньше.
+  if (FINANCE_QUERY_HINT.test(text)) {
+    const [financeDoc, entitiesDoc] = await Promise.all([
+      getFinanceDoc(firestore, uid),
+      getEntitiesDoc(firestore, uid),
+    ]);
+    const parsed = parseQueryIntent(text, entitiesDoc, today);
+    const merged = parsed ? mergeQueryContext(parsed, opts.queryContext) : null;
+    if (merged && merged.intent) {
+      const result = runFinanceQuery(financeDoc.transactions || [], merged.intent, merged.filters);
+      if (result.count || merged.filters.topic || merged.filters.period) {
+        let reply = formatQueryAnswer(merged.intent, merged.filters, result);
+        // Связь с целями (см. ТЗ п.18) — только для содержательной суммы трат, не для
+        // count/last/list/доходов, и не для 0.
+        if (merged.intent === 'sum_transactions' && merged.filters.type !== 'income') {
+          reply += goalComparisonNote(result, financeDoc.goals);
+        }
+        return {
+          reply, actions: [], rejected: [], usage: null,
+          route: 'local', proReason: null, operation: 'finance_query',
+          queryContext: { intent: merged.intent, filters: merged.filters },
+        };
+      }
+    }
   }
 
   const tomorrowCtx = TOMORROW_RELEVANT.test(text)
