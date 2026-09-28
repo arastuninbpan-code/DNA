@@ -401,6 +401,7 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .admin-user-row:first-child { border-top: 0; }
 .admin-user-row-name { font-size: .9375rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-user-row-sub { flex: none; font-size: .8125rem; color: var(--gold2); }
+.admin-user-row-nick { color: rgba(var(--ink),.5); font-size: .875em; }
 .admin-user-grant-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .admin-user-grant-row .text-btn { padding: 8px 12px; border: 1px solid rgba(201,168,76,.3); border-radius: 12px; }
 /* Раньше все версии дописывались в один нарастающий абзац — было не видно, что именно
@@ -2148,7 +2149,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.34.1';
+  const APP_VERSION = '0.34.2';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6317,7 +6318,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">На плашке «Движение денег» в Финансах вертикальный скролл экрана теперь работает при касании в любом месте графика, а не только за его пределами — раньше прокрутить страницу пальцем можно было, только если схватиться мимо самой ленты дней.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Панель разработчика в Telegram-боте получила те же возможности, что и на сайте: список пользователей теперь кликабельный, с выдачей/отзывом Premium (Atlas) прямо там. В обеих панелях (сайт и бот) в списке пользователей теперь виден ник в Telegram, а выдать Premium можно, просто найдя человека по нику — не только кликом по уже показанному списку.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.34.1</div><p class="settings-note">На плашке «Движение денег» в Финансах вертикальный скролл экрана теперь работает при касании в любом месте графика, а не только за его пределами — раньше прокрутить страницу пальцем можно было, только если схватиться мимо самой ленты дней.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.34.0</div><p class="settings-note">Атлас теперь понимает операции глубже, чем «сумма + категория» — распознаёт место траты, получателя перевода и цель платежа, а большинство вопросов о финансах («сколько я потратил на кофе за год?», «когда я последний раз переводил Мише?») считает мгновенно и бесплатно, без обращения к ИИ. Появились месячные лимиты расходов по категориям на главном экране Финансов. Atlas стал доступен по подписке Premium — управлять доступом можно из панели разработчика, выдавая пользователям +30/+90 дней или бессрочный доступ.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.33.0</div><p class="settings-note">На главном экране Финансов появился компактный график «Движение денег» под кругом баланса — по дням показывает фактические доходы (зелёным) и расходы (красным), а также ожидаемые пополнения и обязательные будущие платежи (жёлтым). Лента листается горизонтально, масштаб подстраивается под твои суммы, а тап по дню показывает разбивку.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.32.0</div><p class="settings-note">Приложение на широком экране ноутбука/монитора больше не растягивается на всю ширину — Финансы, Планер, Привычки и Атлас теперь укладываются в удобную колонку по центру, как и было задумано, а не расползаются на весь монитор. Мобильная версия не менялась.</p></div>
@@ -6476,6 +6478,27 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       if(homePanel==='admin-user')renderScreen();
     });
   }
+  // Открыть карточку по нику, а не по клику в списке — по просьбе пользователя: "отправив этот
+  // ник в панели разработчика давался Атлас" (тот же экран/кнопки выдачи Premium, что и обычный
+  // клик по строке списка, просто другой способ туда попасть — не нужно листать/искать глазами).
+  // adminUserDetailLoading=true выставляется ДО renderScreen(), чтобы автозагрузка в
+  // renderHomeAdminUser (см. ниже: "if(!adminUserDetail&&!adminUserDetailLoading)") не запустила
+  // параллельно ещё и loadAdminUserDetail(null) с несуществующим uid.
+  function openAdminUserByUsername(username){
+    const uname=String(username||'').trim();
+    if(!uname)return;
+    adminUserDetailUid=null; adminUserDetail=null; adminUserDetailLoading=true;
+    homePanel='admin-user'; renderScreen();
+    backendJson('/admin/users/detail',{username:uname}).then(json=>{
+      adminUserDetailUid=json.uid||adminUserDetailUid;
+      adminUserDetail=json;
+    }).catch(err=>{
+      adminUserDetail={error:aiErrorMessage(err)};
+    }).finally(()=>{
+      adminUserDetailLoading=false;
+      if(homePanel==='admin-user')renderScreen();
+    });
+  }
   function subscriptionLabel(sub){
     if(!sub||sub.status==='cancelled')return sub&&sub.status==='cancelled'?'Отозвана':'Нет';
     if(sub.lifetime)return 'Бессрочно';
@@ -6540,12 +6563,16 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         ?adminData.promoCodes.map(c=>`<div class="settings-note">${esc(c.code)} — использован ${c.usedCount||0}${c.maxUses!=null?`/${c.maxUses}`:''} раз</div>`).join('')
         :'<p class="settings-note">Пока нет ни одного кода.</p>';
       if(!adminUsers&&!adminUsersLoading)loadAdminUsers();
+      // Ник (telegramUsername) — соцсеть регистрации у этого проекта одна (Telegram-вход), см.
+      // просьбу пользователя показывать именно его, а не только имя из профиля (имя могло не
+      // совпадать с тем, что человек продиктовал/написал, ник — тот же самый, по которому его
+      // проще узнать/найти).
       const usersList=(()=>{
         if(!adminUsers)return '<p class="settings-note">Загрузка…</p>';
         if(adminUsers.error)return `<p class="settings-note">${esc(adminUsers.error)}</p>`;
         if(!adminUsers.length)return '<p class="settings-note">Пока нет пользователей.</p>';
         return `<div class="admin-users-list">${adminUsers.map(u2=>`<button type="button" class="admin-user-row" data-admin-user="${esc(u2.uid)}">
-          <span class="admin-user-row-name">${esc(u2.name)}${u2.isAdmin?' · admin':''}</span>
+          <span class="admin-user-row-name">${esc(u2.name)}${u2.telegramUsername?` <span class="admin-user-row-nick">@${esc(u2.telegramUsername)}</span>`:''}${u2.isAdmin?' · admin':''}</span>
           <span class="admin-user-row-sub">${esc(subscriptionLabel(u2.subscription))}</span>
         </button>`).join('')}</div>`;
       })();
@@ -6553,6 +6580,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         <section class="settings-card"><h2>Пользователи</h2>
           <p>Всего: ${s.total} · новых сегодня: ${s.newToday} · за 7 дней: ${s.newWeek}</p>
           <p>Активны сегодня: ${s.activeToday} · за 7 дней: ${s.activeWeek} · за 30 дней: ${s.activeMonth}</p>
+          <form data-admin-user-search-form style="display:flex;gap:8px;margin-top:12px">
+            <input type="text" data-admin-user-search-input placeholder="Ник в Telegram (@ник)" class="field" style="flex:1;min-width:0">
+            <button type="submit" class="text-btn" style="flex:none">Найти</button>
+          </form>
           <p class="settings-note" style="margin-top:8px">Нажми на пользователя, чтобы открыть карточку и выдать/отозвать Premium:</p>${usersList}
         </section>
         <section class="settings-card"><h2>AI-траты</h2>${line('Сегодня',u.today)}${line('7 дней',u.week)}${line('30 дней',u.month)}
@@ -6604,6 +6635,11 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       }catch(err){ alert(aiErrorMessage(err)); btn.disabled=false; }
     });
     $$('[data-admin-user]').forEach(b=>b.addEventListener('click',()=>openAdminUser(b.dataset.adminUser)));
+    $('[data-admin-user-search-form]')?.addEventListener('submit',e=>{
+      e.preventDefault();
+      const input=$('[data-admin-user-search-input]',e.currentTarget);
+      openAdminUserByUsername(input?.value);
+    });
     $('[data-admin-user-back]')?.addEventListener('click',()=>{ homePanel='admin'; renderScreen(); });
     $$('[data-admin-grant]').forEach(b=>b.addEventListener('click',async()=>{
       const val=b.dataset.adminGrant;

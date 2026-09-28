@@ -170,6 +170,19 @@ export async function listAllUsers(firestore) {
     .sort((a, b) => b.lastSeenAt - a.lastSeenAt);
 }
 
+// Поиск по нику (username) соцсети регистрации (Telegram) — по прямой просьбе пользователя:
+// "отправив этот ник в панели разработчика давался Атлас", то есть выдавать Premium можно не
+// только кликом по уже показанному списку, но и напечатав ник человека напрямую (например когда
+// его давно не было в топе активности и в коротком списке его не видно). Сравнение без учёта
+// регистра и без ведущей "@" — так работает и сам Telegram username.
+export async function findUserByUsername(firestore, rawUsername) {
+  const needle = String(rawUsername || '').trim().replace(/^@/, '').toLowerCase();
+  if (!needle) return null;
+  const rows = await firestore.listCollection('users');
+  const match = rows.find((r) => String(r.data.telegramUsername || '').toLowerCase() === needle);
+  return match ? { uid: match.id, ...match.data } : null;
+}
+
 export async function getUserStatsOverview(firestore) {
   const rows = await firestore.listCollection('users');
   const now = Date.now();

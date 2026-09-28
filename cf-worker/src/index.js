@@ -23,7 +23,7 @@ import { isDuplicateTurn } from './ai/idempotency.js';
 import {
   tryUnlockAdmin, lockAdmin, isUserAdmin, redeemPromoCode, createPromoCode, listPromoCodes,
   submitSupportMessage, listSupportMessages, submitDevRequest, listDevRequests, resolveDevRequest,
-  touchUserActivity, getUserStatsOverview, listAllUsers,
+  touchUserActivity, getUserStatsOverview, listAllUsers, findUserByUsername,
 } from './admin.js';
 import { hasPremium, getSubscription, grantPremium, revokePremium } from './subscription.js';
 import { saveClassificationRule } from './ai/classify.js';
@@ -205,6 +205,24 @@ async function handleTelegramFreeText(env, firestore, token, message) {
     await firestore.mergeDoc(`users/${uid}`, { pendingDevRequestInput: null });
     await submitDevRequest(firestore, { uid, text: message.text });
     await sendMessage(token, message.chat.id, '📝 Записал — будет видно в панели разработчика.');
+    return;
+  }
+  // "🔎 Найти по нику" в списке пользователей панели разработчика (только у админа — см. runAction
+  // в bot.js) — по прямой просьбе пользователя: выдавать Premium можно, напечатав ник (тот же
+  // тот же паттерн pendingXInput, что и выше). isUserAdmin перепроверяем здесь же — флаг мог
+  // быть выставлен раньше, но права с тех пор могли смениться (см. lockAdmin).
+  if (user && user.pendingAdminUserSearch) {
+    await firestore.mergeDoc(`users/${uid}`, { pendingAdminUserSearch: null });
+    if (!(await isUserAdmin(firestore, uid))) return;
+    const found = await findUserByUsername(firestore, message.text);
+    if (!found) {
+      await sendMessage(token, message.chat.id, `❌ Не нашёл пользователя с ником «${escapeHtml(String(message.text || '').trim())}». Проверь, что он входил через Telegram-виджет на сайте.`);
+      const payload = await renderScreen(env, firestore, uid, 'admin:stats');
+      await renderToMainMenu(env, firestore, token, uid, message.chat.id, payload, { forceNew: true });
+      return;
+    }
+    const payload = await renderScreen(env, firestore, uid, `admin:user:${found.uid}`);
+    await renderToMainMenu(env, firestore, token, uid, message.chat.id, payload, { forceNew: true });
     return;
   }
   // Промокод — просто присланный текст, без отдельной кнопки (по просьбе пользователя: "можно
@@ -413,6 +431,7 @@ async function handleTelegramWebhook(req, env, firestore) {
       // если пользователь передумал и ушёл в другой раздел, ничего не подтвердив/не написав.
       await firestore.mergeDoc(`users/${uid}`, {
         pendingFinanceInput: null, pendingAiActions: null, pendingSupportInput: null, pendingDevRequestInput: null,
+        pendingAdminUserSearch: null,
       });
       const payload = await renderScreen(env, firestore, uid, screen);
       await answerCallbackQuery(token, cq.id);
@@ -809,7 +828,15 @@ async function handleAdminUserDetail(req, env, firestore) {
   }
   if (!(await isUserAdmin(firestore, uid))) return json({ error: 'forbidden' }, 403, AI_CORS_HEADERS);
   const body = await req.json().catch(() => ({}));
-  const targetUid = String(body.uid || '');
+  let targetUid = String(body.uid || '');
+  // Поиск по нику вместо uid (см. ТЗ: "отправив этот ник в панели разработчика давался Атлас") —
+  // тот же самый ответ, что и по клику в списке, просто другой способ найти пользователя, когда
+  // его uid неизвестен/неудобно листать список руками.
+  if (!targetUid && body.username) {
+    const found = await findUserByUsername(firestore, body.username);
+    if (!found) return json({ error: `Пользователь с ником «${String(body.username).trim()}» не найден` }, 404, AI_CORS_HEADERS);
+    targetUid = found.uid;
+  }
   if (!targetUid) return json({ error: 'missing uid' }, 400, AI_CORS_HEADERS);
   const [user, usage] = await Promise.all([
     firestore.getDoc(`users/${targetUid}`),

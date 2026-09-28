@@ -24,8 +24,9 @@ import { confirmActions } from './ai/router.js';
 import { getUsageOverview } from './ai/usage.js';
 import {
   isUserAdmin, lockAdmin, listSupportMessages, listPromoCodes, createPromoCode,
-  listDevRequests, getUserStatsOverview,
+  listDevRequests, getUserStatsOverview, listAllUsers,
 } from './admin.js';
+import { grantPremium, revokePremium, subscriptionStatus } from './subscription.js';
 
 const EVENT_LIST_CAP = 8;
 const HABIT_LIST_CAP = 12;
@@ -171,12 +172,34 @@ async function renderAdminScreen(firestore, uid) {
   };
 }
 
+// То же текстовое зеркало subscriptionLabel из index.html (см. renderHomeAdminUser) — там и
+// здесь один и тот же смысл поля users/{uid}.subscription, просто два разных места отрисовки
+// (веб и бот), по требованию ТЗ п.27 "клик по пользователю выдаёт/отзывает Premium из ЛЮБОЙ
+// панели разработчика, не только с сайта".
+function subscriptionLabel(sub) {
+  if (!sub || sub.status === 'cancelled') return sub && sub.status === 'cancelled' ? 'Отозвана' : 'Нет';
+  if (sub.lifetime) return 'Бессрочно';
+  if (sub.expiresAt == null) return 'Активна';
+  if (sub.expiresAt < Date.now()) return `Истекла ${new Date(sub.expiresAt).toLocaleDateString('ru-RU')}`;
+  return `До ${new Date(sub.expiresAt).toLocaleDateString('ru-RU')}`;
+}
+
 async function renderAdminStatsScreen(firestore, uid) {
   if (!(await isUserAdmin(firestore, uid))) return renderHome(false);
-  const stats = await getUserStatsOverview(firestore);
+  const [stats, allUsers] = await Promise.all([getUserStatsOverview(firestore), listAllUsers(firestore)]);
   const top = stats.topActive.length
     ? stats.topActive.map((u, i) => `${i + 1}. ${escapeHtml(u.name)} — ${u.activeDaysCount} ${pluralRu(u.activeDaysCount, 'день', 'дня', 'дней')} активности`).join('\n')
     : 'Пока нет данных.';
+  // Клик по пользователю ниже открывает карточку с выдачей/отзывом Premium (см.
+  // renderAdminUserScreen) — тот же сценарий, что "кликабельный список" в веб-панели
+  // разработчика (index.html#renderHomeAdmin), только кнопками, а не строками списка (в
+  // Telegram-сообщении сам текст кликабельным не сделать). 💎 — у кого сейчас активен Premium.
+  // Показываем ник (@username) прямо в тексте кнопки — по просьбе пользователя "показывался ник
+  // в соц сети для регистрации", не только имя из профиля.
+  const userRows = allUsers.slice(0, 20).map((u) => [{
+    text: `${subscriptionStatus(u.subscription) === 'active' ? '💎 ' : ''}${u.name}${u.telegramUsername ? ` (@${u.telegramUsername})` : ''}`.slice(0, 64),
+    callback_data: `s:admin:user:${u.uid}`,
+  }]);
   return {
     text: [
       '👥 <b>Пользователи</b>', '',
@@ -184,8 +207,46 @@ async function renderAdminStatsScreen(firestore, uid) {
       `Новых сегодня: ${stats.newToday} · за 7 дней: ${stats.newWeek}`,
       `Активны сегодня: ${stats.activeToday} · за 7 дней: ${stats.activeWeek} · за 30 дней: ${stats.activeMonth}`,
       '', '<b>По частоте заходов:</b>', top,
+      '', 'Нажми на пользователя, чтобы выдать или отозвать Premium (Atlas), или найди по нику:',
     ].join('\n'),
-    reply_markup: { inline_keyboard: [[{ text: '🛠 Назад', callback_data: 's:admin' }]] },
+    reply_markup: {
+      inline_keyboard: [
+        ...userRows,
+        [{ text: '🔎 Найти по нику', callback_data: 'a:adminusersearch' }],
+        [{ text: '🛠 Назад', callback_data: 's:admin' }],
+      ],
+    },
+  };
+}
+
+// Карточка одного пользователя — уникальные данные о Premium прямо тут же, не отдельным
+// AI-эндпоинтом: только firestore.getDoc + subscriptionLabel, без сети наружу.
+async function renderAdminUserScreen(firestore, uid, targetUid) {
+  if (!(await isUserAdmin(firestore, uid))) return renderHome(false);
+  const user = await firestore.getDoc(`users/${targetUid}`);
+  if (!user) {
+    return {
+      text: '👤 <b>Пользователь</b>\n\nНе найден (возможно, аккаунт отвязан).',
+      reply_markup: { inline_keyboard: [[{ text: '🛠 Назад', callback_data: 's:admin:stats' }]] },
+    };
+  }
+  const sub = user.subscription || null;
+  const active = subscriptionStatus(sub) === 'active';
+  const name = user.telegramFirstName || user.telegramUsername || targetUid;
+  const identity = user.telegramUsername ? `@${escapeHtml(user.telegramUsername)} · <code>${escapeHtml(targetUid)}</code>` : `<code>${escapeHtml(targetUid)}</code>`;
+  const rows = [
+    [{ text: '+30 дней', callback_data: `a:adminuser:grant30:${targetUid}` }, { text: '+90 дней', callback_data: `a:adminuser:grant90:${targetUid}` }],
+    [{ text: 'Бессрочно', callback_data: `a:adminuser:lifetime:${targetUid}` }],
+  ];
+  if (active) rows.push([{ text: '🚫 Отозвать Premium', callback_data: `a:adminuser:revoke:${targetUid}` }]);
+  rows.push([{ text: '🛠 Назад', callback_data: 's:admin:stats' }]);
+  return {
+    text: [
+      `👤 <b>${escapeHtml(name)}</b>`, '',
+      identity, '',
+      `<b>Premium (Atlas)</b>: ${subscriptionLabel(sub)}${sub?.source ? ` · источник: ${escapeHtml(sub.source)}` : ''}`,
+    ].join('\n'),
+    reply_markup: { inline_keyboard: rows },
   };
 }
 
@@ -608,6 +669,7 @@ export async function renderScreen(env, firestore, uid, screen) {
   if (screen === 'support') return renderSupportPromptScreen();
   if (screen === 'admin') return renderAdminScreen(firestore, uid);
   if (screen === 'admin:stats') return renderAdminStatsScreen(firestore, uid);
+  if (screen.startsWith('admin:user:')) return renderAdminUserScreen(firestore, uid, screen.slice('admin:user:'.length));
   if (screen === 'admin:usage') return renderAdminUsageScreen(firestore, uid);
   if (screen === 'admin:support') return renderAdminSupportScreen(firestore, uid);
   if (screen === 'admin:devrequests') return renderAdminDevRequestsScreen(firestore, uid);
@@ -645,6 +707,28 @@ export async function runAction(firestore, uid, action) {
     // в index.js#handleTelegramFreeText, а не уходит в AI.
     await firestore.mergeDoc(`users/${uid}`, { pendingDevRequestInput: true });
     return { toast: null, nextScreen: 'admin:devrequest' };
+  }
+  if (action === 'adminusersearch') {
+    if (!(await isUserAdmin(firestore, uid))) return { toast: 'Недоступно', nextScreen: 'home' };
+    // Тот же паттерн, что financeprompt/supportprompt/devrequestprompt выше — следующее
+    // сообщение ловит pendingAdminUserSearch в index.js#handleTelegramFreeText и ищет
+    // пользователя по нику, а не уходит в AI/промокод.
+    await firestore.mergeDoc(`users/${uid}`, { pendingAdminUserSearch: true });
+    return { toast: 'Напиши ник, например @nikita', nextScreen: 'admin:stats' };
+  }
+  if (action.startsWith('adminuser:')) {
+    if (!(await isUserAdmin(firestore, uid))) return { toast: 'Недоступно', nextScreen: 'home' };
+    const rest = action.slice('adminuser:'.length);
+    const sep = rest.indexOf(':');
+    const op = sep === -1 ? rest : rest.slice(0, sep);
+    const targetUid = sep === -1 ? '' : rest.slice(sep + 1);
+    if (!targetUid) return { toast: 'Не нашёл пользователя', nextScreen: 'admin:stats' };
+    if (op === 'grant30') await grantPremium(firestore, targetUid, { days: 30, source: 'admin', grantedBy: uid });
+    else if (op === 'grant90') await grantPremium(firestore, targetUid, { days: 90, source: 'admin', grantedBy: uid });
+    else if (op === 'lifetime') await grantPremium(firestore, targetUid, { lifetime: true, source: 'admin', grantedBy: uid });
+    else if (op === 'revoke') await revokePremium(firestore, targetUid);
+    else return { toast: 'Неизвестное действие', nextScreen: `admin:user:${targetUid}` };
+    return { toast: op === 'revoke' ? 'Premium отозван' : 'Premium выдан', nextScreen: `admin:user:${targetUid}` };
   }
   if (action === 'adminlogout') {
     // Реальный выход, а не просто скрытие кнопки — снимает isAdmin на сервере (см. lockAdmin
