@@ -1035,7 +1035,14 @@ select.field { appearance:none; }
    (десктопная 2-колоночная сетка) подхватывает её без отдельного исключения — тот же баг, что
    недавно чинили у .fin-tabs, здесь заранее не воспроизводится. */
 .fin-flow {padding-bottom:14px;}
-.fin-flow-scroll {overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x;cursor:grab;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);}
+/* touch-action:pan-x pan-y (не просто pan-x) — иначе браузер разрешает пальцу только
+   горизонтальный жест НА ЭТОЙ полосе, а вертикальный драг, начатый прямо на ней, никуда не
+   передаётся (у элемента overflow-y:hidden, скроллить вертикально ему нечем) — жест просто
+   "гасится", и страница скроллится вверх/вниз только если схватиться мимо полосы, например за
+   легенду под ней. С pan-x pan-y браузер сам определяет ось жеста: горизонтальный — крутит
+   полосу нативно (overflow-x:auto), вертикальный — раз у полосы нет вертикального оверфлоу,
+   уходит выше по дереву и скроллит страницу как обычно. */
+.fin-flow-scroll {overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x pan-y;cursor:grab;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);}
 .fin-flow-scroll.is-dragging {cursor:grabbing;scroll-snap-type:none;}
 .fin-flow-scroll::-webkit-scrollbar {display:none;}
 .fin-flow-track {display:flex;align-items:flex-start;gap:7px;padding:2px 6px 0;width:max-content;}
@@ -2141,7 +2148,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.34.0';
+  const APP_VERSION = '0.34.1';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6310,7 +6317,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Атлас теперь понимает операции глубже, чем «сумма + категория» — распознаёт место траты, получателя перевода и цель платежа, а большинство вопросов о финансах («сколько я потратил на кофе за год?», «когда я последний раз переводил Мише?») считает мгновенно и бесплатно, без обращения к ИИ. Появились месячные лимиты расходов по категориям на главном экране Финансов. Atlas стал доступен по подписке Premium — управлять доступом можно из панели разработчика, выдавая пользователям +30/+90 дней или бессрочный доступ.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">На плашке «Движение денег» в Финансах вертикальный скролл экрана теперь работает при касании в любом месте графика, а не только за его пределами — раньше прокрутить страницу пальцем можно было, только если схватиться мимо самой ленты дней.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.34.0</div><p class="settings-note">Атлас теперь понимает операции глубже, чем «сумма + категория» — распознаёт место траты, получателя перевода и цель платежа, а большинство вопросов о финансах («сколько я потратил на кофе за год?», «когда я последний раз переводил Мише?») считает мгновенно и бесплатно, без обращения к ИИ. Появились месячные лимиты расходов по категориям на главном экране Финансов. Atlas стал доступен по подписке Premium — управлять доступом можно из панели разработчика, выдавая пользователям +30/+90 дней или бессрочный доступ.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.33.0</div><p class="settings-note">На главном экране Финансов появился компактный график «Движение денег» под кругом баланса — по дням показывает фактические доходы (зелёным) и расходы (красным), а также ожидаемые пополнения и обязательные будущие платежи (жёлтым). Лента листается горизонтально, масштаб подстраивается под твои суммы, а тап по дню показывает разбивку.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.32.0</div><p class="settings-note">Приложение на широком экране ноутбука/монитора больше не растягивается на всю ширину — Финансы, Планер, Привычки и Атлас теперь укладываются в удобную колонку по центру, как и было задумано, а не расползаются на весь монитор. Мобильная версия не менялась.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.31.3</div><p class="settings-note">Иконки нижнего меню всё ещё стояли выше, чем в других приложениях — предыдущая правка (по центру полосы) сдвигала их недостаточно. Теперь они заметно ближе к нижнему краю экрана.</p></div>
