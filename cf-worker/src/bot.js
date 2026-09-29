@@ -533,7 +533,8 @@ function aiActionCard(a) {
   switch (a.action) {
     case 'create_event': {
       const when = [aiDayLabel(a.date), a.time].filter(Boolean).join(' · ');
-      return `📅 ${escapeHtml(a.title || '')}\n${when || 'Без даты'}`;
+      const sectionLine = a.section ? `\n📁 ${escapeHtml(a.section)}` : '';
+      return `📅 ${escapeHtml(a.title || '')}\n${when || 'Без даты'}${sectionLine}`;
     }
     case 'complete_event':
       return `📅 ${escapeHtml(a.title || '')}\nОтметить выполненным`;
@@ -554,6 +555,15 @@ function aiActionCard(a) {
   }
 }
 
+// Пока хотя бы у одного create_event нет раздела (и его ещё не спрашивали — см. _sectionAsked
+// ниже) — подтверждать рано, сперва спросить куда добавить (по прямой просьбе пользователя: "надо
+// чтобы возникал вопрос в какой раздел добавить, чтобы добавлялось не во все, а в определённый").
+// _sectionAsked — служебное поле ТОЛЬКО для этой проверки (execCreateEvent его не читает и не
+// пишет), выставляется при выборе "Без раздела", чтобы не спрашивать повторно на каждый рендер.
+function needsSectionChoice(actions) {
+  return (actions || []).some((a) => a.action === 'create_event' && !a.section && !a._sectionAsked);
+}
+
 // plan = {reply, actions, rejected} от planTurn — actions тут ещё НЕ применены (см. п.16/18
 // исходной просьбы: несколько действий сразу требуют явного подтверждения), только показаны на
 // подтверждение; сам список на этот момент уже сохранён в users/{uid}.pendingAiActions
@@ -561,7 +571,21 @@ function aiActionCard(a) {
 // Когда actions есть, заголовок — фиксированная фраза "Хорошо, я понял так:" (не текст модели —
 // он бы дублировал уже показанные ниже карточки); reply модели показывается только когда action'ов
 // нет вовсе (обычный вопрос-ответ) — по референсу пользователя.
-export function renderAiPlanScreen(plan) {
+//
+// firestore/uid — нужны, чтобы прочитать реальные разделы Планера (см. needsSectionChoice выше):
+// это ЕДИНСТВЕННОЕ место во всём боте, откуда собирается этот экран (index.js#handleAiTurn и
+// сам этот файл при screen==='aiplan' после выбора раздела), поэтому проще получать разделы
+// прямо здесь, чем заставлять оба вызывающих места знать об этой внутренней детали экрана.
+// После выбора раздела (см. runAction#setsection ниже) нужно перерисовать ЭТОТ ЖЕ экран заново
+// (уже с подтягом раздела к действиям) — сам plan никуда не сохранён отдельно от Firestore,
+// поэтому перечитываем pendingAiActions и собираем тот же по форме объект, что вернул бы planTurn.
+async function renderAiPlanScreenFromPending(firestore, uid) {
+  const user = await firestore.getDoc(`users/${uid}`);
+  const actions = Array.isArray(user?.pendingAiActions) ? user.pendingAiActions : [];
+  return renderAiPlanScreen(firestore, uid, { actions, reply: '', rejected: [] });
+}
+
+export async function renderAiPlanScreen(firestore, uid, plan) {
   const hasActions = plan.actions && plan.actions.length;
   const lines = [hasActions ? '🤖 Атлас понял так:' : '🤖 ' + escapeHtml(plan.reply || 'Готово.')];
   if (plan.rejected && plan.rejected.length) {
@@ -570,8 +594,25 @@ export function renderAiPlanScreen(plan) {
   const rows = [];
   if (hasActions) {
     lines.push('', plan.actions.map((a) => aiActionCard(a)).join('\n\n'));
-    rows.push([{ text: '✅ Подтвердить', callback_data: 'a:aiconfirm' }]);
-    rows.push([{ text: '✕ Отмена', callback_data: 'a:aicancel' }]);
+    if (needsSectionChoice(plan.actions)) {
+      const plannerDoc = await getPlannerDoc(firestore, uid);
+      const sections = (plannerDoc.sections || []).filter((s) => s && s.id);
+      if (sections.length) {
+        lines.push('', 'В какой раздел добавить?');
+        for (const s of sections) {
+          rows.push([{ text: `${sectionEmoji(s)} ${s.name || 'Без названия'}`.slice(0, 64), callback_data: `a:setsection:${s.id}` }]);
+        }
+        rows.push([{ text: 'Без раздела', callback_data: 'a:setsection:none' }]);
+        rows.push([{ text: '✕ Отмена', callback_data: 'a:aicancel' }]);
+      } else {
+        // Разделов вообще ещё нет — спрашивать не о чем, ведём себя как раньше (сразу подтверждение).
+        rows.push([{ text: '✅ Подтвердить', callback_data: 'a:aiconfirm' }]);
+        rows.push([{ text: '✕ Отмена', callback_data: 'a:aicancel' }]);
+      }
+    } else {
+      rows.push([{ text: '✅ Подтвердить', callback_data: 'a:aiconfirm' }]);
+      rows.push([{ text: '✕ Отмена', callback_data: 'a:aicancel' }]);
+    }
   }
   rows.push([{ text: '🏠 Главное меню', callback_data: 's:home' }]);
   return { text: lines.join('\n'), reply_markup: { inline_keyboard: rows } };
@@ -664,6 +705,7 @@ export async function renderScreen(env, firestore, uid, screen) {
   if (screen.startsWith('habit:')) return renderHabitDetail(env, firestore, uid, screen.slice('habit:'.length));
   if (screen === 'finance') return renderFinanceScreen(env, firestore, uid);
   if (screen.startsWith('finance:prompt:')) return renderFinancePromptScreen(screen.slice('finance:prompt:'.length));
+  if (screen === 'aiplan') return renderAiPlanScreenFromPending(firestore, uid);
   if (screen === 'news') return renderNewsScreen();
   if (screen === 'today') return renderTodayScreen(env, firestore, uid);
   if (screen === 'support') return renderSupportPromptScreen();
@@ -735,6 +777,31 @@ export async function runAction(firestore, uid, action) {
     // в admin.js), поэтому без повторного ввода пароля панель больше не откроется.
     await lockAdmin(firestore, uid);
     return { toast: 'Вышел из режима разработчика', nextScreen: 'home' };
+  }
+  if (action.startsWith('setsection:')) {
+    // Ответ на "в какой раздел добавить?" (см. needsSectionChoice/renderAiPlanScreen выше) — не
+    // применяет действия, только дозаполняет section у ещё не спрошенных create_event в
+    // pendingAiActions и возвращает на тот же экран aiplan, где он теперь либо покажет обычное
+    // подтверждение (раздел проставлен всем), либо — при Гудвин-импорте с несколькими событиями —
+    // сразу все карточки с одним и тем же выбранным разделом (не спрашивает по одному на каждую).
+    const raw = action.slice('setsection:'.length);
+    const user = await firestore.getDoc(`users/${uid}`);
+    const pending = Array.isArray(user?.pendingAiActions) ? user.pendingAiActions : [];
+    if (!pending.length) return { toast: 'Нечего подтверждать', nextScreen: 'home' };
+    let sectionName = null;
+    if (raw !== 'none') {
+      const plannerDoc = await getPlannerDoc(firestore, uid);
+      const section = (plannerDoc.sections || []).find((s) => s && s.id === raw);
+      sectionName = section ? section.name || null : null;
+    }
+    const updated = pending.map((a) => {
+      if (a.action === 'create_event' && !a.section && !a._sectionAsked) {
+        return { ...a, section: sectionName, _sectionAsked: true };
+      }
+      return a;
+    });
+    await firestore.mergeDoc(`users/${uid}`, { pendingAiActions: updated });
+    return { toast: null, nextScreen: 'aiplan' };
   }
   if (action === 'aiconfirm') {
     // Список действий на подтверждение не помещается в callback_data (лимит Telegram — 64

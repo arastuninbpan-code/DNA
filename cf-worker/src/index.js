@@ -296,7 +296,7 @@ async function handleAiTurn(env, firestore, token, uid, chatId, text, source = '
     // forceNew — ответ AI всегда заново отправляется внизу чата, у самого поля ввода, а не
     // редактирует старое сообщение на его прежнем месте (оно могло уже уйти вверх под новыми
     // сообщениями переписки и стать не видно без прокрутки — см. просьбу пользователя).
-    await renderToMainMenu(env, firestore, token, uid, chatId, renderAiPlanScreen(plan), { forceNew: true });
+    await renderToMainMenu(env, firestore, token, uid, chatId, await renderAiPlanScreen(firestore, uid, plan), { forceNew: true });
   } catch (err) {
     console.error('handleAiTurn failed', err);
     await sendMessage(token, chatId, `🤖 Атлас сейчас недоступен: ${escapeHtml(String(err.message || err))}`);

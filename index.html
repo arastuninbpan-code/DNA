@@ -501,6 +501,8 @@ html[data-paused] .dna-track,dialog:not([open]) .dna-track {animation-play-state
 .ai-action-btn .icon { width: 16px; height: 16px; }
 .ai-action-confirm { background: var(--gold-strong); color: #171410; border-color: var(--gold-strong); }
 .ai-rejected-note { margin: 4px 0 0; font-size: .8125rem; color: #b6aa88; }
+.ai-section-choice { display: flex; flex-direction: column; gap: 8px; }
+.ai-section-btn { border-color: var(--pl-color, var(--gold)); color: var(--pl-color, var(--gold2)); }
 .ai-results-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: .875rem; }
 .ai-results-list li { display: flex; align-items: center; gap: 6px; }
 .ai-results-list .icon { width: 15px; height: 15px; }
@@ -2149,7 +2151,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.35.1';
+  const APP_VERSION = '0.36.0';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -6253,10 +6255,35 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `<div class="ai-msg ai-msg-ai">${m.text?`<div class="ai-bubble">${esc(m.text)}</div>`:''}${rejectedBlock}${pendingCard}${resultsBlock}</div>`;
   }
 
+  // Пока хотя бы у одного create_event нет раздела (и его ещё не спрашивали — см. _sectionAsked
+  // ниже) — подтверждать рано, сперва спросить куда добавить (тот же принцип, что и в боте —
+  // см. needsSectionChoice в cf-worker/src/bot.js, держим обе копии синхронными вручную, так как
+  // это разные рантаймы и общий модуль сюда не импортировать). _sectionAsked — служебное поле
+  // только для этой проверки, execCreateEvent на бэкенде его не читает и не пишет.
+  function needsAiSectionChoice(actions){
+    return (actions||[]).some(a=>a.action==='create_event'&&!a.section&&!a._sectionAsked);
+  }
+
   function renderAiActionsCard(m,i){
+    const actionsList = `<ul class="ai-actions-list">${m.pendingActions.map(a=>`<li>${esc(aiActionSummary(a))}</li>`).join('')}</ul>`;
+    if (needsAiSectionChoice(m.pendingActions)) {
+      const sections = state.planner.sections||[];
+      if (sections.length) {
+        return `<div class="ai-actions-card">
+          <p class="ai-actions-card-title">В какой раздел добавить?</p>
+          ${actionsList}
+          <div class="ai-section-choice">
+            ${sections.map(s=>`<button type="button" class="ai-action-btn ai-section-btn" style="--pl-color:${s.color}" data-ai-setsection="${i}:${esc(s.id)}">${esc(s.name||'Без названия')}</button>`).join('')}
+            <button type="button" class="ai-action-btn ai-section-btn" data-ai-setsection="${i}:none">Без раздела</button>
+            <button type="button" class="ai-action-btn ai-action-cancel" data-ai-cancel="${i}">${icon('close')} Отмена</button>
+          </div>
+        </div>`;
+      }
+      // Разделов вообще ещё нет — спрашивать не о чем, ведём себя как раньше (сразу подтверждение).
+    }
     return `<div class="ai-actions-card">
       <p class="ai-actions-card-title">Добавить это?</p>
-      <ul class="ai-actions-list">${m.pendingActions.map(a=>`<li>${esc(aiActionSummary(a))}</li>`).join('')}</ul>
+      ${actionsList}
       <div class="ai-actions-buttons">
         <button type="button" class="ai-action-btn ai-action-confirm" data-ai-confirm="${i}">${icon('check')} Добавить всё</button>
         <button type="button" class="ai-action-btn ai-action-cancel" data-ai-cancel="${i}">${icon('close')} Отмена</button>
@@ -6270,7 +6297,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
 
   function aiActionSummary(a){
     switch(a.action){
-      case 'create_event': return `Событие «${a.title||''}»${a.date?', '+aiDayLabel(a.date):''}${a.time?' в '+a.time:''}`;
+      case 'create_event': return `Событие «${a.title||''}»${a.date?', '+aiDayLabel(a.date):''}${a.time?' в '+a.time:''}${a.section?' · 📁 '+a.section:''}`;
       case 'create_expense': return `Расход ${finMoney(Math.abs(num(a.amount)))}${a.category?' · '+a.category:''}`;
       case 'create_income': return `Доход ${finMoney(Math.abs(num(a.amount)))}${a.description?' · '+a.description:''}`;
       case 'complete_habit': return `Привычка «${a.name||''}» — выполнено`;
@@ -6318,7 +6345,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Атлас теперь один раз автоматически повторяет запрос к ИИ при кратковременном сбое на стороне сервиса (например ошибка 520) — раньше такой сбой сразу показывался как «Атлас сейчас недоступен», хотя чаще всего достаточно было попробовать ещё раз.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Когда Атлас создаёт событие (командой, голосом или из пересланного уведомления от «Гудвина») и не понятно, в какой раздел Планера его добавить, теперь сначала спрашивает — и в приложении, и в Telegram-боте. Если раздел назван явно в самом сообщении («добавь в Работу») — переспрашивать не будет.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.35.2</div><p class="settings-note">Исправлена ошибка: если открыть приложение и сразу написать Атласу, иногда показывалось «Нужно войти через Telegram», хотя вход уже был выполнен — Firebase успевал восстановить сессию позже, чем уходил запрос. Теперь запрос дожидается восстановления сессии.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.35.1</div><p class="settings-note">Атлас теперь один раз автоматически повторяет запрос к ИИ при кратковременном сбое на стороне сервиса (например ошибка 520) — раньше такой сбой сразу показывался как «Атлас сейчас недоступен», хотя чаще всего достаточно было попробовать ещё раз.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.35.0</div><p class="settings-note">Атлас научился распознавать пересланные уведомления от бота «Гудвин» о назначенных играх и сразу предлагать добавить их в Планер — с временем, местом, гостями, телефоном и адресом в примечании. Разбор полностью локальный, без обращения к ИИ.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.34.5</div><p class="settings-note">Вопросы вроде «какие у меня планы на среду?» или «что у меня завтра?» теперь отвечаются мгновенно и точно по твоим реальным данным, без обращения к ИИ — раньше такой вопрос уходил модели, у которой не было данных ни про один день кроме сегодня/завтра, из-за чего она иногда путала день и отвечала данными сегодняшнего дня вместо запрошенного.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.34.4</div><p class="settings-note">Атлас теперь понимает дни недели («в среду», «в пятницу» и т.д.) при создании события с указанным временем — раньше такие сообщения либо ошибочно превращались в финансовую операцию, либо терялись при передаче модели. Теперь дата считается точно, без обращения к ИИ.</p></div>
@@ -6745,6 +6774,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     });
     $$('[data-ai-confirm]').forEach(b=>b.addEventListener('click',()=>confirmAiActions(+b.dataset.aiConfirm)));
     $$('[data-ai-cancel]').forEach(b=>b.addEventListener('click',()=>cancelAiActions(+b.dataset.aiCancel)));
+    $$('[data-ai-setsection]').forEach(b=>b.addEventListener('click',()=>{
+      const [idxStr,sectionId]=b.dataset.aiSetsection.split(':');
+      chooseAiSection(+idxStr,sectionId);
+    }));
     $$('[data-ai-quick]').forEach(b=>b.addEventListener('click',()=>{
       if(aiChat.status!=='idle')return;
       sendAiText(b.dataset.aiQuick);
@@ -6878,6 +6911,22 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     const m=aiChat.messages[msgIndex];
     if(!m)return;
     m.pendingActions=null;
+    reRenderAi();
+  }
+
+  // Ответ на "в какой раздел добавить?" (см. needsAiSectionChoice/renderAiActionsCard выше) — не
+  // применяет действия, только дозаполняет section у ещё не спрошенных create_event; ничего не
+  // шлёт на сервер — сам plan целиком живёт в aiChat.messages[i].pendingActions на клиенте (в
+  // отличие от бота, где то же самое хранится в Firestore, см. runAction#setsection в bot.js).
+  function chooseAiSection(msgIndex,sectionId){
+    const m=aiChat.messages[msgIndex];
+    if(!m||!m.pendingActions?.length)return;
+    const section=sectionId==='none'?null:plannerSectionById(sectionId);
+    const sectionName=section?section.name||null:null;
+    m.pendingActions=m.pendingActions.map(a=>{
+      if(a.action==='create_event'&&!a.section&&!a._sectionAsked)return{...a,section:sectionName,_sectionAsked:true};
+      return a;
+    });
     reRenderAi();
   }
 
@@ -9843,6 +9892,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     // т.п. (см. verifyFirebaseIdToken в cf-worker/src/jwt.js) — это тот же токен, которым
     // Firestore Security Rules и так проверяют доступ на клиенте, просто отдаём его явно.
     async function getIdToken() {
+      await authReadyOrTimeout;
       return auth.currentUser ? auth.currentUser.getIdToken() : null;
     }
 
@@ -9879,10 +9929,24 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
         (err) => console.error(`[DNA] ошибка подписки на приватные данные (${key}):`, err));
     }
 
+    // Реальный баг: пользователь уже вошёл через Telegram (профиль виден, остальные данные
+    // синхронизированы), но сообщение Атласу всё равно получало "Нужно войти через Telegram" —
+    // getIdToken() выше читает auth.currentUser, а Firebase Auth восстанавливает
+    // сохранённую сессию из своего хранилища АСИНХРОННО (первый onAuthStateChanged может занять
+    // заметное время после загрузки страницы) — если открыть Атлас и сразу отправить сообщение,
+    // auth.currentUser в этот момент ещё null, хотя секундой позже стал бы валидным. authReady
+    // ниже разрешается первым же вызовом onAuthStateChanged (неважно, есть пользователь или нет),
+    // и getIdToken() теперь ждёт именно этот момент, а не текущее (возможно, ещё не готовое)
+    // значение auth.currentUser. Таймаут — на случай, если Firebase вообще не смог
+    // инициализироваться (сеть/CDN недоступны) — тогда не виснем вечно, а ведём себя как раньше.
+    let resolveAuthReady;
+    const authReady = new Promise((resolve) => { resolveAuthReady = resolve; });
     onAuthStateChanged(auth, (user) => {
       window.DNAFirebase.currentUid = user ? user.uid : null;
       window.dispatchEvent(new CustomEvent('dna-auth-changed', { detail: { uid: user ? user.uid : null } }));
+      resolveAuthReady();
     });
+    const authReadyOrTimeout = Promise.race([authReady, new Promise((resolve) => setTimeout(resolve, 4000))]);
 
     function generateShareId(length = 8) {
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
