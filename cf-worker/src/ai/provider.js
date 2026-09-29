@@ -13,6 +13,23 @@ import { COLOR_NAME_TO_HEX } from '../reminders.js';
 const STT_URL = 'https://stt.api.cloud.yandex.net/speech/v1/stt:recognize';
 const GPT_URL = 'https://llm.api.cloud.yandex.net/foundationModels/v1/completion';
 
+// Живой баг: пользователь получил "YandexGPT: 520 error code: 520" — 520 не код самого
+// YandexGPT, а типичный код шлюза/edge при кратковременном сбое на стороне Yandex (не наш баг,
+// не проблема с конкретным запросом), раньше без единой попытки повтора пользователь просто видел
+// "Атлас сейчас недоступен". Повторяем ТОЛЬКО 5xx (серверная сторона могла восстановиться за
+// секунду) — 4xx (неверный ключ/формат запроса) повторять бессмысленно, тот же результат, только
+// зря вторая попытка и вторые деньги. Короткие паузы (не экспоненциальный backoff в секундах, как
+// у git push) — пользователь ждёт живой ответ в чате, а не фоновую операцию.
+async function fetchWithRetry(url, init, maxAttempts = 3) {
+  let res;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    res = await fetch(url, init);
+    if (res.ok || res.status < 500 || attempt === maxAttempts) return res;
+    await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+  }
+  return res;
+}
+
 export function createYandexProvider(env) {
   const apiKey = env.YANDEX_API_KEY;
   const folderId = env.YANDEX_FOLDER_ID;
@@ -41,7 +58,7 @@ export function createYandexProvider(env) {
       format,
       ...(format === 'lpcm' ? { sampleRateHertz: String(opts.sampleRateHertz || 16000) } : {}),
     });
-    const res = await fetch(`${STT_URL}?${params}`, {
+    const res = await fetchWithRetry(`${STT_URL}?${params}`, {
       method: 'POST',
       headers: { Authorization: `Api-Key ${apiKey}` },
       body: audioBytes,
@@ -61,7 +78,7 @@ export function createYandexProvider(env) {
   async function route(text, context, opts = {}) {
     assertConfigured();
     const model = opts.model === 'pro' ? 'yandexgpt' : 'yandexgpt-lite';
-    const res = await fetch(GPT_URL, {
+    const res = await fetchWithRetry(GPT_URL, {
       method: 'POST',
       headers: { Authorization: `Api-Key ${apiKey}`, 'content-type': 'application/json' },
       body: JSON.stringify({
