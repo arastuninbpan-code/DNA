@@ -189,6 +189,26 @@ function repairMissingActionKey(text) {
   return text.replace(/\{"([a-zA-Z_]+)\{([^{}]*)\}\}/g, (_m, name, fields) => `{"action":"${name}",${fields}}`);
 }
 
+// Другой вариант той же порчи многоэкшенового ответа (замечено на реальном сообщении —
+// одновременная просьба убрать одно напоминание и добавить другое): вместо потери ключа
+// "action" (см. repairMissingActionKey выше) модель оборачивает поля ОДНИМ ключом-именем
+// действия — {"delete_event":{"title":...}} вместо {"action":"delete_event","title":...}.
+// Синтаксически валидный JSON (repairMissingActionKey тут не срабатывает — скобки не поломаны),
+// просто другая форма, поэтому чинится не текстовой заменой, а разворотом уже распарсенного
+// объекта. Разворачиваем для ЛЮБОГО единственного ключа со значением-объектом, не только
+// известных действий — если имя всё же не из ACTION_SCHEMA, validateAction ниже по цепочке
+// отклонит его как обычно ("unknown action"), просто с более точной причиной, чем общее
+// "malformed action".
+function unwrapActionShape(action) {
+  if (!action || typeof action !== 'object' || typeof action.action === 'string') return action;
+  const keys = Object.keys(action);
+  if (keys.length !== 1) return action;
+  const [name] = keys;
+  const value = action[name];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return action;
+  return { action: name, ...value };
+}
+
 // Модель иногда оборачивает JSON в ```json ... ``` несмотря на инструкцию отвечать без обёртки —
 // снимаем её перед парсингом. Отдельная проблема (замечена на yandexgpt-lite): вместо ОДНОГО
 // объекта {"actions":[...],"reply":"..."} модель иногда возвращает два отдельных top-level
@@ -219,7 +239,7 @@ function parseModelJson(raw) {
       if (reply === null && typeof parsed.reply === 'string') reply = parsed.reply;
     } catch (_) { /* не JSON — пропускаем этот кандидат */ }
   }
-  if (actions !== null || reply !== null) return { actions: actions || [], reply: reply || '' };
+  if (actions !== null || reply !== null) return { actions: (actions || []).map(unwrapActionShape), reply: reply || '' };
   if (looksLikeFailedJson(cleaned)) return { actions: [], reply: 'Не понял запрос — попробуй переформулировать.' };
   return { actions: [], reply: raw.trim() || 'Не понял запрос — попробуй переформулировать.' };
 }

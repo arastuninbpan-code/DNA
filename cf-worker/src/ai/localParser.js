@@ -175,8 +175,36 @@ export function resolveDayReference(text, todayKey, dateKeyAddDays) {
       return { dateKey: dateKeyAddDays(todayKey(), offset), offset };
     }
   }
+  // "что у меня 6 ноября?" — реальный баг: обычная календарная дата (не сегодня/завтра/день
+  // недели) вообще не распознавалась, вопрос падал в Lite, которая тоже не смогла ответить.
+  // Год подбираем НЕ как в goodwinParser.js#resolveYear (там любая прошедшая дата однозначно
+  // "в следующем году" — Гудвин всегда присылает уведомления про будущие игры). Здесь контекст
+  // другой: "что было 5 октября?" при сегодня=8 октября явно про недавнее прошлое ЭТОГО года, а
+  // не про 5 октября через год. Поэтому в следующий год переносим только дату, которая в текущем
+  // году уже больше чем пол-года как прошла (порог 180 дней) — тогда это почти наверняка вопрос
+  // про дату, которая ещё НЕ наступила ("1 января" в октябре значит следующий Новый год, а не
+  // тот, что был 9 месяцев назад), а недавнее прошлое остаётся недавним прошлым этого года.
+  const abs = ABSOLUTE_DATE.exec(text);
+  if (abs) {
+    const day = Number(abs[1]);
+    const month = RU_MONTHS_GENITIVE[abs[2].toLowerCase()];
+    const [ty, tm, td] = todayKey().split('-').map(Number);
+    const todayUTC = Date.UTC(ty, tm - 1, td);
+    let year = ty;
+    let candidate = Date.UTC(year, month - 1, day);
+    if (todayUTC - candidate > 180 * 86400000) { year += 1; candidate = Date.UTC(year, month - 1, day); }
+    const dt = new Date(candidate);
+    if (dt.getUTCMonth() === month - 1 && dt.getUTCDate() === day) { // отклоняем "31 февраля" и т.п. — Date тихо перекатывает в другой месяц
+      return { dateKey: dt.toISOString().slice(0, 10), offset: Math.round((candidate - todayUTC) / 86400000) };
+    }
+  }
   return null;
 }
+const RU_MONTHS_GENITIVE = {
+  января: 1, февраля: 2, марта: 3, апреля: 4, мая: 5, июня: 6,
+  июля: 7, августа: 8, сентября: 9, октября: 10, ноября: 11, декабря: 12,
+};
+const ABSOLUTE_DATE = /(?<![a-zа-яё0-9])(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?![a-zа-яё])/i;
 // "в 4 часа дня" / "в 9 вечера" — необязательный хвост "часа/часов/час" + уточнение времени суток
 // (утра/дня/вечера/ночи), захватывается ТЕМ ЖЕ матчем, что и час/минуты — иначе "часа дня" не
 // попадало в timeMatch[0] и оставалось в тексте как мусор (см. реальный баг: "встречу ... в 4 часа
@@ -184,6 +212,13 @@ export function resolveDayReference(text, todayKey, dateKeyAddDays) {
 // ":" ИЛИ "." (реальный баг: "в 9.00" не матчило ".00" как минуты, оставляя их в тексте мусором,
 // из-за чего строка "не уверены, остались другие цифры" ниже срабатывала и ломала распознавание).
 const TIME_PATTERN = /(?:^|[^a-zа-яё0-9])в\s+(\d{1,2})(?:[:.](\d{2}))?(?!\d)(?:\s*час(?:а|ов)?)?(?:\s*(утра|дня|вечера|ночи))?/i;
+// "Сегодня 14:40 пара" — реальный баг: время без предлога "в" перед ним вообще не матчило
+// TIME_PATTERN выше, и такая простая команда улетала в Lite/Pro вместо бесплатного локального
+// разбора. Отдельный, более узкий паттерн (не альтернатива внутри TIME_PATTERN) — пробуем только
+// если основной не сработал, чтобы не трогать уже проверенное поведение. Требуем именно ":"
+// (двоеточие обязательно): без предлога-подсказки "дв 14 40" слишком похоже на что угодно, а
+// "14:40" с двоеточием — уже достаточно сильный, однозначный сигнал времени.
+const TIME_PATTERN_BARE = /(?:^|[^a-zа-яё0-9])(\d{1,2}):(\d{2})(?!\d)/;
 const CREATION_HINT = /(запиши|запиш[ие]те|добавь|добавь?те|добав(?:ить|ил[аи]?)|создай|создать|поставь|поставить|запланируй|запланировать|назначь|назначить|назначьте)/i;
 // Естественная просьба-обёртка ("можешь мне назначить...", "не мог бы ты добавить...") — этот
 // разбор нацелен на короткие прямые команды ("встреча завтра в 9", "запиши тренировку завтра в
@@ -200,7 +235,9 @@ function tryCreateEventNarrow(text, dateKeyAddDays, todayKey) {
   if (FINANCE_HINT.test(text)) return null; // похоже на финансовую операцию, не на событие
   if (MODAL_REQUEST_HINT.test(text)) return null; // вежливая обёртка-просьба — не короткая прямая команда
 
-  const timeMatch = TIME_PATTERN.exec(text);
+  let timeMatch = TIME_PATTERN.exec(text);
+  let hasPreposition = true;
+  if (!timeMatch) { timeMatch = TIME_PATTERN_BARE.exec(text); hasPreposition = false; }
   if (!timeMatch) return null;
   let hour = Number(timeMatch[1]);
   const minute = timeMatch[2] ? Number(timeMatch[2]) : 0;
@@ -208,10 +245,11 @@ function tryCreateEventNarrow(text, dateKeyAddDays, todayKey) {
   // "4 дня"/"9 вечера" — разговорное 12-часовое время: 1-11 + дня/вечера означает "плюс 12"
   // (16:00/21:00), а не буквально 04:00/09:00; "утра"/"ночи" час не меняют (за исключением
   // "12 ночи" = полночь) — без этого "в 4 часа дня" создавало событие на 04:00, а не на 16:00.
-  const daypart = timeMatch[3];
+  // TIME_PATTERN_BARE (без предлога) daypart не поддерживает — "14:40" уже однозначно 24-часовое.
+  const daypart = hasPreposition ? timeMatch[3] : undefined;
   if (daypart === 'дня' || daypart === 'вечера') { if (hour >= 1 && hour <= 11) hour += 12; }
   else if (daypart === 'ночи') { if (hour === 12) hour = 0; }
-  const timeStart = timeMatch.index + timeMatch[0].indexOf('в');
+  const timeStart = hasPreposition ? timeMatch.index + timeMatch[0].indexOf('в') : timeMatch.index;
   let rest = text.slice(0, timeStart) + ' ' + text.slice(timeMatch.index + timeMatch[0].length);
 
   let dayOffset = null;
