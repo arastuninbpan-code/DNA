@@ -184,20 +184,8 @@ export function resolveDayReference(text, todayKey, dateKeyAddDays) {
   // году уже больше чем пол-года как прошла (порог 180 дней) — тогда это почти наверняка вопрос
   // про дату, которая ещё НЕ наступила ("1 января" в октябре значит следующий Новый год, а не
   // тот, что был 9 месяцев назад), а недавнее прошлое остаётся недавним прошлым этого года.
-  const abs = ABSOLUTE_DATE.exec(text);
-  if (abs) {
-    const day = Number(abs[1]);
-    const month = RU_MONTHS_GENITIVE[abs[2].toLowerCase()];
-    const [ty, tm, td] = todayKey().split('-').map(Number);
-    const todayUTC = Date.UTC(ty, tm - 1, td);
-    let year = ty;
-    let candidate = Date.UTC(year, month - 1, day);
-    if (todayUTC - candidate > 180 * 86400000) { year += 1; candidate = Date.UTC(year, month - 1, day); }
-    const dt = new Date(candidate);
-    if (dt.getUTCMonth() === month - 1 && dt.getUTCDate() === day) { // отклоняем "31 февраля" и т.п. — Date тихо перекатывает в другой месяц
-      return { dateKey: dt.toISOString().slice(0, 10), offset: Math.round((candidate - todayUTC) / 86400000) };
-    }
-  }
+  const abs = matchAbsoluteDate(text, todayKey());
+  if (abs) return { dateKey: abs.dateKey, offset: abs.offset };
   return null;
 }
 const RU_MONTHS_GENITIVE = {
@@ -205,6 +193,27 @@ const RU_MONTHS_GENITIVE = {
   июля: 7, августа: 8, сентября: 9, октября: 10, ноября: 11, декабря: 12,
 };
 const ABSOLUTE_DATE = /(?<![a-zа-яё0-9])(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?![a-zа-яё])/i;
+// Общий разбор "DD <месяц родительный>" — используется и в resolveDayReference выше (вопрос "что
+// у меня X числа?"), и в tryCreateEventNarrow ниже (команда создания события БЕЗ времени —
+// реальный баг: "7 ноября мероприятие соляная биржа" без explicitly указанного времени вообще не
+// распознавалась как событие и улетала в tryExpenseIncome, который принимал одинокое число "7" за
+// сумму в рублях). Возвращает не только dateKey, но и сам match — вызывающему нужно знать, какой
+// кусок текста вырезать, чтобы собрать заголовок/rest (так же, как уже делают DAY_WORDS/
+// WEEKDAY_WORDS в tryCreateEventNarrow).
+function matchAbsoluteDate(text, todayKeyStr) {
+  const abs = ABSOLUTE_DATE.exec(text);
+  if (!abs) return null;
+  const day = Number(abs[1]);
+  const month = RU_MONTHS_GENITIVE[abs[2].toLowerCase()];
+  const [ty, tm, td] = todayKeyStr.split('-').map(Number);
+  const todayUTC = Date.UTC(ty, tm - 1, td);
+  let year = ty;
+  let candidate = Date.UTC(year, month - 1, day);
+  if (todayUTC - candidate > 180 * 86400000) { year += 1; candidate = Date.UTC(year, month - 1, day); }
+  const dt = new Date(candidate);
+  if (dt.getUTCMonth() !== month - 1 || dt.getUTCDate() !== day) return null; // "31 февраля" и т.п. — Date тихо перекатывает в другой месяц
+  return { match: abs, dateKey: dt.toISOString().slice(0, 10), offset: Math.round((candidate - todayUTC) / 86400000) };
+}
 // "в 4 часа дня" / "в 9 вечера" — необязательный хвост "часа/часов/час" + уточнение времени суток
 // (утра/дня/вечера/ночи), захватывается ТЕМ ЖЕ матчем, что и час/минуты — иначе "часа дня" не
 // попадало в timeMatch[0] и оставалось в тексте как мусор (см. реальный баг: "встречу ... в 4 часа
@@ -238,38 +247,63 @@ function tryCreateEventNarrow(text, dateKeyAddDays, todayKey) {
   let timeMatch = TIME_PATTERN.exec(text);
   let hasPreposition = true;
   if (!timeMatch) { timeMatch = TIME_PATTERN_BARE.exec(text); hasPreposition = false; }
-  if (!timeMatch) return null;
-  let hour = Number(timeMatch[1]);
-  const minute = timeMatch[2] ? Number(timeMatch[2]) : 0;
-  if (hour > 23 || minute > 59) return null;
-  // "4 дня"/"9 вечера" — разговорное 12-часовое время: 1-11 + дня/вечера означает "плюс 12"
-  // (16:00/21:00), а не буквально 04:00/09:00; "утра"/"ночи" час не меняют (за исключением
-  // "12 ночи" = полночь) — без этого "в 4 часа дня" создавало событие на 04:00, а не на 16:00.
-  // TIME_PATTERN_BARE (без предлога) daypart не поддерживает — "14:40" уже однозначно 24-часовое.
-  const daypart = hasPreposition ? timeMatch[3] : undefined;
-  if (daypart === 'дня' || daypart === 'вечера') { if (hour >= 1 && hour <= 11) hour += 12; }
-  else if (daypart === 'ночи') { if (hour === 12) hour = 0; }
-  const timeStart = hasPreposition ? timeMatch.index + timeMatch[0].indexOf('в') : timeMatch.index;
-  let rest = text.slice(0, timeStart) + ' ' + text.slice(timeMatch.index + timeMatch[0].length);
+
+  let hour = null;
+  let minute = null;
+  let rest;
+  if (timeMatch) {
+    hour = Number(timeMatch[1]);
+    minute = timeMatch[2] ? Number(timeMatch[2]) : 0;
+    if (hour > 23 || minute > 59) return null;
+    // "4 дня"/"9 вечера" — разговорное 12-часовое время: 1-11 + дня/вечера означает "плюс 12"
+    // (16:00/21:00), а не буквально 04:00/09:00; "утра"/"ночи" час не меняют (за исключением
+    // "12 ночи" = полночь) — без этого "в 4 часа дня" создавало событие на 04:00, а не на 16:00.
+    // TIME_PATTERN_BARE (без предлога) daypart не поддерживает — "14:40" уже однозначно 24-часовое.
+    const daypart = hasPreposition ? timeMatch[3] : undefined;
+    if (daypart === 'дня' || daypart === 'вечера') { if (hour >= 1 && hour <= 11) hour += 12; }
+    else if (daypart === 'ночи') { if (hour === 12) hour = 0; }
+    const timeStart = hasPreposition ? timeMatch.index + timeMatch[0].indexOf('в') : timeMatch.index;
+    rest = text.slice(0, timeStart) + ' ' + text.slice(timeMatch.index + timeMatch[0].length);
+  } else {
+    // Без времени локально ищем ТОЛЬКО явную календарную дату ("7 ноября мероприятие...") — см.
+    // ветку ниже с matchAbsoluteDate. "Сегодня"/"завтра"/день недели БЕЗ времени намеренно не
+    // трогаем здесь (DAY_WORDS/WEEKDAY_WORDS ниже заведены строго внутри if(timeMatch) — см. эту
+    // же причину там): такие слова слишком обычны в простой переписке ("сегодня я устал"), и без
+    // якоря-времени превращать каждое такое сообщение в событие значило бы плодить ложные
+    // срабатывания. Явная календарная дата — куда более самостоятельный сигнал "речь о конкретном
+    // дне", поэтому для неё одной делаем исключение (реальный баг: "7 ноября мероприятие соляная
+    // биржа" без времени вообще не распознавалось и перехватывалось финансовым парсером — число
+    // "7" принималось за сумму в рублях).
+    rest = text;
+  }
 
   let dayOffset = null;
-  for (const [re, offset] of DAY_WORDS) {
-    const m = re.exec(rest);
-    if (m) {
-      dayOffset = offset;
-      rest = rest.slice(0, m.index) + ' ' + rest.slice(m.index + m[0].length);
-      break;
-    }
-  }
-  if (dayOffset === null) {
-    const todayDow = dayOfWeekIndex(todayKey());
-    for (const [re, targetDow] of WEEKDAY_WORDS) {
+  if (timeMatch) {
+    for (const [re, offset] of DAY_WORDS) {
       const m = re.exec(rest);
       if (m) {
-        dayOffset = (targetDow - todayDow + 7) % 7;
+        dayOffset = offset;
         rest = rest.slice(0, m.index) + ' ' + rest.slice(m.index + m[0].length);
         break;
       }
+    }
+    if (dayOffset === null) {
+      const todayDow = dayOfWeekIndex(todayKey());
+      for (const [re, targetDow] of WEEKDAY_WORDS) {
+        const m = re.exec(rest);
+        if (m) {
+          dayOffset = (targetDow - todayDow + 7) % 7;
+          rest = rest.slice(0, m.index) + ' ' + rest.slice(m.index + m[0].length);
+          break;
+        }
+      }
+    }
+  }
+  if (dayOffset === null) {
+    const abs = matchAbsoluteDate(rest, todayKey());
+    if (abs) {
+      dayOffset = abs.offset;
+      rest = rest.slice(0, abs.match.index) + ' ' + rest.slice(abs.match.index + abs.match[0].length);
     }
   }
   if (dayOffset === null) return null; // без явного дня — не гадаем "сегодня по умолчанию"
@@ -279,16 +313,18 @@ function tryCreateEventNarrow(text, dateKeyAddDays, todayKey) {
   if (!title || title.length > 60) return null;
 
   const dateKey = dateKeyAddDays(todayKey(), dayOffset);
-  const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const time = hour !== null ? `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}` : null;
   // Для дней недели дальше послезавтра — просто число.месяц в ответе (как и у dayLabel в bot.js),
   // а не склонение "в среду"/"в пятницу"/"в субботу" — падежные формы неправильного склонения
   // (среда->среду, пятница->пятницу, суббота->субботу) не стоят отдельной таблицы ради текста
   // одной строки подтверждения.
   const dayLabel = dayOffset === 0 ? 'сегодня' : dayOffset === 1 ? 'завтра' : dayOffset === 2 ? 'послезавтра' : dateKey.slice(8, 10) + '.' + dateKey.slice(5, 7);
   const titleCap = title[0].toUpperCase() + title.slice(1);
+  const action = { action: 'create_event', title: titleCap, date: dateKey };
+  if (time) action.time = time;
   return {
-    actions: [{ action: 'create_event', title: titleCap, date: dateKey, time }],
-    reply: `Вот что сделаю: 📅 ${titleCap} — ${dayLabel} · ${time}.`,
+    actions: [action],
+    reply: `Вот что сделаю: 📅 ${titleCap} — ${dayLabel}${time ? ' · ' + time : ''}.`,
   };
 }
 
@@ -305,6 +341,7 @@ function tryExpenseIncome(text, rules) {
   if (QUESTION_LIKE.test(t)) return null; // похоже на вопрос, не на команду создания
   if (OTHER_ACTION_KEYWORDS.test(t)) return null; // похоже на событие/привычку/раздел
   if (WEEKDAY_HINT.test(t)) return null; // "в среду"/"в пятницу" — похоже на событие, не на сумму
+  if (ABSOLUTE_DATE.test(t)) return null; // "7 ноября" — похоже на дату события, число дня — не сумма
   const numberMatches = t.match(/\d[\d\s.,]*/g) || [];
   if (numberMatches.length !== 1) return null; // больше одного числа — не уверены, какое сумма
 
