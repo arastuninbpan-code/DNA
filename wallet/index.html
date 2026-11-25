@@ -71,7 +71,9 @@ dialog{width:min(calc(100% - 24px),420px);max-height:calc(100dvh - 28px);padding
     <p class="empty" id="empty">Здесь появятся операции.</p>
     <ul id="history" class="list"></ul>
   </details>
-  <a class="telegram-link" href="https://t.me/nakarmoney_bot" target="_blank" rel="noopener noreferrer">Открыть бота в Telegram ↗</a>
+  <a class="telegram-link" id="telegram-link" href="https://t.me/nakarmoney_bot" target="_blank" rel="noopener noreferrer">Подключить Telegram ↗</a>
+  <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
+  <p class="empty" id="sync-status" role="status" hidden></p>
 </main>
 <dialog id="stats" aria-labelledby="stats-title">
   <div class="dialog-head">
@@ -128,6 +130,18 @@ let previousWallet = null;
 let drag = null;
 let keyboardSteps = 0;
 let editingId = null;
+const syncOrigin = 'https://nakarmoney-bot-webhook.a-rastuninbpan.chatgpt.site';
+const sessionKey = 'pocket-budget-telegram-session';
+const queueKey = 'pocket-budget-telegram-queue';
+const pairCode = globalThis.location?.hash.match(/(?:#|&)connect=([a-f0-9]{48})(?:&|$)/)?.[1];
+const canSync = globalThis.location?.origin==='https://arastuninbpan-code.github.io';
+let session = null, queue = [], syncing = false;
+try {
+  if (canSync) {
+    session = localStorage.getItem(sessionKey);
+    queue = JSON.parse(localStorage.getItem(queueKey)) || [];
+  }
+} catch {}
 const dial = get('dial');
 const stats = get('stats');
 const editor = get('editor');
@@ -181,11 +195,109 @@ function save(next,note) {
     return false;
   }
   previousWallet = wallet;
+  if (session) {
+    const change = difference(wallet,next);
+    if (change.set.length || change.remove.length || change.opening!==undefined) {
+      queue.push(change);
+      persistQueue();
+    }
+  }
   wallet = next;
   get('message').textContent = note;
   get('undo').hidden = false;
   render();
+  if (session) void sync();
   return true;
+}
+function syncStatus(message) {
+  get('sync-status').hidden = !message;
+  get('sync-status').textContent = message;
+}
+function persistQueue() {
+  try { localStorage.setItem(queueKey,JSON.stringify(queue)); } catch {}
+}
+function difference(before,after) {
+  const previous = new Map(before.entries.map(item=>[item.id,JSON.stringify(item)]));
+  const current = new Set(after.entries.map(item=>item.id));
+  const set = after.entries.filter(item=>previous.get(item.id)!==JSON.stringify(item));
+  const remove = before.entries.filter(item=>!current.has(item.id)).map(item=>item.id);
+  const opening = before.opening!==after.opening||before.openingSet!==after.openingSet ?
+    {opening:after.opening,openingDate:after.openingDate??null}: {};
+  return {set,remove,...opening};
+}
+async function api(path,method,body,token=session) {
+  const headers = body ? {'Content-Type':'application/json'} : {};
+  if (token) headers.Authorization = 'Bearer '+token;
+  const response = await fetch(syncOrigin+path,{method,headers,body:body?JSON.stringify(body):undefined,cache:'no-store'});
+  if (!response.ok) throw new Error(String(response.status));
+  return response.json();
+}
+function updateFromServer(remote) {
+  if (!validWallet(remote)) throw new Error('Invalid wallet');
+  const change = difference(wallet,remote);
+  if (previousWallet && (change.set.length||change.remove.length||wallet.opening!==remote.opening)) {
+    previousWallet=null; get('undo').hidden=true;
+  }
+  localStorage.setItem(key,JSON.stringify(remote));
+  wallet=remote;
+  render();
+}
+async function sync() {
+  if (syncing||!session||drag||editor.open) return;
+  syncing=true;
+  try {
+    let remote;
+    do {
+      if (queue.length) {
+        remote=await api('/wallet','PATCH',queue[0]);
+        queue.shift();
+        persistQueue();
+      } else {
+        remote=await api('/wallet','GET');
+      }
+    } while(queue.length);
+    if (!drag && !editor.open) updateFromServer(remote);
+    get('telegram-link').textContent='Открыть бота в Telegram ↗';
+    syncStatus('Telegram подключён');
+  } catch(error) {
+    syncStatus(error.message==='401'?'Сессия Telegram истекла. Введи /connect у бота.':'Жду связь с Telegram. Записи сохранены на устройстве.');
+  } finally {
+    syncing=false;
+  }
+}
+if (canSync && pairCode) {
+  const connect = get('connect-wallet');
+  connect.hidden=false;
+  connect.onclick=async ()=>{
+    connect.disabled=true;
+    try {
+      if (session) {
+        await sync();
+        if (queue.length) throw new Error('Pending');
+      }
+      const {token}=await api('/pair','POST',{code:pairCode},null);
+      const remote=await api('/wallet','GET',null,token);
+      const ids=new Set(remote.entries.map(item=>item.id));
+      const local=wallet.entries.filter(item=>!ids.has(item.id));
+      const initialOpening=remote.openingSet?{}:{opening:wallet.opening||0,openingDate:wallet.openingDate??null};
+      session=token;
+      localStorage.setItem(sessionKey,session);
+      queue=[{set:local.slice(0,150),quiet:true,...initialOpening}];
+      for (let i=150;i<local.length;i+=150)queue.push({set:local.slice(i,i+150),quiet:true});
+      persistQueue();
+      history.replaceState(null,'',location.pathname+location.search);
+      connect.hidden=true;
+      await sync();
+    } catch(error) {
+      syncStatus(error.message==='410'?'Ссылка истекла. Напиши /connect боту ещё раз.':'Подключение не удалось. Попробуй снова.');
+    } finally {
+      connect.disabled=false;
+    }
+  };
+}
+if (canSync) {
+  window.addEventListener('focus',()=>void sync());
+  window.setInterval(()=>void sync(),6500);
 }
 function post(item,sum) {
   const now = new Date(), date = dateFormat.format(now);
@@ -498,6 +610,7 @@ window.addEventListener('resize',()=>{
   if (stats.open) drawStats(summarize(wallet,dateFormat.format(new Date())));
 });
 render();
+if(session)void sync();
 </script>
 </body>
 </html>
