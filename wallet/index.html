@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.5.5">
+<link rel="manifest" href="manifest.webmanifest?v=1.5.6">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -56,6 +56,8 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 .day-button{flex:0 0 54px;min-width:0;min-height:58px;display:grid;place-content:center;justify-items:center;gap:1px;scroll-snap-align:center;border:1px solid transparent;background:transparent;border-radius:12px;padding:4px 1px;color:var(--muted);transition:background-color .2s,border-color .2s,color .2s}.day-button[aria-pressed=true]{background:#263633;border-color:#3d5a50;color:var(--text)}.day-button span{font-size:11px}.day-button strong{font-size:15px;font-variant-numeric:tabular-nums}.day-button::after{content:"";width:4px;height:4px;border-radius:50%;background:transparent}.day-button[data-entries]::after{background:var(--mint)}.day-button[data-future][data-entries]::after{background:#a7b8b7}.day-button:focus-visible{outline-offset:-2px}
 #stats .chart{margin:0;padding:10px 0 7px;border:0;border-top:1px solid #ffffff14;border-radius:0;background:none}#stats .chart h3{margin:0 0 4px;font-size:14px}#stats .chart-note{margin:0 0 5px;min-height:0}#stats .bars{height:82px;border-color:#344344;background:repeating-linear-gradient(to top,transparent 0 24%,#34434499 24% 25%);cursor:crosshair;touch-action:pan-y}#stats .bar-day{position:relative;padding-inline:1px}.bar-day.selected{background:#ffffff12;border-radius:3px 3px 0 0}.bar-day span{transition:opacity .2s}.bars:has(.selected) .bar-day:not(.selected) span{opacity:.7}#stats .line-chart{height:70px}
 .line.planned .line-button{flex:1;min-height:50px}.line.planned .line-button>span{min-width:0}
+.history-section{position:relative}.history-section summary{position:relative;min-height:52px;display:flex;justify-content:center;align-items:center;gap:4px;padding:3px 52px;list-style:none}.history-section summary::-webkit-details-marker{display:none}.history-section summary::after{content:"";width:6px;height:6px;margin-left:4px;border:solid var(--muted);border-width:0 1px 1px 0;transform:rotate(45deg) translateY(-2px)}.history-section details[open]>summary::after{transform:rotate(225deg) translateY(-1px)}.history-section summary:focus-visible{outline:none;text-decoration:underline;text-underline-offset:5px}
+.history-add{position:absolute;top:5px;z-index:1;width:44px;height:44px;display:grid;place-items:center;padding:0;border:1px solid var(--border);border-radius:13px;background:var(--panel);font-size:24px;line-height:1}.history-add:active{transform:scale(.95)}#add-expense{inset-inline-start:2px}#add-income{inset-inline-end:2px}
 @media(max-width:520px){#stats{margin:auto auto max(8px,env(safe-area-inset-bottom));max-height:calc(100dvh - 26px);padding:11px 14px 10px}}
 @media(prefers-reduced-motion:reduce){#stats[open]{animation:none}.day-button,.bar-day span{transition:none}}
 </style>
@@ -93,11 +95,15 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     </form>
     <label class="import-label"><span>Выбрать файл</span><input id="import" type="file" accept=".json,application/json"></label>
   </details>
-  <details>
-    <summary>История <span id="history-count"></span></summary>
-    <p class="empty" id="empty">Здесь появятся операции.</p>
-    <ul id="history" class="list"></ul>
-  </details>
+  <section class="history-section" aria-label="Операции">
+    <button class="history-add expense" id="add-expense" type="button" aria-label="Добавить трату">−</button>
+    <button class="history-add income" id="add-income" type="button" aria-label="Добавить пополнение">+</button>
+    <details>
+      <summary>История <span id="history-count"></span></summary>
+      <p class="empty" id="empty">Здесь появятся операции.</p>
+      <ul id="history" class="list"></ul>
+    </details>
+  </section>
   <details id="telegram-setup" hidden>
     <summary>Подключить Telegram</summary>
     <form id="connect-code-form" class="editor-fields">
@@ -108,7 +114,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
   </details>
   <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
   <p class="empty" id="sync-status" role="status" hidden></p>
-  <footer class="version">Версия 1.5.5</footer>
+  <footer class="version">Версия 1.5.6</footer>
 </main>
 <dialog id="stats" aria-labelledby="stats-title">
   <div class="dialog-head">
@@ -135,13 +141,13 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <form method="dialog"><button class="close" aria-label="Закрыть">×</button></form>
   </div>
   <form id="edit-form" class="editor-fields">
-    <label id="edit-date-label" hidden>Дата по плану<input id="edit-date" type="date" disabled required></label>
     <label>Сумма, ₽<input id="edit-amount" type="text" required aria-describedby="edit-amount-hint"><span id="edit-amount-hint">− расход, + пополнение. Например, −15.000,31</span></label>
     <label>Подпись<input id="edit-label" type="text" maxlength="90" placeholder="Например, кофе"></label>
+    <label id="edit-date-label" hidden><span id="edit-date-title">Дата</span><input id="edit-date" type="date" disabled></label>
     <p id="editor-error" class="editor-error" role="alert" hidden></p>
-    <button class="primary" type="submit">Сохранить правку</button>
+    <button class="primary" id="editor-save" type="submit">Сохранить правку</button>
   </form>
-  <div class="delete-area">
+  <div class="delete-area" id="delete-area">
     <button class="delete-link" id="delete-operation" type="button">Удалить операцию…</button>
     <div class="delete-confirm" id="delete-confirm" hidden>
       <p>Удалить эту операцию из истории?</p>
@@ -177,6 +183,7 @@ let noticeTimer;
 let drag = null;
 let keyboardSteps = 0;
 let editingId = null;
+let creatingSign = null;
 let tipIndex = 0;
 let tipTimer;
 let tipText = '';
@@ -367,11 +374,14 @@ if (canSync) {
   window.addEventListener('focus',()=>void sync());
   window.setInterval(()=>void sync(),6500);
 }
+function operationId(instant) {
+  return globalThis.crypto?.randomUUID?.()||instant+'-'+Math.random();
+}
 function post(item,sum) {
   const now = new Date(), date = dateFormat.format(now);
   const postedAt = now.toISOString();
   const record = item ? {...item,done:true,postedAt} : {
-    id:globalThis.crypto?.randomUUID?.()||postedAt+'-'+Math.random(),
+    id:operationId(postedAt),
     sum,date,postedAt,label:sum<0?'Трата':'Пополнение',added:true
   };
   const entries = item ? wallet.entries.map(entry=>entry.id===item.id?record:entry) : [...wallet.entries,record];
@@ -730,24 +740,47 @@ dial.addEventListener('keydown',event=>{
 function openEditor(item) {
   if (editor.open) return;
   editingId = item.id;
+  creatingSign = null;
   const planned=!isActual(item,dateFormat.format(new Date()));
   get('edit-date-label').hidden=!planned;
   get('edit-date').disabled=!planned;
   get('edit-date').value=item.date;
+  get('edit-date-title').textContent='Дата по плану';
   get('editor-title').textContent = item.sum<0?'Трата':'Пополнение';
   get('edit-amount').value = String(Math.abs(item.sum)/100).replace('.',',');
   get('edit-label').value = ['Трата','Пополнение','Доход'].includes(item.label)?'':item.label;
   get('editor-error').hidden = true;
+  get('editor-save').textContent='Сохранить правку';
+  get('delete-area').hidden=false;
   get('delete-operation').hidden=false;
   get('delete-confirm').hidden=true;
   editor.showModal();
 }
+function openManual(sign) {
+  if (editor.open) return;
+  editingId=null;
+  creatingSign=sign;
+  get('editor-title').textContent=sign<0?'Новая трата':'Новое пополнение';
+  get('edit-amount').value='';
+  get('edit-label').value='';
+  get('edit-date-label').hidden=false;
+  get('edit-date').disabled=false;
+  get('edit-date').value='';
+  get('edit-date-title').textContent='Дата · по умолчанию сегодня';
+  get('editor-error').hidden=true;
+  get('editor-save').textContent='Добавить';
+  get('delete-area').hidden=true;
+  editor.showModal();
+  get('edit-amount').focus();
+}
+get('add-expense').onclick=()=>openManual(-1);
+get('add-income').onclick=()=>openManual(1);
 get('edit-form').onsubmit = event=>{
   event.preventDefault();
   const item = wallet.entries.find(entry=>entry.id===editingId);
-  if (!item) return;
+  if (!item && !creatingSign) return;
   const raw = get('edit-amount').value.trim().replace(/[−–]/g,'-').replace(/\s/g,'');
-  const sign = raw.startsWith('-')?-1:raw.startsWith('+')?1:Math.sign(item.sum);
+  const sign = raw.startsWith('-')?-1:raw.startsWith('+')?1:item?Math.sign(item.sum):creatingSign;
   const unsigned = raw.replace(/^[+-]/,'');
   const grouped = /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(unsigned);
   const normalized = (grouped?unsigned.replace(/\./g,''):unsigned).replace(',','.');
@@ -759,16 +792,21 @@ get('edit-form').onsubmit = event=>{
     return;
   }
   const label = get('edit-label').value.trim() || (sign<0?'Трата':'Пополнение');
-  const date=get('edit-date').disabled?item.date:get('edit-date').value;
+  const now=new Date(), today=dateFormat.format(now);
+  const date=get('edit-date').disabled?item.date:get('edit-date').value||item?.date||today;
   if (!isDate(date)) {
     error.textContent='Выбери дату операции.';
     error.hidden=false;
     return;
   }
-  const entries = wallet.entries.map(entry=>entry.id===editingId?{...entry,date,sum:amount*sign,label}:entry);
+  const changed={date,sum:amount*sign,label};
+  const record={id:operationId(now.toISOString()),...changed,...(date<=today?{added:true}:{}),
+    ...(date===today?{postedAt:now.toISOString()}:{})};
+  const entries=item?wallet.entries.map(entry=>entry.id===editingId?{...entry,...changed}:entry):[...wallet.entries,record];
   if (save({...wallet,entries})) {
     editor.close();
-    dial.focus({preventScroll:true});
+    if (item) dial.focus({preventScroll:true});
+    else get(creatingSign<0?'add-expense':'add-income').focus({preventScroll:true});
   } else {
     error.textContent = 'Сохранить правку не удалось.';
     error.hidden = false;
