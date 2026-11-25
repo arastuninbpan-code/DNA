@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.5.3">
+<link rel="manifest" href="manifest.webmanifest?v=1.5.4">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -45,6 +45,18 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 </style>
 <style>
 .summary-panel{margin:18px 0 0;padding:12px 15px;border:1px solid #2c393b;border-radius:16px;background:var(--panel)}.quick-summary{width:100%;border-collapse:collapse;font-size:13px}.quick-summary caption{text-align:left;color:var(--muted);padding:0 0 5px;font-weight:650}.quick-summary th,.quick-summary td{padding:6px 0}.quick-summary tr+tr{border-top:1px solid #2a3638}.quick-summary th{text-align:left;font-weight:500;color:var(--muted)}.quick-summary td{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}.telegram-link{display:inline-block;padding:9px 0;color:var(--muted);font-size:12px;text-underline-offset:3px}.telegram-link:hover,.telegram-link:focus-visible{color:var(--mint)}
+.summary-panel{margin-top:12px;border-color:#2a3838;background:linear-gradient(132deg,#1e2b29,var(--panel) 58%);padding-block:7px 10px}.summary-open{width:100%;display:flex;align-items:center;justify-content:space-between;border:0;padding:7px 0;background:none;color:var(--text);font-size:14px;font-weight:650;text-align:left}.summary-open span{color:var(--muted);font-size:20px;line-height:1}.quick-summary caption{padding-bottom:1px}.quick-summary tr+tr{border-color:#ffffff0a}
+#stats{padding:19px 19px 15px;border-radius:24px;background:radial-gradient(ellipse at 44% 0%,#263532 0,#192224 37%,var(--bg) 79%);touch-action:auto;overscroll-behavior:contain}
+#stats[open]{animation:stats-in .24s cubic-bezier(.2,.72,.32,1)}#stats::backdrop{background:#030809aa}
+@keyframes stats-in{from{opacity:.35;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+#stats .dialog-head{margin-bottom:2px}#stats .dialog-head h2{font-size:16px;letter-spacing:.015em;color:var(--muted)}#stats .close{border-color:transparent;background:none;color:var(--muted)}#stats .close:hover{background:#ffffff0b;color:var(--text)}
+.stats-net{margin:0 0 17px;text-align:center}.stats-net dt{font-size:12px;color:var(--muted)}.stats-net dd{margin:2px 0 0;font-weight:730;font-size:clamp(26px,10vw,44px);letter-spacing:-.045em;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.timeline{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding:4px max(0px,calc(50% - 27px)) 5px;scroll-snap-type:x mandatory;scrollbar-width:none;touch-action:pan-x;overscroll-behavior-inline:contain;border-block:1px solid #ffffff0d}.timeline::-webkit-scrollbar{display:none}
+.summary-panel{touch-action:pan-y}.summary-panel .timeline{margin-inline:-15px;margin-bottom:6px;padding-inline:max(0px,calc(50% - 12px))}.quick-summary #selected-day{color:var(--muted);font-size:12px;padding:3px 0 2px;font-weight:500}
+.day-button{flex:0 0 54px;min-width:0;min-height:58px;display:grid;place-content:center;justify-items:center;gap:1px;scroll-snap-align:center;border:1px solid transparent;background:transparent;border-radius:12px;padding:4px 1px;color:var(--muted);transition:background-color .2s,border-color .2s,color .2s}.day-button[aria-pressed=true]{background:#263633;border-color:#3d5a50;color:var(--text)}.day-button span{font-size:11px}.day-button strong{font-size:15px;font-variant-numeric:tabular-nums}.day-button::after{content:"";width:4px;height:4px;border-radius:50%;background:transparent}.day-button[data-entries]::after{background:var(--mint)}.day-button[data-future][data-entries]::after{background:#a7b8b7}.day-button:focus-visible{outline-offset:-2px}
+#stats .chart{margin:0;padding:10px 0 7px;border:0;border-top:1px solid #ffffff14;border-radius:0;background:none}#stats .chart h3{margin:0 0 4px;font-size:14px}#stats .chart-note{margin:0 0 5px;min-height:0}#stats .bars{height:82px;border-color:#344344;background:repeating-linear-gradient(to top,transparent 0 24%,#34434499 24% 25%);cursor:crosshair;touch-action:pan-y}#stats .bar-day{position:relative;padding-inline:1px}.bar-day.selected{background:#ffffff12;border-radius:3px 3px 0 0}.bar-day span{transition:opacity .2s}.bars:has(.selected) .bar-day:not(.selected) span{opacity:.7}#stats .line-chart{height:70px}
+@media(max-width:520px){#stats{margin:auto auto max(8px,env(safe-area-inset-bottom));max-height:calc(100dvh - 26px);padding:11px 14px 10px}}
+@media(prefers-reduced-motion:reduce){#stats[open]{animation:none}.day-button,.bar-day span{transition:none}}
 </style>
 </head>
 <body>
@@ -59,11 +71,13 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <span class="marker" aria-hidden="true"></span>
   </button>
   <button class="tip" id="tip" type="button" aria-label="Показать следующую подсказку"></button>
-  <div class="summary-panel">
-    <table class="quick-summary">
-      <caption>За последние 30 дней</caption>
+  <div class="summary-panel" id="summary-panel">
+    <button class="summary-open" id="summary-open" type="button">За последние 30 дней <span aria-hidden="true">›</span></button>
+    <div class="timeline" id="timeline" role="group" aria-label="Выбрать день"></div>
+    <table class="quick-summary" aria-labelledby="selected-day">
+      <caption id="selected-day"></caption>
       <tbody>
-        <tr><th scope="row">Остаток на начало</th><td id="quick-opening"></td></tr>
+        <tr id="opening-row"><th scope="row">Остаток на начало дня</th><td id="quick-opening"></td></tr>
         <tr><th scope="row">Пополнения</th><td id="quick-income" class="income"></td></tr>
         <tr><th scope="row">Траты</th><td id="quick-expenses" class="expense"></td></tr>
       </tbody>
@@ -93,14 +107,14 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
   </details>
   <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
   <p class="empty" id="sync-status" role="status" hidden></p>
-  <footer class="version">Версия 1.5.3</footer>
+  <footer class="version">Версия 1.5.4</footer>
 </main>
 <dialog id="stats" aria-labelledby="stats-title">
   <div class="dialog-head">
     <h2 id="stats-title">Последние 30 дней</h2>
     <form method="dialog"><button class="close" aria-label="Закрыть">×</button></form>
   </div>
-  <p class="net">Пополнения минус траты <strong id="net"></strong></p>
+  <dl class="stats-net"><dt>Пополнения минус траты</dt><dd id="net"></dd></dl>
   <div class="chart">
     <h3>Пополнения и траты по дням</h3>
     <p class="chart-note" id="bars-note"></p>
@@ -141,6 +155,8 @@ const initial = {"opening":0,"entries":[]};
 const key = 'pocket-budget-pages-v2';
 const zone = 'Europe/Moscow';
 const dateFormat = new Intl.DateTimeFormat('sv-SE',{timeZone:zone});
+const dayName = new Intl.DateTimeFormat('ru-RU',{timeZone:'UTC',day:'numeric',month:'long'});
+const weekday = new Intl.DateTimeFormat('ru-RU',{timeZone:'UTC',weekday:'short'});
 const timeFormat = new Intl.DateTimeFormat('ru-RU',{timeZone:zone,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 const rubles = new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:0,maximumFractionDigits:2});
 const step = 10000;
@@ -162,6 +178,10 @@ let editingId = null;
 let tipIndex = 0;
 let tipTimer;
 let tipText = '';
+let summaryDay = dateFormat.format(new Date());
+let summaryDates = [];
+let chartDay = null;
+const timeline = get('timeline');
 const syncOrigin = 'https://nakarmoney-bot-webhook.a-rastuninbpan.chatgpt.site';
 const sessionKey = 'pocket-budget-telegram-session';
 const queueKey = 'pocket-budget-telegram-queue';
@@ -439,6 +459,117 @@ function nextTip() {
   tipTimer=setTimeout(nextTip,9000);
 }
 get('tip').onclick=nextTip;
+function shiftDay(day,offset) {
+  const value=new Date(day+'T12:00:00Z');
+  value.setUTCDate(value.getUTCDate()+offset);
+  return value.toISOString().slice(0,10);
+}
+function dayTotals(day,today) {
+  const future=day>today;
+  let opening=wallet.opening, income=0, expenses=0;
+  let first=isDate(wallet.openingDate)?wallet.openingDate:initial.openingDate||today;
+  for (const item of wallet.entries) {
+    const actual=isActual(item,today);
+    const date=actual?dateOf(item):item.date;
+    if (actual) {
+      if (date<first) first=date;
+      if (date<day) opening+=item.sum;
+    }
+    if (date===day && actual!==future) {
+      income+=Math.max(0,item.sum);
+      expenses+=Math.max(0,-item.sum);
+    }
+  }
+  return {future,opening:day>=first?opening:null,income,expenses};
+}
+function renderSummaryDay() {
+  const today=dateFormat.format(new Date());
+  const {future,opening,income,expenses}=dayTotals(summaryDay,today);
+  const label=summaryDay===today?'Сегодня':dayName.format(new Date(summaryDay+'T12:00:00Z'));
+  get('selected-day').textContent=label+(future?' · план':' · факт');
+  get('opening-row').hidden=future;
+  get('quick-opening').textContent=opening===null?'—':money(opening);
+  get('quick-income').textContent=money(income);
+  get('quick-expenses').textContent=money(expenses);
+  for (let i=0;i<summaryDates.length;i++) {
+    const button=timeline.children[i], selected=summaryDates[i]===summaryDay;
+    button.setAttribute('aria-pressed',String(selected));
+    button.tabIndex=selected?0:-1;
+  }
+}
+function timelineStep() {
+  return timeline.children[1]?.offsetLeft-timeline.children[0]?.offsetLeft||60;
+}
+function setSummaryDay(index,scroll=false) {
+  const next=summaryDates[Math.max(0,Math.min(summaryDates.length-1,index))];
+  if (!next) return;
+  if (next!==summaryDay) {
+    summaryDay=next;
+    renderSummaryDay();
+  }
+  if (scroll) timeline.scrollLeft=summaryDates.indexOf(next)*timelineStep();
+}
+function refreshTimeline(today) {
+  const activity=new Set();
+  const boundPast=shiftDay(today,-366), boundFuture=shiftDay(today,366);
+  let first=shiftDay(today,-30), last=shiftDay(today,30);
+  for (const item of wallet.entries) {
+    const actual=isActual(item,today), date=actual?dateOf(item):item.date;
+    if (actual || date>today) activity.add(date);
+    if (date<first && date>=boundPast) first=date;
+    if (date>last && date<=boundFuture) last=date;
+  }
+  if (summaryDates[0]!==first || summaryDates.at(-1)!==last) {
+    const dates=[];
+    for (let date=first;date<=last;date=shiftDay(date,1)) dates.push(date);
+    summaryDates=dates;
+    if (!dates.includes(summaryDay)) summaryDay=today;
+    timeline.replaceChildren(...dates.map((date,index)=>{
+      const button=document.createElement('button'), name=document.createElement('span'), number=document.createElement('strong');
+      button.className='day-button';
+      button.type='button';
+      const instant=new Date(date+'T12:00:00Z');
+      name.textContent=date===today?'Сегодня':weekday.format(instant);
+      number.textContent=date.slice(8);
+      button.setAttribute('aria-label',dayName.format(instant)+(date>today?', план':''));
+      if (date>today) button.setAttribute('data-future','');
+      button.append(name,number);
+      button.onclick=()=>setSummaryDay(index,true);
+      button.onkeydown=event=>{
+        const delta=event.key==='ArrowLeft'?-1:event.key==='ArrowRight'?1:0;
+        if (!delta) return;
+        event.preventDefault();
+        const next=Math.max(0,Math.min(summaryDates.length-1,index+delta));
+        setSummaryDay(next,true);
+        timeline.children[next].focus({preventScroll:true});
+      };
+      return button;
+    }));
+    timeline.scrollLeft=dates.indexOf(summaryDay)*timelineStep();
+  }
+  for (let i=0;i<summaryDates.length;i++) {
+    if (activity.has(summaryDates[i])) timeline.children[i].setAttribute('data-entries','');
+    else timeline.children[i].removeAttribute('data-entries');
+  }
+  renderSummaryDay();
+}
+timeline.addEventListener('scroll',()=>setSummaryDay(Math.round(timeline.scrollLeft/timelineStep())),{passive:true});
+let summarySwipe;
+const summaryPanel=get('summary-panel');
+summaryPanel.addEventListener('pointerdown',event=>{
+  if (event.target.closest('button,.timeline') || event.button!==0) return;
+  summarySwipe={x:event.clientX,y:event.clientY,id:event.pointerId};
+});
+summaryPanel.addEventListener('pointerup',event=>{
+  if (summarySwipe?.id!==event.pointerId) return;
+  const dx=event.clientX-summarySwipe.x, dy=event.clientY-summarySwipe.y;
+  summarySwipe=null;
+  if (Math.abs(dx)>=36 && Math.abs(dx)>1.4*Math.abs(dy)) {
+    setSummaryDay(summaryDates.indexOf(summaryDay)+(dx<0?1:-1),true);
+  }
+});
+summaryPanel.addEventListener('pointercancel',()=>{summarySwipe=null;});
+get('summary-open').onclick=openStats;
 function render() {
   const today = dateFormat.format(new Date());
   const result = summarize(wallet,today);
@@ -446,9 +577,7 @@ function render() {
   dial.classList.toggle('filled',total>0);
   dial.style.setProperty('--split',(total?100*result.income/total:0)+'%');
   dial.setAttribute('aria-label','На кармане '+money(result.balance)+'. Открыть графики');
-  get('quick-opening').textContent = (result.days[0].balance===null?'—':money(result.balance-result.income+result.expenses));
-  get('quick-income').textContent = money(result.income);
-  get('quick-expenses').textContent = money(result.expenses);
+  refreshTimeline(today);
   get('history-count').textContent = wallet.entries.length ? '· '+wallet.entries.length : '';
   get('empty').hidden = wallet.entries.length>0;
   get('import-box').hidden = Boolean(wallet.opening || wallet.entries.some(item=>!item.added));
@@ -691,19 +820,32 @@ get('import').onchange = async event=>{
   }
 };
 function openStats() {
-  if (!stats.open) stats.showModal();
+  if (!stats.open) {
+    chartDay=summaryDay;
+    stats.showModal();
+  }
   drawStats(summarize(wallet,dateFormat.format(new Date())));
 }
+get('bars').addEventListener('click',event=>{
+  const bounds=get('bars').getBoundingClientRect();
+  const index=Math.min(29,Math.max(0,Math.floor(30*(event.clientX-bounds.left)/bounds.width)));
+  const result=summarize(wallet,dateFormat.format(new Date()));
+  chartDay=result.days[index].date;
+  drawStats(result);
+});
 function drawStats({days,max,income,expenses,balance}) {
   const net = income-expenses;
   get('net').textContent = (net>0?'+':'')+money(net);
   get('net').className = net<0?'expense':'income';
   get('bars-start').textContent = short(days[0].date);
   get('bars-end').textContent = short(days.at(-1).date);
-  get('bars-note').textContent = max ? 'Пополнения '+money(income)+' · траты '+money(expenses) : 'За этот период операций пока нет.';
+  const picked=days.find(day=>day.date===chartDay);
+  get('bars-note').textContent = picked ? short(picked.date)+' · +'+money(picked.income)+' / −'+money(picked.expenses) :
+    max ? 'Пополнения '+money(income)+' · траты '+money(expenses) : 'За этот период операций пока нет.';
   get('bars').replaceChildren(...days.map(day=>{
     const group = document.createElement('div');
     group.className = 'bar-day';
+    group.classList.toggle('selected',day.date===chartDay);
     group.title = short(day.date)+': +'+money(day.income)+' / −'+money(day.expenses);
     for (const [className,amount] of [['money-in',day.income],['money-out',day.expenses]]) {
       const bar = document.createElement('span');
@@ -717,7 +859,8 @@ function drawStats({days,max,income,expenses,balance}) {
   const min = Math.min(...known.map(day=>day.balance)), maxBalance = Math.max(...known.map(day=>day.balance));
   get('line-start').textContent = short(known[0]?.date||days[0].date);
   get('line-end').textContent = short(days.at(-1).date);
-  get('balance-note').textContent = min===maxBalance ? 'Остаток '+money(balance) :
+  get('balance-note').textContent = picked?.balance!=null ? short(picked.date)+' · '+money(picked.balance) :
+    min===maxBalance ? 'Остаток '+money(balance) :
     'Минимум '+money(min)+' · максимум '+money(maxBalance);
   const canvas = get('line'), width = canvas.clientWidth, height = canvas.clientHeight;
   if (!width || !height || !known.length) return;
@@ -739,7 +882,9 @@ function drawStats({days,max,income,expenses,balance}) {
   context.strokeStyle = '#8cf0b7';
   context.stroke();
   context.beginPath();
-  context.arc(x(known.length-1),y(balance),3.5,0,2*Math.PI);
+  const selectedIndex=known.findIndex(day=>day.date===chartDay);
+  const dot=selectedIndex<0?known.length-1:selectedIndex;
+  context.arc(x(dot),y(known[dot].balance),3.5,0,2*Math.PI);
   context.fillStyle = '#8cf0b7';
   context.fill();
 }
