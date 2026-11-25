@@ -32,7 +32,7 @@ dialog{width:min(calc(100% - 24px),420px);max-height:calc(100dvh - 28px);padding
 .import-label{position:relative;display:flex;justify-content:center;margin:0 0 3px}.import-label span{padding:10px 12px;color:var(--mint);cursor:pointer;text-decoration:underline}.import-label input{position:absolute;width:1px;height:1px;opacity:0}.import-label:focus-within span{outline:2px solid var(--mint);outline-offset:2px;border-radius:8px}
 </style>
 <style>
-.quick-summary{width:100%;border-collapse:collapse;margin:6px 0 12px;font-size:13px}.quick-summary caption{text-align:left;color:var(--muted);padding:6px 0;font-weight:650}.quick-summary th,.quick-summary td{padding:6px 0;border-bottom:1px solid #2a3638}.quick-summary th{text-align:left;font-weight:500;color:var(--muted)}.quick-summary td{text-align:right;font-weight:650;font-variant-numeric:tabular-nums}.telegram-link{display:inline-block;padding:9px 0;color:var(--mint);font-size:13px}
+.summary-panel{margin:18px 0 0;padding:12px 15px;border:1px solid #2c393b;border-radius:16px;background:var(--panel)}.quick-summary{width:100%;border-collapse:collapse;font-size:13px}.quick-summary caption{text-align:left;color:var(--muted);padding:0 0 5px;font-weight:650}.quick-summary th,.quick-summary td{padding:6px 0}.quick-summary tr+tr{border-top:1px solid #2a3638}.quick-summary th{text-align:left;font-weight:500;color:var(--muted)}.quick-summary td{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}.telegram-link{display:inline-block;padding:9px 0;color:var(--muted);font-size:12px;text-underline-offset:3px}.telegram-link:hover,.telegram-link:focus-visible{color:var(--mint)}
 </style>
 </head>
 <body>
@@ -46,26 +46,19 @@ dialog{width:min(calc(100% - 24px),420px);max-height:calc(100dvh - 28px);padding
     <span class="ticks" aria-hidden="true"></span>
     <span class="marker" aria-hidden="true"></span>
   </button>
-  <p class="period">Последние 30 дней</p>
-  <dl class="legend" aria-label="Фактические доходы и расходы">
-    <div><dt>Пополнения</dt><dd class="income" id="income"></dd></div>
-    <div><dt>Траты</dt><dd class="expense" id="expenses"></dd></div>
-  </dl>
+  <div class="summary-panel">
+    <table class="quick-summary">
+      <caption>За последние 30 дней</caption>
+      <tbody>
+        <tr><th scope="row">Остаток на начало</th><td id="quick-opening"></td></tr>
+        <tr><th scope="row">Пополнения</th><td id="quick-income" class="income"></td></tr>
+        <tr><th scope="row">Траты</th><td id="quick-expenses" class="expense"></td></tr>
+      </tbody>
+    </table>
+  </div>
   <p class="gesture" id="gesture">По часовой — трата, против — пополнение · шаг 100 ₽</p>
   <p class="message"><span id="message" role="status"></span><button id="undo" class="undo" type="button" hidden>Отменить</button></p>
   <label class="import-label" id="import-box" hidden><span>Загрузить мой бюджет</span><input id="import" type="file" accept=".json,application/json"></label>
-  <details>
-    <summary>Быстрая сводка</summary>
-    <table class="quick-summary">
-      <caption>Фактические операции за 30 дней</caption>
-      <tbody>
-        <tr><th scope="row">Было на начало</th><td id="quick-opening"></td></tr>
-        <tr><th scope="row">Пополнения</th><td id="quick-income" class="income"></td></tr>
-        <tr><th scope="row">Траты</th><td id="quick-expenses" class="expense"></td></tr>
-        <tr><th scope="row">На кармане сейчас</th><td id="quick-balance"></td></tr>
-      </tbody>
-    </table>
-  </details>
   <details>
     <summary>История <span id="history-count"></span></summary>
     <p class="empty" id="empty">Здесь появятся операции.</p>
@@ -365,12 +358,9 @@ function render() {
   dial.classList.toggle('filled',total>0);
   dial.style.setProperty('--split',(total?100*result.income/total:0)+'%');
   dial.setAttribute('aria-label','На кармане '+money(result.balance)+'. Открыть графики');
-  get('income').textContent = money(result.income);
-  get('expenses').textContent = money(result.expenses);
   get('quick-opening').textContent = (result.days[0].balance===null?'—':money(result.balance-result.income+result.expenses));
   get('quick-income').textContent = money(result.income);
   get('quick-expenses').textContent = money(result.expenses);
-  get('quick-balance').textContent = money(result.balance);
   get('history-count').textContent = wallet.entries.length ? '· '+wallet.entries.length : '';
   get('empty').hidden = wallet.entries.length>0;
   get('import-box').hidden = Boolean(wallet.openingSet || wallet.opening || wallet.entries.some(item=>!item.added));
