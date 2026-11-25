@@ -2151,7 +2151,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.36.2';
+  const APP_VERSION = '0.36.3';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -2779,7 +2779,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // Токен брокера (tinkoff_token) сознательно не включён в снапшот — это чувствительный
   // доступ к реальному счёту, ему незачем лежать в Firestore, достаточно операций/целей/активов.
   function financeSnapshot(){
-    return {transactions: state.finance.transactions, goals: state.finance.goals, assets: state.finance.assets, limits: state.finance.limits};
+    return {transactions: state.finance.transactions.filter(tx=>!tx.budgetLocal), goals: state.finance.goals, assets: state.finance.assets, limits: state.finance.limits};
   }
 
   // -------- Habits computed state --------
@@ -6345,7 +6345,8 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       ${telegramProfile?renderSupportCard():''}
       ${telegramProfile?.isAdmin?`<section class="settings-card"><h2>Разработчику</h2><button type="button" class="text-btn" style="padding:10px 0" data-open-admin>🛠 Панель разработчика</button></section>`:''}
       <section class="settings-card"><h2>О приложении</h2><dl class="settings-meta"><dt>D.N.A. · Версия</dt><dd data-version-tile>${APP_VERSION}</dd></dl><div class="changelog">
-        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Сообщение с конкретной календарной датой, но без времени («7 ноября мероприятие соляная биржа»), раньше ошибочно принималось за финансовую операцию на 7 ₽ — теперь корректно распознаётся как событие на 7 ноября, без лишнего обращения к ИИ.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v${APP_VERSION}</div><p class="settings-note">Быстрый расход, локальный импорт бюджета и прогноз остатка.</p></div>
+        <div class="changelog-entry"><div class="changelog-version">v0.36.2</div><p class="settings-note">Сообщение с конкретной календарной датой, но без времени («7 ноября мероприятие соляная биржа»), раньше ошибочно принималось за финансовую операцию на 7 ₽ — теперь корректно распознаётся как событие на 7 ноября, без лишнего обращения к ИИ.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.36.1</div><p class="settings-note">Несколько исправлений Атласа по заметкам из панели разработчика: сообщения вида «убери одно напоминание и добавь другое» больше не падают с ошибкой «malformed action» и не остаются без кнопок подтверждения; время без предлога («сегодня 14:40 пара») теперь распознаётся мгновенно и бесплатно, без обращения к ИИ; вопросы про конкретную календарную дату («что у меня 6 ноября?») отвечаются по-настоящему, а не «не понял запрос»; из каждого ответа Атласа убрана повторяющаяся кнопка «Главное меню» — она копилась в чате при живой переписке. Также у шторки «Новая привычка» вернулась ручка для смахивания вниз, как у остальных форм.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.36.0</div><p class="settings-note">Когда Атлас создаёт событие (командой, голосом или из пересланного уведомления от «Гудвина») и не понятно, в какой раздел Планера его добавить, теперь сначала спрашивает — и в приложении, и в Telegram-боте. Если раздел назван явно в самом сообщении («добавь в Работу») — переспрашивать не будет.</p></div>
         <div class="changelog-entry"><div class="changelog-version">v0.35.2</div><p class="settings-note">Исправлена ошибка: если открыть приложение и сразу написать Атласу, иногда показывалось «Нужно войти через Telegram», хотя вход уже был выполнен — Firebase успевал восстановить сессию позже, чем уходил запрос. Теперь запрос дожидается восстановления сессии.</p></div>
@@ -7441,6 +7442,124 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   function renderFinancePeriod() {
     return `<div class="fin-period" aria-label="Период аналитики">${[['week','7 дней'],['month','Месяц'],['year','Год']].map(([k,label])=>`<button data-fin-period="${k}" aria-pressed="${financeView.period===k}">${label}</button>`).join('')}</div>`;
   }
+
+  const BUDGET_KEY = 'dna_budget_v1';
+  let budget = readJSONBudget();
+  function readJSONBudget() {
+    try { return JSON.parse(localStorage.getItem(BUDGET_KEY)); } catch { return null; }
+  }
+  function budgetDate(date) {
+    return typeof date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(date) && isoDate(parseLocalDate(date))===date;
+  }
+  function budgetNumber(value) {
+    return typeof value==='number' && Number.isFinite(value) && Math.abs(value)<=1e9;
+  }
+  function validBudget(plan) {
+    return plan?.version===1 && typeof plan.id==='string' && /^[a-z0-9-]{1,80}$/.test(plan.id)
+      && budgetDate(plan.start) && budgetDate(plan.end) && plan.start<=plan.end
+      && parseLocalDate(plan.end)-parseLocalDate(plan.start)<=366*86400000
+      && budgetNumber(plan.opening) && budgetNumber(plan.limit) && plan.limit>0
+      && Array.isArray(plan.items) && plan.items.length<=500
+      && new Set(plan.items.map(item=>item?.id)).size===plan.items.length
+      && plan.items.every(item=>item && typeof item.id==='string' && /^[a-z0-9-]{1,80}$/.test(item.id)
+        && budgetDate(item.date) && item.date>=plan.start && item.date<=plan.end
+        && ['income','expense'].includes(item.type) && budgetNumber(item.amount) && item.amount>0
+        && typeof item.note==='string' && item.note.length<=200);
+  }
+  function budgetActual(item) {
+    return state.finance.transactions.findIndex(tx=>tx.budgetItem===budget.id+':'+item.id);
+  }
+  function budgetForecast(plan, transactions, pending, today) {
+    const days=new Map();
+    function day(date) {
+      if(!days.has(date))days.set(date,{daily:0,income:0,extra:0});
+      return days.get(date);
+    }
+    for(const tx of [...transactions,...pending]) {
+      const date=tx.date?.slice(0,10);
+      if(!date || date<plan.start || date>plan.end)continue;
+      const entry=day(date), amount=Math.round(Math.abs(num(tx.amount))*100);
+      if(tx.type==='income')entry.income+=amount;
+      if(tx.type==='expense')entry[tx.budgetExtra?'extra':'daily']+=amount;
+    }
+    const months=[], overlaps=[];
+    let balance=Math.round(plan.opening*100), min=Infinity, minDate, short, available;
+    const limit=Math.round(plan.limit*100);
+    for(const cursor=parseLocalDate(plan.start);isoDate(cursor)<=plan.end;cursor.setDate(cursor.getDate()+1)) {
+      const date=isoDate(cursor), entry=day(date);
+      balance+=entry.income-entry.extra-Math.max(limit,entry.daily);
+      if(balance<min){min=balance;minDate=date;}
+      if(balance<0&&!short)short=date;
+      if(date===today)available=Math.max(0,limit-entry.daily)/100;
+      if(entry.income&&entry.extra)overlaps.push(date);
+      const next=new Date(cursor);
+      next.setDate(next.getDate()+1);
+      if(next.getDate()===1||date===plan.end)months.push({date,amount:balance/100});
+    }
+    return {months,overlaps,min:min/100,minDate,short,available};
+  }
+  function budgetLabel(date) {
+    return parseLocalDate(date).toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+  }
+  function renderBudget() {
+    const importButton='<button class="fin-text" data-budget-import>Импортировать бюджет</button>';
+    const head='<div class="fin-card-head"><h2>Прогноз</h2>'+importButton+'</div>';
+    if(!validBudget(budget))return '<section class="fin-card">'+head+'<p class="fin-muted">Загрузи план, чтобы увидеть дневной лимит и будущий остаток.</p></section>';
+    const pending=budget.items.filter(item=>budgetActual(item)<0).map(item=>({...item,budgetExtra:true}));
+    const result=budgetForecast(budget,state.finance.transactions.filter(txCompleted),pending,isoDate(new Date()));
+    const months=result.months.map(({date,amount})=>'<div class="fin-card-head"><span>'+budgetLabel(date)+'</span><strong>'+finMoney(amount)+'</strong></div>').join('');
+    const entries=budget.items.map((item,index)=>{
+      const actual=state.finance.transactions[budgetActual(item)], shown=actual||item;
+      return '<div class="fin-card-head"><span>'+budgetLabel(shown.date.slice(0,10))+' · '+esc(shown.note||item.note)+'<br>'+ (shown.type==='income'?'+':'−')+finMoney(Math.abs(shown.amount))+(item.approx&&!actual?' · примерно':'')+'</span><button class="fin-text" data-budget-item="'+index+'">'+(actual?'Изменить':'Провести')+'</button></div>';
+    }).join('');
+    return '<section class="fin-card">'+head
+      +(result.available===undefined?'':'<p>На сегодня доступно <strong>'+finMoney(result.available)+'</strong> из '+finMoney(budget.limit)+'</p>')
+      +months+'<p>Минимум '+finMoney(result.min)+' · '+budgetLabel(result.minDate)+'</p>'
+      +(result.short?'<p role="status">Денег не хватает с '+budgetLabel(result.short)+'</p>':'')
+      +(result.overlaps.length?'<p class="fin-muted">'+result.overlaps.map(budgetLabel).join(', ')+' · остаток на конец дня предполагает зачисление дохода в этот день.</p>':'')
+      +'<details><summary>Плановые операции</summary>'+entries+'</details></section>';
+  }
+  function budgetImport() {
+    finModal('Импортировать бюджет','<form id="budget-import-form"><label class="fin-label" for="budget-file">Файл бюджета (.json)</label><input class="fin-field" required type="file" accept=".json,application/json" id="budget-file"><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Импортировать</button></form>',d=>{
+      $('#budget-import-form',d).onsubmit=async e=>{
+        e.preventDefault();
+        try {
+          const file=$('#budget-file',d).files[0];
+          if(!file||file.size>262144)throw new Error('Выбери файл бюджета размером до 256 КБ.');
+          const plan=JSON.parse(await file.text());
+          if(!validBudget(plan))throw new Error('Проверь формат файла бюджета.');
+          if(budget?.id===plan.id){d.close();showToast('Этот бюджет уже загружен',true);return;}
+          if(budget&&!confirm('Заменить текущий план? История операций сохранится.'))return;
+          localStorage.setItem(BUDGET_KEY,JSON.stringify(plan));
+          budget=plan;
+          d.close();finRefresh();showToast('Бюджет загружен',true);
+        } catch(error) {finError(d,error instanceof SyntaxError?'В файле должен быть корректный JSON.':error.message);}
+      };
+    });
+  }
+  function budgetEntry(item=null) {
+    const planned=Boolean(item);
+    finModal(planned?'Провести по плану':'Быстрый расход','<form id="budget-entry"><label class="fin-label" for="budget-amount">Сумма, ₽</label><input id="budget-amount" class="fin-field" type="number" inputmode="decimal" min="0.01" max="1000000000" step="0.01" required value="'+(item?.amount||'')+'"><label class="fin-label" for="budget-note">Название (необязательно)</label><input id="budget-note" class="fin-field" maxlength="200" value="'+esc(item?.note||'')+'"><label class="fin-label" for="budget-date">Дата</label>'+appDateField('budget-date',item?.date||isoDate(new Date()),true)
+      +(planned?'':'<label class="fin-label"><input type="checkbox" id="budget-extra"> Крупная трата сверх дневного лимита</label>')
+      +'<p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">'+(planned?'Провести':'Записать расход')+'</button></form>',d=>{
+      const amount=$('#budget-amount',d);
+      $('#budget-entry',d).onsubmit=e=>{
+        e.preventDefault();
+        const date=$('#budget-date',d).value, value=Number(amount.value), type=item?.type||'expense';
+        if(!budgetDate(date)||!budgetNumber(value)||value<=0){finError(d,'Проверь сумму и дату.');return;}
+        if(item&&budgetActual(item)>=0){d.close();finRefresh();return;}
+        const tx={id:uid(),status:'completed',budgetLocal:true,type,amount:type==='income'?value:-value,category:type==='income'?'Пополнение':'Другое',date,note:$('#budget-note',d).value.trim()};
+        if(type==='expense')tx.budgetExtra=planned||$('#budget-extra',d)?.checked===true;
+        if(item)tx.budgetItem=budget.id+':'+item.id;
+        const old=state.finance.transactions;
+        state.finance.transactions=[...old,tx];
+        if(!finSaveData(d,'transactions')){state.finance.transactions=old;return;}
+        d.close();finRefresh();showToast('Операция сохранена',true);
+      };
+      amount.focus({preventScroll:true});
+    });
+  }
+
   function renderFinanceOverview() {
     // 'dynamics' убран из ссылок насовсем (не просто спрятан в настройках) — пользователь прямо
     // попросил убрать этот раздел, потом заменим на нормальный анализ трат отдельным заходом.
@@ -7449,8 +7568,9 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     return `<div class="fin-summary${finAnimation('summary')}">
       ${renderFinMonthSwitcher()}
       ${renderFinRing()}
-      <div class="fin-quick"><button class="fin-quick-expense" data-fin-add="expense"><strong>${finMoney(homeT.expense)}</strong><span>Расход</span></button><button class="fin-quick-income" data-fin-add="income"><strong>${finMoney(homeT.income)}</strong><span>Пополнение</span></button></div>
+      <div class="fin-quick"><button class="fin-quick-expense" data-budget-quick><strong>${finMoney(homeT.expense)}</strong><span>Расход</span></button><button class="fin-quick-income" data-fin-add="income"><strong>${finMoney(homeT.income)}</strong><span>Пополнение</span></button></div>
     </div>
+    ${renderBudget()}
     ${renderFinFlowStrip()}
     ${renderFinMonthResultCard()}
     ${renderFinMandatoryCard()}
@@ -7865,6 +7985,13 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     el.addEventListener('pointercancel',()=>{tracking=false;},{passive:true});
   }
   function bindFinanceEvents() {
+    $('[data-budget-quick]')?.addEventListener('click',()=>budgetEntry());
+    $('[data-budget-import]')?.addEventListener('click',budgetImport);
+    $$('[data-budget-item]').forEach(button=>button.onclick=()=>{
+      const item=budget.items[Number(button.dataset.budgetItem)];
+      const actual=state.finance.transactions[budgetActual(item)];
+      if(actual)finTransactionForm(item.type,actual.id);else budgetEntry(item);
+    });
     $$('[data-fin-add]').forEach(b=>b.onclick=()=>finTransactionForm(b.dataset.finAdd));
     $$('[data-fin-history]').forEach(b=>b.onclick=()=>finGo('history'));
     $$('[data-fin-page]').forEach(b=>b.onclick=()=>finGo(b.dataset.finPage));
@@ -9690,7 +9817,10 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
     finance: {
       get: financeSnapshot,
       apply(data){
-        if(Array.isArray(data.transactions))state.finance.transactions=withIds(data.transactions);
+        if(Array.isArray(data.transactions)){
+          const localBudgetTransactions=state.finance.transactions.filter(tx=>tx.budgetLocal);
+          state.finance.transactions=[...withIds(data.transactions),...localBudgetTransactions];
+        }
         if(Array.isArray(data.goals))state.finance.goals=data.goals;
         if(Array.isArray(data.assets))state.finance.assets=data.assets;
         if(Array.isArray(data.limits))state.finance.limits=withIds(data.limits);
