@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.5.7">
+<link rel="manifest" href="manifest.webmanifest?v=1.5.8">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -62,6 +62,13 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 .line.planned .line-button{flex:1;min-height:50px}.line.planned .line-button>span{min-width:0}
 .history-section{position:relative}.history-section summary{position:relative;min-height:52px;display:flex;justify-content:center;align-items:center;gap:4px;padding:3px 52px;list-style:none}.history-section summary::-webkit-details-marker{display:none}.history-section summary::after{content:"";width:6px;height:6px;margin-left:4px;border:solid var(--muted);border-width:0 1px 1px 0;transform:rotate(45deg) translateY(-2px)}.history-section details[open]>summary::after{transform:rotate(225deg) translateY(-1px)}.history-section summary:focus-visible{outline:none;text-decoration:underline;text-underline-offset:5px}
 .history-add{position:absolute;top:5px;z-index:1;width:44px;height:44px;display:grid;place-items:center;padding:0;border:1px solid var(--border);border-radius:13px;background:var(--panel);font-size:24px;line-height:1}.history-add:active{transform:scale(.95)}#add-expense{inset-inline-start:2px}#add-income{inset-inline-end:2px}
+#plan-window{background:linear-gradient(132deg,#1e2b29,var(--panel) 58%);border-color:#2a3838;border-radius:22px}
+#plan-window[open]{animation:stats-in .24s cubic-bezier(.2,.72,.32,1)}
+.plan-period{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;text-align:center;margin:2px 0 4px}.plan-period h3{margin:0;font-size:15px;font-weight:650}.plan-period button{width:44px;height:44px;padding:0;border:0;background:none;color:var(--muted);font-size:22px;line-height:1}
+.plan-plot{display:block;width:100%;height:clamp(150px,47vw,205px);outline-offset:2px;touch-action:pan-y}.plan-plot:focus-visible{outline:1px solid var(--mint)}
+.plan-values{margin:7px 0 0}.plan-values td{white-space:nowrap}.plan-values caption{color:var(--text)}.plan-key{display:inline-block;width:13px;margin-right:7px;vertical-align:middle;border-top:2px solid var(--red)}.plan-key.planned{border-top:2px dashed var(--mint)}
+.plan-difference{min-height:20px;margin:12px 0 0;text-align:center;font-size:13px;color:var(--muted)}.plan-difference.income{color:var(--mint)}.plan-difference.expense{color:var(--red)}
+@media(prefers-reduced-motion:reduce){#plan-window[open]{animation:none}}
 @media(prefers-reduced-motion:reduce){#stats[open]>.stats-content{animation:none}.day-button,.bar-day span,#stats>summary::after{transition:none}}
 </style>
 </head>
@@ -135,8 +142,28 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
   </details>
   <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
   <p class="empty" id="sync-status" role="status" hidden></p>
-  <footer class="version">Версия 1.5.7</footer>
+  <footer class="version">Версия 1.5.8</footer>
 </main>
+<dialog id="plan-window" aria-labelledby="plan-window-title">
+  <div class="dialog-head">
+    <h2 id="plan-window-title">План и факт</h2>
+    <form method="dialog"><button class="close" aria-label="Закрыть">×</button></form>
+  </div>
+  <div class="plan-period">
+    <button id="plan-prev" type="button" aria-label="Предыдущий месяц">‹</button>
+    <h3 id="plan-month"></h3>
+    <button id="plan-next" type="button" aria-label="Следующий месяц">›</button>
+  </div>
+  <canvas class="plan-plot" id="plan-plot" role="slider" tabindex="0" aria-label="День на графике накопительных расходов" aria-valuemin="1"></canvas>
+  <table class="quick-summary plan-values">
+    <caption id="plan-day"></caption>
+    <tbody>
+      <tr><th scope="row"><span class="plan-key planned" aria-hidden="true"></span>План накопительно</th><td id="plan-value"></td></tr>
+      <tr><th scope="row"><span class="plan-key" aria-hidden="true"></span>Факт накопительно</th><td id="actual-value"></td></tr>
+    </tbody>
+  </table>
+  <p id="plan-difference" class="plan-difference"></p>
+</dialog>
 <dialog id="editor" aria-labelledby="editor-title">
   <div class="dialog-head">
     <h2 id="editor-title">Операция</h2>
@@ -167,9 +194,11 @@ const zone = 'Europe/Moscow';
 const dateFormat = new Intl.DateTimeFormat('sv-SE',{timeZone:zone});
 const dayName = new Intl.DateTimeFormat('ru-RU',{timeZone:'UTC',day:'numeric',month:'long'});
 const weekday = new Intl.DateTimeFormat('ru-RU',{timeZone:'UTC',weekday:'short'});
+const monthName = new Intl.DateTimeFormat('ru-RU',{timeZone:'UTC',month:'long',year:'numeric'});
 const timeFormat = new Intl.DateTimeFormat('ru-RU',{timeZone:zone,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 const rubles = new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:0,maximumFractionDigits:2});
 const step = 10000;
+const dailyBudget = 100000;
 const turnSteps = 24;
 const detent = 2*Math.PI/turnSteps;
 const get = id => document.getElementById(id);
@@ -193,6 +222,9 @@ let summaryDay = dateFormat.format(new Date());
 let summaryDates = [];
 let chartDay = null;
 const timeline = get('timeline');
+const planWindow=get('plan-window');
+const planPlot=get('plan-plot');
+let planMonth='', planDay='';
 const syncOrigin = 'https://nakarmoney-bot-webhook.a-rastuninbpan.chatgpt.site';
 const sessionKey = 'pocket-budget-telegram-session';
 const queueKey = 'pocket-budget-telegram-queue';
@@ -382,7 +414,7 @@ function operationId(instant) {
 function post(item,sum) {
   const now = new Date(), date = dateFormat.format(now);
   const postedAt = now.toISOString();
-  const record = item ? {...item,done:true,postedAt} : {
+  const record = item ? {...item,plannedSum:item.plannedSum??item.sum,done:true,postedAt} : {
     id:operationId(postedAt),
     sum,date,postedAt,label:sum<0?'Трата':'Пополнение',added:true
   };
@@ -433,7 +465,6 @@ function historyRow(item,actual) {
   return row;
 }
 function walletTips(today) {
-  const dailyLimit=100000;
   let spent=0, expected=0, due=0, late=0;
   for (const item of wallet.entries) {
     if (isActual(item,today)) {
@@ -444,7 +475,7 @@ function walletTips(today) {
       late++;
     }
   }
-  const remaining=dailyLimit-spent;
+  const remaining=dailyBudget-spent;
   const tips=[remaining>=0?['На сегодня осталось',money(remaining) + ' из 1 000 ₽']:['Сегодня сверх лимита',money(-remaining)]];
   tips.push(expected||due?['Сегодня по плану',[expected?'+'+money(expected):'',due?'−'+money(due):''].filter(Boolean).join(' · ')]:['Сегодня по плану','платежей и поступлений нет']);
   tips.push(late?['План отстаёт','не проведено: '+late]:['По плану','просроченных операций нет']);
@@ -602,6 +633,7 @@ function render() {
   renderTip();
   showAmount(0,result.balance);
   if (stats.open) drawStats(result);
+  if (planWindow.open) drawPlan();
 }
 function showAmount(steps,balance) {
   const change = -steps*step;
@@ -694,7 +726,7 @@ function begin(event,touch) {
     if (drag!==pressed || pressed.moved) return;
     drag = null;
     if (!touch && dial.hasPointerCapture(pressed.id)) dial.releasePointerCapture(pressed.id);
-    openStats();
+    openPlan();
   },500);
 }
 dial.addEventListener('pointerdown',event=>{if (event.pointerType!=='touch' && event.button===0) begin(event,false);});
@@ -736,6 +768,11 @@ dial.addEventListener('click',event=>{
   }
 });
 dial.addEventListener('keydown',event=>{
+  if (event.key==='Enter' && event.shiftKey) {
+    event.preventDefault();
+    openPlan();
+    return;
+  }
   const direction = {ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[event.key];
   if (!direction && event.key!=='Escape') return;
   event.preventDefault();
@@ -875,6 +912,134 @@ function openStats() {
   renderOpenedStats();
   stats.scrollIntoView?.({block:'nearest'});
 }
+function firstOfMonth(day,offset=0) {
+  const date=new Date(day.slice(0,7)+'-01T12:00:00Z');
+  date.setUTCMonth(date.getUTCMonth()+offset);
+  return date.toISOString().slice(0,10);
+}
+function monthlySpending(data,month,today) {
+  const nextMonth=firstOfMonth(month,1), actual=new Map(), scheduled=new Map();
+  let starts=isDate(data.openingDate)?data.openingDate:today;
+  for (const entry of data.entries) {
+    if (!entry.added && (entry.plannedSum??entry.sum)<0) {
+      scheduled.set(entry.date,(scheduled.get(entry.date)||0)-(entry.plannedSum??entry.sum));
+    }
+    if (isActual(entry,today)) {
+      const day=dateOf(entry);
+      if (day<starts) starts=day;
+      if (entry.sum<0) actual.set(day,(actual.get(day)||0)-entry.sum);
+    }
+  }
+  let plan=0, fact=0;
+  const rows=[];
+  for (let day=month;day<nextMonth;day=shiftDay(day,1)) {
+    plan+=(day>=starts?dailyBudget:0)+(scheduled.get(day)||0);
+    fact+=actual.get(day)||0;
+    rows.push({day,plan,fact:day>=starts&&day<=today?fact:null});
+  }
+  return rows;
+}
+function openPlan() {
+  if (planWindow.open) return;
+  planDay=summaryDay;
+  planMonth=firstOfMonth(planDay);
+  planWindow.showModal();
+  drawPlan();
+}
+function changePlanMonth(offset) {
+  planMonth=firstOfMonth(planMonth,offset);
+  const today=dateFormat.format(new Date()), end=shiftDay(firstOfMonth(planMonth,1),-1);
+  planDay=today<planMonth?planMonth:today>end?end:today;
+  drawPlan();
+}
+get('plan-prev').onclick=()=>changePlanMonth(-1);
+get('plan-next').onclick=()=>changePlanMonth(1);
+const plotInsets={left:44,right:12,top:12,bottom:23};
+function selectPlanDay(index) {
+  const last=Number(shiftDay(firstOfMonth(planMonth,1),-1).slice(8))-1;
+  planDay=shiftDay(planMonth,Math.min(last,Math.max(0,index)));
+  drawPlan();
+}
+planPlot.onclick=event=>{
+  const box=planPlot.getBoundingClientRect(), count=Number(shiftDay(firstOfMonth(planMonth,1),-1).slice(8));
+  const ratio=(event.clientX-box.left-plotInsets.left)/(box.width-plotInsets.left-plotInsets.right);
+  selectPlanDay(Math.round(ratio*(count-1)));
+};
+planPlot.onkeydown=event=>{
+  const day=Number(planDay.slice(8))-1;
+  const next={ArrowLeft:day-1,ArrowRight:day+1,Home:0,End:30}[event.key];
+  if (next===undefined) return;
+  event.preventDefault();
+  selectPlanDay(next);
+};
+function drawPlan() {
+  const today=dateFormat.format(new Date()), rows=monthlySpending(wallet,planMonth,today);
+  const index=Math.max(0,rows.findIndex(row=>row.day===planDay)), selected=rows[index];
+  get('plan-month').textContent=monthName.format(new Date(planMonth+'T12:00:00Z'));
+  get('plan-day').textContent=dayName.format(new Date(selected.day+'T12:00:00Z'));
+  get('plan-value').textContent=money(selected.plan);
+  get('actual-value').textContent=selected.fact===null?'—':money(selected.fact);
+  const delta=selected.fact===null?null:selected.fact-selected.plan;
+  const difference=get('plan-difference');
+  difference.className='plan-difference'+(delta>0?' expense':delta<0?' income':'');
+  difference.textContent=delta===null?(selected.day>today?'Факт появится после этой даты':'Учёт на эту дату ещё не начался'):
+    delta===0?'Расходы совпадают с планом':money(Math.abs(delta))+(delta>0?' сверх плана':' ниже плана');
+  planPlot.setAttribute('aria-valuemax',String(rows.length));
+  planPlot.setAttribute('aria-valuenow',String(index+1));
+  planPlot.setAttribute('aria-valuetext',get('plan-day').textContent+', план '+money(selected.plan)+', факт '+get('actual-value').textContent);
+  paintPlan(rows,index);
+}
+function paintPlan(rows,selectedIndex) {
+  const width=planPlot.clientWidth, height=planPlot.clientHeight;
+  if (width<80||height<56) return;
+  const scale=Math.min(3,window.devicePixelRatio||1);
+  planPlot.width=width*scale;
+  planPlot.height=height*scale;
+  const ctx=planPlot.getContext('2d');
+  if (!ctx) return;
+  ctx.scale(scale,scale);
+  const {left,right,top,bottom}=plotInsets, endX=width-right, endY=height-bottom;
+  const peak=Math.max(100000,...rows.map(row=>Math.max(row.plan,row.fact||0)));
+  const rough=peak/3, place=10**Math.floor(Math.log10(rough));
+  const tick=Math.ceil(rough/place)*place;
+  const x=index=>left+index*(endX-left)/(rows.length-1);
+  const y=value=>endY-value*(endY-top)/(3*tick);
+  ctx.font='11px system-ui';
+  ctx.fillStyle='#a7b8b7';
+  ctx.strokeStyle='#ffffff18';
+  ctx.textAlign='right';
+  const compact=new Intl.NumberFormat('ru-RU',{notation:'compact',maximumFractionDigits:1});
+  for (let i=0;i<=3;i++) {
+    const value=i*tick, pos=y(value);
+    ctx.beginPath();ctx.moveTo(left,pos);ctx.lineTo(endX,pos);ctx.stroke();
+    ctx.fillText(compact.format(value/100),left-7,pos+3);
+  }
+  ctx.textAlign='center';
+  for (const index of [0,Math.floor(rows.length/2),rows.length-1])ctx.fillText(rows[index].day.slice(8),x(index),height-5);
+  const selectedX=x(selectedIndex);
+  ctx.strokeStyle='#ffffff40';
+  ctx.beginPath();ctx.moveTo(selectedX,top);ctx.lineTo(selectedX,endY);ctx.stroke();
+  for (const [field,color,dash] of [['plan','#8cf0b7',[5,4]],['fact','#ff8d87',[]]]) {
+    ctx.beginPath();
+    ctx.strokeStyle=color;
+    ctx.fillStyle=color;
+    ctx.lineWidth=2.2;
+    ctx.setLineDash(dash);
+    let started=false;
+    rows.forEach((row,index)=>{
+      if (row[field]===null) return;
+      if (!started) {ctx.moveTo(x(index),y(row[field]));started=true;}
+      else ctx.lineTo(x(index),y(row[field]));
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const mark=rows[selectedIndex][field]===null ? rows.findLastIndex(row=>row[field]!==null) : selectedIndex;
+    const point=rows[mark]?.[field];
+    if (point!=null) {
+      ctx.beginPath();ctx.arc(x(mark),y(point),3.4,0,Math.PI*2);ctx.fill();
+    }
+  }
+}
 function renderOpenedStats() {
   if (!stats.open) return;
   chartDay=summaryDay;
@@ -945,6 +1110,7 @@ function drawStats({days,max,income,expenses,balance}) {
 }
 window.addEventListener('resize',()=>{
   if (stats.open) drawStats(summarize(wallet,dateFormat.format(new Date())));
+  if (planWindow.open) drawPlan();
 });
 render();
 if (typeof window.setInterval==='function') tipTimer=setTimeout(nextTip,9000);
