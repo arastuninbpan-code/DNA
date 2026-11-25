@@ -10,13 +10,13 @@
   "theme_color": "#111719",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "wallet-symbol-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon.png",
+      "src": "wallet-symbol.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
