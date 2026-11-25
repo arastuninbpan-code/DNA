@@ -279,7 +279,8 @@ if (canSync && pairCode) {
       const remote=await api('/wallet','GET',null,token);
       const ids=new Set(remote.entries.map(item=>item.id));
       const local=wallet.entries.filter(item=>!ids.has(item.id));
-      const initialOpening=remote.openingSet?{}:{opening:wallet.opening||0,openingDate:wallet.openingDate??null};
+      const initialOpening=!remote.openingSet && (wallet.openingSet || wallet.opening!==0) ?
+        {opening:wallet.opening,openingDate:wallet.openingDate??null}: {};
       session=token;
       localStorage.setItem(sessionKey,session);
       queue=[{set:local.slice(0,150),quiet:true,...initialOpening}];
