@@ -64,7 +64,15 @@ dialog{width:min(calc(100% - 24px),420px);max-height:calc(100dvh - 28px);padding
     <p class="empty" id="empty">Здесь появятся операции.</p>
     <ul id="history" class="list"></ul>
   </details>
-  <a class="telegram-link" id="telegram-link" href="https://t.me/nakarmoney_bot" target="_blank" rel="noopener noreferrer">Подключить Telegram ↗</a>
+  <details id="telegram-setup" hidden>
+    <summary>Подключить Telegram</summary>
+    <form id="connect-code-form" class="editor-fields">
+      <a class="telegram-link" href="https://t.me/nakarmoney_bot" target="_blank" rel="noopener noreferrer">Получить код у бота через /connect ↗</a>
+      <label>Код из Telegram<input id="manual-connect-code" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="20" required></label>
+      <button class="secondary" type="submit">Подключить</button>
+    </form>
+  </details>
+  <a class="telegram-link" id="telegram-link" href="https://t.me/nakarmoney_bot" target="_blank" rel="noopener noreferrer" hidden>Открыть бота в Telegram ↗</a>
   <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
   <p class="empty" id="sync-status" role="status" hidden></p>
 </main>
@@ -250,25 +258,24 @@ async function sync() {
       }
     } while(queue.length);
     if (!drag && !editor.open) updateFromServer(remote);
-    get('telegram-link').textContent='Открыть бота в Telegram ↗';
+    get('telegram-setup').hidden=true;
+    get('telegram-link').hidden=false;
     syncStatus('Telegram подключён');
   } catch(error) {
+    if (error.message==='401') get('telegram-setup').hidden=false;
     syncStatus(error.message==='401'?'Сессия Telegram истекла. Введи /connect у бота.':'Жду связь с Telegram. Записи сохранены на устройстве.');
   } finally {
     syncing=false;
   }
 }
-if (canSync && pairCode) {
-  const connect = get('connect-wallet');
-  connect.hidden=false;
-  connect.onclick=async ()=>{
-    connect.disabled=true;
+async function connectTelegram(code,control) {
+    control.disabled=true;
     try {
       if (session) {
         await sync();
         if (queue.length) throw new Error('Pending');
       }
-      const {token}=await api('/pair','POST',{code:pairCode},null);
+      const {token}=await api('/pair','POST',{code},null);
       const remote=await api('/wallet','GET',null,token);
       const ids=new Set(remote.entries.map(item=>item.id));
       const local=wallet.entries.filter(item=>!ids.has(item.id));
@@ -279,17 +286,32 @@ if (canSync && pairCode) {
       queue=[{set:local.slice(0,150),quiet:true,...initialOpening}];
       for (let i=150;i<local.length;i+=150)queue.push({set:local.slice(i,i+150),quiet:true});
       persistQueue();
-      history.replaceState(null,'',location.pathname+location.search);
-      connect.hidden=true;
+      if (pairCode) history.replaceState(null,'',location.pathname+location.search);
+      get('connect-wallet').hidden=true;
       await sync();
     } catch(error) {
       syncStatus(error.message==='410'?'Ссылка истекла. Напиши /connect боту ещё раз.':'Подключение не удалось. Попробуй снова.');
     } finally {
-      connect.disabled=false;
+      control.disabled=false;
     }
-  };
 }
 if (canSync) {
+  get('telegram-setup').hidden=Boolean(session || pairCode);
+  if (pairCode) {
+    const connect = get('connect-wallet');
+    connect.hidden=false;
+    connect.onclick=()=>void connectTelegram(pairCode,connect);
+  }
+  get('connect-code-form').onsubmit=event=>{
+    event.preventDefault();
+    const code=get('manual-connect-code').value.trim().replace(/[\s-]/g,'').toLowerCase();
+    if (!/^[a-f0-9]{12}$/.test(code)) {
+      syncStatus('Вставь 12-символьный код из сообщения бота.');
+      return;
+    }
+    const button=event.currentTarget.querySelector('button');
+    void connectTelegram(code,button);
+  };
   window.addEventListener('focus',()=>void sync());
   window.setInterval(()=>void sync(),6500);
 }
