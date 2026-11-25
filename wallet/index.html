@@ -31,6 +31,9 @@ dialog{width:min(calc(100% - 24px),420px);max-height:calc(100dvh - 28px);padding
 .dial:focus-visible .dial-face{border:2px solid var(--mint)}.line-button{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:7px 0;min-height:42px;border:0;background:none;text-align:left;user-select:none;-webkit-touch-callout:none}.line:has(.line-button){padding-block:0}.dial{-webkit-touch-callout:none}.editor-fields{display:grid;gap:12px}.editor-fields label{display:grid;gap:4px;color:var(--muted);font-size:13px}.editor-fields input{width:100%;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);font:inherit;font-size:16px}.editor-fields .primary{min-height:44px;border:0;border-radius:10px;background:var(--mint);color:#10271c;font-weight:700}.editor-error{margin:0;color:var(--red);font-size:13px}
 .import-label{position:relative;display:flex;justify-content:center;margin:0 0 3px}.import-label span{padding:10px 12px;color:var(--mint);cursor:pointer;text-decoration:underline}.import-label input{position:absolute;width:1px;height:1px;opacity:0}.import-label:focus-within span{outline:2px solid var(--mint);outline-offset:2px;border-radius:8px}
 </style>
+<style>
+.quick-summary{width:100%;border-collapse:collapse;margin:6px 0 12px;font-size:13px}.quick-summary caption{text-align:left;color:var(--muted);padding:6px 0;font-weight:650}.quick-summary th,.quick-summary td{padding:6px 0;border-bottom:1px solid #2a3638}.quick-summary th{text-align:left;font-weight:500;color:var(--muted)}.quick-summary td{text-align:right;font-weight:650;font-variant-numeric:tabular-nums}.telegram-link{display:inline-block;padding:9px 0;color:var(--mint);font-size:13px}
+</style>
 </head>
 <body>
 <main>
@@ -52,10 +55,23 @@ dialog{width:min(calc(100% - 24px),420px);max-height:calc(100dvh - 28px);padding
   <p class="message"><span id="message" role="status"></span><button id="undo" class="undo" type="button" hidden>Отменить</button></p>
   <label class="import-label" id="import-box" hidden><span>Загрузить мой бюджет</span><input id="import" type="file" accept=".json,application/json"></label>
   <details>
+    <summary>Быстрая сводка</summary>
+    <table class="quick-summary">
+      <caption>Фактические операции за 30 дней</caption>
+      <tbody>
+        <tr><th scope="row">Было на начало</th><td id="quick-opening"></td></tr>
+        <tr><th scope="row">Пополнения</th><td id="quick-income" class="income"></td></tr>
+        <tr><th scope="row">Траты</th><td id="quick-expenses" class="expense"></td></tr>
+        <tr><th scope="row">На кармане сейчас</th><td id="quick-balance"></td></tr>
+      </tbody>
+    </table>
+  </details>
+  <details>
     <summary>История <span id="history-count"></span></summary>
     <p class="empty" id="empty">Здесь появятся операции.</p>
     <ul id="history" class="list"></ul>
   </details>
+  <a class="telegram-link" href="https://t.me/nakarmoney_bot" target="_blank" rel="noopener noreferrer">Открыть бота в Telegram ↗</a>
 </main>
 <dialog id="stats" aria-labelledby="stats-title">
   <div class="dialog-head">
@@ -238,6 +254,10 @@ function render() {
   dial.setAttribute('aria-label','На кармане '+money(result.balance)+'. Открыть графики');
   get('income').textContent = money(result.income);
   get('expenses').textContent = money(result.expenses);
+  get('quick-opening').textContent = (result.days[0].balance===null?'—':money(result.balance-result.income+result.expenses));
+  get('quick-income').textContent = money(result.income);
+  get('quick-expenses').textContent = money(result.expenses);
+  get('quick-balance').textContent = money(result.balance);
   get('history-count').textContent = wallet.entries.length ? '· '+wallet.entries.length : '';
   get('empty').hidden = wallet.entries.length>0;
   get('import-box').hidden = Boolean(wallet.openingSet || wallet.opening || wallet.entries.some(item=>!item.added));
