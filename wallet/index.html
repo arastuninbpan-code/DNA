@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111719">
+<meta name="description" content="Остаток на кармане, быстрый учёт трат и пополнений, графики за месяц.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="На кармане">
+<meta property="og:description" content="Остаток, траты и пополнения в одном круге.">
+<meta property="og:image" content="https://arastuninbpan-code.github.io/DNA/wallet/cover.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="628">
+<meta property="og:image:alt" content="На кармане — зелёный и красный круг на тёмном фоне">
+<meta property="og:url" content="https://arastuninbpan-code.github.io/DNA/wallet/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>На кармане</title>
+<style>
+:root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
+*{box-sizing:border-box}body{background:var(--bg);margin:0;color:var(--text);font:16px/1.4 system-ui,sans-serif}main{width:min(100%,440px);margin:auto;padding:24px 18px 40px}button,summary{font:inherit;color:inherit;cursor:pointer}button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--mint);outline-offset:4px}[hidden]{display:none!important}
+.dial{--split:0%;--angle:0deg;position:relative;display:block;width:min(100%,320px);aspect-ratio:1;margin:0 auto;border:0;border-radius:50%;padding:0;touch-action:none;user-select:none;-webkit-tap-highlight-color:transparent;clip-path:circle(50%);background:var(--track);cursor:grab}.dial:active{cursor:grabbing}.dial.filled{background:conic-gradient(var(--mint) 0 var(--split),var(--red) var(--split) 100%)}.dial-face{position:absolute;inset:16px;display:grid;align-content:center;justify-items:center;text-align:center;border:1px solid #344043;border-radius:50%;background:radial-gradient(ellipse at 50% 0%,#283633 0,var(--panel) 70%);padding:19px;pointer-events:none}.ticks{position:absolute;inset:3px;border-radius:50%;background:repeating-conic-gradient(from -.6deg,#b4c7c654 0 1.2deg,transparent 1.2deg 15deg);mask:radial-gradient(farthest-side,transparent calc(100% - 6px),black calc(100% - 5px));pointer-events:none}.marker{display:none;position:absolute;inset:0;transform:rotate(var(--angle));pointer-events:none}.marker::before{content:"";position:absolute;top:3px;left:50%;width:12px;height:12px;transform:translateX(-50%);border:2px solid var(--bg);border-radius:50%;background:#fff}.dial.turning .marker,.dial.turning .ticks{display:block}.ticks{display:none}
+.dial-label{color:var(--muted);font-size:15px;font-weight:600}.balance{display:block;margin:4px 0;font-size:clamp(28px,12.5vw,54px);font-weight:740;line-height:1.1;letter-spacing:-.058em;font-variant-numeric:tabular-nums;white-space:nowrap}.balance.compact{font-size:clamp(18px,7vw,34px)}.cue{min-height:1.4em;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}.income{color:var(--mint)}.expense{color:var(--red)}
+.period{margin:17px 0 5px;text-align:center;color:var(--muted);font-size:12px}.legend{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:0}.legend div{text-align:center;min-width:0}.legend div+div{border-left:1px solid var(--border)}.legend dt{color:var(--muted);font-size:13px}.legend dd{margin:1px 0 0;font-size:18px;font-weight:680;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.gesture{margin:14px auto 4px;text-align:center;color:var(--muted);font-size:12px}.message{min-height:22px;margin:6px 0 0;text-align:center;color:var(--muted);font-size:13px}.undo{padding:7px 3px;margin-left:5px;border:0;background:none;text-decoration:underline;color:var(--mint)}
+details{margin-top:10px;border-top:1px solid var(--border);padding:0 2px}summary{min-height:44px;padding:11px 0;color:var(--muted);font-weight:650}.list{margin:0;padding:0;list-style:none}.line{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:52px;padding:7px 0;border-bottom:1px solid #2a3638}.line strong{font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}.line.planned strong{color:var(--muted)}.line small{display:block;color:var(--muted)}.line span{overflow-wrap:anywhere}.line .tools{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-shrink:0}.secondary{border:1px solid var(--border);border-radius:10px;background:var(--panel);min-height:42px;padding:4px 8px;font-size:13px}.empty,.import-label{margin:3px 0 12px;color:var(--muted);font-size:13px}.import-label{display:grid;gap:5px}
+dialog{width:min(calc(100% - 24px),420px);max-height:calc(100dvh - 28px);padding:17px;border:1px solid var(--border);border-radius:20px;background:var(--bg);color:var(--text)}dialog::backdrop{background:#030809b5}.dialog-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:13px}.dialog-head h2{margin:0;font-size:20px}.close{width:44px;height:44px;border:1px solid var(--border);border-radius:50%;background:var(--panel);font-size:23px;line-height:1}.net{display:flex;justify-content:space-between;gap:10px;margin:0 0 12px;color:var(--muted);font-size:13px}.net strong{font-size:17px;text-align:right}
+.chart{margin:11px 0 0;padding:13px;border:1px solid var(--border);border-radius:13px;background:var(--panel)}.chart h3{margin:0 0 7px;font-size:15px}.chart-note{margin:4px 0;color:var(--muted);font-size:12px;min-height:18px}.bars{display:grid;grid-template-columns:repeat(30,minmax(0,1fr));gap:2px;height:100px;border-bottom:1px solid var(--border);background:repeating-linear-gradient(to top,transparent 0 24%,#344344 24% 25%)}.bar-day{display:flex;gap:1px;align-items:flex-end}.bar-day span{flex:1;min-width:0;border-radius:2px 2px 0 0}.bar-day .money-in{background:var(--mint)}.bar-day .money-out{background:var(--red)}.chart-axis{display:flex;justify-content:space-between;gap:4px;margin-top:4px;color:var(--muted);font-size:11px}.line-chart{display:block;width:100%;height:94px}
+@media(max-width:350px){main{padding:18px 12px 32px}.gesture{font-size:11px}.dial-face{inset:14px}}
+.dial:focus-visible .dial-face{border:2px solid var(--mint)}.line-button{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:7px 0;min-height:42px;border:0;background:none;text-align:left;user-select:none;-webkit-touch-callout:none}.line:has(.line-button){padding-block:0}.dial{-webkit-touch-callout:none}.editor-fields{display:grid;gap:12px}.editor-fields label{display:grid;gap:4px;color:var(--muted);font-size:13px}.editor-fields input{width:100%;min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);font:inherit;font-size:16px}.editor-fields .primary{min-height:44px;border:0;border-radius:10px;background:var(--mint);color:#10271c;font-weight:700}.editor-error{margin:0;color:var(--red);font-size:13px}
+.import-label{position:relative;display:flex;justify-content:center;margin:0 0 3px}.import-label span{padding:10px 12px;color:var(--mint);cursor:pointer;text-decoration:underline}.import-label input{position:absolute;width:1px;height:1px;opacity:0}.import-label:focus-within span{outline:2px solid var(--mint);outline-offset:2px;border-radius:8px}
+</style>
+</head>
+<body>
+<main>
+  <button class="dial" id="dial" type="button" aria-label="На кармане. Открыть графики" aria-describedby="gesture">
+    <span class="dial-face">
+      <span class="dial-label" id="dial-label">На кармане</span>
+      <span class="balance" id="balance"></span>
+      <span class="cue" id="cue">Нажми или удерживай для графиков</span>
+    </span>
+    <span class="ticks" aria-hidden="true"></span>
+    <span class="marker" aria-hidden="true"></span>
+  </button>
+  <p class="period">Последние 30 дней</p>
+  <dl class="legend" aria-label="Фактические доходы и расходы">
+    <div><dt>Пополнения</dt><dd class="income" id="income"></dd></div>
+    <div><dt>Траты</dt><dd class="expense" id="expenses"></dd></div>
+  </dl>
+  <p class="gesture" id="gesture">По часовой — трата, против — пополнение · шаг 100 ₽</p>
+  <p class="message"><span id="message" role="status"></span><button id="undo" class="undo" type="button" hidden>Отменить</button></p>
+  <label class="import-label" id="import-box" hidden><span>Загрузить мой бюджет</span><input id="import" type="file" accept=".json,application/json"></label>
+  <details>
+    <summary>История <span id="history-count"></span></summary>
+    <p class="empty" id="empty">Здесь появятся операции.</p>
+    <ul id="history" class="list"></ul>
+  </details>
+</main>
+<dialog id="stats" aria-labelledby="stats-title">
+  <div class="dialog-head">
+    <h2 id="stats-title">Последние 30 дней</h2>
+    <form method="dialog"><button class="close" aria-label="Закрыть">×</button></form>
+  </div>
+  <p class="net">Пополнения минус траты <strong id="net"></strong></p>
+  <div class="chart">
+    <h3>Пополнения и траты по дням</h3>
+    <p class="chart-note" id="bars-note"></p>
+    <div class="bars" id="bars" aria-hidden="true"></div>
+    <div class="chart-axis" aria-hidden="true"><span id="bars-start"></span><span id="bars-end"></span></div>
+  </div>
+  <div class="chart">
+    <h3>Остаток по дням</h3>
+    <p class="chart-note" id="balance-note"></p>
+    <canvas class="line-chart" id="line" aria-hidden="true"></canvas>
+    <div class="chart-axis" aria-hidden="true"><span id="line-start"></span><span id="line-end"></span></div>
+  </div>
+</dialog>
+<dialog id="editor" aria-labelledby="editor-title">
+  <div class="dialog-head">
+    <h2 id="editor-title">Операция</h2>
+    <form method="dialog"><button class="close" aria-label="Закрыть">×</button></form>
+  </div>
+  <form id="edit-form" class="editor-fields">
+    <label>Сумма, ₽<input id="edit-amount" type="text" required aria-describedby="edit-amount-hint"><span id="edit-amount-hint">− расход, + пополнение. Например, −15.000,31</span></label>
+    <label>Подпись<input id="edit-label" type="text" maxlength="90" placeholder="Например, кофе"></label>
+    <p id="editor-error" class="editor-error" role="alert" hidden></p>
+    <button class="primary" type="submit">Сохранить правку</button>
+    <button class="secondary expense" id="delete-operation" type="button">Удалить операцию</button>
+  </form>
+</dialog>
+<script>
+const initial = {"opening":0,"entries":[]};
+const key = 'pocket-budget-pages-v2';
+const zone = 'Europe/Moscow';
+const dateFormat = new Intl.DateTimeFormat('sv-SE',{timeZone:zone});
+const timeFormat = new Intl.DateTimeFormat('ru-RU',{timeZone:zone,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+const rubles = new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:0,maximumFractionDigits:2});
+const step = 10000;
+const turnSteps = 24;
+const detent = 2*Math.PI/turnSteps;
+const get = id => document.getElementById(id);
+const money = amount => rubles.format(amount/100);
+const short = date => date.slice(8)+'.'+date.slice(5,7);
+const isDate = value => typeof value==='string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value));
+let wallet = initial;
+try {
+  const saved = JSON.parse(localStorage.getItem(key));
+  if (validWallet(saved)) wallet = saved;
+} catch {}
+let previousWallet = null;
+let drag = null;
+let keyboardSteps = 0;
+let editingId = null;
+const dial = get('dial');
+const stats = get('stats');
+const editor = get('editor');
+
+function validWallet(data) {
+  return Boolean(data && Number.isSafeInteger(data.opening) && Array.isArray(data.entries) &&
+    data.entries.every(item=>item && typeof item.id==='string' && typeof item.label==='string' &&
+      Number.isSafeInteger(item.sum) && item.sum!==0 && isDate(item.date) &&
+      (!item.postedAt || (typeof item.postedAt==='string' && Number.isFinite(Date.parse(item.postedAt))))));
+}
+function dateOf(item) {
+  return item.postedAt ? dateFormat.format(new Date(item.postedAt)) : item.date;
+}
+function isActual(item,today) {
+  return Boolean((item.postedAt || item.added || item.done) && dateOf(item)<=today);
+}
+function summarize(data,today) {
+  const days = Array.from({length:30},(_,index)=>{
+    const date = new Date(today+'T12:00:00Z');
+    date.setUTCDate(date.getUTCDate()+index-29);
+    return {date:date.toISOString().slice(0,10),income:0,expenses:0};
+  });
+  const byDate = new Map(days.map(day=>[day.date,day]));
+  let before = data.opening;
+  let first = isDate(data.openingDate)?data.openingDate:initial.openingDate||today;
+  for (const item of data.entries) {
+    if (!isActual(item,today)) continue;
+    const date = dateOf(item), day = byDate.get(date);
+    if (date<first) first = date;
+    if (!day) before += item.sum;
+    else {
+      day.income += Math.max(0,item.sum);
+      day.expenses += Math.max(0,-item.sum);
+    }
+  }
+  let balance = before, income = 0, expenses = 0, max = 0;
+  for (const day of days) {
+    income += day.income;
+    expenses += day.expenses;
+    max = Math.max(max,day.income,day.expenses);
+    balance += day.income-day.expenses;
+    day.balance = day.date>=first ? balance : null;
+  }
+  return {days,balance,income,expenses,max};
+}
+function save(next,note) {
+  try {
+    localStorage.setItem(key,JSON.stringify(next));
+  } catch {
+    get('message').textContent = 'Браузер не смог сохранить операцию.';
+    return false;
+  }
+  previousWallet = wallet;
+  wallet = next;
+  get('message').textContent = note;
+  get('undo').hidden = false;
+  render();
+  return true;
+}
+function post(item,sum) {
+  const now = new Date(), date = dateFormat.format(now);
+  const postedAt = now.toISOString();
+  const record = item ? {...item,done:true,postedAt} : {
+    id:globalThis.crypto?.randomUUID?.()||postedAt+'-'+Math.random(),
+    sum,date,postedAt,label:sum<0?'Трата':'Пополнение',added:true
+  };
+  const entries = item ? wallet.entries.map(entry=>entry.id===item.id?record:entry) : [...wallet.entries,record];
+  const confirmation = (record.sum<0?'−':'+')+money(Math.abs(record.sum))+' · '+timeFormat.format(now);
+  return save({...wallet,entries},confirmation);
+}
+function historyRow(item,actual) {
+  const row = document.createElement('li');
+  row.className = actual?'line':'line planned';
+  const label = document.createElement('span');
+  label.textContent = item.label;
+  const date = document.createElement('small');
+  date.textContent = item.postedAt ? timeFormat.format(new Date(item.postedAt)) :
+    (actual?'':'План · ')+short(item.date)+'.'+item.date.slice(0,4);
+  label.append(date);
+  const tools = document.createElement('div');
+  tools.className = 'tools';
+  const amount = document.createElement('strong');
+  amount.textContent = (item.sum>0?'+':'−')+money(Math.abs(item.sum));
+  amount.className = item.sum>0?'income':'expense';
+  if (actual) {
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'line-button';
+    edit.append(label,amount);
+    edit.setAttribute('aria-label','Изменить · '+item.label+' · '+amount.textContent);
+    edit.onclick = ()=>openEditor(item);
+    edit.oncontextmenu = event=>event.preventDefault();
+    let hold, origin;
+    const stop = ()=>{clearTimeout(hold);origin=null;};
+    edit.addEventListener('pointerdown',event=>{
+      if (event.button!==0 || origin) return;
+      origin = event;
+      hold = setTimeout(()=>openEditor(item),500);
+    });
+    edit.addEventListener('pointermove',event=>{
+      if (origin?.pointerId===event.pointerId && Math.hypot(event.clientX-origin.clientX,event.clientY-origin.clientY)>=8) stop();
+    });
+    for (const name of ['pointerup','pointercancel','pointerleave']) edit.addEventListener(name,stop);
+    row.append(edit);
+    return row;
+  }
+  tools.append(amount);
+  const action = document.createElement('button');
+  action.type = 'button';
+  action.className = 'secondary';
+  action.textContent = 'Провести';
+  action.setAttribute('aria-label','Провести · '+item.label+' · '+short(item.date));
+  action.onclick = ()=>{if(post(item))get('undo').focus();};
+  tools.append(action);
+  row.append(label,tools);
+  return row;
+}
+function render() {
+  const today = dateFormat.format(new Date());
+  const result = summarize(wallet,today);
+  const total = result.income+result.expenses;
+  dial.classList.toggle('filled',total>0);
+  dial.style.setProperty('--split',(total?100*result.income/total:0)+'%');
+  dial.setAttribute('aria-label','На кармане '+money(result.balance)+'. Открыть графики');
+  get('income').textContent = money(result.income);
+  get('expenses').textContent = money(result.expenses);
+  get('history-count').textContent = wallet.entries.length ? '· '+wallet.entries.length : '';
+  get('empty').hidden = wallet.entries.length>0;
+  get('import-box').hidden = Boolean(wallet.openingSet || wallet.opening || wallet.entries.some(item=>!item.added));
+  const chronological = wallet.entries.map(item=>({item,date:dateOf(item),actual:isActual(item,today)}))
+    .sort((a,b)=>Number(b.actual)-Number(a.actual)||(a.actual?
+      b.date.localeCompare(a.date)||(b.item.postedAt||'').localeCompare(a.item.postedAt||''):
+      a.date.localeCompare(b.date)));
+  get('history').replaceChildren(...chronological.map(({item,actual})=>historyRow(item,actual)));
+  showAmount(0,result.balance);
+  if (stats.open) drawStats(result);
+}
+function showAmount(steps,balance) {
+  const change = -steps*step;
+  const amount = get('balance');
+  const isDraft = change!==0;
+  amount.textContent = money(balance+change);
+  amount.classList.toggle('compact',amount.textContent.length>11);
+  get('dial-label').textContent = isDraft?'После операции':'На кармане';
+  const cue = get('cue');
+  cue.className = 'cue'+(isDraft?(change>0?' income':' expense'):'');
+  cue.textContent = isDraft ? (change>0?'+':'−')+money(Math.abs(change))+
+    (drag?' · отпусти для записи':' · Enter для записи') : 'Нажми или удерживай для графиков';
+}
+function position(event,bounds) {
+  const x = event.clientX-bounds.left-bounds.width/2;
+  const y = event.clientY-bounds.top-bounds.height/2;
+  return {angle:Math.atan2(y,x),radius:Math.hypot(x,y)};
+}
+function move(event) {
+  if (!drag || drag.id!==event.pointerId) return;
+  const dx = event.clientX-drag.x, dy = event.clientY-drag.y;
+  if (!drag.active && Math.hypot(dx,dy)<8) return;
+  clearTimeout(drag.hold);
+  drag.active = true;
+  const point = position(event,drag.bounds);
+  let marker;
+  if (drag.linear) {
+    drag.turn = dx/12*detent;
+    marker = drag.turn;
+  } else {
+    if (point.radius>=drag.bounds.width*.14) {
+      const delta = drag.angle===null?0:point.angle-drag.angle;
+      drag.turn += Math.atan2(Math.sin(delta),Math.cos(delta));
+      drag.angle = point.angle;
+    } else {
+      drag.angle = null;
+    }
+    marker = (drag.angle??drag.startAngle)+Math.PI/2;
+  }
+  const rawSteps = drag.turn/detent;
+  if (Math.abs(rawSteps-drag.steps)>=.62) {
+    drag.steps = Math.max(-100000,Math.min(100000,Math.round(rawSteps)));
+    showAmount(drag.steps,drag.balance);
+  }
+  dial.style.setProperty('--angle',marker+'rad');
+  dial.classList.add('turning');
+}
+function finish(event,commit) {
+  if (!drag || drag.id!==event.pointerId) return;
+  if (commit) move(event);
+  clearTimeout(drag.hold);
+  const {active,steps,balance} = drag;
+  drag = null;
+  dial.classList.remove('turning');
+  showAmount(0,balance);
+  if (!commit) return;
+  if (active && steps) {
+    post(null,-steps*step);
+  } else {
+    const {radius} = position(event,dial.getBoundingClientRect());
+    if (!active && radius<=dial.clientWidth/2) openStats();
+  }
+}
+dial.addEventListener('pointerdown',event=>{
+  if (drag || event.button!==0) return;
+  keyboardSteps = 0;
+  const bounds = dial.getBoundingClientRect();
+  const point = position(event,bounds);
+  const {balance} = summarize(wallet,dateFormat.format(new Date()));
+  showAmount(0,balance);
+  drag = {id:event.pointerId,bounds,x:event.clientX,y:event.clientY,angle:point.angle,startAngle:point.angle,
+    balance,linear:point.radius<bounds.width*.2,active:false,turn:0,steps:0};
+  dial.setPointerCapture(event.pointerId);
+  const pressed = drag;
+  drag.hold = setTimeout(()=>{
+    if (drag!==pressed || pressed.active) return;
+    drag = null;
+    if (dial.hasPointerCapture(pressed.id)) dial.releasePointerCapture(pressed.id);
+    openStats();
+  },500);
+});
+dial.addEventListener('pointermove',move);
+dial.addEventListener('pointerup',event=>finish(event,true));
+dial.addEventListener('pointercancel',event=>finish(event,false));
+dial.addEventListener('lostpointercapture',event=>finish(event,false));
+dial.oncontextmenu = event=>event.preventDefault();
+dial.addEventListener('click',event=>{
+  if (event.detail!==0) return;
+  if (keyboardSteps) {
+    const sum = -keyboardSteps*step;
+    keyboardSteps = 0;
+    post(null,sum);
+  } else {
+    openStats();
+  }
+});
+dial.addEventListener('keydown',event=>{
+  const direction = {ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[event.key];
+  if (!direction && event.key!=='Escape') return;
+  event.preventDefault();
+  keyboardSteps = direction ? Math.max(-100000,Math.min(100000,keyboardSteps+direction)) : 0;
+  showAmount(keyboardSteps,summarize(wallet,dateFormat.format(new Date())).balance);
+});
+get('undo').onclick = ()=>{
+  if (previousWallet && save(previousWallet,'Операция отменена.')) {
+    previousWallet = null;
+    get('undo').hidden = true;
+    dial.focus();
+  }
+};
+function openEditor(item) {
+  if (editor.open) return;
+  editingId = item.id;
+  get('editor-title').textContent = item.sum<0?'Трата':'Пополнение';
+  get('edit-amount').value = String(Math.abs(item.sum)/100).replace('.',',');
+  get('edit-label').value = ['Трата','Пополнение','Доход'].includes(item.label)?'':item.label;
+  get('editor-error').hidden = true;
+  editor.showModal();
+}
+get('edit-form').onsubmit = event=>{
+  event.preventDefault();
+  const item = wallet.entries.find(entry=>entry.id===editingId);
+  if (!item) return;
+  const raw = get('edit-amount').value.trim().replace(/[−–]/g,'-').replace(/\s/g,'');
+  const sign = raw.startsWith('-')?-1:raw.startsWith('+')?1:Math.sign(item.sum);
+  const unsigned = raw.replace(/^[+-]/,'');
+  const grouped = /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(unsigned);
+  const normalized = (grouped?unsigned.replace(/\./g,''):unsigned).replace(',','.');
+  const amount = Math.round(Number(normalized)*100);
+  const error = get('editor-error');
+  if (!/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(normalized) || amount<=0 || !Number.isSafeInteger(amount)) {
+    error.textContent = 'Введи ненулевую сумму, например −15.000,31.';
+    error.hidden = false;
+    return;
+  }
+  const label = get('edit-label').value.trim() || (sign<0?'Трата':'Пополнение');
+  const entries = wallet.entries.map(entry=>entry.id===editingId?{...entry,sum:amount*sign,label}:entry);
+  if (save({...wallet,entries},'Операция обновлена.')) {
+    editor.close();
+    dial.focus({preventScroll:true});
+  } else {
+    error.textContent = 'Сохранить правку не удалось.';
+    error.hidden = false;
+  }
+};
+get('delete-operation').onclick = ()=>{
+  const entries = wallet.entries.filter(item=>item.id!==editingId);
+  if (entries.length===wallet.entries.length) return;
+  if (save({...wallet,entries},'Операция удалена.')) {
+    editor.close();
+    get('undo').focus({preventScroll:true});
+  } else {
+    const error = get('editor-error');
+    error.textContent = 'Удалить операцию не удалось.';
+    error.hidden = false;
+  }
+};
+get('import').onchange = async event=>{
+  const input = event.target, file = input.files[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!validWallet(data)) throw new Error('Invalid format');
+    const entries = new Map(data.entries.map(item=>[item.id,item]));
+    for (const item of wallet.entries) entries.set(item.id,item);
+    const openingDate = isDate(data.openingDate)?data.openingDate:dateFormat.format(new Date());
+    save({...wallet,entries:[...entries.values()],opening:wallet.opening||data.opening,openingDate,openingSet:true},'Бюджет загружен.');
+  } catch {
+    get('message').textContent = 'Выбери файл бюджета в формате JSON.';
+  } finally {
+    input.value = '';
+  }
+};
+function openStats() {
+  if (!stats.open) stats.showModal();
+  drawStats(summarize(wallet,dateFormat.format(new Date())));
+}
+function drawStats({days,max,income,expenses,balance}) {
+  const net = income-expenses;
+  get('net').textContent = (net>0?'+':'')+money(net);
+  get('net').className = net<0?'expense':'income';
+  get('bars-start').textContent = short(days[0].date);
+  get('bars-end').textContent = short(days.at(-1).date);
+  get('bars-note').textContent = max ? 'Пополнения '+money(income)+' · траты '+money(expenses) : 'За этот период операций пока нет.';
+  get('bars').replaceChildren(...days.map(day=>{
+    const group = document.createElement('div');
+    group.className = 'bar-day';
+    group.title = short(day.date)+': +'+money(day.income)+' / −'+money(day.expenses);
+    for (const [className,amount] of [['money-in',day.income],['money-out',day.expenses]]) {
+      const bar = document.createElement('span');
+      bar.className = className;
+      bar.style.height = (max?100*amount/max:0)+'%';
+      group.append(bar);
+    }
+    return group;
+  }));
+  const known = days.filter(day=>day.balance!==null);
+  const min = Math.min(...known.map(day=>day.balance)), maxBalance = Math.max(...known.map(day=>day.balance));
+  get('line-start').textContent = short(known[0]?.date||days[0].date);
+  get('line-end').textContent = short(days.at(-1).date);
+  get('balance-note').textContent = min===maxBalance ? 'Остаток '+money(balance) :
+    'Минимум '+money(min)+' · максимум '+money(maxBalance);
+  const canvas = get('line'), width = canvas.clientWidth, height = canvas.clientHeight;
+  if (!width || !height || !known.length) return;
+  const scale = Math.min(3,window.devicePixelRatio||1);
+  canvas.width = width*scale;
+  canvas.height = height*scale;
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  context.scale(scale,scale);
+  context.strokeStyle = '#334244';
+  for (const y of [6,height/2,height-6]) {
+    context.beginPath();context.moveTo(0,y);context.lineTo(width,y);context.stroke();
+  }
+  const x = i=>known.length===1?width/2:5+i*(width-10)/(known.length-1);
+  const y = amount=>min===maxBalance?height/2:6+(maxBalance-amount)*(height-12)/(maxBalance-min);
+  context.beginPath();
+  known.forEach((day,i)=>{if(i===0)context.moveTo(x(i),y(day.balance));else context.lineTo(x(i),y(day.balance));});
+  context.lineWidth = 2;
+  context.strokeStyle = '#8cf0b7';
+  context.stroke();
+  context.beginPath();
+  context.arc(x(known.length-1),y(balance),3.5,0,2*Math.PI);
+  context.fillStyle = '#8cf0b7';
+  context.fill();
+}
+window.addEventListener('resize',()=>{
+  if (stats.open) drawStats(summarize(wallet,dateFormat.format(new Date())));
+});
+render();
+</script>
+</body>
+</html>
