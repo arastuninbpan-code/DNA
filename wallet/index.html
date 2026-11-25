@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.5.4">
+<link rel="manifest" href="manifest.webmanifest?v=1.5.5">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -55,6 +55,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 .summary-panel{touch-action:pan-y}.summary-panel .timeline{margin-inline:-15px;margin-bottom:6px;padding-inline:max(0px,calc(50% - 12px))}.quick-summary #selected-day{color:var(--muted);font-size:12px;padding:3px 0 2px;font-weight:500}
 .day-button{flex:0 0 54px;min-width:0;min-height:58px;display:grid;place-content:center;justify-items:center;gap:1px;scroll-snap-align:center;border:1px solid transparent;background:transparent;border-radius:12px;padding:4px 1px;color:var(--muted);transition:background-color .2s,border-color .2s,color .2s}.day-button[aria-pressed=true]{background:#263633;border-color:#3d5a50;color:var(--text)}.day-button span{font-size:11px}.day-button strong{font-size:15px;font-variant-numeric:tabular-nums}.day-button::after{content:"";width:4px;height:4px;border-radius:50%;background:transparent}.day-button[data-entries]::after{background:var(--mint)}.day-button[data-future][data-entries]::after{background:#a7b8b7}.day-button:focus-visible{outline-offset:-2px}
 #stats .chart{margin:0;padding:10px 0 7px;border:0;border-top:1px solid #ffffff14;border-radius:0;background:none}#stats .chart h3{margin:0 0 4px;font-size:14px}#stats .chart-note{margin:0 0 5px;min-height:0}#stats .bars{height:82px;border-color:#344344;background:repeating-linear-gradient(to top,transparent 0 24%,#34434499 24% 25%);cursor:crosshair;touch-action:pan-y}#stats .bar-day{position:relative;padding-inline:1px}.bar-day.selected{background:#ffffff12;border-radius:3px 3px 0 0}.bar-day span{transition:opacity .2s}.bars:has(.selected) .bar-day:not(.selected) span{opacity:.7}#stats .line-chart{height:70px}
+.line.planned .line-button{flex:1;min-height:50px}.line.planned .line-button>span{min-width:0}
 @media(max-width:520px){#stats{margin:auto auto max(8px,env(safe-area-inset-bottom));max-height:calc(100dvh - 26px);padding:11px 14px 10px}}
 @media(prefers-reduced-motion:reduce){#stats[open]{animation:none}.day-button,.bar-day span{transition:none}}
 </style>
@@ -107,7 +108,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
   </details>
   <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
   <p class="empty" id="sync-status" role="status" hidden></p>
-  <footer class="version">Версия 1.5.4</footer>
+  <footer class="version">Версия 1.5.5</footer>
 </main>
 <dialog id="stats" aria-labelledby="stats-title">
   <div class="dialog-head">
@@ -134,6 +135,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <form method="dialog"><button class="close" aria-label="Закрыть">×</button></form>
   </div>
   <form id="edit-form" class="editor-fields">
+    <label id="edit-date-label" hidden>Дата по плану<input id="edit-date" type="date" disabled required></label>
     <label>Сумма, ₽<input id="edit-amount" type="text" required aria-describedby="edit-amount-hint"><span id="edit-amount-hint">− расход, + пополнение. Например, −15.000,31</span></label>
     <label>Подпись<input id="edit-label" type="text" maxlength="90" placeholder="Например, кофе"></label>
     <p id="editor-error" class="editor-error" role="alert" hidden></p>
@@ -384,12 +386,10 @@ function historyRow(item,actual) {
   date.textContent = item.postedAt ? timeFormat.format(new Date(item.postedAt)) :
     (actual?'':'План · ')+short(item.date)+'.'+item.date.slice(0,4);
   label.append(date);
-  const tools = document.createElement('div');
-  tools.className = 'tools';
   const amount = document.createElement('strong');
   amount.textContent = (item.sum>0?'+':'−')+money(Math.abs(item.sum));
   amount.className = item.sum>0?'income':'expense';
-  if (actual) {
+  {
     const edit = document.createElement('button');
     edit.type = 'button';
     edit.className = 'line-button';
@@ -409,17 +409,15 @@ function historyRow(item,actual) {
     });
     for (const name of ['pointerup','pointercancel','pointerleave']) edit.addEventListener(name,stop);
     row.append(edit);
-    return row;
   }
-  tools.append(amount);
+  if (actual) return row;
   const action = document.createElement('button');
   action.type = 'button';
   action.className = 'secondary';
   action.textContent = 'Провести';
   action.setAttribute('aria-label','Провести · '+item.label+' · '+short(item.date));
   action.onclick = ()=>{if(post(item))dial.focus({preventScroll:true});};
-  tools.append(action);
-  row.append(label,tools);
+  row.append(action);
   return row;
 }
 function walletTips(today) {
@@ -732,6 +730,10 @@ dial.addEventListener('keydown',event=>{
 function openEditor(item) {
   if (editor.open) return;
   editingId = item.id;
+  const planned=!isActual(item,dateFormat.format(new Date()));
+  get('edit-date-label').hidden=!planned;
+  get('edit-date').disabled=!planned;
+  get('edit-date').value=item.date;
   get('editor-title').textContent = item.sum<0?'Трата':'Пополнение';
   get('edit-amount').value = String(Math.abs(item.sum)/100).replace('.',',');
   get('edit-label').value = ['Трата','Пополнение','Доход'].includes(item.label)?'':item.label;
@@ -757,7 +759,13 @@ get('edit-form').onsubmit = event=>{
     return;
   }
   const label = get('edit-label').value.trim() || (sign<0?'Трата':'Пополнение');
-  const entries = wallet.entries.map(entry=>entry.id===editingId?{...entry,sum:amount*sign,label}:entry);
+  const date=get('edit-date').disabled?item.date:get('edit-date').value;
+  if (!isDate(date)) {
+    error.textContent='Выбери дату операции.';
+    error.hidden=false;
+    return;
+  }
+  const entries = wallet.entries.map(entry=>entry.id===editingId?{...entry,date,sum:amount*sign,label}:entry);
   if (save({...wallet,entries})) {
     editor.close();
     dial.focus({preventScroll:true});
