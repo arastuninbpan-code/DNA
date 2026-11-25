@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111719">
 <meta name="description" content="Остаток на кармане, быстрый учёт трат и пополнений, графики за месяц.">
 <meta property="og:type" content="website">
@@ -23,7 +23,7 @@
 *{box-sizing:border-box}body{background:var(--bg);margin:0;color:var(--text);font:16px/1.4 system-ui,sans-serif}main{width:min(100%,440px);margin:auto;padding:24px 18px 40px}button,summary{font:inherit;color:inherit;cursor:pointer}button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--mint);outline-offset:4px}[hidden]{display:none!important}
 .dial{--split:0%;--angle:0deg;position:relative;display:block;width:min(100%,320px);aspect-ratio:1;margin:0 auto;border:0;border-radius:50%;padding:0;touch-action:none;user-select:none;-webkit-tap-highlight-color:transparent;clip-path:circle(50%);background:var(--track);cursor:grab}.dial:active{cursor:grabbing}.dial.filled{background:conic-gradient(var(--mint) 0 var(--split),var(--red) var(--split) 100%)}.dial-face{position:absolute;inset:16px;display:grid;align-content:center;justify-items:center;text-align:center;border:1px solid #344043;border-radius:50%;background:radial-gradient(ellipse at 50% 0%,#283633 0,var(--panel) 70%);padding:19px;pointer-events:none}.ticks{position:absolute;inset:3px;border-radius:50%;background:repeating-conic-gradient(from -.6deg,#b4c7c654 0 1.2deg,transparent 1.2deg 15deg);mask:radial-gradient(farthest-side,transparent calc(100% - 6px),black calc(100% - 5px));pointer-events:none}.marker{display:none;position:absolute;inset:0;transform:rotate(var(--angle));pointer-events:none}.marker::before{content:"";position:absolute;top:3px;left:50%;width:12px;height:12px;transform:translateX(-50%);border:2px solid var(--bg);border-radius:50%;background:#fff}.dial.turning .marker,.dial.turning .ticks{display:block}.ticks{display:none}
 .dial-label{color:var(--muted);font-size:15px;font-weight:600}.balance{display:block;margin:4px 0;font-size:clamp(28px,12.5vw,54px);font-weight:740;line-height:1.1;letter-spacing:-.058em;font-variant-numeric:tabular-nums;white-space:nowrap}.balance.compact{font-size:clamp(18px,7vw,34px)}.cue{min-height:1.4em;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}.income{color:var(--mint)}.expense{color:var(--red)}
-.period{margin:17px 0 5px;text-align:center;color:var(--muted);font-size:12px}.legend{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:0}.legend div{text-align:center;min-width:0}.legend div+div{border-left:1px solid var(--border)}.legend dt{color:var(--muted);font-size:13px}.legend dd{margin:1px 0 0;font-size:18px;font-weight:680;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.gesture{margin:14px auto 4px;text-align:center;color:var(--muted);font-size:12px}.message{min-height:22px;margin:6px 0 0;text-align:center;color:var(--muted);font-size:13px}.undo{padding:7px 3px;margin-left:5px;border:0;background:none;text-decoration:underline;color:var(--mint)}
+.gesture{margin:14px auto 4px;text-align:center;color:var(--muted);font-size:12px}.message{min-height:22px;margin:6px 0 0;text-align:center;color:var(--muted);font-size:13px}
 details{margin-top:10px;border-top:1px solid var(--border);padding:0 2px}summary{min-height:44px;padding:11px 0;color:var(--muted);font-weight:650}.list{margin:0;padding:0;list-style:none}.line{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:52px;padding:7px 0;border-bottom:1px solid #2a3638}.line strong{font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}.line.planned strong{color:var(--muted)}.line small{display:block;color:var(--muted)}.line span{overflow-wrap:anywhere}.line .tools{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-shrink:0}.secondary{border:1px solid var(--border);border-radius:10px;background:var(--panel);min-height:42px;padding:4px 8px;font-size:13px}.empty,.import-label{margin:3px 0 12px;color:var(--muted);font-size:13px}.import-label{display:grid;gap:5px}
 dialog{width:min(calc(100% - 24px),420px);max-height:calc(100dvh - 28px);padding:17px;border:1px solid var(--border);border-radius:20px;background:var(--bg);color:var(--text)}dialog::backdrop{background:#030809b5}.dialog-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:13px}.dialog-head h2{margin:0;font-size:20px}.close{width:44px;height:44px;border:1px solid var(--border);border-radius:50%;background:var(--panel);font-size:23px;line-height:1}.net{display:flex;justify-content:space-between;gap:10px;margin:0 0 12px;color:var(--muted);font-size:13px}.net strong{font-size:17px;text-align:right}
 .chart{margin:11px 0 0;padding:13px;border:1px solid var(--border);border-radius:13px;background:var(--panel)}.chart h3{margin:0 0 7px;font-size:15px}.chart-note{margin:4px 0;color:var(--muted);font-size:12px;min-height:18px}.bars{display:grid;grid-template-columns:repeat(30,minmax(0,1fr));gap:2px;height:100px;border-bottom:1px solid var(--border);background:repeating-linear-gradient(to top,transparent 0 24%,#344344 24% 25%)}.bar-day{display:flex;gap:1px;align-items:flex-end}.bar-day span{flex:1;min-width:0;border-radius:2px 2px 0 0}.bar-day .money-in{background:var(--mint)}.bar-day .money-out{background:var(--red)}.chart-axis{display:flex;justify-content:space-between;gap:4px;margin-top:4px;color:var(--muted);font-size:11px}.line-chart{display:block;width:100%;height:94px}
@@ -32,7 +32,12 @@ dialog{width:min(calc(100% - 24px),420px);max-height:calc(100dvh - 28px);padding
 .import-label{position:relative;display:flex;justify-content:center;margin:0 0 3px}.import-label span{padding:10px 12px;color:var(--mint);cursor:pointer;text-decoration:underline}.import-label input{position:absolute;width:1px;height:1px;opacity:0}.import-label:focus-within span{outline:2px solid var(--mint);outline-offset:2px;border-radius:8px}
 </style>
 <style>
-.paste-budget textarea{display:block;width:100%;min-height:96px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:inherit;font:14px/1.4 monospace;resize:vertical}.paste-budget form{display:grid;gap:8px}.paste-budget .import-label{margin:3px 0 0}
+.paste-budget textarea{display:block;width:100%;min-height:96px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:inherit;font:16px/1.4 monospace;resize:vertical}.paste-budget form{display:grid;gap:8px}.paste-budget .import-label{margin:3px 0 0}
+html,body,dialog{touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;touch-action:manipulation}
+.message:empty{display:none}.secondary,.primary,.close{display:grid;place-items:center;text-align:center}.close{padding:0}
+main>details>summary{position:relative;text-align:center;list-style:none;padding-inline:24px}main>details>summary::-webkit-details-marker{display:none}main>details>summary::after{content:"";position:absolute;inset-inline-end:5px;top:17px;width:7px;height:7px;border:solid var(--muted);border-width:0 1px 1px 0;transform:rotate(45deg)}main>details[open]>summary::after{transform:rotate(225deg);top:21px}
+#telegram-link,#connect-wallet{display:block;width:fit-content;max-width:100%;margin-inline:auto;text-align:center}#sync-status,#connect-code-form .telegram-link{text-align:center}
+.dialog-head{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;column-gap:4px}.dialog-head h2{grid-column:2;text-align:center;overflow-wrap:anywhere}.dialog-head form{grid-column:3}
 </style>
 <style>
 .summary-panel{margin:18px 0 0;padding:12px 15px;border:1px solid #2c393b;border-radius:16px;background:var(--panel)}.quick-summary{width:100%;border-collapse:collapse;font-size:13px}.quick-summary caption{text-align:left;color:var(--muted);padding:0 0 5px;font-weight:650}.quick-summary th,.quick-summary td{padding:6px 0}.quick-summary tr+tr{border-top:1px solid #2a3638}.quick-summary th{text-align:left;font-weight:500;color:var(--muted)}.quick-summary td{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}.telegram-link{display:inline-block;padding:9px 0;color:var(--muted);font-size:12px;text-underline-offset:3px}.telegram-link:hover,.telegram-link:focus-visible{color:var(--mint)}
@@ -60,7 +65,7 @@ dialog{width:min(calc(100% - 24px),420px);max-height:calc(100dvh - 28px);padding
     </table>
   </div>
   <p class="gesture" id="gesture">По часовой — трата, против — пополнение · шаг 100 ₽</p>
-  <p class="message"><span id="message" role="status"></span><button id="undo" class="undo" type="button" hidden>Отменить</button></p>
+  <p class="message" id="message" role="status"></p>
   <details class="paste-budget" id="import-box" hidden>
     <summary>Загрузить мой бюджет</summary>
     <form id="paste-budget-form">
@@ -137,7 +142,7 @@ try {
   const saved = JSON.parse(localStorage.getItem(key));
   if (validWallet(saved)) wallet = saved;
 } catch {}
-let previousWallet = null;
+let noticeTimer;
 let drag = null;
 let keyboardSteps = 0;
 let editingId = null;
@@ -198,14 +203,19 @@ function summarize(data,today) {
   }
   return {days,balance,income,expenses,max};
 }
-function save(next,note) {
+function notice(text, duration = 0) {
+  clearTimeout(noticeTimer);
+  const message=get('message');
+  message.textContent=text;
+  if (duration) noticeTimer=setTimeout(()=>{message.textContent='';},duration);
+}
+function save(next,note = '') {
   try {
     localStorage.setItem(key,JSON.stringify(next));
   } catch {
-    get('message').textContent = 'Браузер не смог сохранить операцию.';
+    notice('Браузер не смог сохранить операцию.');
     return false;
   }
-  previousWallet = wallet;
   if (session) {
     const change = difference(wallet,next);
     if (change.set.length || change.remove.length || change.opening!==undefined) {
@@ -214,8 +224,7 @@ function save(next,note) {
     }
   }
   wallet = next;
-  get('message').textContent = note;
-  get('undo').hidden = false;
+  notice(note,note?2400:0);
   render();
   if (session) void sync();
   return true;
@@ -245,10 +254,6 @@ async function api(path,method,body,token=session) {
 }
 function updateFromServer(remote) {
   if (!validWallet(remote)) throw new Error('Invalid wallet');
-  const change = difference(wallet,remote);
-  if (previousWallet && (change.set.length||change.remove.length||wallet.opening!==remote.opening)) {
-    previousWallet=null; get('undo').hidden=true;
-  }
   localStorage.setItem(key,JSON.stringify(remote));
   wallet=remote;
   render();
@@ -333,8 +338,7 @@ function post(item,sum) {
     sum,date,postedAt,label:sum<0?'Трата':'Пополнение',added:true
   };
   const entries = item ? wallet.entries.map(entry=>entry.id===item.id?record:entry) : [...wallet.entries,record];
-  const confirmation = (record.sum<0?'−':'+')+money(Math.abs(record.sum))+' · '+timeFormat.format(now);
-  return save({...wallet,entries},confirmation);
+  return save({...wallet,entries});
 }
 function historyRow(item,actual) {
   const row = document.createElement('li');
@@ -378,7 +382,7 @@ function historyRow(item,actual) {
   action.className = 'secondary';
   action.textContent = 'Провести';
   action.setAttribute('aria-label','Провести · '+item.label+' · '+short(item.date));
-  action.onclick = ()=>{if(post(item))get('undo').focus();};
+  action.onclick = ()=>{if(post(item))dial.focus({preventScroll:true});};
   tools.append(action);
   row.append(label,tools);
   return row;
@@ -506,13 +510,6 @@ dial.addEventListener('keydown',event=>{
   keyboardSteps = direction ? Math.max(-100000,Math.min(100000,keyboardSteps+direction)) : 0;
   showAmount(keyboardSteps,summarize(wallet,dateFormat.format(new Date())).balance);
 });
-get('undo').onclick = ()=>{
-  if (previousWallet && save(previousWallet,'Операция отменена.')) {
-    previousWallet = null;
-    get('undo').hidden = true;
-    dial.focus();
-  }
-};
 function openEditor(item) {
   if (editor.open) return;
   editingId = item.id;
@@ -540,7 +537,7 @@ get('edit-form').onsubmit = event=>{
   }
   const label = get('edit-label').value.trim() || (sign<0?'Трата':'Пополнение');
   const entries = wallet.entries.map(entry=>entry.id===editingId?{...entry,sum:amount*sign,label}:entry);
-  if (save({...wallet,entries},'Операция обновлена.')) {
+  if (save({...wallet,entries})) {
     editor.close();
     dial.focus({preventScroll:true});
   } else {
@@ -551,9 +548,9 @@ get('edit-form').onsubmit = event=>{
 get('delete-operation').onclick = ()=>{
   const entries = wallet.entries.filter(item=>item.id!==editingId);
   if (entries.length===wallet.entries.length) return;
-  if (save({...wallet,entries},'Операция удалена.')) {
+  if (save({...wallet,entries})) {
     editor.close();
-    get('undo').focus({preventScroll:true});
+    dial.focus({preventScroll:true});
   } else {
     const error = get('editor-error');
     error.textContent = 'Удалить операцию не удалось.';
@@ -577,7 +574,7 @@ get('paste-budget-form').onsubmit = event=>{
   try {
     if (importBudget(input.value)) input.value='';
   } catch {
-    get('message').textContent = 'Скопируй весь блок бюджета из чата, включая первую и последнюю скобки.';
+    notice('Скопируй весь блок бюджета из чата, включая первую и последнюю скобки.');
   }
 };
 get('import').onchange = async event=>{
@@ -586,7 +583,7 @@ get('import').onchange = async event=>{
   try {
     importBudget(await file.text());
   } catch {
-    get('message').textContent = 'Выбери файл бюджета в формате JSON.';
+    notice('Выбери файл бюджета в формате JSON.');
   } finally {
     input.value = '';
   }
