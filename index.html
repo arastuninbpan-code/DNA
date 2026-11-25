@@ -2151,7 +2151,7 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
   // графики продолжали рисоваться старым тусклым цветом и терялись на светлом фоне. Теперь
   // let, а не const — applyThemeMode() обновляет значение при каждой смене темы (см. themeVar).
   let GOLD = '#c9a84c';
-  const APP_VERSION = '0.36.3';
+  const APP_VERSION = '0.36.4';
   // Числовой ID бота — это то же число, что стоит до двоеточия в его токене (сам токен
   // остаётся только на сервере). Он нужен виджету входа через Telegram и не является
   // секретом — Telegram отдаёт его любому, кто открывает диалог с ботом.
@@ -7520,13 +7520,14 @@ input::selection,textarea::selection,[contenteditable]::selection {background:rg
       +'<details><summary>Плановые операции</summary>'+entries+'</details></section>';
   }
   function budgetImport() {
-    finModal('Импортировать бюджет','<form id="budget-import-form"><label class="fin-label" for="budget-file">Файл бюджета (.json)</label><input class="fin-field" required type="file" accept=".json,application/json" id="budget-file"><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Импортировать</button></form>',d=>{
+    finModal('Импортировать бюджет','<form id="budget-import-form"><label class="fin-label" for="budget-file">Файл бюджета (.json)</label><input class="fin-field" type="file" accept=".json,application/json" id="budget-file"><label class="fin-label" for="budget-paste">Или вставь текст бюджета</label><textarea class="fin-field" id="budget-paste" rows="4" maxlength="262144" spellcheck="false"></textarea><p class="fin-error" data-fin-error role="alert"></p><button class="fin-primary">Импортировать</button></form>',d=>{
       $('#budget-import-form',d).onsubmit=async e=>{
         e.preventDefault();
         try {
           const file=$('#budget-file',d).files[0];
-          if(!file||file.size>262144)throw new Error('Выбери файл бюджета размером до 256 КБ.');
-          const plan=JSON.parse(await file.text());
+          const pasted=$('#budget-paste',d).value.trim();
+          if(!pasted&&(!file||file.size>262144))throw new Error('Вставь текст бюджета или выбери файл до 256 КБ.');
+          const plan=JSON.parse(pasted||await file.text());
           if(!validBudget(plan))throw new Error('Проверь формат файла бюджета.');
           if(budget?.id===plan.id){d.close();showToast('Этот бюджет уже загружен',true);return;}
           if(budget&&!confirm('Заменить текущий план? История операций сохранится.'))return;
