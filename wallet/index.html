@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.5.6">
+<link rel="manifest" href="manifest.webmanifest?v=1.5.7">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -45,11 +45,15 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 </style>
 <style>
 .summary-panel{margin:18px 0 0;padding:12px 15px;border:1px solid #2c393b;border-radius:16px;background:var(--panel)}.quick-summary{width:100%;border-collapse:collapse;font-size:13px}.quick-summary caption{text-align:left;color:var(--muted);padding:0 0 5px;font-weight:650}.quick-summary th,.quick-summary td{padding:6px 0}.quick-summary tr+tr{border-top:1px solid #2a3638}.quick-summary th{text-align:left;font-weight:500;color:var(--muted)}.quick-summary td{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}.telegram-link{display:inline-block;padding:9px 0;color:var(--muted);font-size:12px;text-underline-offset:3px}.telegram-link:hover,.telegram-link:focus-visible{color:var(--mint)}
-.summary-panel{margin-top:12px;border-color:#2a3838;background:linear-gradient(132deg,#1e2b29,var(--panel) 58%);padding-block:7px 10px}.summary-open{width:100%;display:flex;align-items:center;justify-content:space-between;border:0;padding:7px 0;background:none;color:var(--text);font-size:14px;font-weight:650;text-align:left}.summary-open span{color:var(--muted);font-size:20px;line-height:1}.quick-summary caption{padding-bottom:1px}.quick-summary tr+tr{border-color:#ffffff0a}
-#stats{padding:19px 19px 15px;border-radius:24px;background:radial-gradient(ellipse at 44% 0%,#263532 0,#192224 37%,var(--bg) 79%);touch-action:auto;overscroll-behavior:contain}
-#stats[open]{animation:stats-in .24s cubic-bezier(.2,.72,.32,1)}#stats::backdrop{background:#030809aa}
+.summary-panel{margin-top:12px;border-color:#2a3838;background:linear-gradient(132deg,#1e2b29,var(--panel) 58%);padding-block:7px 10px}.summary-title{margin:0;padding:7px 0;color:var(--text);font-size:14px;font-weight:650}.quick-summary caption{padding-bottom:1px}.quick-summary tr+tr{border-color:#ffffff0a}
+#stats{margin:8px 0 0;padding:0;border:0;border-top:1px solid #ffffff14}
+#stats>summary{display:grid;place-items:center;position:relative;min-height:42px;padding:10px 24px;text-align:center;list-style:none;font-size:13px}
+#stats>summary::-webkit-details-marker{display:none}
+#stats>summary::after{content:"";position:absolute;inset-inline-end:3px;top:16px;width:7px;height:7px;border:solid var(--muted);border-width:0 1px 1px 0;transform:rotate(45deg);transition:transform .2s}
+#stats[open]>summary::after{transform:rotate(225deg) translate(-2px,-2px)}
+#stats[open]>.stats-content{animation:stats-in .24s cubic-bezier(.2,.72,.32,1)}
 @keyframes stats-in{from{opacity:.35;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-#stats .dialog-head{margin-bottom:2px}#stats .dialog-head h2{font-size:16px;letter-spacing:.015em;color:var(--muted)}#stats .close{border-color:transparent;background:none;color:var(--muted)}#stats .close:hover{background:#ffffff0b;color:var(--text)}
+.dialog-head .close{position:relative;font-size:0}.dialog-head .close::before,.dialog-head .close::after{content:"";position:absolute;left:50%;top:50%;width:14px;height:2px;border-radius:1px;background:currentColor;transform:translate(-50%,-50%) rotate(45deg)}.dialog-head .close::after{transform:translate(-50%,-50%) rotate(-45deg)}
 .stats-net{margin:0 0 17px;text-align:center}.stats-net dt{font-size:12px;color:var(--muted)}.stats-net dd{margin:2px 0 0;font-weight:730;font-size:clamp(26px,10vw,44px);letter-spacing:-.045em;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .timeline{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding:4px max(0px,calc(50% - 27px)) 5px;scroll-snap-type:x mandatory;scrollbar-width:none;touch-action:pan-x;overscroll-behavior-inline:contain;border-block:1px solid #ffffff0d}.timeline::-webkit-scrollbar{display:none}
 .summary-panel{touch-action:pan-y}.summary-panel .timeline{margin-inline:-15px;margin-bottom:6px;padding-inline:max(0px,calc(50% - 12px))}.quick-summary #selected-day{color:var(--muted);font-size:12px;padding:3px 0 2px;font-weight:500}
@@ -58,8 +62,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 .line.planned .line-button{flex:1;min-height:50px}.line.planned .line-button>span{min-width:0}
 .history-section{position:relative}.history-section summary{position:relative;min-height:52px;display:flex;justify-content:center;align-items:center;gap:4px;padding:3px 52px;list-style:none}.history-section summary::-webkit-details-marker{display:none}.history-section summary::after{content:"";width:6px;height:6px;margin-left:4px;border:solid var(--muted);border-width:0 1px 1px 0;transform:rotate(45deg) translateY(-2px)}.history-section details[open]>summary::after{transform:rotate(225deg) translateY(-1px)}.history-section summary:focus-visible{outline:none;text-decoration:underline;text-underline-offset:5px}
 .history-add{position:absolute;top:5px;z-index:1;width:44px;height:44px;display:grid;place-items:center;padding:0;border:1px solid var(--border);border-radius:13px;background:var(--panel);font-size:24px;line-height:1}.history-add:active{transform:scale(.95)}#add-expense{inset-inline-start:2px}#add-income{inset-inline-end:2px}
-@media(max-width:520px){#stats{margin:auto auto max(8px,env(safe-area-inset-bottom));max-height:calc(100dvh - 26px);padding:11px 14px 10px}}
-@media(prefers-reduced-motion:reduce){#stats[open]{animation:none}.day-button,.bar-day span{transition:none}}
+@media(prefers-reduced-motion:reduce){#stats[open]>.stats-content{animation:none}.day-button,.bar-day span,#stats>summary::after{transition:none}}
 </style>
 </head>
 <body>
@@ -75,7 +78,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
   </button>
   <button class="tip" id="tip" type="button" aria-label="Показать следующую подсказку"></button>
   <div class="summary-panel" id="summary-panel">
-    <button class="summary-open" id="summary-open" type="button">За последние 30 дней <span aria-hidden="true">›</span></button>
+    <h2 class="summary-title">Сводка по дням</h2>
     <div class="timeline" id="timeline" role="group" aria-label="Выбрать день"></div>
     <table class="quick-summary" aria-labelledby="selected-day">
       <caption id="selected-day"></caption>
@@ -85,6 +88,24 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
         <tr><th scope="row">Траты</th><td id="quick-expenses" class="expense"></td></tr>
       </tbody>
     </table>
+    <details id="stats">
+      <summary>Графики за 30 дней</summary>
+      <div class="stats-content">
+        <dl class="stats-net"><dt>Пополнения минус траты</dt><dd id="net"></dd></dl>
+        <div class="chart">
+          <h3>Пополнения и траты по дням</h3>
+          <p class="chart-note" id="bars-note"></p>
+          <div class="bars" id="bars" aria-hidden="true"></div>
+          <div class="chart-axis" aria-hidden="true"><span id="bars-start"></span><span id="bars-end"></span></div>
+        </div>
+        <div class="chart">
+          <h3>Остаток по дням</h3>
+          <p class="chart-note" id="balance-note"></p>
+          <canvas class="line-chart" id="line" aria-hidden="true"></canvas>
+          <div class="chart-axis" aria-hidden="true"><span id="line-start"></span><span id="line-end"></span></div>
+        </div>
+      </div>
+    </details>
   </div>
   <p class="message" id="message" role="status"></p>
   <details class="paste-budget" id="import-box" hidden>
@@ -114,27 +135,8 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
   </details>
   <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
   <p class="empty" id="sync-status" role="status" hidden></p>
-  <footer class="version">Версия 1.5.6</footer>
+  <footer class="version">Версия 1.5.7</footer>
 </main>
-<dialog id="stats" aria-labelledby="stats-title">
-  <div class="dialog-head">
-    <h2 id="stats-title">Последние 30 дней</h2>
-    <form method="dialog"><button class="close" aria-label="Закрыть">×</button></form>
-  </div>
-  <dl class="stats-net"><dt>Пополнения минус траты</dt><dd id="net"></dd></dl>
-  <div class="chart">
-    <h3>Пополнения и траты по дням</h3>
-    <p class="chart-note" id="bars-note"></p>
-    <div class="bars" id="bars" aria-hidden="true"></div>
-    <div class="chart-axis" aria-hidden="true"><span id="bars-start"></span><span id="bars-end"></span></div>
-  </div>
-  <div class="chart">
-    <h3>Остаток по дням</h3>
-    <p class="chart-note" id="balance-note"></p>
-    <canvas class="line-chart" id="line" aria-hidden="true"></canvas>
-    <div class="chart-axis" aria-hidden="true"><span id="line-start"></span><span id="line-end"></span></div>
-  </div>
-</dialog>
 <dialog id="editor" aria-labelledby="editor-title">
   <div class="dialog-head">
     <h2 id="editor-title">Операция</h2>
@@ -514,6 +516,10 @@ function setSummaryDay(index,scroll=false) {
   if (next!==summaryDay) {
     summaryDay=next;
     renderSummaryDay();
+    if (stats.open) {
+      chartDay=next;
+      drawStats(summarize(wallet,dateFormat.format(new Date())));
+    }
   }
   if (scroll) timeline.scrollLeft=summaryDates.indexOf(next)*timelineStep();
 }
@@ -577,7 +583,6 @@ summaryPanel.addEventListener('pointerup',event=>{
   }
 });
 summaryPanel.addEventListener('pointercancel',()=>{summarySwipe=null;});
-get('summary-open').onclick=openStats;
 function render() {
   const today = dateFormat.format(new Date());
   const result = summarize(wallet,today);
@@ -866,12 +871,16 @@ get('import').onchange = async event=>{
   }
 };
 function openStats() {
-  if (!stats.open) {
-    chartDay=summaryDay;
-    stats.showModal();
-  }
+  stats.open=true;
+  renderOpenedStats();
+  stats.scrollIntoView?.({block:'nearest'});
+}
+function renderOpenedStats() {
+  if (!stats.open) return;
+  chartDay=summaryDay;
   drawStats(summarize(wallet,dateFormat.format(new Date())));
 }
+stats.addEventListener('toggle',renderOpenedStats);
 get('bars').addEventListener('click',event=>{
   const bounds=get('bars').getBoundingClientRect();
   const index=Math.min(29,Math.max(0,Math.floor(30*(event.clientX-bounds.left)/bounds.width)));
