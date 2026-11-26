@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.6.2">
+<link rel="manifest" href="manifest.webmanifest?v=1.6.3">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -47,9 +47,11 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 @keyframes stats-in{from{opacity:.35;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .dialog-head .close{position:relative;font-size:0}.dialog-head .close::before,.dialog-head .close::after{content:"";position:absolute;left:50%;top:50%;width:14px;height:2px;border-radius:1px;background:currentColor;transform:translate(-50%,-50%) rotate(45deg)}.dialog-head .close::after{transform:translate(-50%,-50%) rotate(-45deg)}
 .line.planned .line-button{flex:1;min-height:50px}.line.planned .line-button>span{min-width:0}
-.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:8px 0 0;border:1px solid #344241;border-radius:17px;background:linear-gradient(130deg,#1e2b29,var(--panel) 64%);}
-.metrics div{min-width:0;padding:10px 10px 11px;text-align:center}.metrics div+div{border-inline-start:1px solid var(--border)}.metrics dd{margin:3px 0 1px;font-size:clamp(18px,5.3vw,25px);font-weight:730;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.metrics dt,.metrics .metric-note{color:var(--muted);font-size:clamp(11px,3.3vw,13px);font-weight:400;line-height:1.25}
-.history-section{margin-top:16px}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--border);padding:0 0 3px}.history-heading h2{font-size:14px;margin:0}.manual-link{min-height:40px;padding:0 1px;border:0;background:none;color:var(--muted);font-size:12px;text-align:right}.manual-link:focus-visible,.manual-link:hover{color:var(--mint)}
+.operation-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.operation-actions button{min-height:54px;display:grid;place-items:center;border:1px solid var(--border);border-radius:14px;background:var(--panel);font-size:26px;line-height:1;transition:background .15s,transform .15s}
+.operation-actions button:hover{background:#243332}.operation-actions button:active{transform:scale(.97)}
+.history-section{margin-top:16px}.history-heading{border-bottom:1px solid var(--border);padding:9px 0}.history-heading h2{font-size:14px;margin:0}
+#sync-status{margin:10px auto 0;max-width:38ch;font-size:12px;line-height:1.4}#sync-status[data-state="ok"]{color:var(--mint)}#sync-status[data-state="error"]{color:var(--red)}
 .plan-breakdown{margin:4px 0;text-align:left;color:var(--muted);font-size:12px;overflow-wrap:anywhere}.plan-values th{padding-right:8px}.plan-values td{white-space:normal;overflow-wrap:anywhere}.plan-difference{font-weight:650}
 #plan-window{background:linear-gradient(132deg,#1e2b29,var(--panel) 58%);border-color:#2a3838;border-radius:22px}
 #plan-window[open]{animation:stats-in .24s cubic-bezier(.2,.72,.32,1)}
@@ -77,10 +79,11 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <span class="marker" aria-hidden="true"></span>
   </button>
   <button class="tip" id="tip" type="button" aria-label="Показать следующую подсказку"></button>
-  <dl class="metrics" aria-label="Дневной лимит и отклонение от плана">
-    <div><dt id="daily-title">Остаток на день</dt><dd id="daily-amount"></dd><dd class="metric-note">Лимит 1 000 ₽</dd></div>
-    <div><dt>Отклонение от плана</dt><dd id="plan-gap"></dd><dd class="metric-note" id="plan-gap-note"></dd></div>
-  </dl>
+  <div class="operation-actions" role="group" aria-label="Добавить операцию">
+    <button class="expense" id="add-expense" type="button" aria-label="Добавить трату">−</button>
+    <button class="income" id="add-income" type="button" aria-label="Добавить пополнение">+</button>
+  </div>
+  <p class="empty" id="sync-status" role="status"></p>
   <p class="message" id="message" role="status"></p>
   <details class="paste-budget" id="import-box" hidden>
     <summary>Загрузить мой бюджет</summary>
@@ -93,7 +96,6 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
   <section class="history-section" aria-label="История операций">
     <div class="history-heading">
       <h2>История</h2>
-      <button class="manual-link" id="manual-entry" type="button">Ввести с датой</button>
     </div>
     <p class="empty" id="empty">Здесь появятся операции.</p>
     <ul id="history" class="list"></ul>
@@ -107,9 +109,8 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     </form>
   </details>
   <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
-  <p class="empty" id="sync-status" role="status" hidden></p>
   <a class="telegram-link" id="hosted-wallet" href="https://arastuninbpan-code.github.io/DNA/wallet/" hidden>Открыть версию с синхронизацией ↗</a>
-  <footer class="version">Версия 1.6.2</footer>
+  <footer class="version">Версия 1.6.3</footer>
 </main>
 <dialog id="plan-window" aria-labelledby="plan-window-title">
   <div class="dialog-head">
@@ -181,7 +182,7 @@ let noticeTimer;
 let drag = null;
 let keyboardSteps = 0;
 let editingId = null;
-let creatingOperation = false;
+let creatingSign = 0;
 let tipIndex = 0;
 let tipTimer;
 let tipText = '';
@@ -272,9 +273,10 @@ function save(next,note = '') {
   if (session) void sync();
   return true;
 }
-function syncStatus(message) {
-  get('sync-status').hidden = !message;
-  get('sync-status').textContent = message;
+function syncStatus(message,state='') {
+  const status=get('sync-status');
+  status.setAttribute('data-state',state);
+  if (status.textContent!==message) status.textContent=message;
 }
 function persistQueue() {
   try { localStorage.setItem(queueKey,JSON.stringify(queue)); } catch {}
@@ -310,6 +312,7 @@ function updateFromServer(remote) {
 async function sync() {
   if (syncing||!session||drag||editor.open) return;
   syncing=true;
+  if (queue.length) syncStatus('Отправка изменений в Telegram…');
   try {
     let remote;
     do {
@@ -323,11 +326,11 @@ async function sync() {
     } while(queue.length);
     if (!drag && !editor.open) updateFromServer(remote);
     get('telegram-setup').hidden=true;
-    syncStatus('');
+    syncStatus('Telegram · синхронизировано','ok');
   } catch(error) {
     if (error.message==='401') get('telegram-setup').hidden=false;
     syncStatus(error.message==='401'?'Сессия Telegram истекла. Введи /connect у бота.':
-      queue.length?'Связи с Telegram нет. Записи сохранены здесь и отправятся, когда связь вернётся.':'Связи с Telegram нет. Повторю подключение автоматически.');
+      queue.length?'Сервер Telegram недоступен. Изменения ждут отправки.':'Сервер Telegram недоступен. Повторю проверку.', 'error');
   } finally {
     syncing=false;
   }
@@ -359,6 +362,7 @@ async function connectTelegram(code,control) {
       control.disabled=false;
     }
 }
+syncStatus(session?'Проверка связи с Telegram…':canSync?'Telegram не подключён · данные на этом устройстве':'Локальная копия · синхронизация в онлайн-версии');
 if (canSync) {
   get('telegram-setup').hidden=Boolean(session || pairCode);
   if (pairCode) {
@@ -476,18 +480,6 @@ function shiftDay(day,offset) {
   value.setUTCDate(value.getUTCDate()+offset);
   return value.toISOString().slice(0,10);
 }
-function renderMetrics(today) {
-  const spent=wallet.entries.reduce((sum,item)=>sum+(item.added&&item.sum<0&&isActual(item,today)&&dateOf(item)===today?-item.sum:0),0);
-  const left=dailyBudget-spent;
-  get('daily-title').textContent=left<0?'Сверх дневного лимита':'Остаток на день';
-  get('daily-amount').textContent=money(Math.abs(left));
-  get('daily-amount').className=left<0?'expense':'income';
-  const selected=spendingTimeline(wallet,today).find(row=>row.day===today);
-  const diff=selected?.fact==null?null:selected.fact-selected.plan;
-  get('plan-gap').textContent=diff===null?'—':money(Math.abs(diff));
-  get('plan-gap').className=diff>0?'expense':diff<0?'income':'';
-  get('plan-gap-note').textContent=diff===null?'Учёт ещё не начался':diff===0?'По плану':diff>0?'Больше плана':'Меньше плана';
-}
 function render() {
   const today = dateFormat.format(new Date());
   const result = summarize(wallet,today);
@@ -495,7 +487,6 @@ function render() {
   dial.classList.toggle('filled',total>0);
   dial.style.setProperty('--split',(total?100*result.income/total:0)+'%');
   dial.setAttribute('aria-label','На кармане '+money(result.balance)+'. Открыть графики');
-  renderMetrics(today);
   get('empty').hidden = wallet.entries.length>0;
   get('import-box').hidden = Boolean(wallet.opening || wallet.entries.some(item=>!item.added));
   const chronological = wallet.entries.map(item=>({item,date:dateOf(item),actual:isActual(item,today)}))
@@ -654,7 +645,7 @@ dial.addEventListener('keydown',event=>{
 function openEditor(item) {
   if (editor.open) return;
   editingId = item.id;
-  creatingOperation = false;
+  creatingSign = 0;
   const planned=!isActual(item,dateFormat.format(new Date()));
   get('edit-date-label').hidden=!planned;
   get('edit-date').disabled=!planned;
@@ -670,11 +661,11 @@ function openEditor(item) {
   get('delete-confirm').hidden=true;
   editor.showModal();
 }
-function openManual() {
+function openManual(sign) {
   if (editor.open) return;
   editingId=null;
-  creatingOperation=true;
-  get('editor-title').textContent='Новая операция';
+  creatingSign=sign;
+  get('editor-title').textContent=sign<0?'Новая трата':'Новое пополнение';
   get('edit-amount').value='';
   get('edit-label').value='';
   get('edit-date-label').hidden=false;
@@ -687,13 +678,15 @@ function openManual() {
   editor.showModal();
   get('edit-amount').focus();
 }
-get('manual-entry').onclick=openManual;
+get('add-expense').onclick=()=>openManual(-1);
+get('add-income').onclick=()=>openManual(1);
+editor.addEventListener('close',()=>{if (queue.length) void sync();});
 get('edit-form').onsubmit = event=>{
   event.preventDefault();
   const item = wallet.entries.find(entry=>entry.id===editingId);
-  if (!item && !creatingOperation) return;
+  if (!item && !creatingSign) return;
   const raw = get('edit-amount').value.trim().replace(/[−–]/g,'-').replace(/\s/g,'');
-  const sign = raw.startsWith('-')?-1:raw.startsWith('+')?1:item?Math.sign(item.sum):-1;
+  const sign = raw.startsWith('-')?-1:raw.startsWith('+')?1:item?Math.sign(item.sum):creatingSign;
   const unsigned = raw.replace(/^[+-]/,'');
   const grouped = /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(unsigned);
   const normalized = (grouped?unsigned.replace(/\./g,''):unsigned).replace(',','.');
@@ -719,7 +712,7 @@ get('edit-form').onsubmit = event=>{
   if (save({...wallet,entries})) {
     editor.close();
     if (item) dial.focus({preventScroll:true});
-    else get('manual-entry').focus({preventScroll:true});
+    else get(creatingSign<0?'add-expense':'add-income').focus({preventScroll:true});
   } else {
     error.textContent = 'Сохранить правку не удалось.';
     error.hidden = false;
