@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.6.4">
+<link rel="manifest" href="manifest.webmanifest?v=1.6.5">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -52,7 +52,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 .operation-actions button:hover{background:#243332}.operation-actions button:active{transform:scale(.97)}
 .history-section{margin-top:16px}.history-heading{border-bottom:1px solid var(--border);padding:9px 0}.history-heading h2{font-size:14px;margin:0}
 #sync-status{margin:10px auto 0;max-width:38ch;font-size:12px;line-height:1.4}#sync-status[data-state="ok"]{color:var(--mint)}#sync-status[data-state="error"]{color:var(--red)}
-.plan-breakdown{margin:4px 0;text-align:left;color:var(--muted);font-size:12px;overflow-wrap:anywhere}.plan-values th{padding-right:8px}.plan-values td{white-space:normal;overflow-wrap:anywhere}.plan-difference{font-weight:650}
+.plan-values th{padding-right:8px}.plan-values td{white-space:normal;overflow-wrap:anywhere}.plan-difference{font-weight:650}
 #plan-window{background:linear-gradient(132deg,#1e2b29,var(--panel) 58%);border-color:#2a3838;border-radius:22px}
 #plan-window[open]{animation:stats-in .24s cubic-bezier(.2,.72,.32,1)}
 .plan-active{overflow:hidden}.plan-active body{position:fixed;inset:var(--plan-background-top,0) 0 auto;width:100%;overflow:hidden}
@@ -62,7 +62,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 .plan-plot{display:block;flex:0 0 auto;height:100%;outline-offset:-2px}.plan-plot:focus-visible{outline:1px solid var(--mint)}
 .plan-cursor{position:absolute;left:calc(50% + 23px);top:10px;bottom:25px;width:1px;background:#ffffff6b;pointer-events:none}
 @media(max-height:520px){.plan-scroll{height:clamp(90px,34dvh,240px)}#plan-window{padding-block:9px}.plan-values tr th,.plan-values tr td{padding-block:3px}}
-.plan-values{margin:7px 0 0}.plan-values td{white-space:nowrap}.plan-values caption{color:var(--text)}.plan-key{display:inline-block;width:13px;margin-right:7px;vertical-align:middle;border-top:2px solid var(--red)}.plan-key.planned{border-top:2px dashed var(--mint)}
+.plan-values{margin:7px 0 0}.plan-values td{white-space:nowrap}.plan-values caption{color:var(--text)}.plan-key{display:inline-block;width:13px;margin-right:7px;vertical-align:middle;border-top:2px solid #9abfff}.plan-key.planned{border-top:2px dashed var(--mint)}
 .plan-difference{min-height:20px;margin:12px 0 0;text-align:center;font-size:13px;color:var(--muted)}.plan-difference.income{color:var(--mint)}.plan-difference.expense{color:var(--red)}
 @media(prefers-reduced-motion:reduce){#plan-window[open]{animation:none}}
 </style>
@@ -110,28 +110,27 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <ul id="history" class="list"></ul>
   </section>
   <a class="telegram-link" id="hosted-wallet" href="https://arastuninbpan-code.github.io/DNA/wallet/" hidden>Открыть версию с синхронизацией ↗</a>
-  <footer class="version">Версия 1.6.4</footer>
+  <footer class="version">Версия 1.6.5</footer>
 </main>
 <dialog id="plan-window" aria-labelledby="plan-window-title">
   <div class="dialog-head">
-    <h2 id="plan-window-title">План и факт</h2>
+    <h2 id="plan-window-title">Остаток · план и факт</h2>
     <form method="dialog"><button class="close" aria-label="Закрыть">×</button></form>
   </div>
   <div class="plan-frame">
     <div class="plan-scale" id="plan-scale" aria-hidden="true"></div>
     <div id="plan-scroll" class="plan-scroll">
-      <canvas class="plan-plot" id="plan-plot" role="slider" tabindex="0" aria-label="День на графике накопительных расходов" aria-orientation="horizontal" aria-valuemin="1"></canvas>
+      <canvas class="plan-plot" id="plan-plot" role="slider" tabindex="0" aria-label="Дата на графике остатка" aria-orientation="horizontal" aria-valuemin="1"></canvas>
     </div>
     <span class="plan-cursor" aria-hidden="true"></span>
   </div>
   <table class="quick-summary plan-values">
     <caption id="plan-day"></caption>
     <tbody>
-      <tr><th scope="row"><span class="plan-key planned" aria-hidden="true"></span>План к этой дате</th><td id="plan-value"></td></tr>
-      <tr><th scope="row"><span class="plan-key" aria-hidden="true"></span>Потрачено к этой дате</th><td id="actual-value"></td></tr>
+      <tr><th scope="row"><span class="plan-key planned" aria-hidden="true"></span>Остаток по плану</th><td id="plan-value"></td></tr>
+      <tr><th scope="row"><span class="plan-key" aria-hidden="true"></span>Фактический остаток</th><td id="actual-value"></td></tr>
     </tbody>
   </table>
-  <p class="plan-breakdown" id="plan-breakdown"></p>
   <p id="plan-difference" class="plan-difference"></p>
 </dialog>
 <dialog id="editor" aria-labelledby="editor-title">
@@ -796,14 +795,14 @@ get('import').onchange = async event=>{
   }
 };
 const planDayWidth=34;
-function spendingTimeline(data,today) {
+function balanceTimeline(data,today) {
   const actual=new Map(), scheduled=new Map();
   const earliest=shiftDay(today,-180), latest=shiftDay(today,180);
   let first=shiftDay(today,-30), last=shiftDay(today,30);
   let starts=isDate(data.openingDate)?data.openingDate:today;
   for (const entry of data.entries) {
-    if (!entry.added && (entry.plannedSum??entry.sum)<0) {
-      scheduled.set(entry.date,(scheduled.get(entry.date)||0)-(entry.plannedSum??entry.sum));
+    if (!entry.added) {
+      scheduled.set(entry.date,(scheduled.get(entry.date)||0)+(entry.plannedSum??entry.sum));
       if (entry.date<first) first=entry.date;
       if (entry.date>last) last=entry.date;
     }
@@ -811,21 +810,22 @@ function spendingTimeline(data,today) {
       const day=dateOf(entry);
       if (day<starts) starts=day;
       if (day<first) first=day;
-      if (entry.sum<0) actual.set(day,(actual.get(day)||0)-entry.sum);
+      actual.set(day,(actual.get(day)||0)+entry.sum);
     }
   }
   if (starts<first) first=starts;
   if (first<earliest) first=earliest;
   if (last>latest) last=latest;
-  let scheduledPlan=[...scheduled].reduce((total,[day,value])=>total+(day<first?value:0),0);
-  let dailyPlan=starts<first?Math.round((Date.parse(first)-Date.parse(starts))/86400000)*dailyBudget:0;
-  let fact=[...actual].reduce((total,[day,value])=>total+(day<first?value:0),0);
+  const beforeWindow=events=>[...events].reduce((total,[day,value])=>total+(day<first?value:0),data.opening);
+  const elapsedDays=Math.max(0,Math.round((Date.parse(first)-Date.parse(starts))/86400000));
+  const planStart=[starts,...scheduled.keys()].reduce((earliest,day)=>day<earliest?day:earliest);
+  let plan=beforeWindow(scheduled)-elapsedDays*dailyBudget;
+  let fact=beforeWindow(actual);
   const rows=[];
   for (let day=first;day<=last;day=shiftDay(day,1)) {
-    if (day>=starts) dailyPlan+=dailyBudget;
-    scheduledPlan+=scheduled.get(day)||0;
+    plan+=(scheduled.get(day)||0)-(day>=starts?dailyBudget:0);
     fact+=actual.get(day)||0;
-    rows.push({day,plan:dailyPlan+scheduledPlan,dailyPlan,scheduledPlan,fact:day>=starts&&day<=today?fact:null});
+    rows.push({day,plan:day>=planStart?plan:null,fact:day>=starts&&day<=today?fact:null});
   }
   return rows;
 }
@@ -846,7 +846,7 @@ planWindow.addEventListener('close',()=>{
 });
 function refreshPlan(initialOpen=false) {
   const today=dateFormat.format(new Date()), prior=planRows[planIndex]?.day;
-  planRows=spendingTimeline(wallet,today);
+  planRows=balanceTimeline(wallet,today);
   const wanted=initialOpen?today:prior||today;
   const index=planRows.findIndex(row=>row.day===wanted);
   const current=index<0?planRows.findIndex(row=>row.day===today):index;
@@ -864,17 +864,16 @@ function selectPlanDay(index,scroll=false) {
   if (scroll) planScroll.scrollLeft=next*planDayWidth;
   const today=dateFormat.format(new Date());
   get('plan-day').textContent=dayName.format(new Date(selected.day+'T12:00:00Z'));
-  get('plan-value').textContent=money(selected.plan);
+  get('plan-value').textContent=selected.plan===null?'—':money(selected.plan);
   get('actual-value').textContent=selected.fact===null?'—':money(selected.fact);
-  get('plan-breakdown').textContent='Повседневные '+money(selected.dailyPlan)+' · платежи '+money(selected.scheduledPlan);
   const delta=selected.fact===null?null:selected.fact-selected.plan;
   const difference=get('plan-difference');
-  difference.className='plan-difference'+(delta>0?' expense':delta<0?' income':'');
-  difference.textContent=delta===null?(selected.day>today?'Расходы за эту дату ещё впереди':'Учёт на эту дату ещё не начался'):
-    delta===0?'Расходы совпадают с планом':'На '+money(Math.abs(delta))+(delta>0?' больше плана':' меньше плана');
+  difference.className='plan-difference'+(delta>0?' income':delta<0?' expense':'');
+  difference.textContent=delta===null?(selected.day>today?'Фактический остаток будет виден в этот день':'Учёт на эту дату ещё не начался'):
+    delta===0?'Остаток совпадает с планом':'На '+money(Math.abs(delta))+(delta>0?' больше плана':' меньше плана');
   planPlot.setAttribute('aria-valuemax',String(planRows.length));
   planPlot.setAttribute('aria-valuenow',String(next+1));
-  planPlot.setAttribute('aria-valuetext',get('plan-day').textContent+', план '+money(selected.plan)+', факт '+get('actual-value').textContent);
+  planPlot.setAttribute('aria-valuetext',get('plan-day').textContent+', план '+get('plan-value').textContent+', факт '+get('actual-value').textContent);
 }
 planScroll.addEventListener('scroll',()=>{
   const index=Math.round(planScroll.scrollLeft/planDayWidth);
@@ -910,35 +909,39 @@ function paintPlan() {
   if (!ctx) return;
   ctx.scale(planPlot.width/width,planPlot.height/height);
   const top=10, bottom=height-24;
-  const peak=Math.max(dailyBudget,...planRows.map(row=>Math.max(row.plan,row.fact||0)));
-  const rough=peak/3, place=10**Math.floor(Math.log10(rough));
+  const low=Math.min(0,...planRows.map(row=>Math.min(row.plan??0,row.fact??0)));
+  const high=Math.max(0,...planRows.map(row=>Math.max(row.plan??0,row.fact??0)));
+  const rough=Math.max(100,(high-low)/4), place=10**Math.floor(Math.log10(rough));
   const tick=Math.ceil(rough/place)*place;
+  const min=Math.floor(low/tick)*tick, max=Math.max(min+tick,Math.ceil(high/tick)*tick);
+  const ticks=Array.from({length:1+Math.round((max-min)/tick)},(_,i)=>min+i*tick);
   const x=index=>(index+.5)*planDayWidth;
-  const y=value=>bottom-value*(bottom-top)/(3*tick);
+  const y=value=>bottom-(value-min)*(bottom-top)/(max-min);
   const compact=new Intl.NumberFormat('ru-RU',{notation:'compact',maximumFractionDigits:1});
   const scaleLabels=get('plan-scale');
-  scaleLabels.replaceChildren(...[0,1,2,3].map(i=>{
+  scaleLabels.replaceChildren(...ticks.map(value=>{
     const label=document.createElement('span');
-    label.textContent=compact.format(i*tick/100)+(i===3?' ₽':'');
-    label.style.top=y(i*tick)+'px';
+    label.textContent=compact.format(value/100);
+    label.style.top=y(value)+'px';
     return label;
   }));
-  ctx.strokeStyle='#ffffff18';
-  for (let i=0;i<=3;i++) {
-    const pos=y(i*tick);
+  for (const value of ticks) {
+    ctx.strokeStyle=value===0?'#ffffff50':'#ffffff18';
+    const pos=y(value);
     ctx.beginPath();ctx.moveTo(0,pos);ctx.lineTo(width,pos);ctx.stroke();
   }
   ctx.font='11px system-ui';
   ctx.textAlign='center';
   ctx.fillStyle='#a7b8b7';
   const today=dateFormat.format(new Date());
+  ctx.strokeStyle='#ffffff18';
   for (let i=0;i<planRows.length;i++) {
     const day=planRows[i].day;
     if (i%3!==0 && day!==today && i!==planRows.length-1) continue;
     ctx.beginPath();ctx.moveTo(x(i),top);ctx.lineTo(x(i),bottom);ctx.stroke();
     ctx.fillText(short(day),x(i),height-7);
   }
-  for (const [field,color,dash] of [['plan','#8cf0b7',[5,4]],['fact','#ff8d87',[]]]) {
+  for (const [field,color,dash] of [['plan','#8cf0b7',[5,4]],['fact','#9abfff',[]]]) {
     ctx.beginPath();
     ctx.strokeStyle=color;
     ctx.fillStyle=color;
