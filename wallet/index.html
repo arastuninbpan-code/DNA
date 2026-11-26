@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.5.9">
+<link rel="manifest" href="manifest.webmanifest?v=1.6.0">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -52,11 +52,11 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 #plan-window{background:linear-gradient(132deg,#1e2b29,var(--panel) 58%);border-color:#2a3838;border-radius:22px}
 #plan-window[open]{animation:stats-in .24s cubic-bezier(.2,.72,.32,1)}
 .plan-active{overflow:hidden}.plan-active body{position:fixed;inset:var(--plan-background-top,0) 0 auto;width:100%;overflow:hidden}
-#plan-window{overflow:hidden;overscroll-behavior:none;touch-action:pan-y}
-.plan-scale{height:22px;position:relative;color:var(--muted);font-size:11px}.plan-scale span{position:absolute;transform:translateX(-50%);white-space:nowrap}.plan-scale span:last-child{transform:translateX(-100%)}
-.plan-frame{position:relative}.plan-scroll{height:clamp(114px,43dvh,360px);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:none;padding-block:var(--plot-pad,0px);border-block:1px solid #ffffff13}.plan-scroll::-webkit-scrollbar{display:none}
-.plan-plot{display:block;width:100%;outline-offset:-2px}.plan-plot:focus-visible{outline:1px solid var(--mint)}
-.plan-cursor{position:absolute;inset-inline:54px 12px;top:50%;height:1px;background:#ffffff6b;pointer-events:none}
+#plan-window{overflow:hidden;overscroll-behavior:none;touch-action:manipulation}
+.plan-scale{position:absolute;inset:1px auto 1px 0;width:43px;color:var(--muted);font-size:11px;pointer-events:none}.plan-scale span{position:absolute;right:3px;transform:translateY(-50%);white-space:nowrap}
+.plan-frame{position:relative}.plan-scroll{display:flex;margin-left:46px;height:clamp(114px,43dvh,360px);overflow-x:auto;overflow-y:hidden;overscroll-behavior:contain;touch-action:pan-x;scrollbar-width:none;border-block:1px solid #ffffff13}.plan-scroll::before,.plan-scroll::after{content:"";flex:0 0 var(--plot-pad,0px)}.plan-scroll::-webkit-scrollbar{display:none}
+.plan-plot{display:block;flex:0 0 auto;height:100%;outline-offset:-2px}.plan-plot:focus-visible{outline:1px solid var(--mint)}
+.plan-cursor{position:absolute;left:calc(50% + 23px);top:10px;bottom:25px;width:1px;background:#ffffff6b;pointer-events:none}
 @media(max-height:520px){.plan-scroll{height:clamp(90px,34dvh,240px)}#plan-window{padding-block:9px}.plan-values tr th,.plan-values tr td{padding-block:3px}}
 .plan-values{margin:7px 0 0}.plan-values td{white-space:nowrap}.plan-values caption{color:var(--text)}.plan-key{display:inline-block;width:13px;margin-right:7px;vertical-align:middle;border-top:2px solid var(--red)}.plan-key.planned{border-top:2px dashed var(--mint)}
 .plan-difference{min-height:20px;margin:12px 0 0;text-align:center;font-size:13px;color:var(--muted)}.plan-difference.income{color:var(--mint)}.plan-difference.expense{color:var(--red)}
@@ -104,17 +104,17 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
   <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
   <p class="empty" id="sync-status" role="status" hidden></p>
   <a class="telegram-link" id="hosted-wallet" href="https://arastuninbpan-code.github.io/DNA/wallet/" hidden>Открыть версию с синхронизацией ↗</a>
-  <footer class="version">Версия 1.5.9</footer>
+  <footer class="version">Версия 1.6.0</footer>
 </main>
 <dialog id="plan-window" aria-labelledby="plan-window-title">
   <div class="dialog-head">
     <h2 id="plan-window-title">План и факт</h2>
     <form method="dialog"><button class="close" aria-label="Закрыть">×</button></form>
   </div>
-  <div class="plan-scale" id="plan-scale" aria-hidden="true"></div>
   <div class="plan-frame">
+    <div class="plan-scale" id="plan-scale" aria-hidden="true"></div>
     <div id="plan-scroll" class="plan-scroll">
-      <canvas class="plan-plot" id="plan-plot" role="slider" tabindex="0" aria-label="День на графике накопительных расходов" aria-orientation="vertical" aria-valuemin="1"></canvas>
+      <canvas class="plan-plot" id="plan-plot" role="slider" tabindex="0" aria-label="День на графике накопительных расходов" aria-orientation="horizontal" aria-valuemin="1"></canvas>
     </div>
     <span class="plan-cursor" aria-hidden="true"></span>
   </div>
@@ -763,8 +763,7 @@ get('import').onchange = async event=>{
     input.value = '';
   }
 };
-const planRowHeight=20;
-const planLabelEdge=54, planRightEdge=12;
+const planDayWidth=34;
 function spendingTimeline(data,today) {
   const actual=new Map(), scheduled=new Map();
   const earliest=shiftDay(today,-180), latest=shiftDay(today,180);
@@ -818,7 +817,7 @@ function refreshPlan(initialOpen=false) {
   const wanted=initialOpen?today:prior||today;
   const index=planRows.findIndex(row=>row.day===wanted);
   const current=index<0?planRows.findIndex(row=>row.day===today):index;
-  const padding=Math.max(0,(planScroll.clientHeight-planRowHeight)/2);
+  const padding=Math.max(0,(planScroll.clientWidth-planDayWidth)/2);
   planScroll.style.setProperty('--plot-pad',padding+'px');
   paintPlan();
   if (initialOpen || planIndex!==current) selectPlanDay(current,true);
@@ -829,7 +828,7 @@ function selectPlanDay(index,scroll=false) {
   const next=Math.max(0,Math.min(planRows.length-1,index));
   const selected=planRows[next];
   planIndex=next;
-  if (scroll) planScroll.scrollTop=next*planRowHeight;
+  if (scroll) planScroll.scrollLeft=next*planDayWidth;
   const today=dateFormat.format(new Date());
   get('plan-day').textContent=dayName.format(new Date(selected.day+'T12:00:00Z'));
   get('plan-value').textContent=money(selected.plan);
@@ -844,60 +843,66 @@ function selectPlanDay(index,scroll=false) {
   planPlot.setAttribute('aria-valuetext',get('plan-day').textContent+', план '+money(selected.plan)+', факт '+get('actual-value').textContent);
 }
 planScroll.addEventListener('scroll',()=>{
-  const index=Math.round(planScroll.scrollTop/planRowHeight);
+  const index=Math.round(planScroll.scrollLeft/planDayWidth);
   if (index!==planIndex) selectPlanDay(index);
 },{passive:true});
+planScroll.addEventListener('wheel',event=>{
+  if (Math.abs(event.deltaY)<=Math.abs(event.deltaX) || event.ctrlKey) return;
+  event.preventDefault();
+  const pixels=event.deltaMode===1?16:event.deltaMode===2?planScroll.clientWidth:1;
+  planScroll.scrollLeft+=event.deltaY*pixels;
+},{passive:false});
 planPlot.onclick=event=>{
   const box=planPlot.getBoundingClientRect();
-  selectPlanDay(Math.floor((event.clientY-box.top)/planRowHeight),true);
+  selectPlanDay(Math.floor((event.clientX-box.left)/planDayWidth),true);
 };
 planPlot.onkeydown=event=>{
-  const next={ArrowUp:planIndex-1,ArrowDown:planIndex+1,PageUp:planIndex-7,PageDown:planIndex+7,Home:0,End:planRows.length-1}[event.key];
+  const next={ArrowLeft:planIndex-1,ArrowRight:planIndex+1,PageUp:planIndex-7,PageDown:planIndex+7,Home:0,End:planRows.length-1}[event.key];
   if (next===undefined) return;
   event.preventDefault();
   selectPlanDay(next,true);
 };
 function paintPlan() {
-  const width=planScroll.clientWidth, height=planRows.length*planRowHeight;
-  if (width<90||!height) return;
-  const key=JSON.stringify([width,window.devicePixelRatio,planRows]);
+  const width=planRows.length*planDayWidth, height=planScroll.clientHeight;
+  if (height<50||!width) return;
+  const key=JSON.stringify([height,window.devicePixelRatio,planRows]);
   if (key===paintedPlan) return;
   paintedPlan=key;
-  planPlot.style.height=height+'px';
-  const scale=Math.min(2,window.devicePixelRatio||1,4096/height);
+  planPlot.style.width=width+'px';
+  const scale=Math.min(2,window.devicePixelRatio||1,4096/width);
   planPlot.width=Math.max(1,Math.round(width*scale));
   planPlot.height=Math.max(1,Math.round(height*scale));
   const ctx=planPlot.getContext('2d');
   if (!ctx) return;
   ctx.scale(planPlot.width/width,planPlot.height/height);
-  const startX=planLabelEdge, endX=width-planRightEdge;
+  const top=10, bottom=height-24;
   const peak=Math.max(dailyBudget,...planRows.map(row=>Math.max(row.plan,row.fact||0)));
   const rough=peak/3, place=10**Math.floor(Math.log10(rough));
   const tick=Math.ceil(rough/place)*place;
-  const x=value=>startX+value*(endX-startX)/(3*tick);
-  const y=index=>(index+.5)*planRowHeight;
+  const x=index=>(index+.5)*planDayWidth;
+  const y=value=>bottom-value*(bottom-top)/(3*tick);
   const compact=new Intl.NumberFormat('ru-RU',{notation:'compact',maximumFractionDigits:1});
   const scaleLabels=get('plan-scale');
   scaleLabels.replaceChildren(...[0,1,2,3].map(i=>{
     const label=document.createElement('span');
     label.textContent=compact.format(i*tick/100)+(i===3?' ₽':'');
-    label.style.left=x(i*tick)+'px';
+    label.style.top=y(i*tick)+'px';
     return label;
   }));
   ctx.strokeStyle='#ffffff18';
   for (let i=0;i<=3;i++) {
-    const pos=x(i*tick);
-    ctx.beginPath();ctx.moveTo(pos,0);ctx.lineTo(pos,height);ctx.stroke();
+    const pos=y(i*tick);
+    ctx.beginPath();ctx.moveTo(0,pos);ctx.lineTo(width,pos);ctx.stroke();
   }
   ctx.font='11px system-ui';
-  ctx.textAlign='right';
+  ctx.textAlign='center';
   ctx.fillStyle='#a7b8b7';
   const today=dateFormat.format(new Date());
   for (let i=0;i<planRows.length;i++) {
     const day=planRows[i].day;
-    if (i%7!==0 && day!==today && i!==planRows.length-1) continue;
-    ctx.beginPath();ctx.moveTo(startX,y(i));ctx.lineTo(endX,y(i));ctx.stroke();
-    ctx.fillText(short(day),startX-8,y(i)+3);
+    if (i%3!==0 && day!==today && i!==planRows.length-1) continue;
+    ctx.beginPath();ctx.moveTo(x(i),top);ctx.lineTo(x(i),bottom);ctx.stroke();
+    ctx.fillText(short(day),x(i),height-7);
   }
   for (const [field,color,dash] of [['plan','#8cf0b7',[5,4]],['fact','#ff8d87',[]]]) {
     ctx.beginPath();
@@ -908,14 +913,14 @@ function paintPlan() {
     let last=-1;
     planRows.forEach((row,index)=>{
       if (row[field]===null) return;
-      if (last<0) ctx.moveTo(x(row[field]),y(index));
-      else ctx.lineTo(x(row[field]),y(index));
+      if (last<0) ctx.moveTo(x(index),y(row[field]));
+      else ctx.lineTo(x(index),y(row[field]));
       last=index;
     });
     ctx.stroke();
     ctx.setLineDash([]);
     if (last>=0) {
-      ctx.beginPath();ctx.arc(x(planRows[last][field]),y(last),3.4,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(x(last),y(planRows[last][field]),3.4,0,Math.PI*2);ctx.fill();
     }
   }
 }
