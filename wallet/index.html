@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.6.3">
+<link rel="manifest" href="manifest.webmanifest?v=1.6.4">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -84,6 +84,15 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <button class="income" id="add-income" type="button" aria-label="Добавить пополнение">+</button>
   </div>
   <p class="empty" id="sync-status" role="status"></p>
+  <button class="secondary" id="connect-wallet" type="button" hidden>Подключить Mini App</button>
+  <details id="telegram-setup" hidden>
+    <summary>Подключить Telegram по коду</summary>
+    <form id="connect-code-form" class="editor-fields">
+      <a class="telegram-link" href="https://t.me/nakarmoney_bot" target="_blank" rel="noopener noreferrer">Получить код у бота через /connect ↗</a>
+      <label>Код из Telegram<input id="manual-connect-code" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" required></label>
+      <button class="secondary" type="submit">Подключить</button>
+    </form>
+  </details>
   <p class="message" id="message" role="status"></p>
   <details class="paste-budget" id="import-box" hidden>
     <summary>Загрузить мой бюджет</summary>
@@ -100,17 +109,8 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <p class="empty" id="empty">Здесь появятся операции.</p>
     <ul id="history" class="list"></ul>
   </section>
-  <details id="telegram-setup" hidden>
-    <summary>Подключить Telegram</summary>
-    <form id="connect-code-form" class="editor-fields">
-      <a class="telegram-link" href="https://t.me/nakarmoney_bot" target="_blank" rel="noopener noreferrer">Получить код у бота через /connect ↗</a>
-      <label>Код из Telegram<input id="manual-connect-code" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="20" required></label>
-      <button class="secondary" type="submit">Подключить</button>
-    </form>
-  </details>
-  <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
   <a class="telegram-link" id="hosted-wallet" href="https://arastuninbpan-code.github.io/DNA/wallet/" hidden>Открыть версию с синхронизацией ↗</a>
-  <footer class="version">Версия 1.6.3</footer>
+  <footer class="version">Версия 1.6.4</footer>
 </main>
 <dialog id="plan-window" aria-labelledby="plan-window-title">
   <div class="dialog-head">
@@ -192,14 +192,16 @@ const planScroll=get('plan-scroll');
 let planRows=[], planIndex=0, paintedPlan='', backgroundY=0;
 const syncOrigin = 'https://nakarmoney-bot-webhook.a-rastuninbpan.chatgpt.site';
 const sessionKey = 'pocket-budget-telegram-session';
+const pendingPairKey = 'pocket-budget-telegram-pending-pair';
 const queueKey = 'pocket-budget-telegram-queue';
 const pairCode = globalThis.location?.hash.match(/(?:#|&)connect=([a-f0-9]{48})(?:&|$)/)?.[1];
 const canSync = globalThis.location?.origin==='https://arastuninbpan-code.github.io';
 get('hosted-wallet').hidden=globalThis.location?.protocol!=='file:';
-let session = null, queue = [], syncing = false;
+let session = null, pendingPair = null, queue = [], syncing = false, pairing = false;
 try {
   if (canSync) {
     session = localStorage.getItem(sessionKey);
+    pendingPair = localStorage.getItem(pendingPairKey);
     queue = JSON.parse(localStorage.getItem(queueKey)) || [];
   }
 } catch {}
@@ -336,43 +338,65 @@ async function sync() {
   }
 }
 async function connectTelegram(code,control) {
-    control.disabled=true;
+    if (pairing) return;
+    pairing=true;
+    if (control) control.disabled=true;
+    syncStatus('Подключаю Telegram…');
     try {
       if (session) {
         await sync();
         if (queue.length) throw new Error('Pending');
       }
-      const {token}=await api('/pair','POST',{code},null);
-      const remote=await api('/wallet','GET',null,token);
+      if (!pendingPair) {
+        const {token}=await api('/pair','POST',{code},null);
+        pendingPair=token;
+        localStorage.setItem(pendingPairKey,token);
+      }
+      const remote=await api('/wallet','GET',null,pendingPair);
+      if (!validWallet(remote)) throw new Error('Invalid wallet');
       const ids=new Set(remote.entries.map(item=>item.id));
       const local=wallet.entries.filter(item=>!ids.has(item.id));
       const initialOpening=!remote.openingSet && (wallet.openingSet || wallet.opening!==0) ?
         {opening:wallet.opening,openingDate:wallet.openingDate??null}: {};
-      session=token;
-      localStorage.setItem(sessionKey,session);
-      queue=[{set:local.slice(0,150),quiet:true,...initialOpening}];
+      localStorage.setItem(sessionKey,pendingPair);
+      session=pendingPair;
+      localStorage.removeItem(pendingPairKey);
+      pendingPair=null;
+      queue=local.length || initialOpening.opening!==undefined ? [{set:local.slice(0,150),quiet:true,...initialOpening}] : [];
       for (let i=150;i<local.length;i+=150)queue.push({set:local.slice(i,i+150),quiet:true});
       persistQueue();
       if (pairCode) history.replaceState(null,'',location.pathname+location.search);
       get('connect-wallet').hidden=true;
       await sync();
     } catch(error) {
-      syncStatus(error.message==='410'?'Ссылка истекла. Напиши /connect боту ещё раз.':'Подключение не удалось. Попробуй снова.');
+      if (error.message==='401' && pendingPair) {
+        localStorage.removeItem(pendingPairKey);
+        pendingPair=null;
+      }
+      get('telegram-setup').hidden=false;
+      get('connect-wallet').hidden=!(pairCode || pendingPair) || error.message==='410';
+      syncStatus(error.message==='410'||error.message==='401'?'Код уже использован или истёк. Получи новый через /connect.':
+        error.message==='Pending'?'Сначала нужно отправить изменения из текущего подключения.':
+        error.name==='QuotaExceededError'||error.name==='SecurityError'?'Браузер не смог сохранить подключение. Открой приложение вне приватного режима.':
+        pendingPair?'Код принят. Сервер пока не ответил. Нажми «Продолжить подключение».':'Сервер не ответил. Проверь интернет и попробуй снова.', 'error');
+      if (pendingPair) get('connect-wallet').textContent='Продолжить подключение';
     } finally {
-      control.disabled=false;
+      pairing=false;
+      if (control) control.disabled=false;
     }
 }
 syncStatus(session?'Проверка связи с Telegram…':canSync?'Telegram не подключён · данные на этом устройстве':'Локальная копия · синхронизация в онлайн-версии');
 if (canSync) {
-  get('telegram-setup').hidden=Boolean(session || pairCode);
-  if (pairCode) {
+  get('telegram-setup').hidden=Boolean(session);
+  if (pairCode || pendingPair) {
     const connect = get('connect-wallet');
     connect.hidden=false;
+    if (pendingPair) connect.textContent='Продолжить подключение';
     connect.onclick=()=>void connectTelegram(pairCode,connect);
   }
   get('connect-code-form').onsubmit=event=>{
     event.preventDefault();
-    const code=get('manual-connect-code').value.trim().replace(/[\s-]/g,'').toLowerCase();
+    const code=get('manual-connect-code').value.replace(/[\s\u200b-\u200f\u202a-\u202e\u2060-\u206f\-]/g,'').toLowerCase();
     if (!/^[a-f0-9]{12}$/.test(code)) {
       syncStatus('Вставь 12-символьный код из сообщения бота.');
       return;
