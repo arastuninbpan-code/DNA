@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.6.6">
+<link rel="manifest" href="manifest.webmanifest?v=1.6.7">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -110,7 +110,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <ul id="history" class="list"></ul>
   </section>
   <a class="telegram-link" id="hosted-wallet" href="https://arastuninbpan-code.github.io/DNA/wallet/" hidden>Открыть версию с синхронизацией ↗</a>
-  <footer class="version">Версия 1.6.6</footer>
+  <footer class="version">Версия 1.6.7</footer>
 </main>
 <dialog id="plan-window" aria-labelledby="plan-window-title">
   <div class="dialog-head">
@@ -538,28 +538,31 @@ function position(event,bounds) {
   const y = event.clientY-bounds.top-bounds.height/2;
   return {angle:Math.atan2(y,x),radius:Math.hypot(x,y)};
 }
-function move(event) {
+function move(event,claimTouch) {
   if (!drag || drag.id!==event.pointerId) return;
   const dx = event.clientX-drag.x, dy = event.clientY-drag.y;
+  if (drag.scrolling) return;
   if (!drag.active) {
-    if (Math.hypot(dx,dy)<8) return;
+    if (Math.hypot(dx,dy)<(drag.touch?5:8)) return;
     drag.moved=true;
     clearTimeout(drag.hold);
-    if (drag.scrolling) return;
-    if (drag.touch && Date.now()-drag.startedAt<180) {
-      if (Math.abs(dy)>=8 && Math.abs(dy)>Math.abs(dx)*1.2) {
-        drag.scrolling=true;
-        return;
-      }
-      if (Math.abs(dx)<9) return;
+    if (drag.touch && Date.now()-drag.startedAt<120 && Math.abs(dy)>Math.abs(dx)*1.25) {
+      drag.scrolling=true;
+      return;
+    }
+    if (claimTouch && !claimTouch()) {
+      drag.scrolling=true;
+      return;
     }
     drag.active=true;
     drag.axis=Math.abs(dx)>=Math.abs(dy)?'x':'y';
+  } else if (claimTouch && !claimTouch()) {
+    return;
   }
   const point = position(event,drag.bounds);
   let marker;
   if (drag.linear) {
-    drag.turn = (drag.axis==='y'?dy:dx)/12*detent;
+    drag.turn = (drag.axis==='y'?dy:dx)/(drag.touch?9:12)*detent;
     marker = drag.turn;
   } else {
     if (point.radius>=drag.bounds.width*.14) {
@@ -572,7 +575,7 @@ function move(event) {
     marker = (drag.angle??drag.startAngle)+Math.PI/2;
   }
   const rawSteps = drag.turn/detent;
-  if (Math.abs(rawSteps-drag.steps)>=.62) {
+  if (Math.abs(rawSteps-drag.steps)>=.56) {
     drag.steps = Math.max(-100000,Math.min(100000,Math.round(rawSteps)));
     showAmount(drag.steps,drag.balance);
   }
@@ -581,19 +584,17 @@ function move(event) {
 }
 function finish(event,commit) {
   if (!drag || drag.id!==event.pointerId) return;
-  if (commit && (!drag.touch || drag.active)) move(event);
-  else if (commit && Math.hypot(event.clientX-drag.x,event.clientY-drag.y)>=8) drag.moved=true;
+  if (commit && !drag.touch) move(event);
+  if (commit && !drag.active && Math.hypot(event.clientX-drag.x,event.clientY-drag.y)>=5) drag.moved=true;
   clearTimeout(drag.hold);
   const {active,moved,steps,balance} = drag;
   drag = null;
   dial.classList.remove('turning');
+  if (commit && active && steps && post(null,-steps*step)) return;
   showAmount(0,balance);
-  if (!commit) return;
-  if (active && steps) {
-    post(null,-steps*step);
-  } else {
+  if (commit && !moved) {
     const {radius} = position(event,dial.getBoundingClientRect());
-    if (!moved && radius<=dial.clientWidth/2) openPlan();
+    if (radius<=dial.clientWidth/2) openPlan();
   }
 }
 function begin(event,touch) {
@@ -604,7 +605,7 @@ function begin(event,touch) {
   const {balance} = summarize(wallet,dateFormat.format(new Date()));
   showAmount(0,balance);
   drag = {id:event.pointerId,bounds,x:event.clientX,y:event.clientY,angle:point.angle,startAngle:point.angle,
-    balance,linear:point.radius<bounds.width*.2,touch,startedAt:Date.now(),
+    balance,linear:point.radius<bounds.width*(touch ? .24 : .2),touch,startedAt:Date.now(),
     active:false,moved:false,scrolling:false,turn:0,steps:0};
   if (!touch) dial.setPointerCapture(event.pointerId);
   const pressed = drag;
@@ -626,11 +627,11 @@ dial.addEventListener('touchstart',event=>{if(event.touches.length===1)begin(con
 dial.addEventListener('touchmove',event=>{
   const finger=trackedTouch(event);
   if (!finger) return;
-  move(contact(finger));
-  if (drag?.active) {
-    if (event.cancelable) event.preventDefault();
-    else finish(contact(finger),false);
-  }
+  move(contact(finger),()=>{
+    if (!event.cancelable) return false;
+    event.preventDefault();
+    return true;
+  });
 },{passive:false});
 dial.addEventListener('touchend',event=>{
   const finger=trackedTouch(event);
