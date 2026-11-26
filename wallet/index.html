@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.6.1">
+<link rel="manifest" href="manifest.webmanifest?v=1.6.2">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -47,9 +47,10 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 @keyframes stats-in{from{opacity:.35;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .dialog-head .close{position:relative;font-size:0}.dialog-head .close::before,.dialog-head .close::after{content:"";position:absolute;left:50%;top:50%;width:14px;height:2px;border-radius:1px;background:currentColor;transform:translate(-50%,-50%) rotate(45deg)}.dialog-head .close::after{transform:translate(-50%,-50%) rotate(-45deg)}
 .line.planned .line-button{flex:1;min-height:50px}.line.planned .line-button>span{min-width:0}
-.history-section{margin-top:14px}.history-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:10px;border:1px solid #344241;border-radius:17px;overflow:hidden;background:var(--panel)}
-.history-add{min-height:52px;display:grid;place-items:center;padding:0;border:0;background:transparent;transition:background-color .16s ease}.history-add.expense{background:#ff8d870c}.history-add.income{background:#8cf0b70c}.history-add+.history-add{border-inline-start:1px solid var(--border)}.history-add:focus-visible{outline-offset:-3px}.history-add.expense:hover,.history-add.expense:active{background:#ff8d8723}.history-add.income:hover,.history-add.income:active{background:#8cf0b723}
-.history-glyph{position:relative;width:16px;height:16px;pointer-events:none}.history-glyph::before,.history-glyph.plus::after{content:"";position:absolute;left:50%;top:50%;width:16px;height:2px;border-radius:1px;background:currentColor;transform:translate(-50%,-50%)}.history-glyph.plus::after{transform:translate(-50%,-50%) rotate(90deg)}@media(prefers-reduced-motion:reduce){.history-add{transition:none}}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:8px 0 0;border:1px solid #344241;border-radius:17px;background:linear-gradient(130deg,#1e2b29,var(--panel) 64%);}
+.metrics div{min-width:0;padding:10px 10px 11px;text-align:center}.metrics div+div{border-inline-start:1px solid var(--border)}.metrics dd{margin:3px 0 1px;font-size:clamp(18px,5.3vw,25px);font-weight:730;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.metrics dt,.metrics .metric-note{color:var(--muted);font-size:clamp(11px,3.3vw,13px);font-weight:400;line-height:1.25}
+.history-section{margin-top:16px}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--border);padding:0 0 3px}.history-heading h2{font-size:14px;margin:0}.manual-link{min-height:40px;padding:0 1px;border:0;background:none;color:var(--muted);font-size:12px;text-align:right}.manual-link:focus-visible,.manual-link:hover{color:var(--mint)}
+.plan-breakdown{margin:4px 0;text-align:left;color:var(--muted);font-size:12px;overflow-wrap:anywhere}.plan-values th{padding-right:8px}.plan-values td{white-space:normal;overflow-wrap:anywhere}.plan-difference{font-weight:650}
 #plan-window{background:linear-gradient(132deg,#1e2b29,var(--panel) 58%);border-color:#2a3838;border-radius:22px}
 #plan-window[open]{animation:stats-in .24s cubic-bezier(.2,.72,.32,1)}
 .plan-active{overflow:hidden}.plan-active body{position:fixed;inset:var(--plan-background-top,0) 0 auto;width:100%;overflow:hidden}
@@ -76,6 +77,10 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <span class="marker" aria-hidden="true"></span>
   </button>
   <button class="tip" id="tip" type="button" aria-label="Показать следующую подсказку"></button>
+  <dl class="metrics" aria-label="Дневной лимит и отклонение от плана">
+    <div><dt id="daily-title">Остаток на день</dt><dd id="daily-amount"></dd><dd class="metric-note">Лимит 1 000 ₽</dd></div>
+    <div><dt>Отклонение от плана</dt><dd id="plan-gap"></dd><dd class="metric-note" id="plan-gap-note"></dd></div>
+  </dl>
   <p class="message" id="message" role="status"></p>
   <details class="paste-budget" id="import-box" hidden>
     <summary>Загрузить мой бюджет</summary>
@@ -86,9 +91,9 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <label class="import-label"><span>Выбрать файл</span><input id="import" type="file" accept=".json,application/json"></label>
   </details>
   <section class="history-section" aria-label="История операций">
-    <div class="history-actions" role="group" aria-label="Добавить операцию">
-      <button class="history-add expense" id="add-expense" type="button" aria-label="Добавить трату"><span class="history-glyph" aria-hidden="true"></span></button>
-      <button class="history-add income" id="add-income" type="button" aria-label="Добавить пополнение"><span class="history-glyph plus" aria-hidden="true"></span></button>
+    <div class="history-heading">
+      <h2>История</h2>
+      <button class="manual-link" id="manual-entry" type="button">Ввести с датой</button>
     </div>
     <p class="empty" id="empty">Здесь появятся операции.</p>
     <ul id="history" class="list"></ul>
@@ -104,7 +109,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
   <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
   <p class="empty" id="sync-status" role="status" hidden></p>
   <a class="telegram-link" id="hosted-wallet" href="https://arastuninbpan-code.github.io/DNA/wallet/" hidden>Открыть версию с синхронизацией ↗</a>
-  <footer class="version">Версия 1.6.1</footer>
+  <footer class="version">Версия 1.6.2</footer>
 </main>
 <dialog id="plan-window" aria-labelledby="plan-window-title">
   <div class="dialog-head">
@@ -121,10 +126,11 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
   <table class="quick-summary plan-values">
     <caption id="plan-day"></caption>
     <tbody>
-      <tr><th scope="row"><span class="plan-key planned" aria-hidden="true"></span>План накопительно</th><td id="plan-value"></td></tr>
-      <tr><th scope="row"><span class="plan-key" aria-hidden="true"></span>Факт накопительно</th><td id="actual-value"></td></tr>
+      <tr><th scope="row"><span class="plan-key planned" aria-hidden="true"></span>План к этой дате</th><td id="plan-value"></td></tr>
+      <tr><th scope="row"><span class="plan-key" aria-hidden="true"></span>Потрачено к этой дате</th><td id="actual-value"></td></tr>
     </tbody>
   </table>
+  <p class="plan-breakdown" id="plan-breakdown"></p>
   <p id="plan-difference" class="plan-difference"></p>
 </dialog>
 <dialog id="editor" aria-labelledby="editor-title">
@@ -175,7 +181,7 @@ let noticeTimer;
 let drag = null;
 let keyboardSteps = 0;
 let editingId = null;
-let creatingSign = null;
+let creatingOperation = false;
 let tipIndex = 0;
 let tipTimer;
 let tipText = '';
@@ -432,21 +438,19 @@ function historyRow(item,actual) {
   return row;
 }
 function walletTips(today) {
-  let spent=0, expected=0, due=0, late=0;
+  let expected=0, due=0, late=0;
   for (const item of wallet.entries) {
-    if (isActual(item,today)) {
-      if (item.added && item.sum<0 && dateOf(item)===today) spent-=item.sum;
-    } else if (item.date===today) {
+    if (isActual(item,today)) continue;
+    if (item.date===today) {
       if (item.sum<0) due-=item.sum; else expected+=item.sum;
     } else if (item.date<today) {
       late++;
     }
   }
-  const remaining=dailyBudget-spent;
-  const tips=[remaining>=0?['На сегодня осталось',money(remaining) + ' из 1 000 ₽']:['Сегодня сверх лимита',money(-remaining)]];
-  tips.push(expected||due?['Сегодня по плану',[expected?'+'+money(expected):'',due?'−'+money(due):''].filter(Boolean).join(' · ')]:['Сегодня по плану','платежей и поступлений нет']);
-  tips.push(late?['План отстаёт','не проведено: '+late]:['По плану','просроченных операций нет']);
-  return tips;
+  return [
+    expected||due?['Сегодня по плану',[expected?'+'+money(expected):'',due?'−'+money(due):''].filter(Boolean).join(' · ')]:['Сегодня по плану','платежей и поступлений нет'],
+    late?['План отстаёт','не проведено: '+late]:['По плану','просроченных операций нет']
+  ];
 }
 function renderTip(animate=false) {
   const [label,value]=walletTips(dateFormat.format(new Date()))[tipIndex];
@@ -461,7 +465,7 @@ function renderTip(animate=false) {
   get('tip').setAttribute('aria-label',text+'. Показать следующую подсказку');
 }
 function nextTip() {
-  tipIndex=(tipIndex+1)%3;
+  tipIndex=(tipIndex+1)%2;
   renderTip(true);
   clearTimeout(tipTimer);
   tipTimer=setTimeout(nextTip,9000);
@@ -472,6 +476,18 @@ function shiftDay(day,offset) {
   value.setUTCDate(value.getUTCDate()+offset);
   return value.toISOString().slice(0,10);
 }
+function renderMetrics(today) {
+  const spent=wallet.entries.reduce((sum,item)=>sum+(item.added&&item.sum<0&&isActual(item,today)&&dateOf(item)===today?-item.sum:0),0);
+  const left=dailyBudget-spent;
+  get('daily-title').textContent=left<0?'Сверх дневного лимита':'Остаток на день';
+  get('daily-amount').textContent=money(Math.abs(left));
+  get('daily-amount').className=left<0?'expense':'income';
+  const selected=spendingTimeline(wallet,today).find(row=>row.day===today);
+  const diff=selected?.fact==null?null:selected.fact-selected.plan;
+  get('plan-gap').textContent=diff===null?'—':money(Math.abs(diff));
+  get('plan-gap').className=diff>0?'expense':diff<0?'income':'';
+  get('plan-gap-note').textContent=diff===null?'Учёт ещё не начался':diff===0?'По плану':diff>0?'Больше плана':'Меньше плана';
+}
 function render() {
   const today = dateFormat.format(new Date());
   const result = summarize(wallet,today);
@@ -479,6 +495,7 @@ function render() {
   dial.classList.toggle('filled',total>0);
   dial.style.setProperty('--split',(total?100*result.income/total:0)+'%');
   dial.setAttribute('aria-label','На кармане '+money(result.balance)+'. Открыть графики');
+  renderMetrics(today);
   get('empty').hidden = wallet.entries.length>0;
   get('import-box').hidden = Boolean(wallet.opening || wallet.entries.some(item=>!item.added));
   const chronological = wallet.entries.map(item=>({item,date:dateOf(item),actual:isActual(item,today)}))
@@ -637,7 +654,7 @@ dial.addEventListener('keydown',event=>{
 function openEditor(item) {
   if (editor.open) return;
   editingId = item.id;
-  creatingSign = null;
+  creatingOperation = false;
   const planned=!isActual(item,dateFormat.format(new Date()));
   get('edit-date-label').hidden=!planned;
   get('edit-date').disabled=!planned;
@@ -653,11 +670,11 @@ function openEditor(item) {
   get('delete-confirm').hidden=true;
   editor.showModal();
 }
-function openManual(sign) {
+function openManual() {
   if (editor.open) return;
   editingId=null;
-  creatingSign=sign;
-  get('editor-title').textContent=sign<0?'Новая трата':'Новое пополнение';
+  creatingOperation=true;
+  get('editor-title').textContent='Новая операция';
   get('edit-amount').value='';
   get('edit-label').value='';
   get('edit-date-label').hidden=false;
@@ -670,14 +687,13 @@ function openManual(sign) {
   editor.showModal();
   get('edit-amount').focus();
 }
-get('add-expense').onclick=()=>openManual(-1);
-get('add-income').onclick=()=>openManual(1);
+get('manual-entry').onclick=openManual;
 get('edit-form').onsubmit = event=>{
   event.preventDefault();
   const item = wallet.entries.find(entry=>entry.id===editingId);
-  if (!item && !creatingSign) return;
+  if (!item && !creatingOperation) return;
   const raw = get('edit-amount').value.trim().replace(/[−–]/g,'-').replace(/\s/g,'');
-  const sign = raw.startsWith('-')?-1:raw.startsWith('+')?1:item?Math.sign(item.sum):creatingSign;
+  const sign = raw.startsWith('-')?-1:raw.startsWith('+')?1:item?Math.sign(item.sum):-1;
   const unsigned = raw.replace(/^[+-]/,'');
   const grouped = /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(unsigned);
   const normalized = (grouped?unsigned.replace(/\./g,''):unsigned).replace(',','.');
@@ -703,7 +719,7 @@ get('edit-form').onsubmit = event=>{
   if (save({...wallet,entries})) {
     editor.close();
     if (item) dial.focus({preventScroll:true});
-    else get(creatingSign<0?'add-expense':'add-income').focus({preventScroll:true});
+    else get('manual-entry').focus({preventScroll:true});
   } else {
     error.textContent = 'Сохранить правку не удалось.';
     error.hidden = false;
@@ -784,14 +800,15 @@ function spendingTimeline(data,today) {
   if (starts<first) first=starts;
   if (first<earliest) first=earliest;
   if (last>latest) last=latest;
-  let plan=[...scheduled].reduce((total,[day,value])=>total+(day<first?value:0),0);
-  if (starts<first) plan+=Math.round((Date.parse(first)-Date.parse(starts))/86400000)*dailyBudget;
+  let scheduledPlan=[...scheduled].reduce((total,[day,value])=>total+(day<first?value:0),0);
+  let dailyPlan=starts<first?Math.round((Date.parse(first)-Date.parse(starts))/86400000)*dailyBudget:0;
   let fact=[...actual].reduce((total,[day,value])=>total+(day<first?value:0),0);
   const rows=[];
   for (let day=first;day<=last;day=shiftDay(day,1)) {
-    plan+=(day>=starts?dailyBudget:0)+(scheduled.get(day)||0);
+    if (day>=starts) dailyPlan+=dailyBudget;
+    scheduledPlan+=scheduled.get(day)||0;
     fact+=actual.get(day)||0;
-    rows.push({day,plan,fact:day>=starts&&day<=today?fact:null});
+    rows.push({day,plan:dailyPlan+scheduledPlan,dailyPlan,scheduledPlan,fact:day>=starts&&day<=today?fact:null});
   }
   return rows;
 }
@@ -832,11 +849,12 @@ function selectPlanDay(index,scroll=false) {
   get('plan-day').textContent=dayName.format(new Date(selected.day+'T12:00:00Z'));
   get('plan-value').textContent=money(selected.plan);
   get('actual-value').textContent=selected.fact===null?'—':money(selected.fact);
+  get('plan-breakdown').textContent='Повседневные '+money(selected.dailyPlan)+' · платежи '+money(selected.scheduledPlan);
   const delta=selected.fact===null?null:selected.fact-selected.plan;
   const difference=get('plan-difference');
   difference.className='plan-difference'+(delta>0?' expense':delta<0?' income':'');
-  difference.textContent=delta===null?(selected.day>today?'Факт появится после этой даты':'Учёт на эту дату ещё не начался'):
-    delta===0?'Расходы совпадают с планом':money(Math.abs(delta))+(delta>0?' сверх плана':' ниже плана');
+  difference.textContent=delta===null?(selected.day>today?'Расходы за эту дату ещё впереди':'Учёт на эту дату ещё не начался'):
+    delta===0?'Расходы совпадают с планом':'На '+money(Math.abs(delta))+(delta>0?' больше плана':' меньше плана');
   planPlot.setAttribute('aria-valuemax',String(planRows.length));
   planPlot.setAttribute('aria-valuenow',String(next+1));
   planPlot.setAttribute('aria-valuetext',get('plan-day').textContent+', план '+money(selected.plan)+', факт '+get('actual-value').textContent);
