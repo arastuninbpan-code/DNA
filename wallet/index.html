@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.6.5">
+<link rel="manifest" href="manifest.webmanifest?v=1.6.6">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -110,7 +110,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <ul id="history" class="list"></ul>
   </section>
   <a class="telegram-link" id="hosted-wallet" href="https://arastuninbpan-code.github.io/DNA/wallet/" hidden>Открыть версию с синхронизацией ↗</a>
-  <footer class="version">Версия 1.6.5</footer>
+  <footer class="version">Версия 1.6.6</footer>
 </main>
 <dialog id="plan-window" aria-labelledby="plan-window-title">
   <div class="dialog-head">
@@ -189,7 +189,7 @@ const planWindow=get('plan-window');
 const planPlot=get('plan-plot');
 const planScroll=get('plan-scroll');
 let planRows=[], planIndex=0, paintedPlan='', backgroundY=0;
-const syncOrigin = 'https://nakarmoney-bot-webhook.a-rastuninbpan.chatgpt.site';
+const syncOrigin = 'https://nakarmoney-api.a-rastuninbpan.workers.dev';
 const sessionKey = 'pocket-budget-telegram-session';
 const pendingPairKey = 'pocket-budget-telegram-pending-pair';
 const queueKey = 'pocket-budget-telegram-queue';
