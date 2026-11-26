@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.6.0">
+<link rel="manifest" href="manifest.webmanifest?v=1.6.1">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -47,8 +47,9 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
 @keyframes stats-in{from{opacity:.35;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .dialog-head .close{position:relative;font-size:0}.dialog-head .close::before,.dialog-head .close::after{content:"";position:absolute;left:50%;top:50%;width:14px;height:2px;border-radius:1px;background:currentColor;transform:translate(-50%,-50%) rotate(45deg)}.dialog-head .close::after{transform:translate(-50%,-50%) rotate(-45deg)}
 .line.planned .line-button{flex:1;min-height:50px}.line.planned .line-button>span{min-width:0}
-.history-section{position:relative}.history-section summary{position:relative;min-height:52px;display:flex;justify-content:center;align-items:center;gap:4px;padding:3px 52px;list-style:none}.history-section summary::-webkit-details-marker{display:none}.history-section summary::after{content:"";width:6px;height:6px;margin-left:4px;border:solid var(--muted);border-width:0 1px 1px 0;transform:rotate(45deg) translateY(-2px)}.history-section details[open]>summary::after{transform:rotate(225deg) translateY(-1px)}.history-section summary:focus-visible{outline:none;text-decoration:underline;text-underline-offset:5px}
-.history-add{position:absolute;top:5px;z-index:1;width:44px;height:44px;display:grid;place-items:center;padding:0;border:1px solid var(--border);border-radius:13px;background:var(--panel);font-size:24px;line-height:1}.history-add:active{transform:scale(.95)}#add-expense{inset-inline-start:2px}#add-income{inset-inline-end:2px}
+.history-section{margin-top:14px}.history-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:10px;border:1px solid #344241;border-radius:17px;overflow:hidden;background:var(--panel)}
+.history-add{min-height:52px;display:grid;place-items:center;padding:0;border:0;background:transparent;transition:background-color .16s ease}.history-add.expense{background:#ff8d870c}.history-add.income{background:#8cf0b70c}.history-add+.history-add{border-inline-start:1px solid var(--border)}.history-add:focus-visible{outline-offset:-3px}.history-add.expense:hover,.history-add.expense:active{background:#ff8d8723}.history-add.income:hover,.history-add.income:active{background:#8cf0b723}
+.history-glyph{position:relative;width:16px;height:16px;pointer-events:none}.history-glyph::before,.history-glyph.plus::after{content:"";position:absolute;left:50%;top:50%;width:16px;height:2px;border-radius:1px;background:currentColor;transform:translate(-50%,-50%)}.history-glyph.plus::after{transform:translate(-50%,-50%) rotate(90deg)}@media(prefers-reduced-motion:reduce){.history-add{transition:none}}
 #plan-window{background:linear-gradient(132deg,#1e2b29,var(--panel) 58%);border-color:#2a3838;border-radius:22px}
 #plan-window[open]{animation:stats-in .24s cubic-bezier(.2,.72,.32,1)}
 .plan-active{overflow:hidden}.plan-active body{position:fixed;inset:var(--plan-background-top,0) 0 auto;width:100%;overflow:hidden}
@@ -84,14 +85,13 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     </form>
     <label class="import-label"><span>Выбрать файл</span><input id="import" type="file" accept=".json,application/json"></label>
   </details>
-  <section class="history-section" aria-label="Операции">
-    <button class="history-add expense" id="add-expense" type="button" aria-label="Добавить трату">−</button>
-    <button class="history-add income" id="add-income" type="button" aria-label="Добавить пополнение">+</button>
-    <details>
-      <summary>История <span id="history-count"></span></summary>
-      <p class="empty" id="empty">Здесь появятся операции.</p>
-      <ul id="history" class="list"></ul>
-    </details>
+  <section class="history-section" aria-label="История операций">
+    <div class="history-actions" role="group" aria-label="Добавить операцию">
+      <button class="history-add expense" id="add-expense" type="button" aria-label="Добавить трату"><span class="history-glyph" aria-hidden="true"></span></button>
+      <button class="history-add income" id="add-income" type="button" aria-label="Добавить пополнение"><span class="history-glyph plus" aria-hidden="true"></span></button>
+    </div>
+    <p class="empty" id="empty">Здесь появятся операции.</p>
+    <ul id="history" class="list"></ul>
   </section>
   <details id="telegram-setup" hidden>
     <summary>Подключить Telegram</summary>
@@ -104,7 +104,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
   <button class="secondary" id="connect-wallet" type="button" hidden>Объединить мои записи с Telegram</button>
   <p class="empty" id="sync-status" role="status" hidden></p>
   <a class="telegram-link" id="hosted-wallet" href="https://arastuninbpan-code.github.io/DNA/wallet/" hidden>Открыть версию с синхронизацией ↗</a>
-  <footer class="version">Версия 1.6.0</footer>
+  <footer class="version">Версия 1.6.1</footer>
 </main>
 <dialog id="plan-window" aria-labelledby="plan-window-title">
   <div class="dialog-head">
@@ -479,7 +479,6 @@ function render() {
   dial.classList.toggle('filled',total>0);
   dial.style.setProperty('--split',(total?100*result.income/total:0)+'%');
   dial.setAttribute('aria-label','На кармане '+money(result.balance)+'. Открыть графики');
-  get('history-count').textContent = wallet.entries.length ? '· '+wallet.entries.length : '';
   get('empty').hidden = wallet.entries.length>0;
   get('import-box').hidden = Boolean(wallet.opening || wallet.entries.some(item=>!item.added));
   const chronological = wallet.entries.map(item=>({item,date:dateOf(item),actual:isActual(item,today)}))
