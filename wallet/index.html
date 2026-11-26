@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="192x192" href="wallet-symbol-192.png">
 <link rel="apple-touch-icon" href="wallet-symbol.png">
-<link rel="manifest" href="manifest.webmanifest?v=1.6.7">
+<link rel="manifest" href="manifest.webmanifest?v=1.6.8">
 <title>На кармане</title>
 <style>
 :root{color-scheme:dark;--bg:#111719;--panel:#1a2324;--border:#334244;--text:#f4f8f6;--muted:#a7b8b7;--mint:#8cf0b7;--red:#ff8d87;--track:#354244}
@@ -37,7 +37,7 @@ html,body,dialog{touch-action:pan-y;-webkit-user-select:none;user-select:none;-w
 main>details>summary{position:relative;text-align:center;list-style:none;padding-inline:24px}main>details>summary::-webkit-details-marker{display:none}main>details>summary::after{content:"";position:absolute;inset-inline-end:5px;top:17px;width:7px;height:7px;border:solid var(--muted);border-width:0 1px 1px 0;transform:rotate(45deg)}main>details[open]>summary::after{transform:rotate(225deg);top:21px}
 #connect-wallet{display:block;width:fit-content;max-width:100%;margin-inline:auto;text-align:center}#sync-status,#connect-code-form .telegram-link{text-align:center}
 main>details>summary:focus-visible{outline:none;text-decoration:underline;text-decoration-color:#57716d;text-underline-offset:5px;text-decoration-thickness:1px}
-.dial{touch-action:pan-y}.cue{position:absolute;inset-inline:12px;top:calc(50% + 40px);margin:0}.version{margin:20px 0 0;text-align:center;color:var(--muted);font-size:12px}
+.cue{position:absolute;inset-inline:12px;top:calc(50% + 40px);margin:0}.version{margin:20px 0 0;text-align:center;color:var(--muted);font-size:12px}
 .tip{display:block;min-height:42px;width:100%;margin:10px auto 0;padding:5px 2px;background:none;border:0;color:var(--muted);text-align:center;font-size:13px;line-height:1.35}.tip span{display:block;animation:tip-in .23s ease-out}.tip strong{color:var(--text);font-weight:650}@keyframes tip-in{from{opacity:.3;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.tip span{animation:none}}
 .delete-area{border-top:1px solid var(--border);margin-top:17px;padding-top:10px;text-align:center}.delete-link{border:0;background:none;padding:9px;color:var(--red)}.delete-confirm p{margin:0 0 10px;font-size:14px;color:var(--muted)}.delete-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.danger{background:#472527;border-color:#a14e50;color:#ffb1ab}
 .dialog-head{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;column-gap:4px}.dialog-head h2{grid-column:2;text-align:center;overflow-wrap:anywhere}.dialog-head form{grid-column:3}
@@ -110,7 +110,7 @@ main>details>summary:focus-visible{outline:none;text-decoration:underline;text-d
     <ul id="history" class="list"></ul>
   </section>
   <a class="telegram-link" id="hosted-wallet" href="https://arastuninbpan-code.github.io/DNA/wallet/" hidden>Открыть версию с синхронизацией ↗</a>
-  <footer class="version">Версия 1.6.7</footer>
+  <footer class="version">Версия 1.6.8</footer>
 </main>
 <dialog id="plan-window" aria-labelledby="plan-window-title">
   <div class="dialog-head">
@@ -538,26 +538,27 @@ function position(event,bounds) {
   const y = event.clientY-bounds.top-bounds.height/2;
   return {angle:Math.atan2(y,x),radius:Math.hypot(x,y)};
 }
-function move(event,claimTouch) {
+function move(event) {
   if (!drag || drag.id!==event.pointerId) return;
   const dx = event.clientX-drag.x, dy = event.clientY-drag.y;
-  if (drag.scrolling) return;
+  if (drag.scrolling) {
+    window.scrollBy(0,drag.scrollY-event.clientY);
+    drag.scrollY=event.clientY;
+    return;
+  }
   if (!drag.active) {
-    if (Math.hypot(dx,dy)<(drag.touch?5:8)) return;
+    if (Math.hypot(dx,dy)<(drag.touch ? 5 : 8)) return;
     drag.moved=true;
     clearTimeout(drag.hold);
-    if (drag.touch && Date.now()-drag.startedAt<120 && Math.abs(dy)>Math.abs(dx)*1.25) {
+    if (drag.touch && Math.abs(dy)>Math.abs(dx)*1.35 && (drag.linear || Date.now()-drag.startedAt<140)) {
       drag.scrolling=true;
-      return;
-    }
-    if (claimTouch && !claimTouch()) {
-      drag.scrolling=true;
+      drag.scrollY=event.clientY;
+      window.scrollBy(0,-dy);
       return;
     }
     drag.active=true;
     drag.axis=Math.abs(dx)>=Math.abs(dy)?'x':'y';
-  } else if (claimTouch && !claimTouch()) {
-    return;
+    if (drag.touch && drag.axis==='x' && Math.abs(Math.cos(drag.startAngle))>.86) drag.linear=true;
   }
   const point = position(event,drag.bounds);
   let marker;
@@ -584,7 +585,7 @@ function move(event,claimTouch) {
 }
 function finish(event,commit) {
   if (!drag || drag.id!==event.pointerId) return;
-  if (commit && !drag.touch) move(event);
+  if (commit && (!drag.touch || drag.active)) move(event);
   if (commit && !drag.active && Math.hypot(event.clientX-drag.x,event.clientY-drag.y)>=5) drag.moved=true;
   clearTimeout(drag.hold);
   const {active,moved,steps,balance} = drag;
@@ -592,57 +593,37 @@ function finish(event,commit) {
   dial.classList.remove('turning');
   if (commit && active && steps && post(null,-steps*step)) return;
   showAmount(0,balance);
+  if (!commit && active && steps) notice('Жест прервался. Сумма не записалась.',1800);
   if (commit && !moved) {
     const {radius} = position(event,dial.getBoundingClientRect());
     if (radius<=dial.clientWidth/2) openPlan();
   }
 }
-function begin(event,touch) {
-  if (drag) return;
+function begin(event) {
+  if (drag || event.button!==0 || event.isPrimary===false) return;
+  const touch=event.pointerType==='touch';
   keyboardSteps = 0;
   const bounds = dial.getBoundingClientRect();
   const point = position(event,bounds);
   const {balance} = summarize(wallet,dateFormat.format(new Date()));
   showAmount(0,balance);
   drag = {id:event.pointerId,bounds,x:event.clientX,y:event.clientY,angle:point.angle,startAngle:point.angle,
-    balance,linear:point.radius<bounds.width*(touch ? .24 : .2),touch,startedAt:Date.now(),
+    balance,linear:point.radius<bounds.width*(touch ? .27 : .2),touch,startedAt:Date.now(),
     active:false,moved:false,scrolling:false,turn:0,steps:0};
-  if (!touch) dial.setPointerCapture(event.pointerId);
+  dial.setPointerCapture(event.pointerId);
   const pressed = drag;
   drag.hold = setTimeout(()=>{
     if (drag!==pressed || pressed.moved) return;
     drag = null;
-    if (!touch && dial.hasPointerCapture(pressed.id)) dial.releasePointerCapture(pressed.id);
+    if (dial.hasPointerCapture(pressed.id)) dial.releasePointerCapture(pressed.id);
     openPlan();
   },500);
 }
-dial.addEventListener('pointerdown',event=>{if (event.pointerType!=='touch' && event.button===0) begin(event,false);});
-dial.addEventListener('pointermove',event=>{if (event.pointerType!=='touch') move(event);});
-dial.addEventListener('pointerup',event=>{if (event.pointerType!=='touch') finish(event,true);});
-dial.addEventListener('pointercancel',event=>{if (event.pointerType!=='touch') finish(event,false);});
+dial.addEventListener('pointerdown',begin);
+dial.addEventListener('pointermove',move);
+dial.addEventListener('pointerup',event=>finish(event,true));
+dial.addEventListener('pointercancel',event=>finish(event,false));
 dial.addEventListener('lostpointercapture',event=>finish(event,false));
-const contact = touch=>({pointerId:touch.identifier,clientX:touch.clientX,clientY:touch.clientY});
-const trackedTouch = event=>Array.from(event.changedTouches).find(touch=>touch.identifier===drag?.id);
-dial.addEventListener('touchstart',event=>{if(event.touches.length===1)begin(contact(event.changedTouches[0]),true);},{passive:true});
-dial.addEventListener('touchmove',event=>{
-  const finger=trackedTouch(event);
-  if (!finger) return;
-  move(contact(finger),()=>{
-    if (!event.cancelable) return false;
-    event.preventDefault();
-    return true;
-  });
-},{passive:false});
-dial.addEventListener('touchend',event=>{
-  const finger=trackedTouch(event);
-  if (!finger) return;
-  if (!drag.scrolling && event.cancelable) event.preventDefault();
-  finish(contact(finger),true);
-});
-dial.addEventListener('touchcancel',event=>{
-  const finger=trackedTouch(event);
-  if(finger)finish(contact(finger),false);
-});
 dial.oncontextmenu = event=>event.preventDefault();
 dial.addEventListener('click',event=>{
   if (event.detail!==0) return;
